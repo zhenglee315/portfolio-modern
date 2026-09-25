@@ -1,1 +1,3 @@
-"""Application configuration, infrastructure, and resource assembly."""
+# ◆—< Pack >—————————————————————————————————◆ System
+from SYSTEM.settings import *
+# from SYSTEM.urls import *

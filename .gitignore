@@ -1,1 +1,5 @@
 /agent/
+*test*.py
+
+# Local deployment configuration (may contain credentials).
+/backend/SYSTEM/config.yaml

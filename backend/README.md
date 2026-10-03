@@ -59,9 +59,9 @@ backend/
         └── __init__.py
 ```
 
-上圖列出目前已提交的主要後端檔案，省略 package 標記與靜態資產細項。`SYSTEM/database/models/` 與 `migrations/` 目前只是骨架；本機尚有未整合的 ORM／Alembic 草稿。`APPs/` 的業務模組尚未建立。
+上圖列出目前已整合的主要後端檔案，省略 package 標記、靜態資產細項與尚未整合的草稿。`SYSTEM/database/models/` 與 `migrations/` 是骨架；版本庫另有 `SYSTEM/models/`、`SYSTEM/database/orm/`、`alembic.ini` 等 ORM／Alembic 草稿，但啟動流程沒有載入它們。`APPs/` 的業務模組尚未建立。
 
-The tree shows the main committed backend files, omitting package markers and individual static assets. `SYSTEM/database/models/` and `migrations/` are still scaffolds; local ORM/Alembic drafts are not integrated. Business modules under `APPs/` have not been created.
+The tree shows the main integrated backend files, omitting package markers, individual static assets, and unintegrated drafts. `SYSTEM/database/models/` and `migrations/` are scaffolds. The repository also contains ORM/Alembic drafts under `SYSTEM/models/`, `SYSTEM/database/orm/`, and `alembic.ini`, but startup does not load them. Business modules under `APPs/` have not been created.
 
 本機產生的 `.venv/` 與作業系統檔案不屬於原始碼架構，未列入上圖。依賴宣告以 [pyproject.toml](pyproject.toml) 為準，解析後版本記錄於 [uv.lock](uv.lock)。
 
@@ -208,9 +208,9 @@ COMMON centralizes reusable rules and operations so modules share parameter conv
 | `schema/utils/` | 共用 schema 型別、欄位限制與驗證器，不查資料庫或執行業務流程 | Shared schema types, constraints, and validators; no database access or business workflows |
 | `tools/` | 以 `tools_<module>.py` 封裝跨模組的操作、轉換與輔助方法；目前 Redis helper 會從 SYSTEM manager 取得 client | Shared operations and helpers in `tools_<module>.py`; the current Redis helper resolves its client from the SYSTEM manager |
 
-`tools_yaml.py` 與 `storage/redis/tools_redis_async.py` 已建立。`storage/sqlalchemy/` 目前是本機草稿，尚未與單一資料庫 manager 整合；其他工具依實際需求新增。一般資料轉換放在 tools；與 schema 欄位直接相關的限制與驗證放在 schema。
+`tools_yaml.py` 與 `storage/redis/tools_redis_async.py` 已建立。版本庫中的 `storage/sqlalchemy/` 目前是草稿，尚未與單一資料庫 manager 整合；其他工具依實際需求新增。一般資料轉換放在 tools；與 schema 欄位直接相關的限制與驗證放在 schema。
 
-`tools_yaml.py` and `storage/redis/tools_redis_async.py` are present. `storage/sqlalchemy/` is a local draft that is not integrated with the single-database manager; add further helpers when needed. General transformations belong in tools, while field constraints and schema-specific validation belong in schema.
+`tools_yaml.py` and `storage/redis/tools_redis_async.py` are present. The versioned `storage/sqlalchemy/` directory is a draft that is not integrated with the single-database manager; add further helpers when needed. General transformations belong in tools, while field constraints and schema-specific validation belong in schema.
 
 COMMON 的使用規則如下：
 
@@ -435,7 +435,7 @@ The current [ConnectionManager](SYSTEM/database/database_core.py) owns one async
 | `ConnectionManager.get_cache(key)` | 回傳指定的 Redis client；未註冊的 key 會報 `KeyError`。 / Return the selected Redis client; an unknown key raises `KeyError`. |
 | `await ConnectionManager.shutdown_all_connections()` | Dispose engine 並關閉 Redis client；關閉失敗以 `ExceptionGroup` 回報。 / Dispose the engine and close Redis clients; report close failures with `ExceptionGroup`. |
 
-使用 SQL session 時，請以 `async with CONN_MANAGER.get_db() as session:` 限定生命週期。`get_db()` 不會替業務操作自動提交交易。`COMMON/tools/storage/sqlalchemy/` 目前有本機草稿，但尚未接上這個單一資料庫 manager，不應把舊版 executor 範例當作目前可用 API。
+使用 SQL session 時，請以 `async with CONN_MANAGER.get_db() as session:` 限定生命週期。`get_db()` 不會替業務操作自動提交交易。`COMMON/tools/storage/sqlalchemy/` 的既有草稿尚未接上這個單一資料庫 manager，不應把舊版 executor 範例當作目前可用 API。
 
 Scope SQL sessions with `async with CONN_MANAGER.get_db() as session:`. `get_db()` does not automatically commit business operations. Local drafts under `COMMON/tools/storage/sqlalchemy/` are not integrated with this single-database manager; older executor examples are not current APIs.
 
@@ -513,9 +513,9 @@ WEB cache uses `EnumCache.WEB`; the online-count heartbeat uses `EnumCache.SYS`.
 
 A local FastAPI `TestClient` smoke check simulated a Redis heartbeat connection error: `/swagger` returned 200, WEB cache was registered in lifespan, and resources were cleaned up across two consecutive app lifecycles. A simulated `init_db()` startup error also confirmed cleanup of cache clients and `FastAPICache` state. These checks did not connect to external Redis or PostgreSQL or verify business APIs.
 
-本機尚有未提交的 `tests/test_database_core.py`，其 fixture 與斷言仍針對舊版多資料庫管理器；目前執行時 41 個案例在 setup 階段出錯，不可當作現行程式已通過的測試。ORM／Alembic 草稿尚未整合，也不會在伺服器啟動時自動建表或執行 migration。
+版本庫中的 `tests/test_database_core.py` 其 fixture 與斷言仍針對舊版多資料庫管理器；目前執行時 41 個案例在 setup 階段出錯，不可當作現行程式已通過的測試。ORM／Alembic 草稿尚未整合，也不會在伺服器啟動時自動建表或執行 migration。
 
-A local uncommitted `tests/test_database_core.py` still targets the former multi-database manager. At present, all 41 cases fail during setup, so it must not be presented as a passing current suite. ORM/Alembic drafts are not integrated; server startup does not automatically create tables or run migrations.
+The versioned `tests/test_database_core.py` still targets the former multi-database manager. At present, all 41 cases fail during setup, so it must not be presented as a passing current suite. ORM/Alembic drafts are not integrated; server startup does not automatically create tables or run migrations.
 
 ## 8. 工程與文件規則 / Engineering and Documentation Rules
 

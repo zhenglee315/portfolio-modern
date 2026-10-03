@@ -14,13 +14,13 @@ The project aims for **lightweight development and deployment**: add dependencie
 
 ## 目前進度 / Current status
 
-- 已完成 Python 後端的 uv 專案初始化、基礎依賴宣告，以及 `APPs`、`COMMON`、`SYSTEM` 基礎目錄骨架。
-- 正在討論後端架構、資料庫與 API 契約，尚未完成可運行的業務 API。
+- 已完成 Python 後端的 uv 專案初始化、FastAPI 啟動入口、單一非同步資料庫 manager、Redis client、WEB cache、heartbeat middleware 與本機 Swagger／ReDoc。
+- 後端伺服器可啟動；業務 API、ORM 與 migration 尚未完成。
 - 後端 API 契約參考既有 mock 資料；本專案前端暫未開發，串接工作留待後續階段。
 - 以下目錄結構為規劃，不代表所有目錄或功能均已建立。
 
-- The Python backend has been initialized with uv, its initial dependencies declared, and the base `APPs`, `COMMON`, and `SYSTEM` directory scaffold created.
-- Backend architecture, database design, and API contracts are under discussion; runnable business APIs are not yet complete.
+- The Python backend now has a uv project, a FastAPI entry point, a single async database manager, Redis clients, WEB cache, heartbeat middleware, and local Swagger/ReDoc.
+- The backend server starts; business APIs, ORM integration, and migrations remain unfinished.
 - Existing mock data informs the backend API contracts. Frontend development in this project and API integration are deferred to a later phase.
 - The directory structure below is a plan; not all directories or features exist yet.
 
@@ -36,7 +36,8 @@ The project aims for **lightweight development and deployment**: add dependencie
 | pydantic-settings | 環境設定讀取與驗證 | Environment configuration loading and validation |
 | SQLAlchemy | ORM 與資料庫操作，包含 asyncio 額外依賴 | ORM and database operations with asyncio extras |
 | Alembic | 資料庫結構版本管理 | Database schema migrations |
-| redis | Redis Python 用戶端；快取用途與服務啟用方式待確認 | Redis client; cache usage and service setup remain undecided |
+| redis、fastapi-cache2 | Redis client 與 WEB cache backend；業務 API 尚未使用快取裝飾器 | Redis clients and WEB cache backend; business APIs do not use cache decorators yet |
+| python-socketio | Socket.IO ASGI 組裝 | Socket.IO ASGI assembly |
 | Black | Python 排版，開發依賴 | Python formatter; development dependency |
 | pytest、HTTPX | 測試工具，開發依賴 | Testing tools; development dependencies |
 | Docker | 按需啟動外部服務、容器驗證或部署 | On-demand external services, container validation, or deployment |
@@ -45,21 +46,21 @@ The project aims for **lightweight development and deployment**: add dependencie
 
 Dependency declarations are in [backend/pyproject.toml](backend/pyproject.toml); resolved versions are recorded in `backend/uv.lock`.
 
-目前方向是本機開發使用 SQLite，部署時使用 PostgreSQL，皆透過 SQLAlchemy 非同步 ORM 存取。目前已宣告 `asyncpg`，`aiosqlite` 則位於開發依賴群組；資料庫連線與 ORM models 尚未實作。安裝 Python 用戶端套件不代表已安裝或啟動資料庫、Redis 服務。
+目前的 `ConnectionManager` 支援單一非同步 SQLite 或 PostgreSQL engine，並提供每次操作新建的 `AsyncSession`。`asyncpg` 是正式依賴，`aiosqlite` 位於開發依賴群組。ORM models 與 migration 尚未整合；安裝 Python 用戶端套件不代表已安裝或啟動資料庫、Redis 服務。
 
-The current direction is SQLite for local development and PostgreSQL for deployment, both accessed through SQLAlchemy's asynchronous ORM. `asyncpg` is now declared, and `aiosqlite` is in the development dependency group; database connections and ORM models are not implemented yet. Installing Python clients does not install or start database or Redis services.
+`ConnectionManager` supports one async SQLite or PostgreSQL engine and returns a fresh `AsyncSession` for each operation. `asyncpg` is a runtime dependency; `aiosqlite` is in the development group. ORM models and migrations are not integrated yet. Installing Python clients does not install or start database or Redis services.
 
 ## 輕量化原則 / Lightweight development principles
 
 - 日常在 macOS 以 uv 虛擬環境直接開發 FastAPI，Docker 按需啟動。
-- 先完成必要的 API 與資料存取；有明確用途後才啟用快取、背景工作或其他常駐服務。
+- WEB cache 與 Redis client 基礎已建立；業務 API 的快取策略及其他常駐服務仍依實際需求加入。
 - 初期採單一後端服務，避免預先拆分微服務或引入多套排程、訊息佇列系統。
 - 部署時依實測負載調整 worker、資料庫連線池與快取上限，避免直接套用大型專案設定。
 - 開發工具與正式執行依賴分開管理。
 - 共用能力按實際重用需求抽取，避免為簡單功能建立過多抽象層。
 
 - Develop FastAPI directly on macOS in a uv virtual environment; start Docker only when needed.
-- Implement essential APIs and data access first. Add caching, background jobs, or other persistent services when a concrete need arises.
+- WEB cache and Redis client infrastructure are in place; add route-level caching policies and other persistent services when needed.
 - Start with one backend service, without prematurely introducing microservices, multiple schedulers, or message queues.
 - Tune workers, connection pools, and cache limits using measured workloads instead of copying settings from larger systems.
 - Manage development tools separately from runtime dependencies.
@@ -94,12 +95,13 @@ portfolio-modern/
     ├── SYSTEM/
     │   ├── config.yaml
     │   ├── settings.py
-    │   ├── urls.py
     │   ├── lifespan.py
     │   ├── database/
+    │   │   ├── database_core.py
     │   │   └── models/
-    │   └── security/
-    │       └── middleware/
+    │   ├── middleware/
+    │   ├── static/
+    │   └── tools/
     ├── manage_fastapi.py
     ├── pyproject.toml
     └── uv.lock
@@ -108,18 +110,18 @@ portfolio-modern/
 - `APPs`：按業務模組組織 API。`views` 處理 HTTP 介面，`module` 處理業務邏輯，`schema` 分別定義請求主體、參數解析與回應格式。
 - `COMMON`：跨模組共用的裝飾器、例外、資料格式與工具。
 - `SYSTEM`：系統設定、路由註冊、生命週期、資料庫基礎設施與安全機制。
-- `SYSTEM/database/models`：集中管理資料表模型，按業務領域分檔。
-- `manage_fastapi.py`：規劃中的應用組裝與啟動入口。
+- `SYSTEM/database/models`：目前是 ORM 骨架，尚未整合資料表模型。
+- `manage_fastapi.py`：目前的 FastAPI、文件與 Socket.IO 組裝及啟動入口。
 
 - `APPs`: APIs grouped by business module. `views` handles HTTP interfaces, `module` contains business logic, and `schema` defines request bodies, parameter parsing, and response formats.
 - `COMMON`: Decorators, exceptions, schemas, and utilities shared across modules.
 - `SYSTEM`: Configuration, route registration, lifecycle management, database infrastructure, and security.
-- `SYSTEM/database/models`: Centralized database models, split by business domain.
-- `manage_fastapi.py`: Planned application assembly and startup entry point.
+- `SYSTEM/database/models`: An ORM scaffold; table models are not integrated yet.
+- `manage_fastapi.py`: The current FastAPI, docs, and Socket.IO assembly and startup entry point.
 
-`SYSTEM/config.yaml` 規劃放置 server 與部署配置，`settings.py` 統一載入與驗證。完整目標結構、COMMON 的共用邊界及目前所有自有方法，見[後端 README](backend/README.md)。文件中會區分現況與尚未實作的設計。
+`SYSTEM/config.yaml` 是不提交的本機配置，`settings.py` 負責載入與整理。啟動步驟、目前架構與主要介面見[後端 README](backend/README.md)，其中區分已實作與尚未整合的部分。
 
-`SYSTEM/config.yaml` is planned for server and deployment configuration, with `settings.py` providing centralized loading and validation. See the [backend README](backend/README.md) for the full target structure, COMMON's reuse boundaries, and every currently implemented project function. It distinguishes the current implementation from planned design.
+`SYSTEM/config.yaml` is a local configuration file excluded from Git, and `settings.py` loads and organizes its values. See the [backend README](backend/README.md) for startup steps, the current architecture, and main interfaces, with implemented and unfinished parts distinguished.
 
 ## API 範圍 / API scope
 
@@ -184,9 +186,9 @@ Use `uv run` to execute project commands without manually activating the environ
 uv run black --check .
 ```
 
-服務啟動指令將在 FastAPI 入口完成後補上。
+在 `backend/` 建立私有的 `SYSTEM/config.yaml` 後，以 `uv run manage_fastapi.py` 啟動伺服器。設定中至少要有非空的 `SECURITY.secret_key` 和 `DATABASE.META` 的 `type`、`is_async`、`name`；預設文件路徑為 `/swagger`。目前 `backend` console script 仍是 uv 範例，不會啟動 API。
 
-Server startup instructions will be added once the FastAPI entry point is implemented.
+After creating a private `SYSTEM/config.yaml` inside `backend/`, start the server with `uv run manage_fastapi.py`. Configure a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async`, and `name`; the default docs path is `/swagger`. The `backend` console script still runs the generated uv example rather than the API.
 
 ## 文件與版本控制 / Documentation and version control
 

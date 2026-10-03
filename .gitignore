@@ -1,5 +1,11 @@
 /agent/
 *test*.py
-
+# Keep the database core regression suite while ignoring ad hoc test scripts.
+!/backend/tests/test_database_core.py
+/test/
 # Local deployment configuration (may contain credentials).
 /backend/SYSTEM/config.yaml
+
+# Python bytecode cache.
+__pycache__/
+*.py[cod]

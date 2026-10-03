@@ -4,9 +4,9 @@
 
 This directory contains the backend of the **Modern Personal Profile System**, centered on FastAPI, uv, and SQLAlchemy's asynchronous ORM. The goals are lightweight development, modularity, and maintainability. Backend development takes priority; frontend development is deferred. See the [root README](../README.md) for the product overview.
 
-本文件區分「目前已有的內容」與「規劃中的架構」。基礎目錄骨架、YAML／Enum 工具、快取常數與網路工具已建立；應用組裝、資源管理與業務功能仍待實作及整合。目標結構中的細部檔名是職責配置建議，依實際需求建立。
+本文件區分「目前已有的內容」與「規劃中的架構」。基礎骨架、YAML／Enum／網路工具、連線管理核心、SQLAlchemy／Redis 工具與資料庫 lifespan 已建立；完整應用組裝與業務功能仍待整合。目標結構中的細部檔名是職責配置建議，依實際需求建立。
 
-This document separates the current implementation from the planned architecture. The base scaffold, YAML/enum helpers, cache constants, and network utilities exist; application assembly, resource management, and business functionality still require implementation and integration. Detailed filenames in the target structure illustrate proposed responsibilities and will be introduced as needed.
+This document separates the current implementation from the planned architecture. The scaffold, YAML/enum/network helpers, connection manager, SQLAlchemy/Redis tools, and database lifespan exist. Complete application assembly and business functionality still need integration. Detailed filenames in the target structure illustrate proposed responsibilities and will be introduced as needed.
 
 ## 1. 目前狀態 / Current State
 
@@ -26,18 +26,25 @@ backend/
 │   │   ├── resp/
 │   │   └── utils/
 │   └── tools/
+│       ├── storage/
+│       │   ├── sqlalchemy/
+│       │   └── redis/
 │       ├── tools_enum.py
 │       └── tools_yaml.py
 ├── SYSTEM/
 │   ├── config.yaml
 │   ├── extension.py
 │   ├── settings.py
+│   ├── lifespan.py
 │   ├── tools/
+│   │   ├── tools_fastapi.py
 │   │   └── tools_net.py
 │   ├── constants/
 │   │   ├── constant_storage.py
 │   │   └── constants_cache.py
 │   ├── database/
+│   │   ├── database_core.py
+│   │   ├── database_loader.py
 │   │   ├── models/
 │   │   └── migrations/
 │   │       └── .gitkeep
@@ -45,6 +52,9 @@ backend/
 │       └── middleware/
 ├── .python-version
 ├── README.md
+├── manage_fastapi.py
+├── tests/
+│   └── test_database_core.py
 ├── pyproject.toml
 ├── uv.lock
 └── src/
@@ -52,9 +62,9 @@ backend/
         └── __init__.py
 ```
 
-原始骨架的 Python package 含 `__init__.py`；目前 SYSTEM 已開始加入 import 與設定載入，尚待完整整合。`SYSTEM/tools/` 目前沒有 `__init__.py` 匯出介面。上圖省略 package 標記。`migrations/` 以 `.gitkeep` 保留於版本控制，尚未執行 Alembic 初始化。`APPs/` 的具體業務模組在確認分組後建立。
+原始骨架的 Python package 含 `__init__.py`；SYSTEM 已加入 import、設定載入與工具匯出，尚待完整應用整合。上圖省略 package 標記。`migrations/` 以 `.gitkeep` 保留於版本控制，尚未執行 Alembic 初始化。`APPs/` 的具體業務模組在確認分組後建立。
 
-The original scaffold packages contain `__init__.py` files. SYSTEM now includes imports and initial configuration loading that still require integration. `SYSTEM/tools/` currently has no `__init__.py` export interface. Package markers are omitted above. `migrations/` uses `.gitkeep` to retain the directory in version control; Alembic has not been initialized. Business module directories under `APPs/` will be created once their grouping is confirmed.
+The original scaffold packages contain `__init__.py` files. SYSTEM includes imports, configuration loading, and tool exports; full application integration remains pending. Package markers are omitted above. `migrations/` uses `.gitkeep` to retain the directory in version control; Alembic has not been initialized. Business module directories under `APPs/` will be created once their grouping is confirmed.
 
 本機產生的 `.venv/` 與作業系統檔案不屬於原始碼架構，未列入上圖。依賴宣告以 [pyproject.toml](pyproject.toml) 為準，解析後版本記錄於 [uv.lock](uv.lock)。
 
@@ -65,12 +75,16 @@ The locally generated `.venv/` and operating-system files are not part of the so
 | API | `fastapi`, `uvicorn[standard]` | HTTP API 與 ASGI 執行環境 / HTTP APIs and ASGI runtime |
 | 資料驗證 / Validation | `pydantic`, `pydantic-settings` | 資料與應用設定驗證 / Data and application settings validation |
 | 資料庫 / Database | `sqlalchemy[asyncio]`, `asyncpg`, `alembic` | 非同步 ORM、PostgreSQL 驅動、結構遷移 / Async ORM, PostgreSQL driver, and schema migrations |
-| 快取用戶端 / Cache Client | `redis` | Redis 用戶端；啟用快取的功能尚未實作 / Redis client; caching features are not implemented |
+| 快取用戶端 / Cache Client | `redis` | Redis client、共用 pool 與非同步指令工具；業務快取策略仍待整合 / Redis client, shared pools, and async command helpers; business caching policies still need integration |
 | 開發依賴 / Development | `aiosqlite`, `black`, `pytest`, `httpx` | 本機 SQLite 驅動、排版與測試 / Local SQLite driver, formatting, and testing |
 
 目前方向是本機以 SQLite 開發、部署時使用 PostgreSQL，皆透過 SQLAlchemy async ORM 存取。`aiosqlite` 目前位於 `dev` 群組，因此本機 SQLite 環境需要包含此群組；若未來正式環境也使用 SQLite，須重新調整依賴分類。Python 驅動的安裝不代表資料庫或 Redis 服務已安裝、啟動。
 
 The current direction is SQLite for local development and PostgreSQL for deployment, accessed through SQLAlchemy's async ORM. `aiosqlite` is currently in the `dev` group, so local SQLite environments need that group. If SQLite is later used in production, its dependency classification must change. Installing Python drivers does not install or start database or Redis services.
+
+Black 格式設定集中在 `pyproject.toml` 的 `[tool.black]`，`line-length = 120`，沿用 HolmesBase 的行長規範。在本目錄執行 `uv run black .` 格式化，或以 `uv run black --check .` 僅檢查。
+
+Black formatting is configured in `[tool.black]` in `pyproject.toml`, with `line-length = 120` matching HolmesBase. From this directory, run `uv run black .` to format or `uv run black --check .` to check without modifying files.
 
 ## 2. 目標目錄結構 / Target Directory Structure
 
@@ -209,7 +223,7 @@ Rules for COMMON:
 | `constants/` | 固定 Enum、識別碼與協定常數；不放每天變動的時間結果或部署開關快照 | Fixed enums, identifiers, and protocol constants; no daily time snapshots or deployment-flag snapshots |
 | `urls.py` | 集中管理路由前綴與註冊，實際掛載各 APPs router | Centralize route prefixes and registration, mounting routers from APPs |
 | `lifespan.py` | 控制應用資源的建立與釋放，處理啟動中途失敗時的清理 | Own application resource startup and shutdown, including cleanup after partial startup failures |
-| `database/database_core.py` | 建立 async Engine、Session factory 與取得 Session 的介面，集中處理驅動和連線差異 | Configure async engines, Session factories, and Session access; centralize driver and connection differences |
+| `database/database_core.py` | 管理 sync/async Engine、Session factory、Redis client 與 managed transaction，集中處理資源生命週期 | Manage sync/async engines, session factories, Redis clients, and managed transactions with centralized resource ownership |
 | `database/models/` | 集中定義資料表、關聯與約束，按領域分檔 | Define database tables, relationships, and constraints, grouped by domain |
 | `database/migrations/` | 維護單一可追蹤的資料庫結構版本歷史 | Maintain a single traceable database schema migration history |
 | `security/middleware/` | 處理必要的跨請求安全機制；具體功能依 API 需求建立 | Implement required request-level security mechanisms as the API scope demands |
@@ -361,6 +375,289 @@ Current methods include the uv sample entry point, YAML reader, enum helpers, an
 - 無 request 時保留同步公開 IP 查詢，以標準庫取代開發依賴 HTTPX；網路或無效回應會退回本機解析。1 秒 socket timeout 不等於整體截止時間，不應直接在 async 請求路徑呼叫。 / Without a request, public-IP detection remains synchronous and uses the standard library instead of development-only HTTPX. Failed or invalid responses fall back to hostname resolution. The one-second socket timeout is not a total deadline; avoid calling this mode directly on an async request path.
 - `net_primary_ip()` 不傳送應用資料，但 hostname 解析可能產生 DNS 流量，所得位址不保證是 NAT 外部的公開 IP，也不代表目的地可達。 / Route probing sends no application payload, but hostname resolution may cause DNS traffic. The result need not be the public address beyond NAT and does not establish destination reachability.
 - 萬用字元只支援 IPv4；IPv6 scope 不接受，IPv4-mapped IPv6 保持 IPv6 比對。網路錯誤採既定 fallback；無效白名單輸入不放行。 / Wildcards are IPv4-only; scoped IPv6 is rejected, and IPv4-mapped IPv6 remains IPv6. Network errors use the documented fallbacks; invalid whitelist input never grants access.
+
+### FastAPI 回傳與文件工具 / Response and Documentation Helpers
+
+檔案 / File: [SYSTEM/tools/tools_fastapi.py](SYSTEM/tools/tools_fastapi.py)。保留 JSON dump、正常回應 envelope、串流、router 與 docs tags 去重、platform / GATEWAY 選擇、動態路由載入、離線 docs 及快取 key。移除的是自訂 exception 類別，以及將後端例外內容轉為 HTTP／串流錯誤資料的邏輯；`COMMON/exceptions/` 暫留空 package。 / JSON serialization, success envelopes, streaming, router tag deduplication, platform/GATEWAY selection, router discovery, offline docs, and cache keys are retained. Custom exception classes and conversion of backend exceptions into HTTP or streaming error payloads are removed; `COMMON/exceptions/` remains an empty package.
+
+| 簽名 / Signature | 參數、用途與回傳 / Parameters, Purpose, and Return |
+| --- | --- |
+| `FastApiJSONResponse.default_dumps(obj: Any) -> Any` | 轉換 set、日期、UTF-8 bytes、UUID、Enum、Pydantic model、SQLAlchemy Row / RowMapping 與 Mapping；未知型別拋出 TypeError。 / Convert supported Python, model, and database values; unsupported values raise TypeError. |
+| `FastApiJSONResponse.render(self, content: Any) -> bytes` | 保留原本 dump 契約：資料編碼成 UTF-8 JSON，字串視為已編碼 JSON 直接輸出。 / Preserve the original dump contract: encode data as UTF-8 JSON and pass pre-serialized strings through. |
+| `FastApiResponseRoute.get_route_handler(self)` | 回傳 async request handler，保留成功 JSON envelope；不捕捉例外並轉成自訂錯誤 response。 / Return an async handler retaining success envelopes without converting exceptions into custom error responses. |
+| `custom_route_handler(request: Request) -> Response` | `get_route_handler` 內部方法；成功 JSON 包裝為 state / message / detail / data，保留 headers、cookies、background；空本文、串流與其他回應直接傳遞。 / Nested handler: wrap successful JSON while preserving headers, cookies, and background tasks; pass empty-body, streaming, and other responses through. |
+| `FastApiStreamingResponse.__init__(self, content: Union[Generator, AsyncGenerator, Callable], status_code: int = 200, media_type: Optional[str] = "application/json", headers: Optional[Dict[str, str]] = None, **kwargs)` | 接收 sync/async generator 或產生 generator 的 callable；設定 status、media type、headers，建立 JSON line stream。 / Accept a sync/async generator or generator factory and configure the JSON-line response. |
+| `FastApiStreamingResponse._json_chunk_generator(content)` | 回傳 sync/async generator，每個 chunk 保留成功 envelope；來源例外向上傳遞，不輸出錯誤 chunk。 / Return a sync/async generator of success envelopes; source exceptions propagate without an error chunk. |
+| `dump_success(chunk)` | `_json_chunk_generator` 內部方法；使用共用 dump 規則回傳單筆 JSON envelope 與換行。 / Nested serializer: return one JSON envelope and newline using shared conversion rules. |
+| `async_generator()` / `sync_generator()` | `_json_chunk_generator` 內部 async/sync generator；遍歷來源並 yield JSON line，例外不轉成資料。 / Nested async/sync generators: iterate the source and yield JSON lines without serializing errors. |
+| `FastApiRouter.__init__(self, *, prefix: str \| bool \| None = None, tags: str \| Enum \| dict \| Sequence[str \| Enum \| dict] \| None = None, include_in_schema: bool \| Enum = True, platform: bool \| Enum \| str \| None = None, **kwargs: Any) -> None` | prefix 預設取呼叫端資料夾，False 或空字串停用；tags 預設取 prefix。platform 保留 PLATFORM 設定判斷；GATEWAY 使用原生 APIRoute，其餘預設 FastApiResponseRoute。kwargs 可覆寫 route/response class。 / Resolve prefix/tags and platform configuration; use native APIRoute for GATEWAY and FastApiResponseRoute otherwise, with kwargs overrides. |
+| `FastApiRouter._tag_name(tag: str \| Enum \| dict) -> str` | 解析字串、Enum 值或字典 name，缺少 name 拋出 KeyError。 / Resolve a string, Enum value, or dictionary name; missing names raise KeyError. |
+| `FastApiRouter.add_api_route(self, path: str, endpoint: Callable[..., Any], *, tags: Sequence[str \| Enum \| dict] \| None = None, **kwargs: Any) -> None` | 保留 docs 修正；每條路由獨立去重 router 與 endpoint tags，避免後續 API 遺失標籤。 / Retain the docs fix by deduplicating router/endpoint tags independently per route. |
+| `fastapi_include_routers(app: FastAPI, app_dir: str, file_pattern: str = "views") -> None` | 遞迴執行檔名含 pattern 的 Python 模組並註冊 router；platform 缺省為啟用，false 略過。載入／註冊例外向上傳遞。 / Recursively execute matching modules and register routers; missing platform flags default to enabled, false flags skip registration, and import/registration errors propagate. |
+| `FastApiLocalDocs.__init__(self, app: FastAPI, dir_path: str \| Path, dir_static: str = "static", docs_url: str = "/docs", redoc_url: str = "/redoc") -> None` | 設定本機資產與文件網址；app 應停用內建 docs_url / redoc_url。 / Configure local assets and documentation paths on an app with built-in docs disabled. |
+| `FastApiLocalDocs.load(self) -> None` | 啟動前呼叫一次，掛載靜態檔並註冊文件路由。 / Mount assets and register documentation routes once before startup. |
+| `FastApiLocalDocs._mount_static(self) -> None` | 掛載本機 static 目錄，缺目錄拋出 FileNotFoundError。 / Mount the local static directory; a missing directory raises FileNotFoundError. |
+| `FastApiLocalDocs._register_docs(self) -> None` | 註冊 Swagger、ReDoc、OAuth2 redirect 及根目錄 redirect，均不列入 OpenAPI。 / Register Swagger, ReDoc, OAuth2, and root redirects outside the OpenAPI schema. |
+| `_swagger_ui() -> HTMLResponse` / `_swagger_redirect() -> HTMLResponse` / `_redoc() -> HTMLResponse` / `default_redirect() -> RedirectResponse` | `_register_docs` 內部 async handlers；回傳本機資產版本文件頁、OAuth2 頁及根路徑導向。 / Nested async handlers returning local-asset documentation pages, the OAuth2 page, and root redirect. |
+| `fastapi_cache_key_builder(func: Callable[..., Any], namespace: str = "", request: Optional[Request] = None, *_, **kwargs)` | 保留原本 key 算法：函式身分、path/query、排序後的基本 kwargs 形成 MD5；排除 self，忽略 host/port/scheme，回傳 namespace:digest。 / Preserve the original MD5 identity based on function, path/query, and sorted basic kwargs, excluding self and host/port/scheme; return namespace:digest. |
+| `is_basic_serializable(val)` | cache builder 內部方法；僅檢查頂層型別是否為基本 scalar、tuple、list 或 dict，回傳 bool。 / Nested cache predicate checking only the top-level scalar/container type; returns bool. |
+
+HTTPException 與輸入驗證沿用 FastAPI 原生處理。一般後端例外不再包含自訂的 message、檔案位置或 traceback；部署時仍需停用 FastAPI debug，避免框架本身輸出除錯內容。串流開始後發生例外會中止，不補送錯誤 envelope。 / HTTPException and request validation retain native handling. Backend exceptions are no longer serialized into custom messages, file locations, or tracebacks; FastAPI debug must remain disabled in deployment to suppress framework debug output. Exceptions after streaming starts terminate the stream without an error envelope.
+
+`include_router(..., tags=...)` 額外加入的標籤由 FastAPI 合併，應避免重複指定路由已有的標籤。快取 key 保留既有行為，巢狀容器不會遞迴驗證或正規化。 / FastAPI merges tags supplied to include_router; avoid repeating existing route tags. Cache keys retain their original behavior without recursive validation or normalization of nested containers.
+
+### 多資料庫資源與交易規則 / Multi-database Resources and Transactions
+
+2026.10.03 更新：保留原有方法與 `key=`／`session=` 的預設自動提交行為；新增明確外部交易模式。實際路徑為 `COMMON/tools/storage/`。所有此次處理的 class／func docstrings 含參數、回傳及 `♂ ZhengLee 2026.10.03` 落款。 / Updated on 2026.10.03: existing methods and default key/session transaction behavior remain. A separate external transaction mode is available. Current storage tools live under COMMON/tools/storage, and every function/class handled in this change has signed documentation.
+
+- **Session／pool / Sessions and pools:** manager 保存長期 engine、factory、Redis client；SQL session 按操作／交易建立。正常 commit／rollback／close 歸還借出的 SQL 連線，不會降低 pool 容量。個別 `engine_conf` 覆寫 pool 設定；總連線預算需計入資料庫數與 worker 數。本次保留既有 pool 預設，沒有在缺少負載資料時任意調整。 / The manager owns long-lived engines, factories, and Redis clients. SQL sessions are scoped to operations or transactions. Normal transaction completion returns connections without reducing pool capacity. Per-connection engine_conf remains available; account for database and worker counts. Existing pool defaults are preserved.
+- **舊模式 / Legacy mode:** `SqlAlchemyExecAsync(key=...)` 每次操作建立自己的 session；`session=...` 預設仍由 executor 提交／回滾／關閉。外部 session 不可由並行 task 共用。明確讀取 `.session` property 會固定一個 legacy session，重複讀取回傳同一物件；直接使用者須關閉且不可並行共用。未讀取 property 的 key-based 操作仍使用獨立 managed scope。 / Key-based executors create a fresh session for each operation. Injected sessions still use legacy automatic submission and close by default. Do not share sessions across concurrent tasks. Explicit session-property access pins one legacy session and preserves repeated-access identity; direct users must close it and avoid concurrent sharing. Ordinary key-based operations retain fresh managed scopes.
+- **新模式 / External transaction mode:** `manage_transaction=False` 必須傳入 AsyncSession；executor 不自行 commit／rollback／close。`execute_commit()` 在此模式會報 RuntimeError，避免提早提交外部交易；需要新增 ORM 物件時使用 `session.add()`／`flush()`。 / External mode requires an AsyncSession and leaves commit, rollback, and close to its owner. execute_commit raises RuntimeError in this mode; use session.add/flush within the outer transaction.
+- **Repository / Repositories:** 保留 repository key namespace。Wrapper 透過 manager 重用同 URL 的已登記 engine，沒有自己的 engine cache。URL 覆寫後舊 engine 世代留待 shutdown，以便已借出的 scope 完成；尚未實作 LRU／閒置自動回收。 / Repository keys retain their namespace. Wrappers use manager-owned engines and reuse an already registered engine for the same URL. Replaced engine generations remain owned until shutdown so current scopes can finish. LRU/idle eviction is not implemented.
+- **Redis / Redis:** 外部 `redis=` 優先，未傳才依 key 查 manager。普通指令直接使用 pooled client，沒有額外 `.client()` 借用或無關的 DISCARD；原 command／pipeline／heartbeat 介面保留。pipeline／PubSub 不可跨操作共用，注入者或 manager 負責 shared client 關閉。 / Injected clients take priority; otherwise the manager resolves the key. Ordinary commands use the pooled client directly without an unrelated leased client or DISCARD. Existing command/pipeline/heartbeat interfaces remain; pipeline and PubSub objects belong to their operations.
+- **Cleanup / Cleanup:** managed SQL scopes 在移除／shutdown 前會被等待；session.close 失敗時保留 session 與 active count，重試成功後才釋放計數。預設 cleanup_timeout 為 30 秒；超時仍追蹤未完成的 task，沒有把 driver/thread 強制停止，也不宣稱資源已關閉。取消時保留清理失敗原因；失敗資源供後續重試，仍在執行的 shutdown guard 必須等實際完成。raw get_session／直接 factory／Redis 與背景工作仍由呼叫端先完成。 / Removal and shutdown wait for managed SQL scopes. Failed session closes retain the session and active count until a successful cleanup retry. The default cleanup deadline is 30 seconds. Timed-out tasks remain tracked; drivers/threads are not forcibly stopped or reported closed. Cleanup failures retain their cause and resources for retry. Caller-owned sessions, Redis operations, and background work must finish first.
+- **SQLite／自訂 pool / SQLite and custom pools:** manager 建立的同步 SQLite 預設 check_same_thread=False，session 本身仍不可跨 thread 共用；使用者明確指定 thread-affinity 或外部 pool 時需自行維持相應規則。已建立的 pool 不會再接收衝突的 pool factory 預設參數。 / Manager-created synchronous SQLite defaults to check_same_thread=False without making Session thread-safe. Explicit affinity options/external pools retain caller responsibilities. Supplied pools do not receive conflicting factory defaults.
+
+```python
+# Existing single-operation style.
+db = SqlAlchemyExecAsync(key="main")
+rows = await db.query("SELECT id FROM item")
+
+# New explicit external transaction style.
+async with CONN_MANAGER.transaction("main") as session:
+    db = SqlAlchemyExecAsync(session=session, manage_transaction=False)
+    await db.execute_orm(first_stmt)
+    await db.execute_orm(second_stmt)
+# One commit on success, rollback on failure, then session close.
+
+# Preserve repository-key entry points.
+CONN_MANAGER.add_repositories("reporting", repository_url)
+repo = SqlAlchemyExecWrapper(key="reporting")
+rows = await repo.query("SELECT id FROM item")
+
+# Inject an externally owned async Redis client.
+cache = RedisAsync(redis=redis_client)
+await cache.set("example", {"id": 1}, ex=60)
+```
+
+```python
+from fastapi import FastAPI
+from SYSTEM.lifespan import create_database_lifespan
+
+connections = {
+    "main": {
+        "url": "sqlite+aiosqlite:///./app.db",
+        "type_store": "rdbms",
+        "engine_conf": {"pool_size": 2, "max_overflow": 1},
+    }
+}
+app = FastAPI(lifespan=create_database_lifespan(conn_conf=connections))
+# app.state.conn_manager exposes the worker-local registry.
+```
+
+預設 `lifespan` 的 SQL 設定由 `app.state.database_conf` 或應用提供的 `settings.CONN_CONF` 取得，未提供時不猜測連線；Redis 使用 settings.CACHE_CONF。保留 `SYSTEM.database.DatabaseLoader` 的 lazy export，business loader 既有的 model／enum／logger 等依賴仍待整合。 / The default lifespan accepts SQL configuration from app.state.database_conf or an application-provided settings.CONN_CONF; absent configuration does not invent connections. Redis uses settings.CACHE_CONF. DatabaseLoader retains its lazy export and still needs its existing business dependencies.
+
+`query_large()` 保留 buffered 結果格式，並不是 server-side streaming；scalar 空結果、query_first 的 false 值判斷與 heartbeat roster 競態等既有行為未在本次擴大修正。同步 Wrapper 的 optional `tools_sqlalchemy_sync.py` 目前尚未提供，改為需要時才載入，避免阻擋 async 工具 import。manage_fastapi 其他 optional integrations 尚不完整，未宣稱完整應用可啟動。 / query_large preserves buffered results and is not server-side streaming. Existing scalar/false-value and heartbeat race behavior is outside this change. The optional synchronous executor file remains absent and is loaded only on demand. Other server integrations remain incomplete; full application startup is not claimed.
+
+### 連線管理核心 / Connection Manager Core
+
+檔案 / File: [SYSTEM/database/database_core.py](SYSTEM/database/database_core.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `class SqlAlchemyConnManager` | 集中保存 engine、session factory、Redis client 與 endpoint metadata。 / Manage SQLAlchemy engines/session factories, Redis clients, and endpoint metadata. | — | — |
+| `SqlAlchemyConnManager.__init__(self, *, cleanup_timeout: float=30.0) -> None` | 初始化物件及其資源／模式設定。 / Create process-local registries without opening database or Redis connections. | cleanup_timeout: Finite positive cleanup deadline in seconds; default is 30. | :return: None; pool options are copied from settings and can be overridden per connection. |
+| `SqlAlchemyConnManager._ensure_available(self) -> None` | 檢查 shutdown 與失敗重試狀態。 / Reject access during shutdown or until a failed shutdown has been retried. | — | :return: None when normal registry access is allowed. |
+| `SqlAlchemyConnManager._refresh_state(self) -> None` | 更新登記狀態，不代表連線健康。 / Update the registration flag; this does not perform a connectivity check. | — | :return: None; update the registration flag without checking server health. |
+| `SqlAlchemyConnManager._registry(self, type_store: str) -> dict` | 取得指定 storage 類型的 registry。 / Resolve a supported storage category or raise TypeError for an unknown category. | type_store: Storage category selecting the resource registry. | :return: Resource mapping selected by type_store. |
+| `SqlAlchemyConnManager.init_cache(self, cache_conf: dict, is_async: Optional[bool]=True) -> None` | 批次驗證並登記 Redis clients。 / Stage Redis clients and publish the batch only after every entry is valid. | cache_conf: Keys mapped to HOST/PORT/DB, optional POOL_SIZE, and Redis connection options such as USERNAME, PASSWORD, SSL, SSL_CA_CERTS, SOCKET_TIMEOUT, or SOCKET_CONNECT_TIMEOUT. Option names are case-insensitive; responses stay binary.; is_async: True selects async I/O; False or None selects sync I/O. | :return: None; duplicate keys raise ValueError instead of replacing live pools. |
+| `SqlAlchemyConnManager._build_engine(self, url: str, is_async: bool \| None, engine_conf: dict \| None) -> tuple` | 依 dialect 建立 engine 與 factory，套用個別 pool 設定。 / Build a lazy engine and session factory using the SQLAlchemy dialect. | url: SQLAlchemy URL; credentials and path never select the I/O mode.; is_async: Optional explicit mode, including dual-mode drivers such as psycopg.; engine_conf: Per-connection options overriding the manager's copied defaults. | :return: Engine and session factory; incompatible mode/pool options raise errors. |
+| `SqlAlchemyConnManager.init_connections(self, conn_conf: dict) -> None` | 批次建立成功後才公開 SQL／metadata 登記。 / Atomically register a batch of database/metadata configurations. | conn_conf: Keys mapped to url/type_store and optional is_async/engine_conf. | :return: None; empty batches do not mark an empty manager initialized. |
+| `SqlAlchemyConnManager.add_connection(self, key: str, url: str, type_store: str, *, is_async: bool \| None=None, engine_conf: dict \| None=None) -> None` | 保留三個 positional 參數，支援個別 engine_conf。 / Add one connection while retaining the original three positional arguments. | key: Identifier unique within the selected storage registry.; url: SQLAlchemy URL or a non-SQL endpoint retained as metadata.; type_store: rdbms, storage, graph, or queue.; is_async: Optional RDBMS mode; None follows the dialect's default.; engine_conf: Optional RDBMS engine overrides. | :return: None; registration is lazy and does not prove server reachability. |
+| `SqlAlchemyConnManager.add_repositories(self, key: str, url: str) -> None` | 登記／覆寫 repository URL；舊 engine 世代留待 shutdown。 / Store/replace repository URL metadata without opening a connection. | key: Nonempty repository identifier.; url: Nonempty URL; false key/url values are ignored. | :return: None. |
+| `SqlAlchemyConnManager.add_center(self, key: str, conf: Union[str, dict]) -> None` | 複製並登記中心設定。 / Store/replace center metadata, copying dictionaries to isolate callers. | key: Nonempty center identifier.; conf: Nonempty URL or configuration dictionary. | :return: None; false key/configuration values are ignored. |
+| `async SqlAlchemyConnManager.remove_repositories(self, key: str) -> None` | 移除 metadata，未共用的 engine 留待 shutdown 關閉。 / Remove repository metadata and retire a materialized engine when unshared. | key: Repository identifier; existing managed scopes may finish on the retired engine. | :return: None; retired engines remain manager-owned and are closed at shutdown. |
+| `async SqlAlchemyConnManager.remove_center(self, key: str) -> None` | 移除中心 metadata。 / Remove center metadata; raise KeyError for a missing key. No awaited I/O. | key: Logical identifier registered with the connection manager. | :return: None after removing the center metadata. |
+| `async SqlAlchemyConnManager._complete_cleanup(self, operation: Coroutine[Any, Any, None]) -> None` | 有期限地等待清理；未完成的 task 持續追蹤。 / Wait for cleanup within the configured deadline without abandoning its task. | operation: Cleanup coroutine owning its resource state updates. | :return: None after cleanup; timeout does not claim the resource was closed. |
+| `SqlAlchemyConnManager._cleanup_finished(self, task: asyncio.Task) -> None` | 回收 task 追蹤並記錄失敗原因。 / Release task tracking and record cleanup failures, including late failures. | task: Cleanup task whose result and lifecycle tracking must be recorded. | :return: None after releasing task tracking and recording any failure. |
+| `async SqlAlchemyConnManager._wait_for_sessions(self, engines: list) -> None` | 等待指定 engine 的 managed session 結束。 / Wait for managed session scopes to release their engines within the deadline. | engines: Engines whose managed sessions must finish before disposal. | :return: None once all selected engines have no active managed scopes. |
+| `async SqlAlchemyConnManager._close_managed_session(self, session: Session \| AsyncSession, engine: Engine \| AsyncEngine) -> None` | 關閉成功才扣除 active scope；失敗保留 session 供重試。 / Close a managed session and release its active count only after success. | session: Session whose scope has finished; failed close is retained.; engine: Engine associated with the active scope. | :return: None after close; failure keeps the session and count for retry. |
+| `async SqlAlchemyConnManager._retry_failed_sessions(self, engines: list) -> None` | 移除或 shutdown 前，重試先前失敗的 session 清理。 / Retry retained session cleanup before allowing engine disposal. | engines: Engines selected for removal or shutdown. | :return: None when retained sessions close; unresolved failures stay tracked. |
+| `async SqlAlchemyConnManager._dispose_engine(engine: Engine \| AsyncEngine) -> None` | 關閉 SQL engine，區分同步與非同步 I/O。 / Dispose an engine after managed users have finished. | engine: Async engines use awaited disposal; sync SQLite stays on the caller thread and other sync engines dispose in a worker thread. | :return: None; checked-out caller-owned connections must already be released. |
+| `async SqlAlchemyConnManager._close_cache(client: AsyncRedis \| SyncRedis) -> None` | 關閉 Redis client 與 pool，彙整失敗。 / Attempt both client close and pool disconnect, collecting failures for retry. | client: Redis client and its associated connection pool. | :return: None after both the client and its pool are closed. |
+| `async SqlAlchemyConnManager.remove_connection(self, key: str, type_store: str) -> None` | 等待 managed session，成功 dispose 才移除。 / Dispose an RDBMS engine before removing its registration, or delete metadata. | key: Registered identifier; RDBMS access is blocked during disposal.; type_store: rdbms, storage, graph, or queue; unknown types raise TypeError. | :return: None; failed disposal retains the engine/factory for a later retry. |
+| `async SqlAlchemyConnManager.remove_connection.finish_removal() -> None` | 完成單一 engine 移除與狀態恢復。 / Retain registration on failure and always release the per-engine removal guard. | — | :return: None after successful engine disposal and registry removal. |
+| `async SqlAlchemyConnManager.shutdown_all_connections(self) -> None` | 等待 managed SQL scopes，再關閉所有獨立資源。 / Drain managed SQL scopes and close every unique engine and Redis pool. | — | :return: None after successful cleanup; completed repeated shutdown is harmless. |
+| `async SqlAlchemyConnManager.shutdown_all_connections.finish_shutdown() -> None` | 保留失敗資源並恢復生命週期狀態。 / Close a stable resource snapshot, preserve failures, and reset lifecycle state. | — | :return: None after successful resource cleanup; failures are retained. |
+| `SqlAlchemyConnManager.get_repository_session_factory(self, key: str) -> sessionmaker` | 保留 repository namespace，重用相同 URL 的已登記 engine。 / Resolve a repository key through the manager and lazily register its engine. | key: Existing repository metadata identifier, independent of RDBMS keys. | :return: Shared session factory; calling it creates a fresh caller-owned session. |
+| `SqlAlchemyConnManager.get_session_factory(self, key: str, *, repository: bool=False) -> sessionmaker` | 取得共用 factory，不借實際連線。 / Return a registered factory without creating a session or opening a connection. | key: RDBMS identifier, or repository identifier when repository=True.; repository: Resolve the existing repository metadata namespace. | :return: Shared session factory owned by this manager. |
+| `SqlAlchemyConnManager._borrow_session(self, key: str, repository: bool, is_async: bool) -> tuple` | 原子建立 session 並登記 active scope。 / Create a session and register its active scope before shutdown can start. | key: Database or repository identifier.; repository: Select repository metadata resolution.; is_async: Required session I/O mode. | :return: Session and its engine; no physical connection is borrowed yet. |
+| `SqlAlchemyConnManager._release_session(self, engine: Engine \| AsyncEngine) -> None` | 扣除已結束的 active scope。 / Remove a finished managed scope from the engine's active-session count. | engine: SQLAlchemy engine whose resources are managed by this operation. | :return: None after decrementing the engine active-scope count. |
+| `async SqlAlchemyConnManager.session_scope(self, key: str, *, transaction: bool=False, repository: bool=False)` | 管理新的 async session；可選擇外層交易。 / Borrow a fresh async session and release it when the scope exits. | key: Registered database or repository identifier.; transaction: Commit on success and roll back on failure when True.; repository: Resolve the key through repository metadata. | :yield: AsyncSession owned by this scope; concurrent tasks use separate scopes. |
+| `async SqlAlchemyConnManager.session_scope.finish_session() -> None` | 完成關閉後才釋放 active scope，處理重複取消。 / Close the session before releasing its active scope, including cancellation. | — | :return: None after session cleanup and active-scope release. |
+| `SqlAlchemyConnManager.session_scope_sync(self, key: str, *, transaction: bool=False, repository: bool=False)` | 在呼叫執行緒管理同步 session。 / Borrow a fresh synchronous session on the calling thread. | key: Registered database or repository identifier.; transaction: Commit on success and roll back on failure when True.; repository: Resolve the key through repository metadata. | :yield: Session; finish the scope on the same thread that entered it. |
+| `SqlAlchemyConnManager.transaction(self, key: str, *, repository: bool=False)` | 一次提交／回滾整組 async 操作。 / Group async operations in one transaction with automatic cleanup. | key: Registered database or repository identifier.; repository: Resolve a repository key instead of an RDBMS key. | :return: Async context manager; its exit owns commit, rollback, and close. |
+| `SqlAlchemyConnManager._get(self, registry: dict, key: str, *, rdbms: bool=False) -> Any` | 受 lock 與 lifecycle guard 保護的查詢。 / Read an entry under the registry lock, rejecting shutdown/removal access. | registry: Resource mapping protected by the manager lock.; key: Logical identifier registered with the connection manager.; rdbms: Check the RDBMS removal guard when True. | :return: Registered value; unknown keys raise KeyError. |
+| `SqlAlchemyConnManager.get_session(self, key: str) -> Session \| AsyncSession` | 每次建立 caller-owned session，保留舊介面。 / Create a new session; callers own close, commit, and rollback. | key: Registered RDBMS identifier. | :return: New Session/AsyncSession; never share one across concurrent tasks/threads. |
+| `SqlAlchemyConnManager.get_engine(self, key: str) -> Engine \| AsyncEngine` | 取得共用 SQL engine。 / Return the shared engine for key, or raise KeyError; no connection is borrowed. | key: Logical identifier registered with the connection manager. | :return: Shared Engine or AsyncEngine; no connection is borrowed. |
+| `SqlAlchemyConnManager.get_storage(self, key: str) -> Any` | 取得 storage endpoint metadata。 / Return storage URL metadata for key, or raise KeyError; no client is constructed. | key: Logical identifier registered with the connection manager. | :return: Registered storage endpoint metadata. |
+| `SqlAlchemyConnManager.get_graph(self, key: str) -> Any` | 取得 graph endpoint metadata。 / Return graph URL metadata for key, or raise KeyError; no client is constructed. | key: Logical identifier registered with the connection manager. | :return: Registered graph endpoint metadata. |
+| `SqlAlchemyConnManager.get_queue(self, key: str) -> Any` | 取得 queue endpoint metadata。 / Return queue URL metadata for key, or raise KeyError; no client is constructed. | key: Logical identifier registered with the connection manager. | :return: Registered queue endpoint metadata. |
+| `SqlAlchemyConnManager.get_cache(self, key: str) -> AsyncRedis \| SyncRedis` | 取得共用 Redis client。 / Return the registered Redis client or raise KeyError; no health check is performed. | key: Logical identifier registered with the connection manager. | :return: Shared synchronous or asynchronous Redis client. |
+| `SqlAlchemyConnManager.get_repo(self, key: str) -> str` | 取得 repository URL metadata。 / Return repository URL metadata for key, or raise KeyError. | key: Logical identifier registered with the connection manager. | :return: Repository SQLAlchemy URL metadata. |
+| `SqlAlchemyConnManager.get_center(self, key: str) -> Union[str, dict]` | 取得中心設定的獨立副本。 / Return a copy of center URL/configuration metadata for key, or raise KeyError. | key: Logical identifier registered with the connection manager. | :return: Independent copy of center URL/configuration metadata. |
+
+### SQLAlchemy 非同步執行器 / Async SQLAlchemy Executor
+
+檔案 / File: [COMMON/tools/storage/sqlalchemy/tools_sqlalchemy_async.py](COMMON/tools/storage/sqlalchemy/tools_sqlalchemy_async.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `class SqlAlchemyExecAsync` | 保留舊交易預設，按 key 建立獨立 session，另提供外部交易模式。 / Execute async SQL using a fresh session per key-based operation. | — | — |
+| `SqlAlchemyExecAsync.__init__(self, key: str=None, session: Optional[AsyncSession]=None, *, manage_transaction: bool=True)` | 初始化物件及其資源／模式設定。 / Select a database key or an injected async session without opening a connection. | key: Database identifier used when an external session is not supplied.; session: Optional AsyncSession; it takes priority over key.; manage_transaction: True preserves legacy automatic commit/rollback/close. False leaves these decisions to the external session owner. | :return: None; key-based sessions are created separately for each operation. |
+| `@property SqlAlchemyExecAsync.session(self) -> AsyncSession` | 讀取／指定穩定的 legacy session；首次明確讀取會固定該 executor 的 session。 / Expose the injected session or pin one session for explicit legacy access. | — | :return: Stable AsyncSession for repeated explicit property access. This opts the executor into its legacy session-bound behavior; direct users must close it and must not share it across concurrent tasks. |
+| `@session.setter SqlAlchemyExecAsync.session(self, value: AsyncSession \| None) -> None` | 讀取／指定穩定的 legacy session；首次明確讀取會固定該 executor 的 session。 / Preserve explicit session assignment without changing transaction ownership. | value: AsyncSession, or None to resume key-based session creation. | :return: None; the caller must finish the previous session before replacement. |
+| `async SqlAlchemyExecAsync._session_scope(self, *, commit: bool=False)` | 依 manage_transaction 分配提交與關閉責任。 / Apply session ownership without sharing a key-based session between operations. | commit: Submit successful statements in the legacy managed mode. | :yield: Session; external transaction mode leaves all cleanup to its owner. |
+| `async SqlAlchemyExecAsync._inspection_scope(self)` | 保留 metadata 對 legacy session 的管理方式，新模式沿用外層 connection。 / Preserve legacy metadata ownership while supporting external transactions. | — | :yield: AsyncConnection for SQLAlchemy's synchronous inspector facade. |
+| `async SqlAlchemyExecAsync._execute(self, sql: str, params: Optional[Dict[str, Any]]=None) -> Result` | 執行 raw SQL，回傳 buffered Result。 / Execute raw SQL and return SQLAlchemy's buffered Result. | sql: SQL text using :name placeholders for bound values.; params: Optional values bound to the SQL statement. | :return: Buffered Result; legacy mode commits before returning. External mode leaves transaction ownership to the supplied session's caller. |
+| `async SqlAlchemyExecAsync._execute_stmt(self, stmt: Select) -> Result` | 執行 SQLAlchemy statement。 / Execute a SQLAlchemy statement under the selected session ownership mode. | stmt: SQLAlchemy select, insert, update, delete, or other executable statement. | :return: Buffered Result; legacy mode submits the operation, external mode does not. |
+| `async SqlAlchemyExecAsync.query_tables(self, schema: str='public')` | 沿用當前 session connection 檢查 schema 表名。 / List all table names under the specified schema. | schema: Optional; schema name (e.g., 'public' for PostgreSQL, None for MySQL). | :return: List[str]; table names. |
+| `SqlAlchemyExecAsync.query_tables.sync_get_table_names(sync_conn)` | 同步 inspector facade 取得表名。 / Run sync get table names using the current operation context. | sync_conn: Synchronous facade for the current SQLAlchemy connection. | :return: Table names reported by the selected schema inspector. |
+| `async SqlAlchemyExecAsync.query_table_exists(self, table: str) -> bool` | 以 inspector 檢查 literal 表名。 / Check table existence using the current session's SQLAlchemy inspector. | table: Literal table name; SQL fragments are not interpolated. | :return: True when the table exists in the connection's default schema. |
+| `SqlAlchemyExecAsync.query_table_exists.sync_has_table(sync_conn)` | 在目前 connection 檢查表名。 / Check a literal table name on the current transaction's connection. | sync_conn: Synchronous facade for the current SQLAlchemy connection. | :return: True when the literal table name exists in the default schema. |
+| `async SqlAlchemyExecAsync.query_schema(self, table_name: str, schema: str='public')` | 取得欄位資訊，型別轉為字串。 / Retrieve column definitions for a specific table in the database. | table_name: Target table name.; schema: Schema name (default: 'public' for PostgreSQL). | :return: List[dict]; each dict contains column metadata. All SQLAlchemy types are converted to string for JSON serialization compatibility. |
+| `SqlAlchemyExecAsync.query_schema.sync_get_columns(sync_conn)` | 同步 inspector facade 取得欄位定義。 / Use SQLAlchemy inspector to retrieve columns metadata for the specified table. | sync_conn: Synchronous facade for the current SQLAlchemy connection. | :return: Column metadata reported by the table inspector. |
+| `async SqlAlchemyExecAsync.query(self, sql: str, params: Optional[Dict[str, Any]]=None) -> list` | 回傳 list[list]。 / Execute a raw SQL query and fetch all results as a list. | sql: Raw SQL with parameters (use :name style).; params: Parameters dict for SQL query. | :return: List of rows as lists. |
+| `async SqlAlchemyExecAsync.query_scalar(self, sql: str, params: Optional[Dict[str, Any]]=None) -> Any` | 回傳第一筆第一欄；空結果仍沿用既有 IndexError 行為。 / Execute a raw SQL query and return a single scalar. | sql: Raw SQL with parameters (use :name style).; params: Parameters dict for SQL query. | :return: The first scalar result. |
+| `async SqlAlchemyExecAsync.query_large(self, sql: str, params: Optional[Dict[str, Any]]=None, mapping: bool=False)` | 逐筆 yield buffered 結果，保留 Row／RowMapping 格式。 / Yield rows from a buffered SQL result while preserving the existing return format. | sql: Raw SQL using :name placeholders.; params: Optional bound statement values.; mapping: Yield RowMapping values when True, otherwise Row objects. | :yield: One row at a time from an already buffered Result; this is not server-side streaming and still requires memory for the complete result. |
+| `async SqlAlchemyExecAsync.query_dict(self, sql: str, params: Optional[Dict[str, Any]]=None) -> list` | 回傳 list[dict]。 / Execute a raw SQL query and transform results into a list of dictionaries. | sql: Raw SQL with parameters (use :name style).; params: Parameters dict for SQL query. | :return: List of dicts (column -> value). |
+| `async SqlAlchemyExecAsync.query_list_idx(self, sql: str, params: Optional[Dict[str, Any]]=None, index: Optional[int]=0) -> list` | 取得指定欄位索引的值列表。 / Execute the raw SQL query and return a list of values from a specific column index. | sql: Raw SQL with parameters (use :name style).; params: Parameters dict for SQL query.; index: Specifies a column by index. | :return: List of rows as lists. |
+| `async SqlAlchemyExecAsync.query_first(self, sql: str, params: Optional[Dict[str, Any]]=None, index: Optional[int]=0) -> dict` | 取得指定欄位首筆；既有 false 值判斷仍保留。 / Execute the raw SQL query and return a fist values from a specific column index list. | sql: Raw SQL with parameters (use :name style).; params: Parameters dict for SQL query.; index: Specifies a column by index. | :return: Dict of rows. |
+| `async SqlAlchemyExecAsync.query_list_col(self, sql: str, params: Optional[Dict[str, Any]]=None, column_name: str='N/A') -> list` | 取得指定欄位名稱的值列表。 / Execute the raw SQL query and return a list of values from a specific column by name. | sql: Raw SQL with parameters (use :name style).; params: Parameters dict for SQL query.; column_name: Specifies a column by column_name. | :return: List of rows as lists. |
+| `async SqlAlchemyExecAsync.exec(self, sql: str, param: Optional[Dict[str, Any]]=None) -> bool` | 執行 raw SQL command，成功回傳 True。 / Execute a raw SQL command (e.g., INSERT, UPDATE, DELETE) and return a boolean status. | sql: Raw SQL with parameters (use :name style).; param: Parameters dict for SQL query. | :return: True if executed successfully. |
+| `async SqlAlchemyExecAsync.execute_orm(self, stmt: Select) -> Result` | 執行 ORM statement，回傳 buffered Result。 / Execute an ORM query using a SQLAlchemy statement object and return the buffered Result object. | stmt: A SQLAlchemy statement (e.g., select(Model).where(...)) | :return: The buffered Result object from executing the ORM query. |
+| `async SqlAlchemyExecAsync.execute_commit(self, obj: Any) -> Any` | 保留明確 commit／refresh；外部交易模式拒絕呼叫。 / Add an ORM object, explicitly commit it, refresh its fields, and return it. | obj: ORM object to add to the session. | :return: Committed and refreshed ORM object; owned sessions close before returning. |
+| `async SqlAlchemyExecAsync.paginate_orm(self, stmt, page: Union[int, str]='all', size: Union[int, str]='all', subquery_count: bool=True, unique=True) -> Page[dict]` | ORM 分頁或全量取得，回傳 Page。 / Execute a Select statement with fastapi-pagination. | stmt:           SQLAlchemy Select expression.; page:           Page number (>=1) or "all" (str, case-insensitive).; size:           Records per page (>=1) or "all" (str).; subquery_count: Use sub-query for COUNT(*) when JOINs are complex.; unique:         Make sure the value is unique. The rows are not hashable, please use unique=False. | :return:               fastapi_pagination.default.Page instance (identical schema whether paginated or full). |
+| `async SqlAlchemyExecAsync.paginate_query(self, sql: str, page: Union[int, str]=1, size: Union[int, str]=20, single_element: bool=False)` | raw SQL 分頁／全量取得，維持 list／scalar items。 / Generate a paginated (or full‑fetch) response for an arbitrary SQL statement. | sql:            Raw SQL text.; page:           Page index (1‑based) **or** the string ``"all"``.; size:           Page size (>=1)       **or** the string ``"all"``.; single_element: Treat each row as a single scalar (1‑column result). | :return:               `fastapi_pagination.default.Page` |
+| `async SqlAlchemyExecAsync.paginate_query_dict(self, sql: str, type_db: EnumDBType=EnumDBType.POSTGRESQL, page: Union[int, str]=1, size: Union[int, str]=20)` | 依 dialect 組合 raw SQL 分頁，items 為 dict。 / Paginate *or* fully fetch a raw SQL statement and convert each row to **dict**. | sql:     Raw SQL text.; type_db: Enum designating DB flavour (passed to `sqlalchemy_pagination_stmt`).; page:    Page index (1‑based) **or** the string ``"all"``.; size:    Page size (>=1)       **or** the string ``"all"``. | :return:        `fastapi_pagination.default.Page` |
+
+### Repository 執行入口 / Repository Executor
+
+檔案 / File: [COMMON/tools/storage/sqlalchemy/tools_sqlalchemy_wrapper.py](COMMON/tools/storage/sqlalchemy/tools_sqlalchemy_wrapper.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `class SqlAlchemyExecWrapper` | 保留 repository key 入口，透過 manager 取得資源。 / Forward repository operations using engines and sessions owned by CONN_MANAGER. | — | — |
+| `SqlAlchemyExecWrapper.__init__(self, key: str) -> None` | 初始化物件及其資源／模式設定。 / Resolve the existing repository key without keeping a second engine cache. | key: Identifier registered with CONN_MANAGER.add_repositories(). | :return: None; engines are registered with the manager before first use. |
+| `@property SqlAlchemyExecWrapper.engine(self)` | 取得 manager 管理的目前 repository engine。 / Resolve the current repository engine, including metadata URL replacements. | — | :return: Manager-owned Engine or AsyncEngine; callers must not dispose it. |
+| `@property SqlAlchemyExecWrapper.session_factory(self)` | 取得 manager 管理的目前 repository factory。 / Expose the manager's factory for compatibility with existing wrapper access. | — | :return: Shared factory; sessions created directly are caller-owned. |
+| `@property SqlAlchemyExecWrapper._is_async(self) -> bool` | 依實際 engine 判斷 I/O 模式。 / Return the I/O mode of the current manager-owned repository engine. | — | :return: True for an AsyncEngine, otherwise False. |
+| `SqlAlchemyExecWrapper._detect_async(url: str) -> bool` | 依 SQLAlchemy dialect 判斷 driver 預設模式。 / Detect the driver's default I/O mode using SQLAlchemy's URL dialect. | url: SQLAlchemy URL; passwords and database names do not select I/O. | :return: True for an async dialect, False for a synchronous default. |
+| `SqlAlchemyExecWrapper.__getattr__(self, meth_name: str) -> Callable` | 選擇 async／sync proxy，保留既有方法入口。 / Forward a method while retaining per-operation session ownership. | meth_name: Existing SQL executor method name. | :return: Async or sync proxy; async streams acquire their scope on iteration. |
+| `async SqlAlchemyExecWrapper.__getattr__.stream_proxy(*args, **kwargs)` | row iterator 在其 managed scope 中完成或關閉。 / Keep the repository session open until streaming ends or is closed. | args: Positional method arguments.; kwargs: Keyword method arguments. | :yield: Original result rows; early consumers must close the iterator. |
+| `async SqlAlchemyExecWrapper.__getattr__.async_proxy(*args, **kwargs)` | 每次呼叫取得獨立 async session。 / Execute one async repository method with a fresh managed session. | args: Positional method arguments.; kwargs: Keyword method arguments. | :return: Original method result, or a scoped iterator for query_large. |
+| `SqlAlchemyExecWrapper.__getattr__.sync_proxy(*args, **kwargs)` | 每次呼叫取得獨立 sync session；需 optional sync executor。 / Forward one synchronous method using a session on the calling thread. | args: Positional method arguments.; kwargs: Keyword method arguments. | :return: Original synchronous executor result. |
+| `SqlAlchemyExecWrapper.__enter__(self) -> 'SqlAlchemyExecWrapper'` | 保留 context 入口，單次呼叫仍各自管理 session。 / Return this wrapper; each method still owns a separate operation scope. | — | :return: This wrapper; entering does not start a transaction. |
+| `SqlAlchemyExecWrapper.__exit__(self, exc_type: Optional[type], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> bool \| None` | 保留 context 出口，不吞例外。 / Leave the wrapper context without suppressing exceptions or closing engines. | exc_type: Exception type raised inside the context, or None.; exc_value: Exception raised inside the context, or None.; traceback: Traceback associated with the context exception, or None. | :return: None; exceptions are not suppressed. |
+| `async SqlAlchemyExecWrapper.__aenter__(self) -> 'SqlAlchemyExecWrapper'` | 保留 async context 入口，不隱含共用交易。 / Return this wrapper without creating a shared async session or transaction. | — | :return: This wrapper; entering does not start a transaction. |
+| `async SqlAlchemyExecWrapper.__aexit__(self, exc_type: Optional[type], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> bool \| None` | 保留 async context 出口，不吞例外。 / Leave the async wrapper context; method scopes release their own sessions. | exc_type: Exception type raised inside the context, or None.; exc_value: Exception raised inside the context, or None.; traceback: Traceback associated with the context exception, or None. | :return: None; exceptions are not suppressed. |
+
+### SQL 分頁工具 / SQL Pagination Helpers
+
+檔案 / File: [COMMON/tools/storage/sqlalchemy/tools_sqlalchemy_utils.py](COMMON/tools/storage/sqlalchemy/tools_sqlalchemy_utils.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `class BigParams(Params)` | SQL 分頁參數，size 上限為 100,000。 / Allow SQL pagination sizes from one to 100,000 rows. | — | — |
+| `sqlalchemy_pagination_stmt(sql: str, page: int, size: int, type_db: str)` | 按 dialect 建立 pagination SQL。 / Generate pagination sql. | sql: Raw sql.; page: Page number.; size: Page size.; type_db: Type of database. | :return: Generated sql. |
+
+### Redis 非同步工具 / Async Redis Helpers
+
+檔案 / File: [COMMON/tools/storage/redis/tools_redis_async.py](COMMON/tools/storage/redis/tools_redis_async.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `class RedisAsync` | 共享 async Redis client 的指令、序列化、pipeline 與 heartbeat 工具。 / Wrap async pooled Redis commands with serialization and heartbeat helpers. | — | — |
+| `RedisAsync.__init__(self, key: Optional[str]=None, redis: Redis=None)` | 初始化物件及其資源／模式設定。 / Select an injected async Redis client or resolve one by its manager key. | key: Cache identifier used only when redis is not supplied.; redis: Optional redis.asyncio.Redis; the injecting caller owns its shutdown. | :return: None; this constructor does not borrow a connection or ping the server. |
+| `RedisAsync._serialize(value: Any, serialize: bool=True) -> Any` | 依旗標 pickle 序列化資料。 / Pickle a trusted Python value unless serialization is disabled. | value: Value to encode; raw values must be accepted by redis-py.; serialize: If False, return value unchanged. | :return: Pickle bytes or the original value. |
+| `RedisAsync._deserialize(value: Any, deserialize: bool=True) -> Any` | 依旗標反序列化可信的 pickle bytes。 / Decode pickle bytes; leave None, non-bytes, and disabled decoding unchanged. | value: Cached value, normally bytes when decode_responses=False.; deserialize: Whether to attempt pickle decoding for bytes. | :return: Decoded object, or the original value when decoding is skipped. |
+| `async RedisAsync._execute(self, func: Callable[..., Awaitable[Any]], *args, **kwargs) -> Any` | 執行 raw SQL，回傳 buffered Result。 / Execute one bound Redis command through its client's normal pool handling. | func: Bound awaitable command on the selected Redis client.; args: Positional command arguments.; kwargs: Keyword command arguments. | :return: Original command result; no unrelated single-client connection is acquired. |
+| `async RedisAsync.set(self, key: str, value: Any, ex: Optional[int]=None, serialize: bool=True) -> bool` | 設定值與選用 TTL。 / Set a Redis string value, optionally pickled, with an expiry in seconds. | key: Redis key to create or replace.; value: Python value to pickle, or a Redis-compatible raw value.; ex: Positive expiry seconds; None writes without an expiry.; serialize: Whether to pickle value before storing it. | :return: True on successful SET. Replacing a key also replaces its previous TTL. |
+| `async RedisAsync.get(self, key: str, deserialize: bool=True) -> Any` | 讀取值並選擇反序列化。 / Read a Redis string and optionally decode its pickle payload. | key: Redis key.; deserialize: Enable only for trusted pickle data; raw bytes may fail decoding. | :return: Decoded/raw value, or None when the key does not exist. |
+| `async RedisAsync.get_by_key(self, key: str, method: str, deserialize: bool=True) -> Any` | 按指定命令讀取值。 / Read a Redis string stored under the composite key '<key>:<method>'. | key: Base Redis key.; method: Suffix appended after a colon; not a Redis command name.; deserialize: Whether to decode a trusted pickle payload. | :return: Decoded/raw value, or None when the composite key does not exist. |
+| `async RedisAsync.delete(self, *keys: str) -> int` | 刪除一個或多個 key。 / Delete one or more Redis keys. | keys: One or more keys; an empty argument list is not handled locally. | :return: Number of keys actually removed, excluding missing keys. |
+| `async RedisAsync.hash_set(self, name: str, key: str, value: Any, serialize: bool=True) -> int` | 寫入 hash 欄位。 / Create or replace a single Redis hash field. | name: Redis hash key.; key: Field name within the hash.; value: Python value to pickle or a Redis-compatible raw value.; serialize: Whether to pickle the field value. | :return: 1 for a newly added field; 0 for an existing field, even when changed. |
+| `async RedisAsync.hash_get(self, name: str, key: str, deserialize: bool=True) -> Any` | 讀取 hash 欄位。 / Read one Redis hash field, optionally decoding its pickle payload. | name: Redis hash key.; key: Field name within the hash.; deserialize: Whether to decode trusted pickle bytes. | :return: Decoded/raw field value, or None for a missing field/hash. |
+| `async RedisAsync.hash_del(self, name: str, key: str) -> int` | 刪除 hash 欄位。 / Delete one field from a Redis hash. | name: Redis hash key.; key: Field name to remove. | :return: 1 when removed, or 0 when the field does not exist. |
+| `async RedisAsync.hash_mget(self, name: str, keys: list, deserialize: bool=True) -> list` | 批次讀取 hash 欄位。 / Read multiple hash fields in the requested order. | name: Redis hash key.; keys: Non-empty list of field names; empty input is not handled locally.; deserialize: Whether to decode trusted pickle bytes per field. | :return: Ordered list of values, with None for each missing field. |
+| `async RedisAsync.list_left_push(self, key: str, value: Any, max_length: int=100, serialize: bool=True) -> bool` | 左側推入並限制 list 長度。 / Move a serialized value to the list head and trim in one transaction. | key: Redis list key.; value: Value to remove from existing positions and push to the head.; max_length: Intended positive maximum number of retained elements.; serialize: Whether to pickle value before matching and storing it. | :return: True after successful execution of LREM, LPUSH, and LTRIM. |
+| `async RedisAsync.list_left_pop(self, key: str, count: int=1, deserialize: bool=True) -> list` | 取出指定數量的 list 項目。 / Remove up to count values from the left of a Redis list. | key: Redis list key.; count: Maximum number of values to remove.; deserialize: Whether to decode trusted pickle bytes after removal. | :return: List of removed values, or [] when no values are available. |
+| `async RedisAsync.list_range(self, key: str, start: int=0, end: int=-1, deserialize: bool=True) -> list` | 讀取 list 區段。 / Read a Redis list range without removing its values. | key: Redis list key.; start: Inclusive start index; negative indexes count from the tail.; end: Inclusive end index; -1 includes the last element.; deserialize: Whether to decode trusted pickle bytes. | :return: List of values, or [] for a missing key or empty range. |
+| `async RedisAsync.list_first(self, key: str, deserialize: bool=True) -> Any` | 讀取第一個 list 值。 / Read the first list element without removing it. | key: Redis list key.; deserialize: Whether to decode trusted pickle bytes. | :return: First decoded/raw value, or None when the list is absent. |
+| `async RedisAsync.incr(self, key: str, amount: int=1) -> int` | 遞增整數值。 / Atomically add an integer amount to a Redis integer string. | key: Key containing an unpickled integer string; missing keys start at zero.; amount: Signed integer increment. | :return: Updated integer value. |
+| `async RedisAsync.type(self, key: str) -> str` | 取得 key 類型。 / Read the Redis storage type for a key. | key: Redis key. | :return: Type name such as 'string', 'list', or 'none' for a missing key. |
+| `async RedisAsync.ttl(self, key: str) -> int` | 取得 key 的剩餘秒數。 / Read a key's remaining expiry in seconds. | key: Redis key. | :return: Nonnegative remaining seconds, -1 for no expiry, or -2 for a missing key. |
+| `async RedisAsync.scan_iter(self, match: str='*', count: int=100) -> list` | 掃描並收集符合 pattern 的 key。 / Collect a complete SCAN iteration into memory as decoded key names. | match: Redis glob pattern passed through unchanged.; count: Work hint for each SCAN call. | :return: List of all yielded key names; duplicates are not removed. |
+| `async RedisAsync.exists(self, key: str) -> bool` | 檢查 key 是否存在。 / Check whether a single Redis key exists at the time of the command. | key: Redis key. | :return: True when the key exists, otherwise False. |
+| `async RedisAsync.exists_scan(self, match: str='*') -> bool` | 檢查是否有符合 pattern 的 key。 / Check the first SCAN result using the expanded pattern '*<match>*'. | match: Redis glob fragment, wrapped in leading and trailing '*'. | :return: Boolean value of the first returned key, or False when no key is yielded. |
+| `async RedisAsync.keys(self, pattern: str='*') -> list` | 保留 KEYS 介面與原回傳。 / Fetch every key matching a Redis glob pattern with KEYS. | pattern: Redis glob pattern passed through unchanged. | :return: List of UTF-8-decoded key names; assumes keys contain UTF-8 text. |
+| `async RedisAsync.flush(self) -> bool` | 保留目前 DB 的 flush 功能。 / Delete every key in the selected logical Redis database using FLUSHDB. | — | :return: True when Redis accepts FLUSHDB. |
+| `async RedisAsync.pipeline(self)` | 建立 pipeline；呼叫端必須 execute／釋放。 / Create a transactional pipeline; the caller must execute queued commands. | — | :return: redis.asyncio Pipeline with the client's default transaction=True. |
+| `async RedisAsync.expire(self, key: str, ex: int) -> bool` | 設定 key 到期秒數。 / Assign an expiry in seconds to an existing Redis key. | key: Redis key.; ex: Expiry seconds; zero or a negative value deletes an existing key. | :return: True when applied, or False when the key does not exist. |
+| `async RedisAsync.expire_stat(self, match: str='*') -> dict` | 整理 TTL 觀測結果與統計。 / Collect TTL observations and summarize nonnegative remaining lifetimes. | match: Redis glob pattern forwarded to scan_iter. | :return: Dict with avg/max/min (None without timed keys) and per-key overview. |
+| `async RedisAsync.heartbeat_client(self, identifier: str, expire: int=60, set_key: str='online_clients', key_prefix: str='online') -> dict` | 保留 heartbeat 寫入與 expiry 回傳。 / Refresh a heartbeat TTL key and add its identifier to the roster set. | identifier: Nonempty identifier; converted to str after the truthiness check.; expire: Intended positive TTL seconds for the heartbeat key.; set_key: Redis set holding identifiers; stale entries do not expire automatically.; key_prefix: Prefix of '<key_prefix>:<identifier>' heartbeat keys. | :return: employee_id and estimated expiry in TIME_ZONE without a UTC offset. |
+| `async RedisAsync.heartbeat_total(self, set_key: str='online_clients', key_prefix: str='online') -> int` | 保留 heartbeat 計數與過期 roster 清理。 / Count observed heartbeat keys and remove roster entries observed as absent. | set_key: Redis set containing heartbeat identifiers.; key_prefix: Prefix used when checking each identifier's heartbeat key. | :return: Number of heartbeat keys observed as present, or zero for an empty roster. |
+
+### SQL 輸入檢查 / SQL Input Validation
+
+檔案 / File: [COMMON/decorator/__init__.py](COMMON/decorator/__init__.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `sql_validate(func)` | 驗證 SQL 文字，保留方法原回傳類型。 / Validate SQL text while preserving the coroutine or iterator returned by func. | func: SQL executor method accepting an argument named sql. | :return: Wrapped callable; this decorator does not manage transactions. |
+| `sql_validate.wrapper(*args, **kwargs)` | 驗證綁定參數後轉交原方法。 / Check positional or keyword SQL before forwarding the original arguments. | args: Positional executor arguments.; kwargs: Keyword executor arguments. | :return: Original coroutine, async iterator, or synchronous result. |
+
+### 資料庫生命週期 / Database Lifecycle
+
+檔案 / File: [SYSTEM/lifespan.py](SYSTEM/lifespan.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `create_database_lifespan(*, conn_conf: dict \| None=None, cache_conf: dict \| None=None, manager: SqlAlchemyConnManager=CONN_MANAGER)` | 建立 per-worker 的 SQL／Redis lifecycle。 / Build a per-worker FastAPI lifecycle for SQL and Redis resources. | conn_conf: Database/metadata registrations; None uses app.state.database_conf or settings.CONN_CONF when provided. No SQL URL is invented.; cache_conf: Redis registrations; None uses settings.CACHE_CONF.; manager: Registry used by the application's executors. | :return: Lifespan context function; startup failure also cleans created resources. |
+| `async create_database_lifespan.database_lifespan(app: FastAPI)` | 啟動時登記，結束時清理資源。 / Register resources inside the worker and close them after request draining. | app: FastAPI application; exposes its manager as app.state.conn_manager. | :yield: Application startup completion; shutdown waits for managed SQL scopes. |
+
+### 資料庫套件匯出 / Database Package Exports
+
+檔案 / File: [SYSTEM/database/__init__.py](SYSTEM/database/__init__.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `__getattr__(name: str)` | 選擇 async／sync proxy，保留既有方法入口。 / Load DatabaseLoader on demand so core imports do not require business models. | name: Requested package attribute. | :return: DatabaseLoader for its existing import path. |
+
+### 既有伺服器組裝入口 / Existing Server Assembly
+
+檔案 / File: [manage_fastapi.py](manage_fastapi.py)
+
+| 完整簽名 / Signature | 用途 / Purpose | 參數 / Parameters | 回傳 / Returns |
+| --- | --- | --- | --- |
+| `class FastApiServer` | 沿用現有伺服器組裝方法；其他 optional integration 尚待應用提供。 / Assemble the existing FastAPI server entry point and its optional integrations. | — | — |
+| `FastApiServer.__init__(self)` | 初始化物件及其資源／模式設定。 / Create the FastAPI application using the database lifespan and existing settings. | — | :return: None; middleware and optional integration symbols must be supplied by the application. |
+| `FastApiServer.__init_router(self)` | 保留 router 掛載入口。 / Register application routers using the existing discovery helper. | — | :return: None; discovered routes are added to this server's FastAPI application. |
+| `FastApiServer.__init_socketio(self)` | 保留 optional Socket.IO 掛載入口。 / Register the application's optional Socket.IO event handlers. | — | :return: None; the existing Socket.IO helper must be supplied by the application. |
+| `FastApiServer.__init_celery_worker(self)` | 保留 optional worker 設定入口。 / Apply the existing application title and worker backend configuration. | — | :return: None; this method does not create or start a Celery worker. |
+| `FastApiServer.__init_prometheus(self)` | 保留 optional metrics 掛載入口。 / Register the application's optional metrics endpoint. | — | :return: None; the existing monitoring helper must be supplied by the application. |
+| `FastApiServer.start(self) -> ASGIApp` | 保留既有 ASGI 組裝流程；未聲稱完整啟動成功。 / Assemble existing integrations and return the Socket.IO ASGI wrapper. | — | :return: ASGI application; optional integrations must be available before calling. |
+
+### 驗證與界線 / Validation and Scope
+
+[tests/test_database_core.py](tests/test_database_core.py) 共 **41 個案例通過**，涵蓋真實本機 sync/async SQLite、原有 key/session 提交模式、ORM commit、分頁、整筆交易回滾、並行操作與 pool 歸還、取消／重複取消、Repository engine 共用與更新、關閉等待／超時、session close 失敗重試及 Redis client 注入與錯誤保留。設定及 Redis 指令使用替身；未連線外部 Redis/PostgreSQL，未跑完整 server bootstrap。fastapi-pagination 目前會觸發一則第三方 noload() 棄用警告，未在本次改第三方程式。 / Forty-one regression cases pass, covering real local SQLite, legacy commits, ORM/pagination contracts, atomic rollback, concurrent pool reuse, cancellation, repository ownership, shutdown draining/deadlines, and Redis injection/error propagation. Settings and Redis commands use doubles; external Redis/PostgreSQL and full server startup are not verified. One third-party noload deprecation warning remains.
+
+```bash
+# Run from backend/ with development dependencies installed.
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q tests/test_database_core.py
+```
+
+參考 / References: [SQLAlchemy session transactions](https://docs.sqlalchemy.org/en/21/orm/session_basics.html#committing), [AsyncSession concurrency](https://docs.sqlalchemy.org/en/21/orm/extensions/asyncio.html#using-asyncsession-with-concurrent-tasks), [redis-py pool ownership](https://redis.readthedocs.io/en/stable/examples/asyncio_examples.html).
 
 後續每次新增、修改或刪除函式，都要同步更新本節。涵蓋 API handlers、業務方法、共用工具、私有方法、建構方法、property、巢狀 helper 與生命週期函式；列出檔案、完整簽名、用途、參數、回傳，以及必要的例外、副作用與 async 特性。第三方套件內部方法不列入。
 

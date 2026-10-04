@@ -4,6 +4,9 @@
 from functools import wraps
 from inspect import signature
 
+# ◆—< Pack >—————————————————————————————————◆ Common
+from .deco_cache import cache
+
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ SQL Input Validation
 def sql_validate(func):

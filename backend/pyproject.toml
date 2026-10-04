@@ -14,6 +14,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "fastapi-cache2>=0.2.2",
     "fastapi-pagination>=0.16.0",
+    "httpx>=0.28.1",
     "jinja2>=3.1.6",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
@@ -35,7 +36,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "black>=26.5.1",
-    "httpx>=0.28.1",
     "pytest>=9.1.1",
 ]
 

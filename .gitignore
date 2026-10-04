@@ -1,7 +1,9 @@
 /agent/
 *test*.py
-# Keep the database core regression suite and mock importer while ignoring other ad hoc test scripts.
+# Keep backend regression tests and the mock importer while ignoring ad hoc test scripts.
 !/backend/tests/test_database_core.py
+!/backend/tests/test_sqlalchemy_tools.py
+!/backend/tests/test_redis_tools.py
 !/backend/test.py
 /test/
 # Local deployment configuration (may contain credentials).

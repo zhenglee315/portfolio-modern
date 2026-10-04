@@ -38,8 +38,9 @@ The project aims for **lightweight development and deployment**: add dependencie
 | Alembic | 資料庫結構版本管理 | Database schema migrations |
 | redis、fastapi-cache2 | Redis client 與 WEB cache backend；業務 API 尚未使用快取裝飾器 | Redis clients and WEB cache backend; business APIs do not use cache decorators yet |
 | python-socketio | Socket.IO ASGI 組裝 | Socket.IO ASGI assembly |
+| HTTPX | HTTP client 設定，執行依賴 | HTTP client configuration; runtime dependency |
 | Black | Python 排版，開發依賴 | Python formatter; development dependency |
-| pytest、HTTPX | 測試工具，開發依賴 | Testing tools; development dependencies |
+| pytest | 測試工具，開發依賴 | Test runner; development dependency |
 | Docker | 按需啟動外部服務、容器驗證或部署 | On-demand external services, container validation, or deployment |
 
 具體依賴宣告見 [backend/pyproject.toml](backend/pyproject.toml)，解析後版本以 `backend/uv.lock` 為準。
@@ -125,9 +126,9 @@ portfolio-modern/
 - `SYSTEM/models`: Portfolio and account ORM models and Alembic migrations; apply migrations manually.
 - `manage_fastapi.py`: The current FastAPI, docs, and Socket.IO assembly and startup entry point.
 
-`SYSTEM/config.yaml` 是不提交的本機配置，`settings.py` 負責載入與整理。啟動步驟、目前架構與主要介面見[後端 README](backend/README.md)，其中區分已實作與尚未整合的部分。
+`SYSTEM/config.yaml` 是不提交的本機配置，`settings.py` 負責載入與整理。啟動步驟與整體架構見[後端 README](backend/README.md)；工具的詳細介面見各工具資料夾的 README。
 
-`SYSTEM/config.yaml` is a local configuration file excluded from Git, and `settings.py` loads and organizes its values. See the [backend README](backend/README.md) for startup steps, the current architecture, and main interfaces, with implemented and unfinished parts distinguished.
+`SYSTEM/config.yaml` is a local configuration file excluded from Git, and `settings.py` loads and organizes its values. See the [backend README](backend/README.md) for startup steps and architecture; each tool folder documents its detailed API in its own README.
 
 ## API 範圍 / API scope
 

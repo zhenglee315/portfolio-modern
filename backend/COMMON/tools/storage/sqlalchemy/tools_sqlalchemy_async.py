@@ -8,16 +8,17 @@ from SYSTEM.constants import EnumDBType
 # ◆—< Pack >—————————————————————————————————◆ SqlAlchemy
 from .tools_sqlalchemy_utils import sqlalchemy_pagination_stmt, BigParams
 from sqlalchemy.exc import SQLAlchemyError, NoSuchTableError
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, inspect, Result
 from sqlalchemy.sql import Select
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi_pagination.ext.sqlalchemy import apaginate
-from fastapi_pagination import Params, create_page
+from fastapi_pagination import create_page
 from fastapi_pagination.default import Page
 
 # ◆—< Pack >—————————————————————————————————◆ Common
+from collections.abc import Mapping
 from typing import Union, Any, Optional, Dict
 from pydantic import validate_call
 from contextlib import asynccontextmanager
@@ -26,27 +27,30 @@ from contextlib import asynccontextmanager
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ SqlAlchemy SQL execution
 class SqlAlchemyExecAsync:
     """
-    Execute async SQL using a fresh session per key-based operation.
+    Execute async SQL using a fresh session per operation by default.
 
-    The existing key= and session= call styles keep automatic commit/rollback/close by
-    default. manage_transaction=False requires an external AsyncSession and leaves all
-    transaction and close decisions to its owner. Concurrent tasks need separate sessions.
+    The optional key= argument remains a compatibility alias for the single database.
+    Injected sessions keep the existing automatic commit/rollback/close behavior by
+    default. manage_transaction=False leaves all transaction and close decisions to
+    the injected session's owner. Concurrent tasks need separate sessions.
     execute_commit() retains explicit submission and rejects externally managed mode.
 
                                                                                                ♂ ZhengLee 2026.10.03
     """
 
-    def __init__(self, key: str = None, session: Optional[AsyncSession] = None, *, manage_transaction: bool = True):
+    def __init__(
+        self, key: str | None = None, session: AsyncSession | None = None, *, manage_transaction: bool = True
+    ):
         """
-        Select a database key or an injected async session without opening a connection.
+        Select the configured database or an injected async session without opening a connection.
 
-        :param key: Database identifier used when an external session is not supplied.
+        :param key: Legacy identifier; all values use the one configured database.
         :param session: Optional AsyncSession; it takes priority over key.
         :param manage_transaction: True preserves legacy automatic commit/rollback/close.
                                    False leaves these decisions to the external session owner.
-        :return: None; key-based sessions are created separately for each operation.
-        :raises TypeError: The selected session/engine is not asynchronous.
-        :raises ValueError: Required key/session or ownership options are invalid.
+        :return: None; default sessions are created separately for each operation.
+        :raises TypeError: The supplied session is not asynchronous.
+        :raises ValueError: External transaction mode has no injected session.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
@@ -54,14 +58,10 @@ class SqlAlchemyExecAsync:
             raise TypeError("session must be an AsyncSession.")
         if not isinstance(manage_transaction, bool):
             raise TypeError("manage_transaction must be a boolean.")
-        if session is None:
-            if key is None:
-                raise ValueError("Provide a database key or an AsyncSession.")
-            if not manage_transaction:
-                raise ValueError("manage_transaction=False requires an external session.")
-            factory = CONN_MANAGER.get_session_factory(key)
-            if not isinstance(factory.kw["bind"], AsyncEngine):
-                raise TypeError("Database key must select an async engine.")
+        if key is not None and not isinstance(key, str):
+            raise TypeError("key must be a string or None.")
+        if session is None and not manage_transaction:
+            raise ValueError("manage_transaction=False requires an external session.")
         self.key = key
         self._session = session
         self.manage_transaction = manage_transaction
@@ -78,7 +78,7 @@ class SqlAlchemyExecAsync:
                                                                                                ♂ ZhengLee 2026.10.03
         """
         if self._session is None:
-            self._session = CONN_MANAGER.get_session(self.key)
+            self._session = CONN_MANAGER.get_db()
         return self._session
 
     @session.setter
@@ -86,21 +86,21 @@ class SqlAlchemyExecAsync:
         """
         Preserve explicit session assignment without changing transaction ownership.
 
-        :param value: AsyncSession, or None to resume key-based session creation.
+        :param value: AsyncSession, or None to resume fresh session creation.
         :return: None; the caller must finish the previous session before replacement.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
         if value is not None and not isinstance(value, AsyncSession):
             raise TypeError("session must be an AsyncSession.")
-        if value is None and (self.key is None or not self.manage_transaction):
-            raise ValueError("Clearing the session requires a key and managed transaction mode.")
+        if value is None and not self.manage_transaction:
+            raise ValueError("Clearing the session requires managed transaction mode.")
         self._session = value
 
     @asynccontextmanager
     async def _session_scope(self, *, commit: bool = False):
         """
-        Apply session ownership without sharing a key-based session between operations.
+        Apply session ownership without sharing a default session between operations.
 
         :param commit: Submit successful statements in the legacy managed mode.
         :yield: Session; external transaction mode leaves all cleanup to its owner.
@@ -110,35 +110,30 @@ class SqlAlchemyExecAsync:
         if not self.manage_transaction:
             yield self._session
             return
-        scope = self._session if self._session is not None else CONN_MANAGER.session_scope(self.key)
+        scope = self._session if self._session is not None else CONN_MANAGER.get_db()
         async with scope as session:
             try:
                 yield session
                 if commit:
                     await session.commit()
-            except SQLAlchemyError:
+            except Exception:
                 await session.rollback()
                 raise
 
     @asynccontextmanager
     async def _inspection_scope(self):
         """
-        Preserve legacy metadata ownership while supporting external transactions.
+        Inspect through the selected session so uncommitted schema changes are visible.
 
-        Legacy injected sessions inspect through a separate engine connection without
-        closing or submitting the injected session. External transaction mode uses
-        that session's current connection; key-based inspection uses a managed scope.
+        Default operations close their own session. External transaction mode keeps
+        the injected session and its transaction under the caller's control.
 
         :yield: AsyncConnection for SQLAlchemy's synchronous inspector facade.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        if self._session is not None and self.manage_transaction:
-            async with self._session.bind.connect() as conn:
-                yield conn
-        else:
-            async with self._session_scope() as session:
-                yield await session.connection()
+        async with self._session_scope() as session:
+            yield await session.connection()
 
     async def _execute(self, sql: str, params: Optional[Dict[str, Any]] = None) -> Result:
         """
@@ -166,16 +161,53 @@ class SqlAlchemyExecAsync:
         async with self._session_scope(commit=True) as session:
             return await session.execute(stmt)
 
+    @staticmethod
+    def _item_to_dict(item: Any) -> dict[str, Any]:
+        """
+        Convert selected columns or a mapped ORM object into a response dictionary.
+
+        :param item: SQLAlchemy Row, RowMapping, or mapped model instance.
+        :return: Column values; relationship attributes are not loaded.
+
+                                                                                               ♂ ZhengLee 2026.10.04
+        """
+        def model_columns(value: Any) -> dict[str, Any] | None:
+            state = inspect(value, raiseerr=False)
+            if state is None or not hasattr(state, 'mapper'):
+                return None
+            return {column.key: getattr(value, column.key) for column in state.mapper.column_attrs}
+
+        columns = model_columns(item)
+        if columns is not None:
+            return columns
+
+        mapping = getattr(item, '_mapping', None)
+        if mapping is None and isinstance(item, Mapping):
+            mapping = item
+        if mapping is None:
+            raise TypeError('ORM pagination requires rows or mapped model instances.')
+
+        if len(mapping) == 1:
+            columns = model_columns(next(iter(mapping.values())))
+            if columns is not None:
+                return columns
+
+        result = {}
+        for key, value in mapping.items():
+            columns = model_columns(value)
+            result[str(key)] = columns if columns is not None else value
+        return result
+
     # —< Transaction >—————————————————————————————————————● Query Tables
-    async def query_tables(self, schema: str = "public"):
+    async def query_tables(self, schema: str | None = None):
         """
         List all table names under the specified schema.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(session=SESSION[KEYS])
-            result = await conn_cls.query_tables(table_name='config_eqp_basic')
+            conn_cls = SqlAlchemyExecAsync()
+            result = await conn_cls.query_tables()
 
-        :param schema: Optional; schema name (e.g., 'public' for PostgreSQL, None for MySQL).
+        :param schema: Optional schema; None uses the current database's default schema.
         :return: List[str]; table names.
 
                                                                                                ♂ ZhengLee 2026.10.03
@@ -203,7 +235,7 @@ class SqlAlchemyExecAsync:
         Check table existence using the current session's SQLAlchemy inspector.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.query_table_exists(table='Table_name')
 
         :param table: Literal table name; SQL fragments are not interpolated.
@@ -229,16 +261,16 @@ class SqlAlchemyExecAsync:
             return await conn.run_sync(sync_has_table)
 
     # —< Transaction >—————————————————————————————————————● Query Schema
-    async def query_schema(self, table_name: str, schema: str = "public"):
+    async def query_schema(self, table_name: str, schema: str | None = None):
         """
         Retrieve column definitions for a specific table in the database.
 
         ● Guide:
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.query_schema(table_name='config_eqp_basic')
 
         :param table_name: Target table name.
-        :param schema: Schema name (default: 'public' for PostgreSQL).
+        :param schema: Optional schema; None uses the current database's default schema.
         :return: List[dict]; each dict contains column metadata.
             All SQLAlchemy types are converted to string for JSON serialization compatibility.
 
@@ -283,7 +315,7 @@ class SqlAlchemyExecAsync:
         Execute a raw SQL query and fetch all results as a list.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.query(sql='SELECT * FROM public.test')
 
         :param sql: Raw SQL with parameters (use :name style).
@@ -305,18 +337,18 @@ class SqlAlchemyExecAsync:
         Execute a raw SQL query and return a single scalar.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             scalar = await conn_cls.query_scalar(sql='SELECT COUNT(*) FROM public.test')
 
         :param sql: Raw SQL with parameters (use :name style).
         :param params: Parameters dict for SQL query.
-        :return: The first scalar result.
+        :return: The first scalar result, or None when there is no row.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
         try:
             result = await self._execute(sql, params)
-            return [row[0] for row in result.fetchall()][0]
+            return result.scalar()
         except SQLAlchemyError as e:
             raise e
 
@@ -327,7 +359,7 @@ class SqlAlchemyExecAsync:
         Yield rows from a buffered SQL result while preserving the existing return format.
 
         ● Guide:
-            db = SqlAlchemyExecAsync(key="main")
+            db = SqlAlchemyExecAsync()
             async for row in db.query_large("SELECT id FROM item"):
                 print(row)
 
@@ -351,7 +383,7 @@ class SqlAlchemyExecAsync:
         Execute a raw SQL query and transform results into a list of dictionaries.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.query_dict(sql='SELECT * FROM public.test')
 
         :param sql: Raw SQL with parameters (use :name style).
@@ -373,18 +405,20 @@ class SqlAlchemyExecAsync:
         Execute the raw SQL query and return a list of values from a specific column index.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.query_list_idx(sql='SELECT * FROM public.test')
 
         :param sql: Raw SQL with parameters (use :name style).
         :param params: Parameters dict for SQL query.
         :param index: Specifies a column by index.
-        :return: List of rows as lists.
+        :return: List of values from the selected column.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
         try:
             result = await self._execute(sql, params)
+            if index is None:
+                index = 0
             if len(result.keys()) == 1:
                 """
                 Directly return a list of values for the single column.
@@ -395,29 +429,29 @@ class SqlAlchemyExecAsync:
                 For multiple columns, extract values using the specified index.
                 Ensure index is within bounds for each row.
                 """
-                return [row[index] if index < len(row) else None for row in result.fetchall()]
+                return [row[index] if -len(row) <= index < len(row) else None for row in result.fetchall()]
         except SQLAlchemyError as e:
             raise e
 
     # —< Transaction >—————————————————————————————————————● Query the first data in specific index.
     @sql_validate
-    async def query_first(self, sql: str, params: Optional[Dict[str, Any]] = None, index: Optional[int] = 0) -> dict:
+    async def query_first(self, sql: str, params: Optional[Dict[str, Any]] = None, index: Optional[int] = 0) -> Any:
         """
-        Execute the raw SQL query and return a fist values from a specific column index list.
+        Execute the raw SQL query and return the first value from a specific column index.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.query_first(sql='SELECT * FROM public.test')
 
         :param sql: Raw SQL with parameters (use :name style).
         :param params: Parameters dict for SQL query.
         :param index: Specifies a column by index.
-        :return: Dict of rows.
+        :return: First column value, including falsey values, or None when no row exists.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
         rows = await self.query_list_idx(sql=sql, params=params, index=index)
-        return rows[0] if rows and len(rows) >= 1 and rows[0] else None
+        return rows[0] if rows else None
 
     # —< Transaction >—————————————————————————————————————● Query to List in specific column name.
     @sql_validate
@@ -426,13 +460,13 @@ class SqlAlchemyExecAsync:
         Execute the raw SQL query and return a list of values from a specific column by name.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.query_list_col(sql='SELECT * FROM public.test', column_name='Specific column name')
 
         :param sql: Raw SQL with parameters (use :name style).
         :param params: Parameters dict for SQL query.
         :param column_name: Specifies a column by column_name.
-        :return: List of rows as lists.
+        :return: List of values from the named column, or an empty list if it is absent.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
@@ -458,7 +492,7 @@ class SqlAlchemyExecAsync:
         Execute a raw SQL command (e.g., INSERT, UPDATE, DELETE) and return a boolean status.
 
         ● Guide：
-            conn_cls = SqlAlchemyExecAsync(key="main")
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.exec(sql='INSERT INTO public.test (is_active) VALUES(true)')
 
         :param sql: Raw SQL with parameters (use :name style).
@@ -483,15 +517,16 @@ class SqlAlchemyExecAsync:
         ● Guide(Select)：
             from sqlalchemy import select
             stmt = select(Model).where(Model.id == 1)
-            conn_cls = SqlAlchemyExecAsync(session=SESSION[KEYS])
+            conn_cls = SqlAlchemyExecAsync()
             result = await conn_cls.execute_orm(stmt)
             records = result.all()  # or result.first(), etc.
 
         ● Guide(Insert)：
             from sqlalchemy import insert
             stmt = insert(Model).values(column=value)
-            conn_cls = SqlAlchemyExecAsync(session=SESSION[KEYS])
-            rowcount = await conn_cls.execute_orm(stmt)
+            conn_cls = SqlAlchemyExecAsync()
+            result = await conn_cls.execute_orm(stmt)
+            rowcount = result.rowcount
 
         :param stmt: A SQLAlchemy statement (e.g., select(Model).where(...))
         :return: The buffered Result object from executing the ORM query.
@@ -510,7 +545,7 @@ class SqlAlchemyExecAsync:
         Add an ORM object, explicitly commit it, refresh its fields, and return it.
 
         ● Guide:
-            db = SqlAlchemyExecAsync(key="main")
+            db = SqlAlchemyExecAsync()
             saved = await db.execute_commit(model_object)
 
         :param obj: ORM object to add to the session.
@@ -527,8 +562,9 @@ class SqlAlchemyExecAsync:
             raise RuntimeError("execute_commit cannot submit an externally managed transaction; use session.add/flush.")
         async with self._session_scope() as session:
             session.add(obj)
-            await session.commit()
+            await session.flush()
             await session.refresh(obj)
+            await session.commit()
             return obj
 
     # —< Transaction >—————————————————————————————————————● ORM Command Pagination
@@ -569,20 +605,20 @@ class SqlAlchemyExecAsync:
         if is_all:
             try:
                 result = await self._execute_stmt(stmt)
-                items = [dict(r._mapping) for r in result] if result else []
+                items = [self._item_to_dict(row) for row in result] if result else []
                 total = len(items)
-                params = Params(page=1, size=max(total, 1))
+                params = BigParams(page=1, size=max(total, 1))
                 return create_page(items, total, params)
             except SQLAlchemyError as e:
                 raise e
         # ----------------------------------------------------------● Step 3. PAGINATED mode
         try:
             async with self._session_scope() as session:
-                params = Params(page=max(int(page), 1), size=max(int(size), 1))
+                params = BigParams(page=max(int(page), 1), size=max(int(size), 1))
                 page_obj = await apaginate(session, stmt, params=params, subquery_count=subquery_count, unique=unique)
 
             # --------------------------------------------------● Step 4.  Row → dict conversion
-            page_obj = page_obj.model_copy(update={"items": [dict(r._mapping) for r in page_obj.items]})
+            page_obj = page_obj.model_copy(update={"items": [self._item_to_dict(item) for item in page_obj.items]})
             return page_obj
 
         except SQLAlchemyError as e:
@@ -591,7 +627,8 @@ class SqlAlchemyExecAsync:
     # —< Transaction >—————————————————————————————————————● RAW Pagination
     @validate_call
     async def paginate_query(
-        self, sql: str, page: Union[int, str] = 1, size: Union[int, str] = 20, single_element: bool = False
+        self, sql: str, page: Union[int, str] = 1, size: Union[int, str] = 20,
+        single_element: bool = False, sql_params: Optional[Dict[str, Any]] = None,
     ):
         """
         Generate a paginated (or full‑fetch) response for an arbitrary SQL statement.
@@ -606,28 +643,35 @@ class SqlAlchemyExecAsync:
         :param page:           Page index (1‑based) **or** the string ``"all"``.
         :param size:           Page size (>=1)       **or** the string ``"all"``.
         :param single_element: Treat each row as a single scalar (1‑column result).
+        :param sql_params:     Optional named values for the raw SQL statement.
         :return:               `fastapi_pagination.default.Page`
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
+        sql = sql.rstrip().removesuffix(';').rstrip()
+        if not sql:
+            raise ValueError("sql must be a non-empty string.")
+
         # --------------------------------------------------------------● Step 1. Detect mode
         is_all = str(page).lower() == "all" or str(size).lower() == "all"
 
         # --------------------------------------------------------------● Step 2. FULL‑FETCH
         if is_all:
             rows = (
-                await self.query_list_idx(sql)  # → flat list
+                await self.query_list_idx(sql, params=sql_params)  # → flat list
                 if single_element
-                else await self.query(sql)  # → list[list]
+                else await self.query(sql, params=sql_params)  # → list[list]
             )
             total = len(rows)
-            params = Params(page=1, size=max(total, 1))
+            params = BigParams(page=1, size=max(total, 1))
             return create_page(rows, total, params)
 
         # --------------------------------------------------------------● Step 3. PAGINATED
-        params = Params(page=max(int(page), 1), size=max(int(size), 1))
+        params = BigParams(page=max(int(page), 1), size=max(int(size), 1))
         async with self._session_scope() as session:
-            page_obj = await apaginate(session, text(sql), params=params, unwrap_mode="no-unwrap")
+            page_obj = await apaginate(
+                session, text(sql), params=params, unwrap_mode="no-unwrap", bind_params=sql_params
+            )
 
         # --------------------------------------------------------------● Step 4. Row → list / scalar
         coercer = (lambda r: list(r)[0]) if single_element else (lambda r: list(r))
@@ -639,9 +683,10 @@ class SqlAlchemyExecAsync:
     async def paginate_query_dict(
         self,
         sql: str,
-        type_db: EnumDBType = EnumDBType.POSTGRESQL,
+        type_db: EnumDBType | str | None = None,
         page: Union[int, str] = 1,
         size: Union[int, str] = 20,
+        sql_params: Optional[Dict[str, Any]] = None,
     ):
         """
         Paginate *or* fully fetch a raw SQL statement and convert each row to **dict**.
@@ -651,19 +696,24 @@ class SqlAlchemyExecAsync:
             2. **Paginated** – call database‑specific helper to apply LIMIT/OFFSET.
 
         :param sql:     Raw SQL text.
-        :param type_db: Enum designating DB flavour (passed to `sqlalchemy_pagination_stmt`).
+        :param type_db: Optional database flavour; None uses the current session's dialect.
         :param page:    Page index (1‑based) **or** the string ``"all"``.
         :param size:    Page size (>=1)       **or** the string ``"all"``.
+        :param sql_params: Optional named values for the raw SQL statement.
         :return:        `fastapi_pagination.default.Page`
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
+        sql = sql.rstrip().removesuffix(';').rstrip()
+        if not sql:
+            raise ValueError("sql must be a non-empty string.")
+
         # --------------------------------------------------------------● Step 1. Detect mode
         is_all = str(page).lower() == "all" or str(size).lower() == "all"
 
         # --------------------------------------------------------------● Step 2. FULL‑FETCH
         if is_all:
-            items = await self.query_dict(sql)
+            items = await self.query_dict(sql, params=sql_params)
             total = len(items)
             params = BigParams(page=1, size=max(total, 1))
             return create_page(items, total, params)
@@ -672,13 +722,13 @@ class SqlAlchemyExecAsync:
         page_int = max(int(page), 1)
         size_int = max(int(size), 1)
 
-        # COUNT(*)  (needed by fastapi-pagination Page schema)
-        count_sql = f"SELECT COUNT(*) FROM ({sql}) AS total"
-        total = await self.query_scalar(count_sql)
-
-        # Dialect‑aware pagination SQL
-        page_sql = sqlalchemy_pagination_stmt(sql, page_int, size_int, type_db)
-        result = await self._execute(page_sql)
-        items = [dict(row) for row in result.mappings()]
+        async with self._session_scope() as session:
+            # Keep the count and page query in the same operation scope.
+            count_sql = f"SELECT COUNT(*) FROM ({sql}) AS total"
+            total = (await session.execute(text(count_sql), sql_params)).scalar() or 0
+            dialect = type_db if type_db is not None else session.get_bind().dialect.name
+            page_sql = sqlalchemy_pagination_stmt(sql, page_int, size_int, dialect)
+            result = await session.execute(text(page_sql), sql_params)
+            items = [dict(row) for row in result.mappings()]
         params = BigParams(page=page_int, size=size_int)
         return create_page(items, total, params)

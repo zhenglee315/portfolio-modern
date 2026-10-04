@@ -2,7 +2,7 @@
 from .tools_sqlalchemy_async import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ SqlAlchemy
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
 from sqlalchemy.engine import make_url
 
 # ◆—< Pack >—————————————————————————————————◆ System
@@ -11,22 +11,20 @@ from SYSTEM.database import CONN_MANAGER
 # ◆—< Pack >—————————————————————————————————◆ Python
 from typing import Optional, Callable
 from types import TracebackType
-from importlib import import_module
 import inspect
 
 
-# ■—< CLS >———————————————————————————————————————————————————————————————————————————■ SqlAlchemy - Repository Executor
+# ■—< CLS >———————————————————————————————————————————————————————————————————————————■ SqlAlchemy - Async Executor Wrapper
 class SqlAlchemyExecWrapper:
     """
-    Forward repository operations using engines and sessions owned by CONN_MANAGER.
+    Forward SQL operations using the one asynchronous database in CONN_MANAGER.
 
-    Repository keys keep their existing namespace. Each invocation gets a fresh
-    session; entering this wrapper's context does not create a shared transaction.
-    SQLAlchemy's dialect selects sync/async I/O. The optional synchronous executor
-    is loaded only when a synchronous method is requested.
+    key= remains a compatibility alias; it no longer selects another repository.
+    Each default invocation gets a fresh session. Entering this wrapper's context
+    does not create a shared transaction.
 
     ● Guide:
-        repo = SqlAlchemyExecWrapper(key="edw-holmes")
+        repo = SqlAlchemyExecWrapper()
         rows = await repo.query(sql="SELECT * FROM sys_event")
         stream = await repo.query_large(sql="SELECT * FROM sys_event")
         async for row in stream:
@@ -35,50 +33,61 @@ class SqlAlchemyExecWrapper:
                                                                                                ♂ ZhengLee 2026.10.03
     """
 
-    def __init__(self, key: str) -> None:
+    def __init__(
+        self, key: str | None = None, session: AsyncSession | None = None, *, manage_transaction: bool = True
+    ) -> None:
         """
-        Resolve the existing repository key without keeping a second engine cache.
+        Prepare a single-database executor without opening a connection.
 
-        :param key: Identifier registered with CONN_MANAGER.add_repositories().
-        :return: None; engines are registered with the manager before first use.
+        :param key: Legacy identifier; all values use the one configured database.
+        :param session: Optional caller-supplied asynchronous session.
+        :param manage_transaction: False leaves the injected session under caller control.
+        :return: None; the manager must be initialized before the first operation.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
         self.key = key
-        CONN_MANAGER.get_repository_session_factory(key)
+        self._executor = SqlAlchemyExecAsync(
+            key=key, session=session, manage_transaction=manage_transaction
+        )
 
     @property
     def engine(self):
         """
-        Resolve the current repository engine, including metadata URL replacements.
+        Resolve the current manager-owned database engine.
 
-        :return: Manager-owned Engine or AsyncEngine; callers must not dispose it.
+        :return: Injected session bind or manager-owned AsyncEngine; callers must not dispose it.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
+        if self._executor._session is not None and self._executor._session.bind is not None:
+            return self._executor._session.bind
         return self.session_factory.kw["bind"]
 
     @property
     def session_factory(self):
         """
-        Expose the manager's factory for compatibility with existing wrapper access.
+        Expose the manager's single database factory for compatibility.
 
         :return: Shared factory; sessions created directly are caller-owned.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        return CONN_MANAGER.get_repository_session_factory(self.key)
+        factory = CONN_MANAGER._session_factory
+        if factory is None:
+            raise RuntimeError("Database has not been initialized; call init_db() first.")
+        return factory
 
     @property
     def _is_async(self) -> bool:
         """
-        Return the I/O mode of the current manager-owned repository engine.
+        Return the I/O mode of the current manager-owned engine.
 
-        :return: True for an AsyncEngine, otherwise False.
+        :return: True for an AsyncEngine or AsyncConnection, otherwise False.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        return isinstance(self.engine, AsyncEngine)
+        return isinstance(self.engine, (AsyncEngine, AsyncConnection))
 
     @staticmethod
     def _detect_async(url: str) -> bool:
@@ -94,70 +103,31 @@ class SqlAlchemyExecWrapper:
 
     def __getattr__(self, meth_name: str) -> Callable:
         """
-        Forward a method while retaining per-operation session ownership.
+        Forward an asynchronous method while retaining its session ownership.
 
         :param meth_name: Existing SQL executor method name.
-        :return: Async or sync proxy; async streams acquire their scope on iteration.
+        :return: Awaitable proxy; async streams return an iterator when awaited.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        if self._is_async:
-            method = getattr(SqlAlchemyExecAsync, meth_name)
+        method = getattr(SqlAlchemyExecAsync, meth_name)
+        if meth_name.startswith('_') or not callable(method):
+            raise AttributeError(meth_name)
 
-            async def stream_proxy(*args, **kwargs):
-                """
-                Keep the repository session open until streaming ends or is closed.
-
-                :param args: Positional method arguments.
-                :param kwargs: Keyword method arguments.
-                :yield: Original result rows; early consumers must close the iterator.
-
-                                                                                               ♂ ZhengLee 2026.10.03
-                """
-                async with CONN_MANAGER.session_scope(self.key, repository=True) as session:
-                    iterator = getattr(SqlAlchemyExecAsync(session=session), meth_name)(*args, **kwargs)
-                    try:
-                        async for row in iterator:
-                            yield row
-                    finally:
-                        await iterator.aclose()
-
-            async def async_proxy(*args, **kwargs):
-                """
-                Execute one async repository method with a fresh managed session.
-
-                :param args: Positional method arguments.
-                :param kwargs: Keyword method arguments.
-                :return: Original method result, or a scoped iterator for query_large.
-
-                                                                                               ♂ ZhengLee 2026.10.03
-                """
-                if inspect.isasyncgenfunction(inspect.unwrap(method)):
-                    return stream_proxy(*args, **kwargs)
-                async with CONN_MANAGER.session_scope(self.key, repository=True) as session:
-                    result = getattr(SqlAlchemyExecAsync(session=session), meth_name)(*args, **kwargs)
-                    return await result if inspect.isawaitable(result) else result
-
-            return async_proxy
-
-        # Load optional sync integration on demand so async imports do not require it.
-        sync_class = import_module(".tools_sqlalchemy_sync", __package__).SqlAlchemyExecSync
-        getattr(sync_class, meth_name)
-
-        def sync_proxy(*args, **kwargs):
+        async def async_proxy(*args, **kwargs):
             """
-            Forward one synchronous method using a session on the calling thread.
+            Forward one operation to the executor's current session policy.
 
             :param args: Positional method arguments.
             :param kwargs: Keyword method arguments.
-            :return: Original synchronous executor result.
+            :return: Original method result, or an iterator for query_large.
 
                                                                                                ♂ ZhengLee 2026.10.03
             """
-            with CONN_MANAGER.session_scope_sync(self.key, repository=True) as session:
-                return getattr(sync_class(session=session), meth_name)(*args, **kwargs)
+            result = getattr(self._executor, meth_name)(*args, **kwargs)
+            return await result if inspect.isawaitable(result) else result
 
-        return sync_proxy
+        return async_proxy
 
     # —< Context >—————————————————————————————————————————● Compatibility
     def __enter__(self) -> "SqlAlchemyExecWrapper":

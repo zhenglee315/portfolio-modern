@@ -28,28 +28,33 @@ def sqlalchemy_pagination_stmt(sql: str, page: int, size: int, type_db: str):
 
                                                                                                ♂ ZhengLee 2026.10.03
     """
-    page_sql = ""
+    if page < 1 or size < 1:
+        raise ValueError("page and size must be positive integers.")
+
+    sql = sql.rstrip().removesuffix(';').rstrip()
+    if not sql:
+        raise ValueError("sql must be a non-empty string.")
+
     match type_db:
-        case EnumDBType.ORACLE:
+        case 'oracle':
             page_sql = f"""
             SELECT *
             FROM (SELECT ROWNUM AS rowno,a.*
                   FROM({sql}) a
                   where ROWNUM <= {page * size} 
                  ) b
-            WHERE b.rowno > {(page - 1) * size};
+            WHERE b.rowno > {(page - 1) * size}
             """
 
-        case EnumDBType.POSTGRESQL:
+        case EnumDBType.SQLLite | EnumDBType.POSTGRESQL | 'mysql' | 'mariadb':
             offset = (page - 1) * size
             page_sql = f"{sql} LIMIT {size} OFFSET {offset}"
 
-        case EnumDBType.MYSQL | EnumDBType.MARIADB:
-            offset = (page - 1) * size
-            page_sql = f"{sql} LIMIT {size} OFFSET {offset}"
-
-        case EnumDBType.MSSQL:
+        case 'mssql':
             offset = (page - 1) * size
             page_sql = f"{sql} OFFSET {offset} ROWS FETCH NEXT {size} ROWS ONLY"
+
+        case _:
+            raise ValueError(f"Unsupported database type for pagination: {type_db!r}.")
 
     return page_sql

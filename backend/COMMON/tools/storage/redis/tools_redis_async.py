@@ -64,9 +64,8 @@ class RedisAsync:
         """
         Decode pickle bytes; leave None, non-bytes, and disabled decoding unchanged.
 
-        Only ValueError is caught by the current implementation. UnpicklingError,
-        EOFError, and missing-class/import errors can propagate for raw or stale data.
-        Only deserialize values written by a trusted producer.
+        Invalid pickle bytes are returned unchanged. Missing-class/import errors from
+        stale pickle data still propagate. Only deserialize trusted Redis values.
 
         :param value: Cached value, normally bytes when decode_responses=False.
         :param deserialize: Whether to attempt pickle decoding for bytes.
@@ -77,7 +76,7 @@ class RedisAsync:
         if value is not None and deserialize:
             try:
                 return pickle.loads(value) if isinstance(value, bytes) else value
-            except ValueError:
+            except (pickle.UnpicklingError, EOFError, ValueError):
                 return value
         return value
 
@@ -159,11 +158,13 @@ class RedisAsync:
         ● Guide:
             removed = await cache.delete("user:1", "user:2")
 
-        :param keys: One or more keys; an empty argument list is not handled locally.
-        :return: Number of keys actually removed, excluding missing keys.
+        :param keys: Keys to delete; an empty argument list performs no command.
+        :return: Number of keys actually removed, or 0 for empty input.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
+        if not keys:
+            return 0
         return await self._execute(self.redis.delete, *keys)
 
     # —< Command >—————————————————————————————————————————● Hash - SET
@@ -219,12 +220,14 @@ class RedisAsync:
         Read multiple hash fields in the requested order.
 
         :param name: Redis hash key.
-        :param keys: Non-empty list of field names; empty input is not handled locally.
+        :param keys: Field names; empty input returns an empty list without a command.
         :param deserialize: Whether to decode trusted pickle bytes per field.
         :return: Ordered list of values, with None for each missing field.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
+        if not keys:
+            return []
         values = await self._execute(self.redis.hmget, name, *keys)
         return [self._deserialize(v, deserialize=deserialize) for v in values]
 
@@ -234,25 +237,28 @@ class RedisAsync:
         Move a serialized value to the list head and trim in one transaction.
 
         LREM compares stored bytes, not Python object equality. Runtime errors during
-        EXEC do not roll back other commands. A positive max_length is required by
-        the intended contract but is not validated; zero produces LTRIM 0 -1.
+        EXEC do not roll back other commands. max_length must be a positive integer.
 
         ● Guide:
             await cache.list_left_push("recent:logins", user_obj, max_length=100)
 
         :param key: Redis list key.
         :param value: Value to remove from existing positions and push to the head.
-        :param max_length: Intended positive maximum number of retained elements.
+        :param max_length: Positive maximum number of retained elements.
         :param serialize: Whether to pickle value before matching and storing it.
         :return: True after successful execution of LREM, LPUSH, and LTRIM.
+        :raises ValueError: max_length is not a positive integer.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
+        if isinstance(max_length, bool) or not isinstance(max_length, int) or max_length <= 0:
+            raise ValueError("max_length must be a positive integer.")
+
         val = self._serialize(value, serialize=serialize)
         async with self.redis.pipeline(transaction=True) as pipe:
-            await pipe.lrem(key, 0, val)  # Remove duplicates
-            await pipe.lpush(key, val)  # Left push
-            await pipe.ltrim(key, 0, max_length - 1)
+            pipe.lrem(key, 0, val)  # Remove duplicates
+            pipe.lpush(key, val)  # Left push
+            pipe.ltrim(key, 0, max_length - 1)
             await pipe.execute()
         return True
 
@@ -261,9 +267,9 @@ class RedisAsync:
         """
         Remove up to count values from the left of a Redis list.
 
-        Try LPOP with COUNT (Redis 6.2+), then use transactional LRANGE/LTRIM on
-        ResponseError. The fallback currently catches every ResponseError, not only
-        unsupported COUNT syntax. Nonpositive counts return an empty list.
+        Try LPOP with COUNT (Redis 6.2+), then use transactional LRANGE/LTRIM only
+        when the server rejects the extra argument. Other Redis errors propagate.
+        Nonpositive counts return an empty list.
 
         :param key: Redis list key.
         :param count: Maximum number of values to remove.
@@ -282,11 +288,13 @@ class RedisAsync:
                 return []
             items = [res] if isinstance(res, (bytes, bytearray)) else list(res)
 
-        except ResponseError:
+        except ResponseError as exc:
+            if "wrong number of arguments" not in str(exc).lower():
+                raise
             # Fallback for older Redis (no COUNT support)
             async with await self.pipeline() as pipe:
-                await pipe.lrange(key, 0, count - 1)
-                await pipe.ltrim(key, count, -1)
+                pipe.lrange(key, 0, count - 1)
+                pipe.ltrim(key, count, -1)
                 res_preview, _ = await pipe.execute()
             items = res_preview or []
 
@@ -513,30 +521,32 @@ class RedisAsync:
 
         SADD and SET run in one transaction; runtime command errors do not roll back
         other commands. The later TTL read is separate. A nonpositive observed TTL
-        currently falls back to expire when computing the displayed expiry.
+        falls back to expire when computing the displayed expiry.
 
         ● Guide:
             result = await cache.heartbeat_client(identifier="123456", expire=60)
             # {"employee_id": "123456", "expiry": "2026-09-26 11:08:30"}
 
-        :param identifier: Nonempty identifier; converted to str after the truthiness check.
-        :param expire: Intended positive TTL seconds for the heartbeat key.
+        :param identifier: Nonempty identifier; converted to str after validation.
+        :param expire: Positive TTL seconds for the heartbeat key.
         :param set_key: Redis set holding identifiers; stale entries do not expire automatically.
         :param key_prefix: Prefix of '<key_prefix>:<identifier>' heartbeat keys.
         :return: employee_id and estimated expiry in TIME_ZONE without a UTC offset.
-        :raises RuntimeError: If identifier is false, including integer zero.
+        :raises ValueError: Identifier is empty or expire is not a positive integer.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        if not identifier:
-            raise
+        if not identifier or not str(identifier).strip():
+            raise ValueError("identifier must not be empty.")
+        if isinstance(expire, bool) or not isinstance(expire, int) or expire <= 0:
+            raise ValueError("expire must be a positive integer.")
 
         identifier = str(identifier)
         hb_key = f"{key_prefix}:{identifier}"
 
         async with await self.pipeline() as pipe:
-            await pipe.sadd(set_key, identifier)
-            await pipe.set(hb_key, 1, ex=expire)
+            pipe.sadd(set_key, identifier)
+            pipe.set(hb_key, 1, ex=expire)
             await pipe.execute()
 
         ttl = await self.redis.ttl(hb_key)
@@ -569,7 +579,7 @@ class RedisAsync:
 
         async with await self.pipeline() as pipe:
             for uid in user_ids:
-                await pipe.exists(f"{key_prefix}:{uid}")
+                pipe.exists(f"{key_prefix}:{uid}")
             exists_results = await pipe.execute()  # [0/1, 0/1, ...]
 
         alive, expired = [], []

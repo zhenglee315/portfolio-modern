@@ -39,7 +39,7 @@ class SessionMiddleware:
     def __init__(
             self,
             app: ASGIApp,
-            store: SessionStore,
+            store_factory: typing.Callable[[], SessionStore],
             lifetime: typing.Union[int, datetime.timedelta] = 0,  # session-only
             rolling: bool = False,
             cookie_name: str = "session",
@@ -53,7 +53,7 @@ class SessionMiddleware:
         assert lifetime >= 0, "Session lifetime cannot be less than zero seconds."
 
         self.app = app
-        self.store = store
+        self.store_factory = store_factory
         self.rolling = rolling
         self.serializer = serializer or JsonSerializer()
         self.cookie_name = cookie_name
@@ -73,28 +73,9 @@ class SessionMiddleware:
 
         # ----------------------------------------------● Session ID
         session_id = connection.cookies.get(self.cookie_name)
-        if not session_id:
-            """
-            Fallback: try to read the session id from the query string
-            This allows third-party callers (e.g. iframe parents) to append ?session_id=...
-            """
-            session_id = connection.query_params.get(self.cookie_name)
-
-            if not session_id:
-                """
-                Fallback: try to read the session id from HTTP headers
-                This is useful for API clients or reverse proxies that inject the session id.
-                """
-                _headers = connection.headers
-                session_id = _headers.get(self.cookie_name)
-                if not session_id:
-                    """
-                    Then, fallback to a few common header names for session identifiers.
-                    """
-                    session_id = _headers.get("session_id") or _headers.get("Session-Id") or _headers.get("X-Session-Id")
-
         # ----------------------------------------------● Handler
-        handler = SessionHandler(connection, session_id, self.store, self.serializer, self.lifetime)
+        store = self.store_factory()
+        handler = SessionHandler(connection, session_id, store, self.serializer, self.lifetime)
 
         scope["session"] = LoadGuard()
         scope["session_handler"] = handler

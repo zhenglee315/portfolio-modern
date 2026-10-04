@@ -4,9 +4,9 @@
 
 This directory contains the backend of the **Modern Personal Profile System**, centered on FastAPI, uv, and SQLAlchemy's asynchronous ORM. The goals are lightweight development, modularity, and maintainability. Backend development takes priority; frontend development is deferred. See the [root README](../README.md) for the product overview.
 
-本文件區分目前可執行的後端基礎設施與尚未完成的業務功能。FastAPI 入口、單一非同步資料庫連線管理、Redis client、WEB cache、Socket.IO 組裝、heartbeat middleware 與本機 Swagger／ReDoc 已建立；業務 API、ORM 與 migration 尚待完成。
+本文件區分目前可執行的後端基礎設施與尚未完成的業務功能。FastAPI 入口、單一非同步資料庫連線管理、Redis client、WEB cache、Socket.IO 組裝、heartbeat 與 session middleware、本機 Swagger／ReDoc、ORM 模型和初版 Alembic migration 已建立；業務 API 與登入功能尚未實作。
 
-This document separates the runnable backend infrastructure from unfinished business features. The FastAPI entry point, one asynchronous database manager, Redis clients, WEB cache, Socket.IO assembly, heartbeat middleware, and local Swagger/ReDoc are present. Business APIs, ORM integration, and migrations remain unfinished.
+This document separates the runnable backend infrastructure from unfinished business features. The FastAPI entry point, one asynchronous database manager, Redis clients, WEB cache, Socket.IO assembly, heartbeat and session middleware, local Swagger/ReDoc, ORM models, and an initial Alembic migration are present. Business APIs and login are not implemented.
 
 ## 1. 目前狀態 / Current State
 
@@ -44,24 +44,30 @@ backend/
 │   │   └── constants_cache.py
 │   ├── database/
 │   │   ├── database_core.py
-│   │   ├── models/
+│   │   └── orm/
+│   ├── models/
+│   │   ├── model_auth.py
+│   │   ├── models_portfolio.py
 │   │   └── migrations/
-│   │       └── .gitkeep
+│   │       ├── env.py
+│   │       └── versions/
 │   ├── middleware/
 │   └── static/                     # Swagger / ReDoc assets
 ├── .python-version
 ├── README.md
+├── alembic.ini
 ├── manage_fastapi.py
 ├── pyproject.toml
+├── test.py
 ├── uv.lock
 └── src/
     └── backend/
         └── __init__.py
 ```
 
-上圖列出目前已整合的主要後端檔案，省略 package 標記、靜態資產細項與尚未整合的草稿。`SYSTEM/database/models/` 與 `migrations/` 是骨架；版本庫另有 `SYSTEM/models/`、`SYSTEM/database/orm/`、`alembic.ini` 等 ORM／Alembic 草稿，但啟動流程沒有載入它們。`APPs/` 的業務模組尚未建立。
+上圖列出目前主要的後端檔案，省略 package 標記與靜態資產細項。`SYSTEM/models/` 定義資料表模型，`SYSTEM/models/migrations/` 包含初版 migration；Alembic 會載入模型 metadata，伺服器啟動不會自動執行 migration。`APPs/` 的業務模組尚未建立。
 
-The tree shows the main integrated backend files, omitting package markers, individual static assets, and unintegrated drafts. `SYSTEM/database/models/` and `migrations/` are scaffolds. The repository also contains ORM/Alembic drafts under `SYSTEM/models/`, `SYSTEM/database/orm/`, and `alembic.ini`, but startup does not load them. Business modules under `APPs/` have not been created.
+The tree shows the main backend files, omitting package markers and individual static assets. `SYSTEM/models/` defines the table models, and `SYSTEM/models/migrations/` contains the initial migration. Alembic loads the model metadata; server startup does not apply migrations automatically. Business modules under `APPs/` have not been created.
 
 本機產生的 `.venv/` 與作業系統檔案不屬於原始碼架構，未列入上圖。依賴宣告以 [pyproject.toml](pyproject.toml) 為準，解析後版本記錄於 [uv.lock](uv.lock)。
 
@@ -71,14 +77,14 @@ The locally generated `.venv/` and operating-system files are not part of the so
 | --- | --- | --- |
 | API | `fastapi`, `uvicorn[standard]` | HTTP API 與 ASGI 執行環境 / HTTP APIs and ASGI runtime |
 | 資料驗證 / Validation | `pydantic`, `pydantic-settings` | 資料與應用設定驗證 / Data and application settings validation |
-| 資料庫 / Database | `sqlalchemy[asyncio]`, `asyncpg`, `alembic` | 非同步 ORM、PostgreSQL 驅動、結構遷移 / Async ORM, PostgreSQL driver, and schema migrations |
+| 資料庫 / Database | `sqlalchemy[asyncio]`, `aiosqlite`, `asyncpg`, `alembic` | 非同步 ORM、SQLite／PostgreSQL 驅動、結構遷移 / Async ORM, SQLite/PostgreSQL drivers, and schema migrations |
 | 快取與即時功能 / Cache and Realtime | `redis`, `fastapi-cache2`, `python-socketio` | Redis client、WEB cache backend、Socket.IO 組裝；業務 API 的快取裝飾器尚未使用 / Redis clients, WEB cache backend, and Socket.IO assembly; business API caching is not used yet |
-| 模板與 Session / Templates and Sessions | `jinja2`, `starsessions` | Jinja2 已宣告但目前文件頁不使用模板；session 工具保留但 middleware 未啟用 / Jinja2 is declared but the current docs pages use no templates; session utilities remain while their middleware is disabled |
-| 開發依賴 / Development | `aiosqlite`, `black`, `pytest`, `httpx` | 本機 SQLite 驅動、排版與測試 / Local SQLite driver, formatting, and testing |
+| 模板與 Session / Templates and Sessions | `jinja2`, `starsessions` | Jinja2 已宣告但目前文件頁不使用模板；Redis session middleware 已掛載，登入功能尚未實作 / Jinja2 is declared but the current docs pages use no templates; Redis session middleware is mounted, but login is not implemented |
+| 開發依賴 / Development | `black`, `pytest`, `httpx` | 排版與測試 / Formatting and testing |
 
-目前方向是本機以 SQLite 開發、部署時使用 PostgreSQL，皆透過 SQLAlchemy async ORM 存取。`aiosqlite` 目前位於 `dev` 群組，因此本機 SQLite 環境需要包含此群組；若未來正式環境也使用 SQLite，須重新調整依賴分類。Python 驅動的安裝不代表資料庫或 Redis 服務已安裝、啟動。
+目前方向是本機以 SQLite 開發、部署時使用 PostgreSQL，皆透過 SQLAlchemy async ORM 存取。`aiosqlite` 與 `asyncpg` 都是正式依賴；Python 驅動的安裝不代表資料庫或 Redis 服務已安裝、啟動。
 
-The current direction is SQLite for local development and PostgreSQL for deployment, accessed through SQLAlchemy's async ORM. `aiosqlite` is currently in the `dev` group, so local SQLite environments need that group. If SQLite is later used in production, its dependency classification must change. Installing Python drivers does not install or start database or Redis services.
+The current direction is SQLite for local development and PostgreSQL for deployment, accessed through SQLAlchemy's async ORM. Both `aiosqlite` and `asyncpg` are runtime dependencies. Installing Python drivers does not install or start database or Redis services.
 
 Black 格式設定集中在 `pyproject.toml` 的 `[tool.black]`，`line-length = 120`，沿用 HolmesBase 的行長規範。在本目錄執行 `uv run black .` 格式化，或以 `uv run black --check .` 僅檢查。
 
@@ -86,9 +92,9 @@ Black formatting is configured in `[tool.black]` in `pyproject.toml`, with `line
 
 ### 本機啟動 / Local Startup
 
-在 `backend/` 執行以下命令。`SYSTEM/config.yaml` 是本機私有檔案，已被 Git 忽略；啟動前至少須設定非空的 `SECURITY.secret_key`，以及 `DATABASE.META` 的 `type`、`is_async` 和 `name`。目前沒有可直接複製的公開設定範本。SQLite 使用的 `aiosqlite` 位於開發依賴，請使用預設的 `uv sync`。
+在 `backend/` 執行以下命令。`SYSTEM/config.yaml` 是本機私有檔案，已被 Git 忽略；啟動前至少須設定非空的 `SECURITY.secret_key`，以及 `DATABASE.META` 的 `type`、`is_async` 和 `name`。目前沒有可直接複製的公開設定範本。SQLite 使用的 `aiosqlite` 已列為正式依賴。
 
-Run these commands from `backend/`. `SYSTEM/config.yaml` is a private local file ignored by Git. Before startup, provide a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async`, and `name`. There is no public copyable configuration template yet. The SQLite driver `aiosqlite` is in the development dependencies, so use the default `uv sync`.
+Run these commands from `backend/`. `SYSTEM/config.yaml` is a private local file ignored by Git. Before startup, provide a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async`, and `name`. There is no public copyable configuration template yet. The SQLite driver `aiosqlite` is a runtime dependency.
 
 ```bash
 cd backend
@@ -99,6 +105,17 @@ uv run manage_fastapi.py
 啟動後開啟設定的文件路徑，預設為 `http://127.0.0.1:8080/swagger`。實際 host 與 port 取決於本機 `config.yaml`。啟動時註冊 Redis client 和 SQLAlchemy engine 不代表已成功連上 Redis 或資料庫；需要相應操作時才會使用連線。
 
 Open the configured documentation path after startup; the default path is `http://127.0.0.1:8080/swagger`. The actual host and port depend on local `config.yaml`. Registering Redis clients and the SQLAlchemy engine at startup does not verify that either service is reachable; connections are used when operations require them.
+
+資料表由 Alembic 手動建立或更新。若要將 `portfolio-web/mock` 的英文、繁體中文、簡體中文資料匯入**尚未寫入作品集資料**的資料庫，先完成 migration，再執行匯入腳本；`auth_user` 不會被寫入。腳本預設讀取同層 `portfolio-web/mock` 專案，也可用 `--mock-dir` 指定來源。
+
+Create or update tables with Alembic manually. To import English, Traditional Chinese, and Simplified Chinese data from `portfolio-web/mock` into a database whose portfolio tables are **still empty**, apply the migration first, then run the import script. It leaves `auth_user` untouched. By default the script reads a sibling `portfolio-web/mock` project; use `--mock-dir` to specify another location.
+
+```bash
+uv run alembic upgrade head
+uv run alembic current
+uv run test.py
+# Or: uv run test.py --mock-dir /path/to/portfolio-web/mock
+```
 
 ## 2. 目標目錄結構 / Target Directory Structure
 
@@ -153,8 +170,10 @@ backend/
 │   │   └── constant_<topic>.py
 │   ├── database/
 │   │   ├── database_core.py
-│   │   ├── models/
-│   │   │   └── models_<domain>.py
+│   │   └── orm/
+│   ├── models/
+│   │   ├── model_auth.py
+│   │   ├── models_portfolio.py
 │   │   └── migrations/
 │   └── security/
 │       └── middleware/
@@ -166,9 +185,9 @@ backend/
 └── uv.lock
 ```
 
-`config.example.yaml` 尚未建立。`constants/` 已有 `constants_cache.py` 與 `constant_storage.py`；共用 schema 子目錄目前僅有 package 標記。ORM 與 migration 待後續整合。現在使用的 HTTP middleware 位於 `SYSTEM/middleware/`。
+`config.example.yaml` 尚未建立。`constants/` 已有 `constants_cache.py` 與 `constant_storage.py`；共用 schema 子目錄目前僅有 package 標記。ORM 模型與初版 migration 位於 `SYSTEM/models/`。現在使用的 HTTP middleware 位於 `SYSTEM/middleware/`。
 
-`config.example.yaml` has not been created. `constants/` contains `constants_cache.py` and `constant_storage.py`; shared schema directories currently contain only package markers. ORM and migrations still require integration. Active HTTP middleware lives in `SYSTEM/middleware/`.
+`config.example.yaml` has not been created. `constants/` contains `constants_cache.py` and `constant_storage.py`; shared schema directories currently contain only package markers. ORM models and the initial migration live in `SYSTEM/models/`. Active HTTP middleware lives in `SYSTEM/middleware/`.
 
 **套件布局待調整：**目前 `uv_build` 使用 `src/backend` 布局，且命令入口是 `backend:main`。落實上述目錄時，必須一併檢查套件收錄、import 路徑與啟動入口；不能只新增根層目錄便視為已完成整合。現有 `src/backend` 範例尚未移除。
 
@@ -238,8 +257,8 @@ Rules for COMMON:
 | `tools/tools_fastapi.py` | 動態探索 APPs router、掛載本機 Swagger／ReDoc，並提供回應與快取 key 工具 | Discover APPs routers, mount local Swagger/ReDoc, and provide response and cache-key helpers |
 | `lifespan.py` | 控制應用資源的建立與釋放，處理啟動中途失敗時的清理 | Own application resource startup and shutdown, including cleanup after partial startup failures |
 | `database/database_core.py` | 管理一個 async SQLAlchemy engine、session factory 與依設定建立的 async Redis client | Manage one async SQLAlchemy engine, its session factory, and configured async Redis clients |
-| `database/models/`、`database/migrations/` | 尚未整合的 ORM 與 migration 骨架 | ORM and migration scaffolds awaiting integration |
-| `middleware/` | 啟用 CORS 與 Redis heartbeat；session 程式保留但未掛載 | Enable CORS and Redis heartbeat; session utilities remain but are not mounted |
+| `models/`、`models/migrations/` | 定義作品集與帳號模型，提供 Alembic metadata 與 migration | Define portfolio and account models, Alembic metadata, and migrations |
+| `middleware/` | 啟用 CORS、Redis heartbeat 與 session middleware | Enable CORS, Redis heartbeat, and session middleware |
 | `static/` | 本機 Swagger／ReDoc 靜態資產 | Local Swagger/ReDoc assets |
 | `manage_fastapi.py` | 組裝 FastAPI、路由、文件與 Socket.IO，並由 Uvicorn 啟動 | Assemble FastAPI, routers, docs, and Socket.IO, then start Uvicorn |
 
@@ -261,9 +280,9 @@ The backend always uses UTC; `SYSTEM/config.yaml` does not expose a `time_zone` 
 
 `TIME_DATETIME`, `TIME_UTC`, and derived date/interval values are currently import-time snapshots and do not advance with time. Future record creation, updates, and event logging must call `datetime.now(UTC)` at the time of the operation instead of treating these settings snapshots as a live clock.
 
-資料庫與 API 的時間點統一採 UTC；API 輸出使用帶 `Z` 或 `+00:00` 的 ISO 8601 字串，可由 aware datetime 的 `isoformat()` 產生。前端再按使用者設定或瀏覽器時區顯示。生日等純日期不作時區轉換；依當地時間執行的排程另行保留時區。這些是後續功能的實作規範，目前尚未建立相應 ORM 或 API 功能。本次未修改作業系統時區。
+資料庫與 API 的時間點統一採 UTC；API 輸出使用帶 `Z` 或 `+00:00` 的 ISO 8601 字串，可由 aware datetime 的 `isoformat()` 產生。前端再按使用者設定或瀏覽器時區顯示。生日等純日期不作時區轉換；依當地時間執行的排程另行保留時區。ORM 模型已建立，API 的時間輸出仍待實作。本次未修改作業系統時區。
 
-Database and API instants must use UTC; API output should use ISO 8601 with `Z` or `+00:00`, for example through an aware datetime's `isoformat()`. The frontend converts timestamps using the user's preferred or browser time zone. Date-only values such as birthdays are not converted; local-time schedules retain their own time zone. These requirements apply to future ORM and API functionality, which is not implemented yet. This change does not modify the operating system time zone.
+Database and API instants must use UTC; API output should use ISO 8601 with `Z` or `+00:00`, for example through an aware datetime's `isoformat()`. The frontend converts timestamps using the user's preferred or browser time zone. Date-only values such as birthdays are not converted; local-time schedules retain their own time zone. ORM models exist, while API time output remains to be implemented. This change does not modify the operating system time zone.
 
 初期只管理所需的主資料庫與已確認用途的資源。Engine 與連線池由 SYSTEM 管理；每個請求或工作單元取得自己的 Session，不共用一個全域 Session。SQLite 與 PostgreSQL 的驅動、連線參數與必要差異集中於資料庫層；ORM 不保證兩者行為完全相同，部署前須驗證 migration、查詢、約束與交易。切換連線不會自動搬遷資料。
 
@@ -282,7 +301,7 @@ config.yaml -> settings import -> FastApiServer.start()
                         -> lifespan: init_cache -> FastAPICache.init -> init_db
 
 Request
-HTTP -> CORS -> heartbeat -> FastAPI route or local docs
+HTTP -> CORS -> heartbeat -> session -> FastAPI route or local docs
                          -> business routes are not implemented yet
 
 Shared capabilities
@@ -300,9 +319,9 @@ lifespan -> FastAPICache.reset -> close SQL engine and Redis clients
 
 ## 7. 主要介面與工具參考 / Main Interfaces and Helper Reference
 
-以下記錄目前的主要入口、連線管理與共用工具。同步與非同步方法依各表標示；尚未整合的 ORM／SQLAlchemy 草稿不列為可用介面。完整簽名以原始碼與 docstring 為準。
+以下記錄目前的主要入口、連線管理與共用工具。同步與非同步方法依各表標示；尚未接上連線管理器的舊版 SQLAlchemy helper 草稿不列為可用介面。完整簽名以原始碼與 docstring 為準。
 
-The following sections describe current entry points, connection management, and shared helpers. Tables distinguish synchronous and asynchronous methods. Unintegrated ORM/SQLAlchemy drafts are not presented as available APIs. Source code and docstrings remain the authority for complete signatures.
+The following sections describe current entry points, connection management, and shared helpers. Tables distinguish synchronous and asynchronous methods. Older SQLAlchemy helper drafts that are not connected to the current manager are not presented as available APIs. Source code and docstrings remain the authority for complete signatures.
 
 | 項目 / Item | 說明 / Description |
 | --- | --- |
@@ -446,12 +465,12 @@ Scope SQL sessions with `async with CONN_MANAGER.get_db() as session:`. `get_db(
 | 介面 / Interface | 目前行為 / Current Behavior |
 | --- | --- |
 | `lifespan(app)` | 啟動時依序 `init_cache()`、`FastAPICache.init(RedisBackend(WEB))`、`init_db()`；結束或啟動失敗時 reset cache 並關閉資源。 / Initialize Redis clients, the WEB cache backend, and the DB engine; reset and close them at shutdown or after a startup failure. |
-| `MIDDLEWARES` | 目前掛載 CORS 和 `HeartbeatMiddleware`；session middleware 未啟用。 / Mount CORS and `HeartbeatMiddleware`; session middleware is inactive. |
+| `MIDDLEWARES` | 掛載 CORS、`HeartbeatMiddleware`、`SessionMiddleware` 與 `SessionAutoloadMiddleware`；尚無登入 API。 / Mount CORS, `HeartbeatMiddleware`, `SessionMiddleware`, and `SessionAutoloadMiddleware`; no login API exists yet. |
 | `HeartbeatMiddleware.dispatch(request, call_next)` | 以 client IP 更新 SYS heartbeat；Redis 連線／逾時錯誤會略過這次紀錄，繼續處理請求。 / Refresh the SYS heartbeat by client IP; skip the update and continue on Redis connection or timeout errors. |
 
-WEB cache 使用 `EnumCache.WEB`，在線人數 heartbeat 使用 `EnumCache.SYS`。目前沒有業務 API 使用 `@cache`。Session helper 程式碼仍在 `SYSTEM/middleware/utils/middleware_session.py`，但沒有加入 `MIDDLEWARES`。日後啟用 session 時，須先處理它在模組匯入階段取得 Redis client 的初始化順序。
+WEB cache 使用 `EnumCache.WEB`；在線人數 heartbeat 與 session 使用 `EnumCache.SYS`，session key 前綴為 `sess:`。目前沒有業務 API 使用 `@cache`。Session store 在請求到來時才從已初始化的 Redis client 建立，避免模組匯入時查找 client；session ID 只從 Cookie 讀取。登入流程仍未實作。
 
-WEB cache uses `EnumCache.WEB`; the online-count heartbeat uses `EnumCache.SYS`. No business API uses `@cache` yet. The session helper remains in `SYSTEM/middleware/utils/middleware_session.py` but is not mounted in `MIDDLEWARES`. Before enabling it, resolve the import-time Redis client lookup against lifespan initialization order.
+WEB cache uses `EnumCache.WEB`; the online-count heartbeat and sessions use `EnumCache.SYS`, with `sess:` as the session key prefix. No business API uses `@cache` yet. The session store is created from an initialized Redis client at request time, avoiding client lookup during module import; session IDs are read only from cookies. Login is not implemented yet.
 
 ### 伺服器與文件入口 / Server and Documentation Entry Point
 
@@ -513,9 +532,9 @@ WEB cache uses `EnumCache.WEB`; the online-count heartbeat uses `EnumCache.SYS`.
 
 A local FastAPI `TestClient` smoke check simulated a Redis heartbeat connection error: `/swagger` returned 200, WEB cache was registered in lifespan, and resources were cleaned up across two consecutive app lifecycles. A simulated `init_db()` startup error also confirmed cleanup of cache clients and `FastAPICache` state. These checks did not connect to external Redis or PostgreSQL or verify business APIs.
 
-版本庫中的 `tests/test_database_core.py` 其 fixture 與斷言仍針對舊版多資料庫管理器；目前執行時 41 個案例在 setup 階段出錯，不可當作現行程式已通過的測試。ORM／Alembic 草稿尚未整合，也不會在伺服器啟動時自動建表或執行 migration。
+版本庫中的 `tests/test_database_core.py` 其 fixture 與斷言仍針對舊版多資料庫管理器；目前執行時 41 個案例在 setup 階段出錯，不可當作現行程式已通過的測試。作品集與帳號 ORM 模型和初版 Alembic migration 已建立；伺服器啟動不會自動建表或執行 migration。`test.py` 會將三語 mock 匯入已遷移且作品集表皆為空的資料庫，不建立登入帳號。
 
-The versioned `tests/test_database_core.py` still targets the former multi-database manager. At present, all 41 cases fail during setup, so it must not be presented as a passing current suite. ORM/Alembic drafts are not integrated; server startup does not automatically create tables or run migrations.
+The versioned `tests/test_database_core.py` still targets the former multi-database manager. At present, all 41 cases fail during setup, so it must not be presented as a passing current suite. Portfolio and account ORM models and an initial Alembic migration exist; server startup does not automatically create tables or run migrations. `test.py` imports the three-language mock into a migrated database with empty portfolio tables; it does not create a login account.
 
 ## 8. 工程與文件規則 / Engineering and Documentation Rules
 

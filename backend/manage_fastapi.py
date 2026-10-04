@@ -31,7 +31,6 @@ class FastApiServer:
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        print(FASTAPI_CONF)
         self.app: FastAPI = FastAPI(middleware=MIDDLEWARES, lifespan=lifespan, **FASTAPI_CONF)
         self.dir_static = DIR_STATIC
         self.dir_app = DIR_APPS

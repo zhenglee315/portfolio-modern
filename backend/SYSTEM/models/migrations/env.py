@@ -1,5 +1,5 @@
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import CONN_ACT, EnumConn
+from SYSTEM.database import CONN_MANAGER
 from SYSTEM import models
 
 # ◆—< Pack >—————————————————————————————————◆ SqlAlchemy
@@ -18,9 +18,7 @@ import asyncio
 # access to the values within the .ini file in use.
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Sqlalchemy - URL
 config = context.config
-database_url = CONN_ACT.get(EnumConn.META, {}).get('url', '').replace('%', '%%')
-if not database_url:
-    raise ValueError("No active database found. Please check your enabled platform and database configuration.")
+database_url = CONN_MANAGER.get_db_url().render_as_string(hide_password=False).replace('%', '%%')
 config.set_main_option('sqlalchemy.url', database_url)
 
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Sqlalchemy - Logging

@@ -14,13 +14,13 @@ The project aims for **lightweight development and deployment**: add dependencie
 
 ## 目前進度 / Current status
 
-- 已完成 Python 後端的 uv 專案初始化、FastAPI 啟動入口、單一非同步資料庫 manager、Redis client、WEB cache、heartbeat middleware 與本機 Swagger／ReDoc。
-- 後端伺服器可啟動；業務 API、ORM 與 migration 尚未完成。
+- 已完成 Python 後端的 uv 專案初始化、FastAPI 啟動入口、單一非同步資料庫 manager、Redis client、WEB cache、heartbeat 與 session middleware，以及本機 Swagger／ReDoc。
+- 已建立作品集與帳號 ORM 模型、初版 Alembic migration 及三語 mock 匯入腳本；業務 API 與登入功能尚未實作，migration 須手動執行。
 - 後端 API 契約參考既有 mock 資料；本專案前端暫未開發，串接工作留待後續階段。
 - 以下目錄結構為規劃，不代表所有目錄或功能均已建立。
 
-- The Python backend now has a uv project, a FastAPI entry point, a single async database manager, Redis clients, WEB cache, heartbeat middleware, and local Swagger/ReDoc.
-- The backend server starts; business APIs, ORM integration, and migrations remain unfinished.
+- The Python backend now has a uv project, a FastAPI entry point, a single async database manager, Redis clients, WEB cache, heartbeat and session middleware, and local Swagger/ReDoc.
+- Portfolio and account ORM models, an initial Alembic migration, and a three-language mock import script are present. Business APIs and login are not implemented; migrations must be run manually.
 - Existing mock data informs the backend API contracts. Frontend development in this project and API integration are deferred to a later phase.
 - The directory structure below is a plan; not all directories or features exist yet.
 
@@ -46,9 +46,9 @@ The project aims for **lightweight development and deployment**: add dependencie
 
 Dependency declarations are in [backend/pyproject.toml](backend/pyproject.toml); resolved versions are recorded in `backend/uv.lock`.
 
-目前的 `ConnectionManager` 支援單一非同步 SQLite 或 PostgreSQL engine，並提供每次操作新建的 `AsyncSession`。`asyncpg` 是正式依賴，`aiosqlite` 位於開發依賴群組。ORM models 與 migration 尚未整合；安裝 Python 用戶端套件不代表已安裝或啟動資料庫、Redis 服務。
+目前的 `ConnectionManager` 支援單一非同步 SQLite 或 PostgreSQL engine，並提供每次操作新建的 `AsyncSession`。`asyncpg` 與 `aiosqlite` 都是正式依賴。`SYSTEM/models/` 定義 ORM 模型，Alembic 使用其 metadata；安裝 Python 用戶端套件不代表已安裝或啟動資料庫、Redis 服務。
 
-`ConnectionManager` supports one async SQLite or PostgreSQL engine and returns a fresh `AsyncSession` for each operation. `asyncpg` is a runtime dependency; `aiosqlite` is in the development group. ORM models and migrations are not integrated yet. Installing Python clients does not install or start database or Redis services.
+`ConnectionManager` supports one async SQLite or PostgreSQL engine and returns a fresh `AsyncSession` for each operation. Both `asyncpg` and `aiosqlite` are runtime dependencies. `SYSTEM/models/` defines the ORM models whose metadata Alembic uses. Installing Python clients does not install or start database or Redis services.
 
 ## 輕量化原則 / Lightweight development principles
 
@@ -98,11 +98,17 @@ portfolio-modern/
     │   ├── lifespan.py
     │   ├── database/
     │   │   ├── database_core.py
-    │   │   └── models/
+    │   │   └── orm/
+    │   ├── models/
+    │   │   ├── model_auth.py
+    │   │   ├── models_portfolio.py
+    │   │   └── migrations/
     │   ├── middleware/
     │   ├── static/
     │   └── tools/
     ├── manage_fastapi.py
+    ├── test.py
+    ├── alembic.ini
     ├── pyproject.toml
     └── uv.lock
 ```
@@ -110,13 +116,13 @@ portfolio-modern/
 - `APPs`：按業務模組組織 API。`views` 處理 HTTP 介面，`module` 處理業務邏輯，`schema` 分別定義請求主體、參數解析與回應格式。
 - `COMMON`：跨模組共用的裝飾器、例外、資料格式與工具。
 - `SYSTEM`：系統設定、路由註冊、生命週期、資料庫基礎設施與安全機制。
-- `SYSTEM/database/models`：目前是 ORM 骨架，尚未整合資料表模型。
+- `SYSTEM/models`：作品集與帳號的 ORM 模型，以及 Alembic migration；資料表需手動遷移。
 - `manage_fastapi.py`：目前的 FastAPI、文件與 Socket.IO 組裝及啟動入口。
 
 - `APPs`: APIs grouped by business module. `views` handles HTTP interfaces, `module` contains business logic, and `schema` defines request bodies, parameter parsing, and response formats.
 - `COMMON`: Decorators, exceptions, schemas, and utilities shared across modules.
 - `SYSTEM`: Configuration, route registration, lifecycle management, database infrastructure, and security.
-- `SYSTEM/database/models`: An ORM scaffold; table models are not integrated yet.
+- `SYSTEM/models`: Portfolio and account ORM models and Alembic migrations; apply migrations manually.
 - `manage_fastapi.py`: The current FastAPI, docs, and Socket.IO assembly and startup entry point.
 
 `SYSTEM/config.yaml` 是不提交的本機配置，`settings.py` 負責載入與整理。啟動步驟、目前架構與主要介面見[後端 README](backend/README.md)，其中區分已實作與尚未整合的部分。
@@ -138,9 +144,9 @@ The existing mock data maps to six read APIs:
 | `GET /api/v1/skill-categories` | 技能分類與技能預覽 | Skill categories and previews |
 | `GET /api/v1/skills` | 分類下的技能分頁 | Paginated skills within a category |
 
-內容涵蓋英文、繁體中文與簡體中文。技能分類與技能 API 的最終契約仍待確認；登入、管理後台、寫入與上傳功能尚未納入已確認範圍。
+內容涵蓋英文、繁體中文與簡體中文。技能分類與技能 API 的最終契約仍待確認；登入功能目前暫緩，管理後台、寫入與上傳功能尚未實作。
 
-Content covers English, Traditional Chinese, and Simplified Chinese. The final contracts for skill categories and skills remain pending. Authentication, an admin interface, write operations, and uploads are not part of the confirmed scope.
+Content covers English, Traditional Chinese, and Simplified Chinese. The final contracts for skill categories and skills remain pending. Login is deferred; an admin interface, write operations, and uploads are not implemented.
 
 ## 後端本機開發 / Local backend development
 

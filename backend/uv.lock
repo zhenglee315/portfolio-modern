@@ -93,6 +93,7 @@ name = "backend"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiosqlite" },
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "fastapi" },
@@ -111,7 +112,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "aiosqlite" },
     { name = "black" },
     { name = "httpx" },
     { name = "pytest" },
@@ -119,6 +119,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "alembic", specifier = ">=1.20.0" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "fastapi", specifier = ">=0.141.1" },
@@ -137,7 +138,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "black", specifier = ">=26.5.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pytest", specifier = ">=9.1.1" },

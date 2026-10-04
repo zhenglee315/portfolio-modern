@@ -1,10 +1,13 @@
 /agent/
 *test*.py
-# Keep the database core regression suite while ignoring ad hoc test scripts.
+# Keep the database core regression suite and mock importer while ignoring other ad hoc test scripts.
 !/backend/tests/test_database_core.py
+!/backend/test.py
 /test/
 # Local deployment configuration (may contain credentials).
 /backend/SYSTEM/config.yaml
+# Local SQLite database.
+/backend/porfolio_modern
 
 # Python bytecode cache.
 __pycache__/

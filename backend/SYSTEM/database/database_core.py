@@ -1,4 +1,5 @@
 # ◆—< Pack >—————————————————————————————————◆ Sqlalchemy
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncEngine, AsyncSession
 from sqlalchemy.engine import URL
 
@@ -80,13 +81,24 @@ class ConnectionManager:
             case _:
                 raise ValueError(f"Unsupported database type: {db_type!r}.")
 
+    def get_db_url(self) -> URL:
+        """
+        Return the configured database URL without opening a connection.
+
+        :return: SQLAlchemy URL shared by the application and Alembic.
+
+                                                                                               ♂ ZhengLee 2026.10.04
+        """
+        return self.__url()
+
     # —< Init >————————————————————————————————————————————● Database
     def init_db(self) -> None:
         """
         Register one asynchronous database engine and session factory.
 
         File SQLite and PostgreSQL use the configured pool options. In-memory
-        SQLite keeps the dialect's StaticPool defaults.
+        SQLite keeps the dialect's StaticPool defaults. SQLite connections
+        enforce foreign keys so translated rows retain valid parent references.
 
         :return: None; engine creation does not check database connectivity.
         :raises RuntimeError: A database engine has already been registered.
@@ -96,7 +108,7 @@ class ConnectionManager:
         if self._engine is not None:
             raise RuntimeError("Database engine has already been initialized.")
 
-        url = self.__url()
+        url = self.get_db_url()
         engine_conf = self.engine_conf.copy()
         if url.get_backend_name() == EnumDBType.SQLLite and url.database == ":memory:":
             # StaticPool does not accept queue pool options.
@@ -106,6 +118,14 @@ class ConnectionManager:
             }
 
         engine = create_async_engine(url, **engine_conf)
+        if url.get_backend_name() == EnumDBType.SQLLite:
+
+            @event.listens_for(engine.sync_engine, "connect")
+            def enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
         session_factory = async_sessionmaker(engine, expire_on_commit=False)
         self._engine = engine
         self._session_factory = session_factory

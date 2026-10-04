@@ -9,6 +9,8 @@ from enum import Enum
 class PreFix(EnumUtils):
     # -< Url >----------------------------------------------------------【 Portfolio 】
     PORTFOLIO = "portfolio"
+    # -< Url >----------------------------------------------------------【 System Diagnostics 】
+    SYS = "system"
 
 
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Tags

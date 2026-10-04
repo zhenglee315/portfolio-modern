@@ -7,6 +7,7 @@ from fastapi import Request
 
 # ◆—< Pack >—————————————————————————————————◆ Python
 from functools import wraps
+from inspect import signature
 
 
 # ■—< DECO >———————————————————————————————————————————————————————————————————————————■ Request Caching
@@ -27,6 +28,8 @@ def cache(control_key: str = 'is_caching', **cache_kwargs):
     def decorator(func):
         # Pre-wrap the original function with the fastapi_cache decorator to avoid wrapping on every call.
         cached_func = fastapi_cache(**cache_kwargs)(func)
+        cached_signature = signature(cached_func)
+        injected_names = cached_signature.parameters.keys() - signature(func).parameters.keys()
 
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -54,8 +57,12 @@ def cache(control_key: str = 'is_caching', **cache_kwargs):
             # Enable caching only if the flag is set to 'true', '1', or 'yes' (case-insensitive).
             if flag is not None and str(flag).lower() in ('true', '1', 'yes'):
                 return await cached_func(*args, **kwargs)
-            return await func(*args, **kwargs)
+            handler_kwargs = {name: value for name, value in kwargs.items() if name not in injected_names}
+            return await func(*args, **handler_kwargs)
 
+        # Expose fastapi-cache2's Request and Response parameters to FastAPI without
+        # requiring them in each endpoint's own signature.
+        wrapper.__signature__ = cached_signature
         return wrapper
 
     return decorator

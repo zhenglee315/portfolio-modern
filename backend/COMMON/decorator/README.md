@@ -12,10 +12,10 @@ The default `fastapi-cache2` key builder uses the endpoint's arguments. In a CBV
 
 ## Request flow / 請求流程
 
-1. At decoration time, `cache()` calls `fastapi_cache(**cache_kwargs)(func)` once. `cache_kwargs` are passed through to `fastapi-cache2`, for example `expire=300`. / 定義路由時，`cache()` 只建立一次套件的快取包裝；`cache_kwargs`（例如 `expire=300`）會傳給 `fastapi-cache2`。
+1. At decoration time, `cache()` calls `fastapi_cache(**cache_kwargs)(func)` once and exposes its injected `Request` and `Response` parameters to FastAPI. The handler does not need to declare them. / 定義路由時，`cache()` 只建立一次套件的快取包裝，並讓 FastAPI 注入套件需要的 `Request`、`Response`；handler 不必自行宣告。
 2. On each request, the outer wrapper looks for a `Request` in positional arguments, then in top-level keyword values. If found, it reads `control_key` from the URL query. Otherwise it tries `await search_recursive(kwargs, control_key)` so a parser or dependency dictionary can supply the flag. / 每次請求先從位置參數、再從最外層關鍵字參數尋找 `Request`；找到後從 URL query 讀取控制值。找不到時，嘗試以 `await search_recursive(kwargs, control_key)` 從解析器或依賴注入的字典中尋找。
 3. Only `true`, `1`, or `yes` (case-insensitive) calls the cached function. Missing and other values call the original handler directly. / 只有 `true`、`1` 或 `yes`（不區分大小寫）會呼叫快取函式；缺少或其他值直接執行原 handler。
-4. A cache hit returns the saved response without running the handler body. A miss runs the handler and stores its response for the configured TTL. `is_caching=false` bypasses both reading and writing this cache; it does not refresh or delete an earlier entry. / 命中時直接回傳既有結果，不執行 handler 內文；未命中時執行並依設定的 TTL 儲存。`is_caching=false` 略過快取讀寫，不會更新或刪除先前的快取。
+4. A cache hit returns the saved response without running the handler body. A miss runs the handler and stores its response for the configured TTL. `is_caching=false` removes the injected arguments before calling the handler directly; it does not read, refresh, or delete an earlier cache entry. / 命中時直接回傳既有結果，不執行 handler 內文；未命中時執行並依設定的 TTL 儲存。`is_caching=false` 會先移除注入參數再直接呼叫 handler，不讀取、更新或刪除既有快取。
 
 ## Key and Redis configuration / Key 與 Redis 設定
 
@@ -25,33 +25,37 @@ FastAPI 的 [`lifespan`](../../SYSTEM/lifespan.py) 以 `EnumCache.WEB` Redis cli
 
 ## Intended usage / 預期用法
 
-The following illustrates the decorator order and API. Place `@cache` between the FastAPI route decorator and the async handler. A parser can expose `is_caching` inside a dependency dictionary, or an explicit `Request` can provide the query flag.
+The following illustrates the decorator order and API. Place `@cache` between the FastAPI route decorator and the async CBV method. `parser_caching` validates and documents the query parameter; the decorator reads it from the injected request.
 
-以下示範裝飾器順序與介面。`@cache` 應放在 FastAPI 路由裝飾器與非同步 handler 之間。控制值可由解析器提供在依賴字典中，也可以從明確宣告的 `Request` 取得。
+以下示範裝飾器順序與介面。`@cache` 應放在 FastAPI 路由裝飾器與非同步 CBV 方法之間。`parser_caching` 負責驗證與顯示查詢參數，裝飾器會從注入的 request 讀取控制值。
 
 ```python
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
+from fastapi_utils.cbv import cbv
 from COMMON.decorator import cache
+from COMMON.schema.parser import parser_caching
+from SYSTEM.constants import CacheExpiry
 
 router = APIRouter()
 
-@router.get("/profiles")
-@cache(expire=300)
-async def get_profiles(request: Request):
-    return {"profiles": []}
+@cbv(router)
+class SysHeartbeat:
+    @router.get("/heartbeat")
+    @cache(expire=CacheExpiry.SEC_30)
+    async def get_online(self, _=Depends(parser_caching)):
+        return {"online": 3}
 
-# GET /profiles?is_caching=true  -> use the cache
-# GET /profiles?is_caching=false -> execute the handler directly
+# GET /heartbeat?is_caching=true  -> use the cache
+# GET /heartbeat?is_caching=false -> execute the handler directly
 ```
 
-For a CBV method, keep the same order: route decorator outside `@cache`, then `async def get(self, ...)`. Choose a TTL with `expire=...`; writes to the underlying data do not automatically invalidate cached GET responses.
+Choose a TTL with `expire=...`; writes to the underlying data do not automatically invalidate cached GET responses.
 
-CBV 方法維持相同順序：路由裝飾器在 `@cache` 外層，方法可寫成 `async def get(self, ...)`。請用 `expire=...` 決定有效時間；底層資料寫入後，不會自動清除既有 GET 快取。
+請用 `expire=...` 決定有效時間；底層資料寫入後，不會自動清除既有 GET 快取。
 
 ## Current limits / 目前限制
 
-- CBV route examples also need a CBV library such as `fastapi-utils`; this backend has not added it as a dependency yet. The cache decorator and key builder can be imported without it. / CBV 路由範例還需要 `fastapi-utils` 等 CBV 套件；目前 backend 尚未宣告該依賴。快取裝飾器與 key builder 本身不依賴它即可匯入。
-- The outer `@wraps(func)` exposes the original handler signature to FastAPI, which can hide the inner `fastapi-cache2` wrapper's injected `Request` and `Response`. If the handler does not explicitly declare `Request`, the key builder may receive `request=None` and no URL path; request cache directives and cache-related response headers can also lose their needed objects. / 外層 `@wraps(func)` 讓 FastAPI 看見原 handler 簽名，可能遮住 `fastapi-cache2` 內層包裝加入的 `Request` 與 `Response`。handler 未明寫 `Request` 時，key builder 可能取得 `request=None`，也沒有 URL 路徑；請求快取指令與快取回應標頭也可能缺少所需物件。
+- FastAPI supplies `Request` and `Response` to the wrapper even when the method does not declare them. Direct Python calls outside FastAPI do not receive these objects automatically. / 即使方法沒有宣告 `Request`、`Response`，FastAPI 仍會注入給裝飾器；直接從 Python 呼叫方法時不會自動取得這些物件。
 - The key does not automatically include a logged-in user or session identity. A hit skips checks inside the handler. Use this design only when the response is safe to share for the same key; authentication and authorization must not depend solely on code that a cache hit bypasses. / key 不會自動包含登入使用者或 session 身分；命中時也會略過 handler 內的檢查。只有同 key 的回應可共用時才適用；驗證與授權不能只依賴快取命中時不會執行的 handler 內程式。
-- Raw query order and equivalent flag spellings such as `true` and `1` produce different keys when a `Request` is available. Without it, positional arguments and non-basic top-level keyword values are omitted, so distinct requests may collide. / 有 `Request` 時，原始 query 順序不同，以及 `true`、`1` 等等價寫法，仍會產生不同 key。沒有 `Request` 時，位置參數及最外層非基本型別關鍵字參數不參與，內容不同的請求可能共用 key。
+- Raw query order and equivalent flag spellings such as `true` and `1` produce different keys. The key builder omits positional arguments and non-basic top-level keyword values. / 原始 query 順序不同，以及 `true`、`1` 等等價寫法，仍會產生不同 key；key builder 會略過位置參數及最外層非基本型別關鍵字參數。
 - Cache invalidation is TTL-based unless the caller explicitly clears relevant entries. Avoid caching data whose validity depends on checks inside the handler, such as a token-expiry check. / 除非呼叫端明確清除相關項目，否則快取依 TTL 失效。若資料有效性依賴 handler 內檢查（例如 token 到期），不宜直接快取。

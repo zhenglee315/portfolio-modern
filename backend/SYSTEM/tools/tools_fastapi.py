@@ -1,22 +1,20 @@
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
-from fastapi import APIRouter, FastAPI, Request, Response
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-
-# ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.extension import SYS_CONF
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 # ◆—< Pack >—————————————————————————————————◆ Sqlalchemy
 from sqlalchemy.engine.row import Row, RowMapping
 
 # ◆—< Pack >—————————————————————————————————◆ Python
 from collections.abc import Callable, Mapping, Sequence
+from copy import copy
 from datetime import date, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union, Generator, AsyncGenerator, Dict, Final
+from typing import Any, Optional, Final
 from uuid import UUID
 from pydantic import BaseModel
 import importlib.util
@@ -71,161 +69,20 @@ class FastApiJSONResponse(JSONResponse):
 
     def render(self, content: Any) -> bytes:
         """
-        Encode response data as UTF-8 JSON or pass through a pre-serialized string.
+        Encode response data as UTF-8 JSON using default_dumps when needed.
 
-        :param content: Original response data or an already serialized JSON string.
+        :param content: Response data to encode as JSON.
         :return: Compact JSON bytes with Unicode characters preserved.
         :raises TypeError: If a nested value is not supported by default_dumps.
-        :raises ValueError: If data contains a circular reference.
+        :raises ValueError: If data contains a circular reference or a non-finite number.
         """
-        # --------------------------------------------------● Dump Check
-        # Preserve support for callers that provide an already serialized JSON string.
-        if isinstance(content, str):
-            return content.encode("utf-8")
         return json.dumps(
             content,
             ensure_ascii=False,
+            allow_nan=False,
             default=self.default_dumps,
             separators=(",", ":"),
         ).encode("utf-8")
-
-
-# ■—< CLS >———————————————————————————————————————————————————————————————————————————■ FastAPI - Response Route
-class FastApiResponseRoute(APIRoute):
-    """
-    Preserve the shared JSON envelope for successful endpoint responses.
-    Backend exceptions propagate to FastAPI without exposing a custom error payload.
-
-                                                                                               ♂ ZhengLee 2026.09.26
-    """
-
-    def get_route_handler(self):
-        """
-        Build an async handler that wraps successful JSON responses.
-
-        :return: Request handler preserving streaming and non-JSON responses.
-        """
-        original_handler = super().get_route_handler()
-
-        async def custom_route_handler(request: Request) -> Response:
-            """
-            Execute the endpoint and apply the existing success response envelope.
-
-            :param request: Incoming FastAPI request.
-            :return: Wrapped JSON response or the original response for other types.
-            """
-            # --------------------------------------------------● Handler
-            # Do not serialize backend exceptions, tracebacks, or file locations.
-            response = await original_handler(request)
-
-            # --------------------------------------------------● Streaming / Empty
-            if isinstance(response, StreamingResponse):
-                return response
-            if response is None:
-                return FastApiJSONResponse(content={"state": True, "message": None, "detail": None, "data": {}})
-
-            # --------------------------------------------------● Json Response
-            if response.media_type == "application/json" and 200 <= response.status_code < 300:
-                # Responses without a body (e.g. 204) must remain empty.
-                if response.status_code in (204, 205):
-                    return response
-                original_body = response.body.decode("utf-8") if response.body else "null"
-                try:
-                    body_data = json.loads(original_body)
-                except json.JSONDecodeError:
-                    body_data = original_body
-                unified = {"state": True, "message": None, "detail": None, "data": body_data}
-                wrapped = FastApiJSONResponse(
-                    content=unified, status_code=response.status_code, background=response.background
-                )
-                # Preserve cookies and other headers; recalculate the changed body length.
-                wrapped.raw_headers = [
-                    (name, value) for name, value in response.raw_headers if name.lower() != b"content-length"
-                ] + [(b"content-length", str(len(wrapped.body)).encode("ascii"))]
-                return wrapped
-
-            return response
-
-        return custom_route_handler
-
-
-# ■—< CLS >———————————————————————————————————————————————————————————————————————————■ FastAPI - Streaming Response
-class FastApiStreamingResponse(StreamingResponse):
-    """
-    Wrap each synchronous or asynchronous stream chunk in the shared JSON envelope.
-    Iteration errors propagate without writing backend error details into the stream.
-
-                                                                                               ♂ ZhengLee 2026.09.26
-    """
-
-    def __init__(
-        self,
-        content: Union[Generator, AsyncGenerator, Callable],
-        status_code: int = 200,
-        media_type: Optional[str] = "application/json",
-        headers: Optional[Dict[str, str]] = None,
-        **kwargs,
-    ):
-        """
-        Initialize a stream with one JSON envelope per line.
-
-        :param content: Sync/async generator or a callable returning one.
-        :param status_code: HTTP status sent when the stream starts.
-        :param media_type: Response Content-Type; chunks retain their JSON line format.
-        :param headers: Optional response headers.
-        :param kwargs: Additional StreamingResponse options.
-        """
-        # --------------------------------------------------● Callable
-        if callable(content) and not hasattr(content, "__iter__") and not hasattr(content, "__aiter__"):
-            content = content()
-
-        # --------------------------------------------------● Envelope Generator
-        stream_gen = self._json_chunk_generator(content)
-        base_headers = {} if headers is None else headers.copy()
-        super().__init__(stream_gen, status_code=status_code, media_type=media_type, headers=base_headers, **kwargs)
-
-    @staticmethod
-    def _json_chunk_generator(content):
-        """
-        Convert each source chunk to a JSON line without catching source exceptions.
-
-        :param content: Synchronous or asynchronous iterable of response chunks.
-        :return: Generator or async generator yielding success envelopes.
-        """
-
-        def dump_success(chunk):
-            """
-            Serialize one chunk using the shared data conversion rules.
-
-            :param chunk: Original stream value.
-            :return: JSON envelope followed by a newline.
-            """
-            return (
-                json.dumps(
-                    {"state": True, "message": None, "detail": None, "data": chunk},
-                    ensure_ascii=False,
-                    default=FastApiJSONResponse.default_dumps,
-                )
-                + "\n"
-            )
-
-        # --------------------------------------------------● Async Stream
-        if hasattr(content, "__aiter__"):
-
-            async def async_generator():
-                """Yield success envelopes from the asynchronous source; propagate errors."""
-                async for chunk in content:
-                    yield dump_success(chunk)
-
-            return async_generator()
-
-        # --------------------------------------------------● Sync Stream
-        def sync_generator():
-            """Yield success envelopes from the synchronous source; propagate errors."""
-            for chunk in content:
-                yield dump_success(chunk)
-
-        return sync_generator()
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ FastAPI - Router
@@ -243,7 +100,6 @@ class FastApiRouter(APIRouter):
         prefix: str | bool | None = None,
         tags: str | Enum | dict | Sequence[str | Enum | dict] | None = None,
         include_in_schema: bool | Enum = True,
-        platform: bool | Enum | str | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -252,15 +108,8 @@ class FastApiRouter(APIRouter):
         :param prefix: URL prefix; None uses the caller's directory, False or '' disables it.
         :param tags: Documentation tags; None uses the resolved prefix when present.
         :param include_in_schema: Boolean or Enum value controlling OpenAPI visibility.
-        :param platform: Optional PLATFORM configuration key; None enables registration by default.
         :param kwargs: Additional APIRouter options, including response or route class overrides.
         """
-        # --------------------------------------------------● Platform
-        platform_key = platform.value if isinstance(platform, Enum) else platform
-        self.platform = (
-            SYS_CONF.get(section="PLATFORM", option=platform_key, fallback=False) if platform_key is not None else True
-        )
-
         # --------------------------------------------------● Prefix
         if prefix is None:
             prefix = Path(inspect.stack()[1].filename).resolve().parent.name.lower()
@@ -280,7 +129,6 @@ class FastApiRouter(APIRouter):
         tag_names = list(dict.fromkeys(self._tag_name(tag) for tag in tags))
 
         # --------------------------------------------------● Response
-        kwargs.setdefault("route_class", FastApiResponseRoute if platform_key != "GATEWAY" else APIRoute)
         kwargs.setdefault("default_response_class", FastApiJSONResponse)
         super().__init__(prefix=prefix, tags=tag_names, include_in_schema=include_in_schema, **kwargs)
 
@@ -326,6 +174,33 @@ class FastApiRouter(APIRouter):
 
         super().add_api_route(path, endpoint, tags=unique_tags, **kwargs)
 
+    def include_router(self, router: APIRouter, **kwargs: Any) -> None:
+        """
+        Include routes without repeating this router's tags in CBV documentation.
+
+        CBV moves existing routes into an untagged inner router. Those routes
+        already contain this router's tags, which FastAPI adds again on include.
+
+        :param router: Router to include.
+        :param kwargs: Options forwarded to APIRouter.include_router.
+        :return: None; the router is included with unique documentation tags.
+        """
+        if self.tags and not router.tags:
+            copied_routes = []
+            for route in router.routes:
+                if isinstance(route, APIRoute):
+                    unique_tags = list(dict.fromkeys(self._tag_name(tag) for tag in route.tags))
+                    if any(tag in self.tags for tag in unique_tags):
+                        route = copy(route)
+                        route.tags = [tag for tag in unique_tags if tag not in self.tags]
+                copied_routes.append(route)
+
+            if any(original is not copied for original, copied in zip(router.routes, copied_routes)):
+                router = copy(router)
+                router.routes = copied_routes
+
+        super().include_router(router, **kwargs)
+
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ FastAPI - Router includer
 def fastapi_include_routers(app: FastAPI, app_dir: str, file_pattern: str = "views") -> None:
@@ -355,9 +230,8 @@ def fastapi_include_routers(app: FastAPI, app_dir: str, file_pattern: str = "vie
         spec.loader.exec_module(module)
 
         # --------------------------------------------------● Router Registration
-        # Routers without a platform flag are enabled by default.
         router = getattr(module, "router", None)
-        if router is not None and getattr(router, "platform", True):
+        if router is not None:
             app.include_router(router)
 
 

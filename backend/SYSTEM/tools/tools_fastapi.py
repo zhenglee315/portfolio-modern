@@ -5,6 +5,9 @@ from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
+# ◆—< Pack >—————————————————————————————————◆ FastAPI Utils
+from fastapi_utils.cbv import cbv as fastapi_utils_cbv
+
 # ◆—< Pack >—————————————————————————————————◆ Sqlalchemy
 from sqlalchemy.engine.row import Row, RowMapping
 
@@ -200,6 +203,49 @@ class FastApiRouter(APIRouter):
                 router.routes = copied_routes
 
         super().include_router(router, **kwargs)
+
+
+# ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ FastAPI - Class-Based View
+def cbv(router: APIRouter) -> Callable[[type], type]:
+    """
+    Register multiple CBV classes on one router with current FastAPI versions.
+
+    fastapi-utils expects every existing router entry to be an APIRoute, while
+    FastAPI now keeps earlier included CBV routes as router entries. Hide those
+    entries only during CBV registration, then restore them in their original order.
+
+    :param router: Shared router used by the class endpoint decorators.
+    :return: Class decorator that registers one CBV class.
+
+                                                                                               ♂ ZhengLee 2026.10.04
+    """
+
+    def decorator(cls: type) -> type:
+        route_roles = {
+            (route.path, frozenset(route.methods or ())) for route in router.routes if isinstance(route, APIRoute)
+        }
+        included_routes = [route for route in router.routes if not isinstance(route, APIRoute)]
+        if not included_routes:
+            registered = fastapi_utils_cbv(router)(cls)
+            router._cbv_registered_roles = getattr(router, "_cbv_registered_roles", set()) | route_roles
+            return registered
+
+        previous_roles = getattr(router, "_cbv_registered_roles", set())
+        if duplicate_roles := previous_roles & route_roles:
+            raise ValueError(f"Duplicate CBV route role: {duplicate_roles!r}")
+
+        # FastAPI caches included routes, so refresh its route version after each list change.
+        router.routes[:] = [route for route in router.routes if isinstance(route, APIRoute)]
+        router._mark_routes_changed()
+        try:
+            registered = fastapi_utils_cbv(router)(cls)
+            router._cbv_registered_roles = previous_roles | route_roles
+            return registered
+        finally:
+            router.routes[:0] = included_routes
+            router._mark_routes_changed()
+
+    return decorator
 
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ FastAPI - Router includer

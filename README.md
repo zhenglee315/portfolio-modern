@@ -1,8 +1,8 @@
 # portfolio-modern
 
-現代化的個人檔案系統，以結構化方式組織與呈現個人介紹、學經歷、旅程、專案經驗與技能，並規劃提供多語言內容 API。
+現代化的個人檔案系統，以結構化方式組織與呈現個人介紹、學經歷、旅程、專案經驗與技能，並提供英文、簡體中文、繁體中文內容 API。
 
-A modern personal profile system that organizes and presents profile information, education and work experience, journeys, project experience, and skills through structured data, with planned multilingual content APIs.
+A modern personal profile system that organizes profile information, education and work experience, journeys, projects, and skills through structured data and serves content in English, Simplified Chinese, and Traditional Chinese.
 
 本專案以 **輕量化開發與部署** 為目標：依實際功能引入依賴，控制常駐服務與資源使用，維持清楚、容易理解的模組結構。
 
@@ -14,15 +14,15 @@ The project aims for **lightweight development and deployment**: add dependencie
 
 ## 目前進度 / Current status
 
-- 已完成 Python 後端的 uv 專案初始化、FastAPI 啟動入口、單一非同步資料庫 manager、Redis client、WEB cache、heartbeat 與 session middleware，以及本機 Swagger／ReDoc。
-- 已建立作品集與帳號 ORM 模型、初版 Alembic migration 及三語 mock 匯入腳本；業務 API 與登入功能尚未實作，migration 須手動執行。
-- 後端 API 契約參考既有 mock 資料；本專案前端暫未開發，串接工作留待後續階段。
-- 以下目錄結構為規劃，不代表所有目錄或功能均已建立。
+- 已完成 FastAPI 啟動入口、六支公開 Portfolio GET API、線上人數診斷 API，以及本機 Swagger／ReDoc。
+- 後端使用單一非同步 SQLite 或 PostgreSQL 連線管理器；Redis 用於 session、心跳與可選的 HTTP 快取。
+- 已建立作品集與帳號 ORM 模型、初版 Alembic migration 及三語 mock 匯入腳本；migration 須手動執行，登入與寫入 API 尚未實作。
+- 本儲存庫的 `frontend/` 目前僅保留規劃資料。既有 `portfolio-web` mock／client 仍使用舊回應格式，前端串接需另行調整。
 
-- The Python backend now has a uv project, a FastAPI entry point, a single async database manager, Redis clients, WEB cache, heartbeat and session middleware, and local Swagger/ReDoc.
-- Portfolio and account ORM models, an initial Alembic migration, and a three-language mock import script are present. Business APIs and login are not implemented; migrations must be run manually.
-- Existing mock data informs the backend API contracts. Frontend development in this project and API integration are deferred to a later phase.
-- The directory structure below is a plan; not all directories or features exist yet.
+- The backend has a FastAPI entry point, six public Portfolio GET APIs, an online-count diagnostic endpoint, and local Swagger/ReDoc.
+- One async connection manager supports SQLite or PostgreSQL; Redis supplies sessions, heartbeats, and optional HTTP response caching.
+- Portfolio and account ORM models, an initial Alembic migration, and a three-language mock importer are present. Migrations run manually; login and write APIs are not implemented.
+- This repository's `frontend/` currently holds planning material. The existing `portfolio-web` mock/client still uses older response shapes and needs an integration update.
 
 ## 技術選擇 / Technology choices
 
@@ -36,7 +36,8 @@ The project aims for **lightweight development and deployment**: add dependencie
 | pydantic-settings | 環境設定讀取與驗證 | Environment configuration loading and validation |
 | SQLAlchemy | ORM 與資料庫操作，包含 asyncio 額外依賴 | ORM and database operations with asyncio extras |
 | Alembic | 資料庫結構版本管理 | Database schema migrations |
-| redis、fastapi-cache2 | Redis client 與 WEB cache backend；業務 API 尚未使用快取裝飾器 | Redis clients and WEB cache backend; business APIs do not use cache decorators yet |
+| redis、fastapi-cache2 | Redis client 與 WEB cache；GET API 可透過 `is_caching=true` 使用回應快取 | Redis clients and WEB cache; GET APIs can opt into response caching with `is_caching=true` |
+| fastapi-utils | CBV 路由寫法 | Class-based view routing |
 | python-socketio | Socket.IO ASGI 組裝 | Socket.IO ASGI assembly |
 | HTTPX | HTTP client 設定，執行依賴 | HTTP client configuration; runtime dependency |
 | Black | Python 排版，開發依賴 | Python formatter; development dependency |
@@ -54,24 +55,24 @@ Dependency declarations are in [backend/pyproject.toml](backend/pyproject.toml);
 ## 輕量化原則 / Lightweight development principles
 
 - 日常在 macOS 以 uv 虛擬環境直接開發 FastAPI，Docker 按需啟動。
-- WEB cache 與 Redis client 基礎已建立；業務 API 的快取策略及其他常駐服務仍依實際需求加入。
+- WEB cache 由 Redis 提供；讀取 API 透過 `is_caching` 選擇是否使用短時間回應快取。
 - 初期採單一後端服務，避免預先拆分微服務或引入多套排程、訊息佇列系統。
 - 部署時依實測負載調整 worker、資料庫連線池與快取上限，避免直接套用大型專案設定。
 - 開發工具與正式執行依賴分開管理。
 - 共用能力按實際重用需求抽取，避免為簡單功能建立過多抽象層。
 
 - Develop FastAPI directly on macOS in a uv virtual environment; start Docker only when needed.
-- WEB cache and Redis client infrastructure are in place; add route-level caching policies and other persistent services when needed.
+- Redis provides WEB cache; read APIs use `is_caching` to opt into short-lived response caching.
 - Start with one backend service, without prematurely introducing microservices, multiple schedulers, or message queues.
 - Tune workers, connection pools, and cache limits using measured workloads instead of copying settings from larger systems.
 - Manage development tools separately from runtime dependencies.
 - Extract shared functionality when reuse is justified; keep simple features free of unnecessary abstraction.
 
-## 專案與後端目錄規劃 / Planned project and backend structure
+## 專案與後端架構 / Project and backend architecture
 
-`backend/` 是目前開發重點；`frontend/` 暫時保留，待後端完成後再進行前端開發。樹狀圖中的 `<module>`、`<interface>`、`<function>` 分別代表模組、介面與功能名稱。
+`backend/` 是目前開發重點；`frontend/` 暫時保留。以下顯示目前主要的程式模組，細節見[後端 README](backend/README.md)。
 
-`backend/` is the current development focus. `frontend/` is reserved for frontend development after the backend is complete. `<module>`, `<interface>`, and `<function>` are naming placeholders.
+`backend/` is the current development focus; `frontend/` is reserved for later integration. The tree shows the current main modules; see the [backend README](backend/README.md) for details.
 
 ```text
 portfolio-modern/
@@ -79,75 +80,66 @@ portfolio-modern/
 ├── frontend/
 └── backend/
     ├── APPs/
-    │   └── <module>/
-    │       ├── views_<interface>.py
-    │       ├── module/
-    │       │   └── <function>/
-    │       │       └── module_<function>.py
-    │       └── schema/
-    │           ├── body/
-    │           ├── parser/
-    │           └── resp/
+    │   ├── Portfolio/            # Six public content GET APIs
+    │   │   ├── views_portfolio.py
+    │   │   ├── module/
+    │   │   └── schema/
+    │   └── Sys/                  # Online-count diagnostic API
     ├── COMMON/
     │   ├── decorator/
-    │   ├── exceptions/
-    │   ├── schema/
-    │   └── tools/
+    │   ├── schema/               # Shared help, parsers, responses
+    │   └── tools/storage/        # Redis and SQLAlchemy helpers
     ├── SYSTEM/
-    │   ├── config.yaml
+    │   ├── config.yaml           # Local, ignored by Git
     │   ├── settings.py
     │   ├── lifespan.py
-    │   ├── database/
-    │   │   ├── database_core.py
-    │   │   └── orm/
-    │   ├── models/
-    │   │   ├── model_auth.py
-    │   │   ├── models_portfolio.py
-    │   │   └── migrations/
+    │   ├── database/             # Async DB and Redis connection manager
+    │   ├── models/               # Portfolio, auth, Alembic migrations
     │   ├── middleware/
-    │   ├── static/
-    │   └── tools/
+    │   ├── static/               # Local Swagger/ReDoc assets
+    │   └── tools/                # Router, docs, Socket.IO assembly
     ├── manage_fastapi.py
-    ├── test.py
+    ├── test.py                   # Three-language mock importer
     ├── alembic.ini
     ├── pyproject.toml
     └── uv.lock
 ```
 
-- `APPs`：按業務模組組織 API。`views` 處理 HTTP 介面，`module` 處理業務邏輯，`schema` 分別定義請求主體、參數解析與回應格式。
+- `APPs`：按 Portfolio 與 Sys 模組組織 API。`views` 定義 CBV 路由，`schema` 解析參數及驗證回應，`module` 執行業務查詢。
 - `COMMON`：跨模組共用的裝飾器、例外、資料格式與工具。
-- `SYSTEM`：系統設定、路由註冊、生命週期、資料庫基礎設施與安全機制。
+- `SYSTEM`：系統設定、路由定義、生命週期、資料庫基礎設施與 middleware。
 - `SYSTEM/models`：作品集與帳號的 ORM 模型，以及 Alembic migration；資料表需手動遷移。
 - `manage_fastapi.py`：目前的 FastAPI、文件與 Socket.IO 組裝及啟動入口。
 
-- `APPs`: APIs grouped by business module. `views` handles HTTP interfaces, `module` contains business logic, and `schema` defines request bodies, parameter parsing, and response formats.
+- `APPs`: Portfolio and Sys APIs. `views` declares CBV routes, `schema` parses parameters and validates responses, and `module` runs business queries.
 - `COMMON`: Decorators, exceptions, schemas, and utilities shared across modules.
-- `SYSTEM`: Configuration, route registration, lifecycle management, database infrastructure, and security.
+- `SYSTEM`: Configuration, route definitions, lifecycle management, database infrastructure, and middleware.
 - `SYSTEM/models`: Portfolio and account ORM models and Alembic migrations; apply migrations manually.
 - `manage_fastapi.py`: The current FastAPI, docs, and Socket.IO assembly and startup entry point.
 
-`SYSTEM/config.yaml` 是不提交的本機配置，`settings.py` 負責載入與整理。啟動步驟與整體架構見[後端 README](backend/README.md)；工具的詳細介面見各工具資料夾的 README。
+`backend/SYSTEM/config.yaml` 是不提交的本機配置；`backend/SYSTEM/settings.py` 負責整理設定。啟動步驟與資料流見[後端 README](backend/README.md)；工具的詳細介面見各工具資料夾的 README。
 
-`SYSTEM/config.yaml` is a local configuration file excluded from Git, and `settings.py` loads and organizes its values. See the [backend README](backend/README.md) for startup steps and architecture; each tool folder documents its detailed API in its own README.
+`backend/SYSTEM/config.yaml` is a local configuration file excluded from Git, and `backend/SYSTEM/settings.py` organizes its values. See the [backend README](backend/README.md) for startup steps and request flow; each tool folder documents its detailed API in its own README.
 
 ## API 範圍 / API scope
 
-目前 mock 對應以下六支讀取 API：
+後端已提供以下六支公開讀取 API，另有一支系統診斷 API：
 
-The existing mock data maps to six read APIs:
+The backend exposes six public read APIs and one system diagnostic API:
 
 | 路徑 / Endpoint | 內容 | Content |
 | --- | --- | --- |
-| `GET /api/v1/site` | 品牌、個人介紹與社群資訊 | Branding, profile, and social links |
-| `GET /api/v1/journey` | 旅程與地圖所需資料 | Journey and map data |
-| `GET /api/v1/experiences` | 學經歷與相關技能 | Education, work experience, and related skills |
-| `GET /api/v1/projects` | 專案經驗列表、完整詳情與技能 | Project experience with full details and skills |
-| `GET /api/v1/skill-categories` | 技能分類與技能預覽 | Skill categories and previews |
-| `GET /api/v1/skills` | 分類下的技能分頁 | Paginated skills within a category |
+| `GET /portfolio/site` | 品牌、個人介紹、社群與聯絡入口 | Brand, profile, social links, and contact entry |
+| `GET /portfolio/journey` | 完整旅程與地圖資料 | Complete journey and map data |
+| `GET /portfolio/experiences` | 學經歷與技能，每頁 6 筆 | Education/work experience and skills, six per page |
+| `GET /portfolio/projects` | 專案、完整詳情與技能，每頁 6 筆 | Projects with full details and skills, six per page |
+| `GET /portfolio/skill-categories` | 技能分類游標頁；每類最多預覽 6 個技能 | Cursor-paged categories with up to six skill previews each |
+| `GET /portfolio/skills` | 指定分類下的技能游標頁 | Cursor-paged skills in one category |
+| `GET /system/heartbeat` | 依近期心跳估算目前在線人數 | Estimated online count from recent heartbeats |
 
-內容涵蓋英文、繁體中文與簡體中文。技能分類與技能 API 的最終契約仍待確認；登入功能目前暫緩，管理後台、寫入與上傳功能尚未實作。
+Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。目前只有單份 Portfolio，未建立多作者資料隔離；登入、管理後台、寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
 
-Content covers English, Traditional Chinese, and Simplified Chinese. The final contracts for skill categories and skills remain pending. Login is deferred; an admin interface, write operations, and uploads are not implemented.
+Portfolio APIs default to `locale=en` and also support `zh-Hans` and `zh-Hant`. All six GETs can opt into short-lived response caching with `is_caching=true`. The backend currently serves one Portfolio; multi-author isolation, login, administration, write operations, and uploads are not implemented. See the [backend README](backend/README.md) for parameters and response shapes.
 
 ## 後端本機開發 / Local backend development
 
@@ -193,9 +185,9 @@ Use `uv run` to execute project commands without manually activating the environ
 uv run black --check .
 ```
 
-在 `backend/` 建立私有的 `SYSTEM/config.yaml` 後，以 `uv run manage_fastapi.py` 啟動伺服器。設定中至少要有非空的 `SECURITY.secret_key` 和 `DATABASE.META` 的 `type`、`is_async`、`name`；預設文件路徑為 `/swagger`。目前 `backend` console script 仍是 uv 範例，不會啟動 API。
+在 `backend/` 建立私有的 `SYSTEM/config.yaml` 後，先執行 `uv run alembic upgrade head`，再以 `uv run manage_fastapi.py` 啟動伺服器。設定中至少要有非空的 `SECURITY.secret_key` 和 `DATABASE.META` 的 `type`、`is_async`、`name`；預設文件路徑為 `/swagger`。目前 `backend` console script 仍是 uv 範例，不會啟動 API。
 
-After creating a private `SYSTEM/config.yaml` inside `backend/`, start the server with `uv run manage_fastapi.py`. Configure a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async`, and `name`; the default docs path is `/swagger`. The `backend` console script still runs the generated uv example rather than the API.
+After creating a private `SYSTEM/config.yaml` inside `backend/`, run `uv run alembic upgrade head`, then start the server with `uv run manage_fastapi.py`. Configure a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async`, and `name`; the default docs path is `/swagger`. The `backend` console script still runs the generated uv example rather than the API.
 
 ## 文件與版本控制 / Documentation and version control
 

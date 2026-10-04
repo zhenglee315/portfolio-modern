@@ -8,7 +8,7 @@ from enum import Enum
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Url - Prefix
 class PreFix(EnumUtils):
     # -< Url >----------------------------------------------------------【 Portfolio 】
-    PORTFOLIO = "api/v1"
+    PORTFOLIO = "portfolio"
     # -< Url >----------------------------------------------------------【 System Diagnostics 】
     SYS = "system"
 
@@ -39,10 +39,12 @@ class RoutePortfolio(EnumUtils):
     # Project list with full detail and skills; locale, page, and fixed size=6.
     PROJECTS = "/projects"
     # -< GET >----------------------------------------------------------【 Skill Categories 】
-    # Category list with skill previews; locale, cursor, and limit. Contract pending confirmation.
+    # Cursor page of localized categories; locale, cursor, limit=12 (1-50), and six skill previews each.
+    # Returns items, page, and included.skills for the preview IDs actually referenced.
     SKILL_CATEGORIES = "/skill-categories"
     # -< GET >----------------------------------------------------------【 Skills 】
-    # Category skills; locale, ownerType=category, ownerId, cursor, and limit. Contract pending confirmation.
+    # Cursor page of localized category skills; locale, ownerType=category, ownerId, cursor, limit=12 (1-50).
+    # Returns items and page; preview nextCursor may continue this category's skill list.
     SKILLS = "/skills"
 
 

@@ -4,6 +4,8 @@
 !/backend/tests/test_database_core.py
 !/backend/tests/test_sqlalchemy_tools.py
 !/backend/tests/test_redis_tools.py
+!/backend/tests/test_fastapi_cbv.py
+!/backend/tests/test_portfolio_skills.py
 !/backend/test.py
 /test/
 # Local deployment configuration (may contain credentials).

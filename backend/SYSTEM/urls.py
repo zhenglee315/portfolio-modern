@@ -8,7 +8,7 @@ from enum import Enum
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Url - Prefix
 class PreFix(EnumUtils):
     # -< Url >----------------------------------------------------------【 Portfolio 】
-    PORTFOLIO = "portfolio"
+    PORTFOLIO = "api/v1"
     # -< Url >----------------------------------------------------------【 System Diagnostics 】
     SYS = "system"
 

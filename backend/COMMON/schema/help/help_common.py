@@ -10,3 +10,18 @@ HELP_CACHING = {
     ),
     "examples": [True],
 }
+
+
+# ■—< CONST >———————————————————————————————————————————————————————————————————————————■ Locale
+HELP_LOCALE = {
+    "title": "Content Language",
+    "description": (
+        "### Content Language\n"
+        "🌐 **Select the language of the portfolio content.**\n\n"
+        "- `en`: English (default).\n"
+        "- `zh-Hans`: Simplified Chinese.\n"
+        "- `zh-Hant`: Traditional Chinese.\n\n"
+        "> _Unsupported languages return 400 INVALID_LOCALE._"
+    ),
+    "examples": ["en"],
+}

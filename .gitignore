@@ -8,10 +8,24 @@
 !/backend/tests/test_portfolio_skills.py
 !/backend/test.py
 /test/
+# macOS Finder metadata.
+.DS_Store
+
 # Local deployment configuration (may contain credentials).
 /backend/SYSTEM/config.yaml
-# Local SQLite database.
+# Local SQLite databases and their journal/WAL files.
+*.db
+*.db-*
+*.db3
+*.db3-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
 /backend/porfolio_modern
+/backend/porfolio_modern-journal
+/backend/porfolio_modern-shm
+/backend/porfolio_modern-wal
 
 # Python bytecode cache.
 __pycache__/

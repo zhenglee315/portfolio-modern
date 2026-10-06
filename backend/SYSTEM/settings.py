@@ -173,6 +173,8 @@ DB_CONF = {
     "name": DB_META.get("name"),
     "user": DB_META.get("user"),
     "password": DB_META.get("password"),
+    # SQLite file directory relative to the backend project root.
+    "sqlite": "SYSTEM/models/sqlite",
 }
 
 

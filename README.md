@@ -8,21 +8,21 @@ A modern personal profile system that organizes profile information, education a
 
 The project aims for **lightweight development and deployment**: add dependencies as features require them, control resource usage and persistent services, and keep the module structure clear.
 
-**目前優先完成後端；前端開發暫緩。** `backend/` 放置後端程式，`frontend/` 保留給後續前端開發。
+**後端已有公開讀取 API；前端已建立架構文件，應用尚未初始化。** `backend/` 放置後端程式；`frontend/` 規劃以 React Router Framework Mode、React 與 TypeScript 重構既有 `portfolio-web`，細節見[前端 README](frontend/README.md)。
 
-**The current priority is completing the backend; frontend development is deferred.** `backend/` contains the backend, while `frontend/` is reserved for future frontend work.
+**The backend has public read APIs; frontend architecture is documented, while the application is not initialized yet.** `backend/` contains backend code. `frontend/` plans the migration of `portfolio-web` to React Router Framework Mode, React, and TypeScript; see the [frontend README](frontend/README.md).
 
 ## 目前進度 / Current status
 
 - 已完成 FastAPI 啟動入口、六支公開 Portfolio GET API、線上人數診斷 API，以及本機 Swagger／ReDoc。
 - 後端使用單一非同步 SQLite 或 PostgreSQL 連線管理器；Redis 用於 session、心跳與可選的 HTTP 快取。
 - 已建立作品集與帳號 ORM 模型、初版 Alembic migration 及三語 mock 匯入腳本；migration 須手動執行，登入與寫入 API 尚未實作。
-- 本儲存庫的 `frontend/` 目前僅保留規劃資料。既有 `portfolio-web` mock／client 仍使用舊回應格式，前端串接需另行調整。
+- 已建立前端架構 README，說明功能分層、共用模組、API 契約、預先渲染與按需載入；React 應用、依賴與 API 串接尚未建立。
 
 - The backend has a FastAPI entry point, six public Portfolio GET APIs, an online-count diagnostic endpoint, and local Swagger/ReDoc.
 - One async connection manager supports SQLite or PostgreSQL; Redis supplies sessions, heartbeats, and optional HTTP response caching.
 - Portfolio and account ORM models, an initial Alembic migration, and a three-language mock importer are present. Migrations run manually; login and write APIs are not implemented.
-- This repository's `frontend/` currently holds planning material. The existing `portfolio-web` mock/client still uses older response shapes and needs an integration update.
+- The frontend README defines feature boundaries, shared modules, API contracts, pre-rendering, and on-demand loading. The React application, dependencies, and API integration are not implemented yet.
 
 ## 技術選擇 / Technology choices
 
@@ -43,6 +43,7 @@ The project aims for **lightweight development and deployment**: add dependencie
 | Black | Python 排版，開發依賴 | Python formatter; development dependency |
 | pytest | 測試工具，開發依賴 | Test runner; development dependency |
 | Docker | 按需啟動外部服務、容器驗證或部署 | On-demand external services, container validation, or deployment |
+| React Router Framework Mode、React、TypeScript、Vite | 已選定的前端架構；尚未安裝與初始化 | Selected frontend architecture; installation and initialization are pending |
 
 具體依賴宣告見 [backend/pyproject.toml](backend/pyproject.toml)，解析後版本以 `backend/uv.lock` 為準。
 
@@ -68,16 +69,17 @@ Dependency declarations are in [backend/pyproject.toml](backend/pyproject.toml);
 - Manage development tools separately from runtime dependencies.
 - Extract shared functionality when reuse is justified; keep simple features free of unnecessary abstraction.
 
-## 專案與後端架構 / Project and backend architecture
+## 專案架構 / Project architecture
 
-`backend/` 是目前開發重點；`frontend/` 暫時保留。以下顯示目前主要的程式模組，細節見[後端 README](backend/README.md)。
+以下顯示目前主要的程式模組與前端文件。後端實作細節見[後端 README](backend/README.md)，前端的目標目錄、責任與開發規範見[前端 README](frontend/README.md)。
 
-`backend/` is the current development focus; `frontend/` is reserved for later integration. The tree shows the current main modules; see the [backend README](backend/README.md) for details.
+The tree shows current backend modules and frontend documentation. See the [backend README](backend/README.md) for implementation details and the [frontend README](frontend/README.md) for the proposed layout, responsibilities, and development standards.
 
 ```text
 portfolio-modern/
 ├── README.md
 ├── frontend/
+│   └── README.md                 # Planned React architecture and standards
 └── backend/
     ├── APPs/
     │   ├── Portfolio/            # Six public content GET APIs

@@ -26,6 +26,7 @@
 /backend/porfolio_modern-journal
 /backend/porfolio_modern-shm
 /backend/porfolio_modern-wal
+/backend/SYSTEM/models/sqlite/
 
 # Python bytecode cache.
 __pycache__/

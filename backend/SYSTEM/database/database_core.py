@@ -12,6 +12,7 @@ from SYSTEM.constants import EnumDBType
 
 # ◆—< Pack >—————————————————————————————————◆ Python
 from copy import deepcopy
+from pathlib import Path
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Connection Manager
@@ -42,7 +43,7 @@ class ConnectionManager:
         """
         Build an asynchronous SQLAlchemy URL from this instance's DB_CONF copy.
 
-        :return: SQLite or PostgreSQL URL; the password is kept in the URL object.
+        :return: SQLite or PostgreSQL URL; relative SQLite files use the configured directory.
         :raises TypeError: The stored database configuration is not a dictionary.
         :raises ValueError: The database type or required configuration is unsupported.
 
@@ -62,7 +63,17 @@ class ConnectionManager:
         match db_type:
             # ●--< Database >--------------------------------------------------------------● SQLite
             case EnumDBType.SQLLite:
-                return URL.create("sqlite+aiosqlite", database=name)
+                if name == ":memory:":
+                    return URL.create("sqlite+aiosqlite", database=name)
+
+                db_path = Path(name)
+                if not db_path.is_absolute():
+                    sqlite_dir = Path(db_conf["sqlite"])
+                    if not sqlite_dir.is_absolute():
+                        sqlite_dir = Path(__file__).resolve().parents[2] / sqlite_dir
+                    db_path = sqlite_dir / db_path
+                db_path.parent.mkdir(parents=True, exist_ok=True)
+                return URL.create("sqlite+aiosqlite", database=str(db_path))
 
             # ●--< Database >--------------------------------------------------------------● PostgreSQL
             case EnumDBType.POSTGRESQL:
@@ -85,7 +96,7 @@ class ConnectionManager:
         """
         Return the configured database URL without opening a connection.
 
-        :return: SQLAlchemy URL shared by the application and Alembic.
+        :return: SQLAlchemy URL shared by the application and Alembic; file SQLite directories are created.
 
                                                                                                ♂ ZhengLee 2026.10.04
         """

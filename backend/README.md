@@ -118,9 +118,9 @@ Skill category and skill pages contain `{limit, total, hasMore, nextCursor}`. Ea
 
 `/system/heartbeat` estimates recent visitors from heartbeats; it does not count logged-in accounts or browser tabs. `is_caching=true` allows up to 30 seconds of caching. Invalid language, page, limit, cursor, or owner values return the relevant 400 response; an omitted required `/skills` `ownerId` returns FastAPI 422, and an unknown category returns 404. `/swagger` documents fields and examples.
 
-相鄰 `portfolio-web` 專案的現有 mock／client 仍使用舊的 `/api/v1` 路徑、回應包裝及 `revision`；本後端目前使用上述 `/portfolio` 路徑與直接回應格式。前端正式串接時需同步更新 client、store 與 mock 契約。
+前端的 React 重構規劃見[前端 README](../frontend/README.md)。正式串接時以本後端的 `/portfolio` 路徑、直接回應格式與 OpenAPI 為契約依據；參考前端與舊文件須核對實際版本，不能沿用過時的回應包裝或 `revision` 假設。
 
-The sibling `portfolio-web` mock/client still uses the older `/api/v1` paths, response envelope, and `revision`. This backend serves the `/portfolio` paths and direct response shapes above. Frontend integration will require corresponding client, store, and mock updates.
+See the [frontend README](../frontend/README.md) for the React migration plan. Integration must follow this backend's `/portfolio` paths, direct response shapes, and OpenAPI contract. Check reference code and older documentation against their actual versions rather than assuming obsolete envelopes or `revision` checks.
 
 ## 設定與依賴 / Configuration and Dependencies
 
@@ -134,6 +134,10 @@ The sibling `portfolio-web` mock/client still uses the older `/api/v1` paths, re
 `SYSTEM/config.yaml` 至少需要非空的 `SECURITY.secret_key`，以及 `DATABASE.META` 的 `type`、`is_async: true`、`name`。目前支援 `sqlite` 與 `postgresql`；PostgreSQL 還需 `host`、`user`、`password`。儲存庫目前沒有可直接複製的公開設定範本。文件路徑由 `URL` 設定；未覆寫時 Swagger 是 `/swagger`、ReDoc 是 `/redoc`、OpenAPI 是 `/openapi`。實際監聽位址與埠號取決於本機設定。
 
 `SYSTEM/config.yaml` requires a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async: true`, and `name`. The supported types are `sqlite` and `postgresql`; PostgreSQL also needs `host`, `user`, and `password`. There is no public copyable configuration template yet. Documentation paths come from `URL`; without overrides, Swagger is `/swagger`, ReDoc is `/redoc`, and OpenAPI is `/openapi`. The actual listening address and port depend on local settings.
+
+使用 SQLite 時，相對的 `DATABASE.META.name` 會依 `SYSTEM/settings.py` 的 `DB_CONF["sqlite"]` 存放在 `SYSTEM/models/sqlite/`，缺少的資料夾會自動建立；`:memory:` 不建立檔案，絕對路徑則保留指定位置。FastAPI 與 Alembic 使用同一個路徑。
+
+For SQLite, a relative `DATABASE.META.name` uses `DB_CONF["sqlite"]` in `SYSTEM/settings.py` and is stored under `SYSTEM/models/sqlite/`, which is created when needed. `:memory:` creates no file, while an absolute path keeps its specified location. FastAPI and Alembic use the same path.
 
 | 依賴 / Dependencies | 角色 / Role |
 | --- | --- |

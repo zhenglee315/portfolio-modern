@@ -42,7 +42,13 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
     />
   );
   const site = useSite(locale);
-  useEntrance(root, !!site.data, contact.reveal, appearance.motionPaused);
+  useEntrance(
+    root,
+    !!site.data,
+    contact.reveal,
+    appearance.motionPaused,
+    appearance.subscribeThemeTransition,
+  );
   const journey = useJourney(locale);
   const stops = journey.data;
   const final = stops?.at(-1);

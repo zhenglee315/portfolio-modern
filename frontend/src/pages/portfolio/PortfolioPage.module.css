@@ -1,6 +1,7 @@
 /* Portfolio frame follows the legacy rail and 760px mobile breakpoint. */
 .frame[data-entering='true'] .main > * {
   animation: page-enter 450ms 750ms ease-out backwards;
+  animation-play-state: var(--entrance-play-state, running);
 }
 /* The field settles first, followed by the legacy brief content reveal and soft flicker.
    Only hydrated pages receive the finite marker; SSR and missing JS remain readable. */

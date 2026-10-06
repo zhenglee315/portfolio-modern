@@ -177,6 +177,10 @@ Customize `PixelBubble` through its background, padding, backdrop, and close-con
 
 Global tokens define palette, geometry, and timing. Shared global styles define timeline/icon breathing and decoration pause policy. Experience and project timelines reference the same point keyframe and size; icon roles customize one shared breathing effect through variables. Decoration pauses and reduced-motion preferences remain consistent across features.
 
+主題切換的有限生命週期由 `useAppearance().subscribeThemeTransition(listener)` 提供 `prepare`／`replay`／`cancel` 通知；Portfolio page 重用自己的 `createEntrance` 與既有 CSS，遮罩完全覆蓋時暫停於首幀，顯露完成後開始進場。Appearance 不引用 page DOM，page 不另外建立換色控制器。新增元件使用語意色彩 tokens，頁面內容沿用既有進場外殼；不複製 heartbeat、換色或進場 keyframes。具體時序、首次聯絡介紹與中斷規則見[前端 SPEC](../../README.md)。
+
+The appearance feature publishes finite `prepare`/`replay`/`cancel` phases through `useAppearance().subscribeThemeTransition(listener)`. Portfolio reuses its own `createEntrance` and existing CSS: preparation holds the first frame under the opaque veil, and playback starts after reveal. Appearance never imports page DOM, and pages do not duplicate palette controllers. New components consume semantic color tokens and the existing entrance shell instead of copying breathing, palette or entrance keyframes. The frontend specification defines timing, one-time contact disclosure and interruption rules.
+
 主題漸變控制器屬於 `features/appearance`，聯絡氣泡倒數與狀態屬於 `features/site`，地圖播放屬於 `features/journey`，入場與區塊導航屬於 `pages/portfolio`。它們重用通用外殼、定位、焦點與訂閱，但生命週期和業務狀態不同，因此保留各自的 owner。相似的 `setTimeout` 或 `requestAnimationFrame` 不代表可以合併成同一套流程。
 
 Palette transitions, contact disclosure timing, journey playback, and portfolio entrance/navigation have distinct owners and lifecycles. They reuse appropriate shared infrastructure while retaining their specific state. Similar scheduling syntax alone does not justify one generic animation controller.

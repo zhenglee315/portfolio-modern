@@ -318,9 +318,11 @@
 /* Navigation follows the inward frame instead of painting before it settles. */
 :global([data-entering='true']) .sidebar {
   animation: navigation-enter 450ms 800ms var(--ease-drawer) backwards;
+  animation-play-state: var(--entrance-play-state, running);
 }
 :global([data-entering='true']) .mobile {
   animation: header-enter 450ms 800ms var(--ease-drawer) backwards;
+  animation-play-state: var(--entrance-play-state, running);
 }
 @keyframes navigation-enter {
   from {

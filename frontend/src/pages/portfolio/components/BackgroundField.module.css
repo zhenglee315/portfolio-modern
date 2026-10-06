@@ -100,6 +100,10 @@
 :global([data-entering='true']) .signals {
   animation: field-reveal 800ms ease-out backwards;
 }
+/* Apply the shared hold after animation shorthands, which otherwise reset play-state. */
+:global([data-entering='true']) :is(.top, .bottom, .left, .right, .signals) {
+  animation-play-state: var(--entrance-play-state, running);
+}
 @keyframes field-top-in {
   from {
     transform: translateY(-100%);

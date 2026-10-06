@@ -16,11 +16,13 @@ import {
 import { reducedMotionQuery, useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { useDocumentVisible } from '@/shared/hooks/useDocumentVisible';
 import { useThemeTransition } from './useThemeTransition';
+import type { ThemeTransitionPhase } from '../model/transition';
 
 type Preferences = {
   settings: Appearance;
   reducedMotion: boolean;
   motionPaused: boolean;
+  subscribeThemeTransition: (listener: (phase: ThemeTransitionPhase) => void) => () => void;
   update: (patch: Partial<Appearance>) => void;
   reset: () => void;
 };
@@ -32,7 +34,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const reducedMotion = useMediaQuery(reducedMotionQuery);
   const visible = useDocumentVisible();
   const motionPaused = settings.paused || reducedMotion || !visible;
-  useThemeTransition(settings.theme, reducedMotion, visible);
+  const subscribeThemeTransition = useThemeTransition(settings.theme, reducedMotion, visible);
   const update = useCallback(
     (patch: Partial<Appearance>) =>
       setSettings((previous) => normalizeAppearance({ ...previous, ...patch })),
@@ -50,8 +52,8 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.motionPaused = String(motionPaused);
   }, [motionPaused]);
   const value = useMemo(
-    () => ({ settings, reducedMotion, motionPaused, update, reset }),
-    [settings, reducedMotion, motionPaused, update, reset],
+    () => ({ settings, reducedMotion, motionPaused, subscribeThemeTransition, update, reset }),
+    [settings, reducedMotion, motionPaused, subscribeThemeTransition, update, reset],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

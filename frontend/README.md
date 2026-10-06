@@ -8,6 +8,18 @@ This directory implements the React migration of `portfolio-web`, preserving its
 
 **Status: React feature migration implemented.** Seven features integrate six public GET endpoints with locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction and decoration. Four public URLs pre-render validated content, with independently recoverable browser requests. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
 
+## 網站畫面導覽 / Visual Website Tour
+
+網站的[完整截圖圖解](../README.md#網站圖解--website-tour)位於專案 README，涵蓋首頁、旅程地圖、學經歷、專案時間軸／詳情、技能、主題、語言、聯絡與平板／手機版型。所有正式文件圖片集中在 [`../docs/images/`](../docs/images/README.md)，兩份 README 共用圖片，維持單一來源。
+
+The project README contains the [complete screenshot tour](../README.md#網站圖解--website-tour), covering the overview, map, experience, project timeline/detail, skills, appearance, language, contact, tablet and mobile layouts. Both guides share the documentation assets in [`../docs/images/`](../docs/images/README.md).
+
+[![專案時間軸局部裁切：月份、目前節點、摘要與詳情入口 / Project timeline crop with month groups, active node, summaries and detail controls](../docs/images/project-timeline.png)](../README.md#4-專案時間軸與詳情--project-timeline-and-detail)
+
+本文件以下保留架構、安裝與元件規格；圖解介紹操作與畫面，規格說明介面、資料契約及生命週期。
+
+The sections below retain architecture, setup and component specifications. The tour explains the visible experience; the specifications define interfaces, data contracts and lifecycle.
+
 ## 工程原則 / Engineering Principles
 
 - **正規化 / Normalization：** 資料契約、設定與設計變數有明確來源；API 資料、UI 狀態與衍生結果分責管理，減少重複定義與同步負擔。

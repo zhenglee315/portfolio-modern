@@ -1,6 +1,8 @@
 node_modules/
 .react-router/
 build/
+.build-staging/
+.build-previous/
 coverage/
 test-results/
 playwright-report/

@@ -1,12 +1,12 @@
 # 前端架構總覽 / Frontend Architecture
 
-本目錄規劃以 React 重構既有 `portfolio-web`，沿用其版型、三語內容與互動規則，並串接本專案的 FastAPI。前端負責呈現、互動與資料取得；後端負責業務資料、驗證、權限與儲存。整體產品方向見[專案 README](../README.md)，API 現況見[後端 README](../backend/README.md)。
+本目錄以 React 重構既有 `portfolio-web`，沿用其版型、三語內容與互動規則，並串接本專案的 FastAPI。前端負責呈現、互動與資料取得；後端負責業務資料、驗證、權限與儲存。整體產品方向見[專案 README](../README.md)，API 現況見[後端 README](../backend/README.md)。
 
-This directory plans the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
+This directory implements the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
 
-**目前狀態：開發基線已完成。** 已建立 React Router Framework Mode、React、TypeScript 與 Vite 應用，安裝 Bootstrap 樣式、React-Bootstrap 與 Bootstrap Icons，配置 Provider、三語路由、預先渲染、開發 API proxy 及檢查工具。現在可啟動開發；功能目錄先預留，既有 HTML 版型、業務 API 串接、地圖與互動尚未遷移。
+**目前狀態：React 功能遷移已實作。** 七個 feature 串接現有六支公開 GET API，包含三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡及背景效果。四個公開 URL 預先渲染有效資料，瀏覽器故障由各區獨立處理。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
 
-**Status: development baseline ready.** React Router Framework Mode, React, TypeScript, Vite, Bootstrap, React-Bootstrap, and Bootstrap Icons are installed. Providers, locale routes, pre-rendering, the development API proxy, and verification tools are configured. Feature directories are reserved; the original design, business API integration, maps, and interactions still need migration.
+**Status: React feature migration implemented.** Seven features integrate six public GET endpoints with locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction and decoration. Four public URLs pre-render validated content, with independently recoverable browser requests. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
 
 ## 工程原則 / Engineering Principles
 
@@ -41,7 +41,7 @@ The tools below are installed. The manifest and lockfile record exact dependenci
 | ESLint、typescript-eslint、import-x、Prettier | 型別語法、Hooks、依賴邊界與一致排版 / Typed syntax, Hooks, import boundaries, and formatting                                                          |
 | Vitest、React Testing Library                 | 純邏輯、資料契約與元件行為測試 / Logic, contract, and component behavior tests                                                                        |
 | Playwright                                    | Chromium 瀏覽器驗證，可後續增加其他瀏覽器 / Chromium checks, extensible to other browsers                                                             |
-| sirv-cli                                      | 正式建置的本機靜態預覽 / Local static build preview                                                                                                   |
+| sirv                                          | 正式建置的本機靜態預覽 / Local static build preview                                                                                                   |
 
 React、Vite 與其他工具安裝為專案依賴。Node.js 與 npm 是本機準備事項；安裝 npm 套件不代表已啟動 FastAPI、資料庫或 Redis。日常可直接在本機開發，Docker 按實際服務或部署需要使用。
 
@@ -59,9 +59,9 @@ React Router Framework Mode uses Vite for development and builds and supports cl
 | 地圖、對話框、後續分頁 / Maps, dialogs, and subsequent pages | 瀏覽器互動與按需載入；依操作載入程式碼或取得 API 資料 / Client interaction with code or data loaded when needed                                                                 |
 | 未來公開 HTML 須即時反映資料 / Future live public HTML       | 評估伺服器渲染（SSR），增加相應前端執行服務 / Evaluate SSR with an appropriate frontend runtime                                                                                 |
 
-目前設定 `ssr: false`，預先渲染 `/`（英文）、`/en`、`/zh-Hans` 與 `/zh-Hant` 四個 URL。已產生對應語系的 HTML、標題與描述，但目前僅有啟動頁文案；正式業務內容與 SEO metadata 隨版型及 API 遷移補齊。瀏覽器 loader 使用相同語系驗證，未知語系呈現錯誤頁。動態路由參數不能只靠路由宣告自動產生所有頁面。部署時提供產生的 HTML、路由資料及靜態資產，並配置必要的路由回退。這種部署不需要常駐前端 Node.js 服務，Node.js 仍用於開發與建置。[官方預先渲染說明](https://reactrouter.com/how-to/pre-rendering)
+目前設定 `ssr: false`，預先渲染 `/`（英文）、`/en`、`/zh-Hans` 與 `/zh-Hant` 四個 URL。各 URL 包含 Site、完整 Journey、經歷／專案第一頁與完整技能分類的 HTML、Query snapshot 及 API metadata；分類續頁失敗時保留有效前綴，瀏覽器可局部補讀。瀏覽器 loader 使用相同語系驗證，未知語系呈現錯誤頁。動態路由參數不能只靠路由宣告自動產生所有頁面。部署時提供產生的 HTML、路由資料及靜態資產，並配置必要的路由回退。這種部署不需要常駐前端 Node.js 服務，Node.js 仍用於開發與建置。[官方預先渲染說明](https://reactrouter.com/how-to/pre-rendering)
 
-Runtime SSR is disabled, and `/`, `/en`, `/zh-Hans`, and `/zh-Hant` are pre-rendered. They currently contain localized bootstrap copy; business content and complete SEO metadata remain migration work. Browser loading applies the same locale validation. Dynamic route parameters need concrete build paths. Serve generated HTML, route data, and assets with the required routing fallback. Node.js is needed for development and builds, without a persistent frontend Node.js service.
+Runtime SSR is disabled, and `/`, `/en`, `/zh-Hans`, and `/zh-Hant` are pre-rendered. They include profile/journey content, the first experience/project pages and the complete category index, query snapshots and API-derived metadata. A failed category continuation retains its validated prefix for independent browser recovery. Browser loading applies the same locale validation. Dynamic route parameters need concrete build paths. Serve generated HTML, route data, and assets with the required routing fallback. Node.js is needed for development and builds, without a persistent frontend Node.js service.
 
 按需載入包含兩個不同責任：**Code Splitting** 將程式拆成可獨立下載的區塊；**Lazy Loading** 決定何時取得與呈現。框架自動按路由分割程式碼；同一頁中的地圖或對話框仍須設計動態 import 與觸發條件。立即渲染所有 lazy 元件仍會立即觸發載入，不能只靠資料夾分組達成延遲下載。API 資料載入與程式碼下載也分開管理。[官方程式碼分割說明](https://reactrouter.com/explanation/code-splitting)
 
@@ -84,7 +84,9 @@ frontend/
 ├── react-router.config.ts         # Source directory and rendering configuration
 ├── vite.config.ts / tsconfig.json
 ├── .env.example                   # Public configuration example
-├── public/                        # Assets requiring stable public paths
+├── scripts/                       # Build acceptance, preview and public-output checks
+├── deploy/                        # Generic static/API hosting example
+├── public/                        # Stable public paths and asset license notices
 ├── src/
 │   ├── root.tsx                   # Root layout and providers
 │   ├── routes.ts                  # URL-to-route-module mapping
@@ -100,12 +102,12 @@ frontend/
 │   │   ├── appearance/
 │   │   └── language/
 │   ├── shared/
+│   │   ├── README.md             # Shared contracts, consumers and usage examples
 │   │   ├── api/                   # HTTP transport and common errors
-│   │   ├── config/                # Public environment/runtime configuration
-│   │   ├── ui/                    # Button, Dialog, ExpandableTagList
+│   │   ├── schemas/               # Common record, career and numbered-page contracts
+│   │   ├── ui/                    # States, collection/tag disclosure and PixelBubble
 │   │   ├── hooks/                 # General interaction hooks
-│   │   ├── lib/                   # General pure functions
-│   │   └── types/                 # Genuinely shared types
+│   │   └── lib/                   # General pure functions
 │   ├── i18n/                      # Fixed UI dictionaries and locale utilities
 │   ├── styles/                    # Base styles, themes, design tokens
 │   └── assets/                    # Imported fonts, icons, maps, images
@@ -114,9 +116,9 @@ frontend/
     └── e2e/                       # Browser scenarios
 ```
 
-功能與共用能力先預留資料夾；檔案隨實際實作建立，不為每個功能複製空白模板。目前只有框架入口、Provider、語系設定、啟動頁、樣式及必要測試。Git 不保存空資料夾，其他電腦 checkout 後可在實作時建立相應目錄。
+各 feature 依實際責任建立 api、schemas、model、hooks、components，透過 index.ts 公開介面。沒有 API 的 appearance／language 不建立空 API 層；正式建置與公開產物檢查放 scripts，通用 hosting 範例放 deploy。
 
-Reserved directories do not imply implemented features. Files are added as responsibilities become real. Git does not track empty directories, so create them as needed after a fresh checkout.
+Features contain the layers they need and expose an index.ts interface. Local-only appearance/language features have no artificial API layer. Formal build/public-output tooling lives in scripts; generic hosting examples live in deploy.
 
 ### 與後端分層的對照 / Backend Layer Mapping
 
@@ -151,6 +153,10 @@ app / routes / pages / features → i18n → shared
 
 Keep shared code independent of features, routes, and application assembly. Pages coordinate features. The ESLint configuration enforces import direction, feature isolation, and public indexes; register new feature names in its `features` list.
 
+共用方法、Hooks、元件的完整介面與引用範例見 [`src/shared/README.md`](src/shared/README.md)。共用檔案依責任直接 import，不建立把所有工具混在一起的大型匯出入口；功能模組對外仍使用自己的 `index.ts`。
+
+See [`src/shared/README.md`](src/shared/README.md) for shared contracts, consumers and import examples. Import shared modules by responsibility; feature consumers retain each feature's public index.
+
 ### 功能內部分工 / Feature Structure
 
 `features` 是前端功能模組，不等於單一頁面、元件或 endpoint。一個功能可包含多個 API 與元件，也可以只有本機互動。各功能遵循同一套責任規則，**只建立實際需要的子目錄**；例如 `projects` 可能需要完整分層，`appearance` 沒有遠端資料就不需要 `api` 或 API `schemas`。
@@ -166,13 +172,13 @@ A feature groups related frontend behavior rather than representing one page, co
 | `components/`   | 功能畫面、props、事件與元件樣式；不重寫 transport 或契約解析 / Feature UI, props, events, and styles                                                     |
 | `index.ts`      | 明確列出外部可用的元件、函式與型別；不匯出所有內部細節 / Explicit public components, functions, and types                                                |
 
-功能檔案依具體責任命名，例如 `projectsApi.ts`、`project.schema.ts`、`useProjects.ts`、`ProjectCard.tsx`。檔案與目錄在責任增長時拆分；不為每個短函式建立一層資料夾。
+功能檔案依具體責任命名，例如 `projects/api/projects.ts`、`projects/schemas/projects.ts`、`journey/hooks/useJourneyPlayback.ts`、`projects/components/ProjectCard.tsx`。檔案與目錄在責任增長時拆分；不為每個短函式建立一層資料夾。
 
 Name files by responsibility and split them as complexity grows, without introducing a directory for every small function.
 
 ### API 放置與資料載入 / API Placement and Data Loading
 
-前端 `api` 指呼叫 FastAPI 的程式。**功能請求放在 `features/<feature>/api`，HTTP 基礎能力集中在 `shared/api`。** 例如 `siteApi.ts` 定義 `/portfolio/site` 的參數與回應解析；`httpClient.ts` 處理 URL、取消請求及共用錯誤。即使多個頁面使用 Site，請求仍由 `site` 擁有，透過公開介面重用。
+前端 `api` 指呼叫 FastAPI 的程式。**功能請求放在 `features/<feature>/api`，HTTP 基礎能力集中在 `shared/api`。** 例如 `features/site/api/site.ts` 的 `siteQuery` 定義 `/portfolio/site` 的參數與回應解析；`shared/api/http.ts` 的 `requestJson` 處理 URL、取消請求及共用錯誤。即使多個頁面使用 Site，請求仍由 `site` 擁有，透過公開介面重用。
 
 Frontend API modules call FastAPI. Features own endpoint semantics, while `shared/api` owns HTTP mechanics. Reuse a feature API through its public interface even when several pages need it.
 
@@ -183,7 +189,7 @@ Route loaders reuse feature APIs or public query options. Pre-rendering supplies
 典型請求與回應流程：
 
 ```text
-ProjectsSection → useProjects → projectsApi → HTTP transport → FastAPI
+ProjectsSection → useInfiniteQuery(projectsQuery) → numberedQuery → requestJson → FastAPI
 FastAPI JSON → response parser → Query cache → selector/model → component
 ```
 
@@ -195,15 +201,15 @@ Transport owns HTTP mechanics, resource APIs own endpoint contracts, hooks own s
 
 ### 元件放置 / Component Placement
 
-| 元件範圍 / Scope                                 | 位置與例子 / Location and example                                                                |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| 不依賴業務的通用 UI / Business-independent UI    | `shared/ui`：Button、Dialog、ExpandableTagList；資料透過 props 傳入 / Receive data through props |
-| 理解特定功能資料與規則 / Feature-specific UI     | `features/<feature>/components`：ProjectCard、ProjectDetailDialog、JourneyMap                    |
-| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：PortfolioLayout                                                       |
+| 元件範圍 / Scope                                 | 位置與例子 / Location and example                                                                           |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| 不依賴業務的通用 UI / Business-independent UI    | `shared/ui`：SectionState、PixelBubble、ExpandableTagList；資料透過 props 傳入 / Receive data through props |
+| 理解特定功能資料與規則 / Feature-specific UI     | `features/<feature>/components`：ProjectCard、ProjectDetail、JourneyMap                                     |
+| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：Navigation、BackgroundField                                                      |
 
-`ProjectDetailDialog` 可使用共用 `Dialog`，前者負責專案內容，後者負責開關、焦點與鍵盤等彈窗行為。業務元件被多個頁面使用，仍留在所屬功能；只有語意與依賴都通用時才移入 `shared`。共用 `ExpandableTagList` 不自行呼叫技能 API，取得更多資料的責任交給功能並透過事件連接。
+`ProjectDetail` 使用 React-Bootstrap Modal 管理焦點與鍵盤，專案內容保留在 feature。業務元件被多個頁面使用，仍留在所屬功能；只有語意與依賴都通用時才移入 `shared`。共用 `ExpandableTagList` 不自行呼叫技能 API，取得更多資料的責任交給功能並透過事件連接。
 
-A project detail dialog composes a shared dialog primitive. Reuse across pages does not remove feature ownership. Shared components remain business-independent; an expandable tag list receives data and callbacks rather than fetching skills itself.
+ProjectDetail composes the Bootstrap modal primitive for focus and keyboard behavior. Reuse across pages does not remove feature ownership. Shared components remain business-independent; an expandable tag list receives data and callbacks rather than fetching skills itself.
 
 ### 邏輯抽取與生命週期 / Logic Extraction and Lifecycle
 
@@ -233,6 +239,21 @@ Effect 中建立的事件監聽、計時器、observer、動畫與連線須對�
 
 Clean up listeners, timers, observers, animations, and connections. Isolate imperative rendering behind refs and pass dependencies explicitly rather than retaining legacy globals.
 
+### 共用流程與特效責任 / Shared Flows and Effect Ownership
+
+| 能力 / Capability                                      | 共用介面與引用者 / Shared interface and consumers                                                                                                                                                                                                  |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP、契約與分頁 / Transport, contracts and pagination | `requestJson`、`numberedPageSchema`、`numberedQuery`、`usePagedCollection` 統一讀取／驗證／續頁／狀態；feature API 提供 endpoint 與 item schema。 / Feature APIs inject endpoints and item contracts into one read/validation/continuation policy. |
+| 展開與標籤預覽 / Collection and tag disclosure         | 經歷／專案使用 `ExpandableCollection`；卡片／分類使用 `ExpandableTagList` 與 `tagPreviewCount`。集合第一頁引用 `pageSize`，標籤另依 75% 實際寬度量測。 / First-page collections and measured-width labels reuse shared presentation.               |
+| 浮框與包邊 / Floating surfaces                         | Contact／City 共用 `PixelBubble`、`useAnchoredPanel`、`floatingPosition`；feature 傳入內容、關閉流程與保護邊界。 / Owners inject content, lifecycle and protected bounds into one shell/placement system.                                          |
+| 選單與 modal 焦點 / Menu and modal focus               | Appearance／Language 共用 `useDisclosureFocus`；Drawer／ProjectDetail 共用 `cycleDialogTab`。初始目標與關閉後還原留在 owner／Bootstrap。 / Shared focus mechanics retain owner-specific activation and restoration.                                |
+| 持續 heartbeat / Continuous breathing                  | Timeline 點引用共用 size／duration／keyframe tokens；chat／disclosure 使用 `Icon` 的同一 breathing 動畫。 / Timeline points and icon roles reuse their shared keyframes and tokens.                                                                |
+| 螢幕與動態政策 / Responsive and motion policy          | 共用 `mobileQuery`、`reducedMotionQuery`、`useMediaQuery`、`useDocumentVisible`。 / Components share media/visibility subscriptions and JS breakpoint conditions.                                                                                  |
+
+有限主題漸變由 appearance 管理，聯絡倒數由 site 管理，地圖播放由 journey 管理，入場／區段導覽由 page 管理。它們引用上述基礎能力，保留各自的狀態與清理；新增效果前先查找可重用介面，再記錄其 owner、觸發、停止、卸載與減少動態效果行為。
+
+Appearance owns finite palette transitions, Site owns contact timing, Journey owns playback, and the page owns entrance/navigation. They reuse shared infrastructure while retaining distinct state and cleanup. New effects document their owner, triggers, suspension, unmount and reduced-motion behavior.
+
 ## 資料契約與狀態 / Contracts and State
 
 以[後端回應模型](../backend/APPs/Portfolio/schema/resp/resp_portfolio.py)、[參數解析器](../backend/APPs/Portfolio/schema/parser/parser_portfolio.py)及執行中服務的 OpenAPI 為依據。導入型別產生工具時，產生結果與手寫業務模型分開，產生檔由工具維護。TypeScript 型別檢查與執行期 JSON 驗證分責；mock、HTTP transport 和測試使用同一份資源契約。
@@ -253,7 +274,7 @@ Backend models, query parsers, and OpenAPI define the API contract. Separate gen
 - 六支 API 接受 `locale=en|zh-Hans|zh-Hant`，預設 `en`；所有業務文字直接使用指定語系。
 - 回應沒有共通的 `data/meta/revision` envelope，也不使用資料集 revision 比對；保留資源自己的回應形狀。
 - 四種集合共用 `{items,total,pages,page,size}`，page 從 1 開始，size 固定 6；空集合 pages=0，超頁 items=[]。
-- `/skills` 需要 `ownerId`，`ownerType` 只接受 `category`。分類內的 `skills` 是同一五欄位回應，預覽為第 1 頁，展開以 `page=2&size=6` 接續同一分類。
+- `/skills` 需要 `ownerId`，`ownerType` 只接受 `category`。分類內的 `skills` 是同一五欄位回應，預覽為第 1 頁；寬度量測需要補足預覽或使用者展開時，以 `page=2&size=6` 接續同一分類。
 - Projects 與 Experiences 已包含各筆技能；Projects 也包含詳情，展開時使用已載入內容。
 - 保留 API 的穩定 ID、陣列順序，以及 `null`、空陣列和缺少欄位的差異。DOM/React key 使用穩定 ID；技能參照可用 selector 建立查找表。
 
@@ -272,7 +293,7 @@ Query cache 保留回應作為來源，避免把同一批 API 資料再複製到
 
 Keep one authoritative server-data cache. Query caching is not a globally normalized entity store; derive lookup tables and deduplicate references where the feature needs them.
 
-快取鍵包含資源、語系、頁碼、size、分類及其他篩選條件。四種集合使用相同五欄位頁碼回應；分類 skills 預覽已是第 1 頁，後續從第 2 頁接續。切換語系或分類時重新使用相應範圍的資料與頁碼，失敗不得前進頁碼。重試依錯誤類型與次數設定，取消請求傳遞 `AbortSignal`；舊請求完成後不得覆蓋新選擇的畫面。
+快取鍵包含資源、語系、size、owner 分類及實際篩選條件；InfiniteQuery 的頁碼保存在 pageParams，不為每頁建立另一份集合快取。四種集合使用相同五欄位頁碼回應；分類 skills 預覽已是第 1 頁，後續從第 2 頁接續。切換語系或分類時重新使用相應範圍的資料與頁碼，失敗不得前進頁碼。重試依錯誤類型與次數設定，取消請求傳遞 `AbortSignal`；舊請求完成後不得覆蓋新選擇的畫面。
 
 Cache keys identify the resource and all relevant selection parameters. Manage numbered pages according to the Query API, keep pages scoped, and ensure failed or outdated requests do not advance or overwrite visible state.
 
@@ -293,9 +314,9 @@ Multi-author support requires coordinated backend ownership, public identifiers,
 
 Enforce strict types, consistent naming, explicit module contracts, and separate error presentation from transport errors. Centralize design tokens and UI translations, preserve semantic HTML and accessibility, and configure public frontend settings centrally.
 
-`package.json`、鎖定檔、工具設定與 `.env.example` 納入版本控制；`.gitignore` 已排除 `node_modules/`、框架產生的型別、建置與測試產物、本機環境檔。新增功能或共用工具時，在對應模組的 README 記錄詳細介面；本文件維護架構、責任與操作入口。
+`package.json`、鎖定檔、工具設定與 `.env.example` 納入版本控制；`.gitignore` 已排除 `node_modules/`、框架產生的型別、建置與測試產物、本機環境檔。新增元件或頁面時，在本文件更新繁體中文＋英文 SPEC；本文件也維護架構、責任與操作入口。
 
-Track dependency manifests, lockfiles, tooling configuration, and public examples. Ignore rules exclude dependencies, generated outputs, and local settings. Keep detailed module interfaces in their own README files.
+Track dependency manifests, lockfiles, tooling configuration, and public examples. Ignore rules exclude dependencies, generated outputs, and local settings. Update bilingual specifications here whenever a component or page changes.
 
 ## 開發與驗證 / Development and Verification
 
@@ -306,25 +327,40 @@ The runtime baseline is Node.js **24.21.0** and npm **11.19.0**. Ensure both com
 ```bash
 cd frontend
 npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-開發網址為 `http://127.0.0.1:5173`；dev server 使用固定 port，若已被占用會停止。第一次安裝或更新 Playwright 後，執行 `npx playwright install chromium` 下載測試瀏覽器。
+首次安裝才複製 `.env.example`，不要覆寫已有的 `.env.local`。先依[後端安裝步驟](../backend/README.md)啟動 8080 API；要顯示完整作品集或正式建置，需完成三語內容匯入。開發網址為 `http://127.0.0.1:5173`；dev server 使用固定 port，若已被占用會停止。API 無法使用時各區呈現載入失敗／重試，保留有效快取。第一次安裝或更新 Playwright 後，執行 `npx playwright install chromium` 下載測試瀏覽器；Linux CI 可使用 `npx playwright install --with-deps chromium`。
 
-Development runs at `http://127.0.0.1:5173` on a fixed port. Install the test browser with `npx playwright install chromium` after the first install or a Playwright update.
+Copy the example only on first setup and preserve existing local settings. Start the backend on port 8080; complete locale data import for a full portfolio or production build. Development runs on fixed port 5173. API failures have independent retry feedback and retain valid cached data. Install Chromium after first setup or a Playwright update; Linux CI can also install its system dependencies with `--with-deps`.
 
-| 指令 / Command                            | 目的 / Purpose                                                                                 |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `npm ci`                                  | 依鎖定檔重新安裝 / Reinstall locked dependencies                                               |
-| `npm run dev`                             | 本機開發與 HMR / Development with hot module replacement                                       |
-| `npm run typecheck`                       | 產生路由型別並執行 TypeScript 檢查 / Generate route types and check TypeScript                 |
-| `npm run lint`                            | 程式、Hooks 與依賴邊界檢查 / Code, Hooks, and import rules                                     |
-| `npm run format` / `npm run format:check` | 排版／排版檢查 / Format or check formatting                                                    |
-| `npm run test` / `npm run test:watch`     | 單元與元件測試／持續監看 / Unit and component tests or watch mode                              |
-| `npm run test:e2e`                        | 自動建置、啟動靜態預覽與執行 Chromium 測試 / Build, preview, and run Chromium scenarios        |
-| `npm run build`                           | 正式建置與三語預先渲染 / Production build and locale pre-rendering                             |
-| `npm run preview`                         | 預覽既有 `build/client`，通常使用 port 4173 / Preview an existing build, normally on port 4173 |
-| `npm run check`                           | 型別、lint、格式、單元測試及建置 / Types, lint, formatting, unit tests, and build              |
+| 指令 / Command                            | 目的 / Purpose                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `npm ci`                                  | 依鎖定檔重新安裝 / Reinstall locked dependencies                                                 |
+| `npm run dev`                             | 本機開發與 HMR / Development with hot module replacement                                         |
+| `npm run typecheck`                       | 產生路由型別並執行 TypeScript 檢查 / Generate route types and check TypeScript                   |
+| `npm run lint`                            | 程式、Hooks 與依賴邊界檢查 / Code, Hooks, and import rules                                       |
+| `npm run format` / `npm run format:check` | 排版／排版檢查 / Format or check formatting                                                      |
+| `npm run test` / `npm run test:watch`     | 單元與元件測試／持續監看 / Unit and component tests or watch mode                                |
+| `npm run test:e2e`                        | 自動建置、啟動靜態預覽與執行 Chromium 測試 / Build, preview, and run Chromium scenarios          |
+| `npm run test:dev`                        | 重新轉換相依並驗證實際 dev server / Check the real dev server with fresh dependency optimization |
+| `npm run build`                           | 正式建置與三語預先渲染 / Production build and locale pre-rendering                               |
+| `npm run verify:public`                   | 公開檔案與資產預算檢查 / Check deliverable files and asset budgets                               |
+| `npm run preview`                         | 預覽既有 `build/client`，通常使用 port 4173 / Preview an existing build, normally on port 4173   |
+| `npm run check`                           | 型別、lint、格式、單元測試及建置 / Types, lint, formatting, unit tests, and build                |
+
+### 開發相依載入 / Development Dependency Loading
+
+即使正式配置為 `ssr:false`，React Router 開發模式仍會在 Node 中渲染頁面；dev module runner 與正式建置的相依處理方式不同。React-Bootstrap 的間接相依 `@restart/ui` 在 Node 條件下提供 CommonJS，因此 `ssr.noExternal` 必須搭配 `ssr.optimizeDeps.include` 將元件相依樹預先轉成 ESM。SSR optimizer 排除 `react`／`react-dom`，讓元件與外部渲染器共用同一份 React，避免 Hook dispatcher 不一致。
+
+React Router renders development pages in Node even with production `ssr:false`. Its development module runner differs from the production bundler. Keep `ssr.noExternal` for component transformation and pre-bundle the component dependency trees through `ssr.optimizeDeps.include` to convert the Node-selected CommonJS dependencies. Excluding React and React DOM from SSR optimization preserves the renderer's shared React instance.
+
+瀏覽器 optimizer 在啟動時掃描 root／route entries，包含懶載入元件；已使用的 Dropdown／Offcanvas／Modal 集中於 `vite.config.ts` 的 `bootstrapComponents`，兩個 optimizer 重用同一清單。新增 React-Bootstrap 互動元件時同步更新此清單，避免操作後才重新轉換相依。`npm run test:dev` 使用獨立 port 5174 與合成 API，強制重新轉換快取，驗證四 URL、hydration、下拉選單、手機導覽、Modal 及分頁，並檢查 runtime／console errors；建置後的 preview 另由 `test:e2e` 驗證。
+
+Browser optimization scans root and route entries, including lazy components, before initial loading. Both optimizers reuse `bootstrapComponents`; extend this list when introducing another interactive React-Bootstrap component. `test:dev` manages port 5174 and a synthetic API, forces dependency optimization and checks all four URLs, hydration, dropdowns, mobile navigation, lazy dialogs and pagination with runtime/console error assertions. `test:e2e` independently verifies the production preview.
+
+See [Vite dependency optimization](https://vite.dev/config/dep-optimization-options) and [SSR options](https://vite.dev/config/ssr-options) for the configuration boundaries.
 
 ### 環境變數與 API / Environment and API Configuration
 
@@ -336,46 +372,227 @@ To customize the local API target, copy the public example and edit the ignored 
 cp .env.example .env.local
 ```
 
-- `VITE_API_BASE_URL=/api`：供後續 HTTP transport 使用的公開 URL 前綴；目前尚未實作 API client。所有 `VITE_` 變數可進入瀏覽器建置，只能填公開值。
-- `API_PROXY_TARGET=http://127.0.0.1:8000`：通用本機範例，僅供 Vite 開發 proxy。請依本機後端設定調整；變更後重新啟動 dev server。
-- 瀏覽器請求 `/api/portfolio/site` 時，開發 proxy 轉交 `/portfolio/site` 並保留 query。建置時的 loader 不經開發 proxy；未來預先渲染的 API 存取需另外設定及驗證。
-- 正式環境與靜態 preview 不包含開發 proxy；正式 hosting 須將 `/api` 導向 FastAPI，或在 HTTP client 實作時配置合適的公開 API base。
-- 本機環境檔不提交；API 憑證、資料庫設定及其他機密不放入前端。
+預設 `API_PROXY_TARGET` 與 `API_BUILD_TARGET` 都是 `http://127.0.0.1:8080`，與公開後端開發配置一致；更換服務位址時一起調整兩者，修改環境檔後重啟 dev server。`npm ci` 安裝依賴，不會自動建立環境檔或啟動後端。
 
-`VITE_API_BASE_URL` is a public prefix reserved for the future HTTP client. `API_PROXY_TARGET` is used only by the local development proxy, which removes `/api` and preserves queries. Build-time API access and production routing require their own configuration. Never place secrets in frontend variables or assets.
+Both API targets default to `http://127.0.0.1:8080`, matching the published backend configuration. Update both when changing origins and restart the development server after environment edits. Dependency installation does not create an environment file or start the backend.
+
+- `VITE_API_BASE_URL=/api`：瀏覽器 HTTP transport 的公開前綴；所有 `VITE_` 變數都可能進入公開 bundle，只能填公開值。
+- `API_PROXY_TARGET`：僅供本機 dev／preview 的公開 API 轉交；移除 `/api` 並保留 query 與錯誤 status。
+- `API_BUILD_TARGET`：僅供 server loader 在建置時讀取公開 API，不進入瀏覽器 bundle；建置不經 dev proxy。
+- `VITE_PUBLIC_SITE_URL`：可選的公開網站 origin；設定後產生 canonical、四組 hreflang 與 Open Graph URL。未設定時省略絕對 URL，不猜測正式網域；不支援 origin 以外的子目錄部署。
+- 正式 hosting 需獨立把 `/api` 轉給 FastAPI。範例使用同源 proxy；若改成跨來源 API，另外驗證後端 CORS。
+- `.env.example` 只有通用示例；實際本機環境檔不提交，憑證與資料庫設定不放前端。
+
+The browser uses a public API prefix. Dev/preview proxy and build-time origins are separate server-only settings. Static builds read the public backend directly. An optional public website origin enables canonical/hreflang/Open Graph URLs; absent or invalid origins are omitted, and subdirectory hosting is not supported. Production requires explicit API routing; cross-origin delivery additionally needs verified CORS. Local settings and credentials stay outside published files.
 
 ### 樣式與圖示 / Styles and Icons
 
-`root.tsx` 依序引入 Bootstrap CSS、`styles/tokens.css`、`styles/global.css`。需要覆寫的全域設計值集中在 tokens；元件專屬樣式使用 CSS Modules。互動元件以 React-Bootstrap 管理 React 狀態，不另外引入 Bootstrap 的 DOM 操作 bundle。Bootstrap Icons 以 `bootstrap-icons/icons/<name>.svg` 單獨 import，避免為少數圖示載入整套 icon font。現階段使用完整 Bootstrap CSS；後續再按實際版型需求評估 Sass 裁剪。
+`root.tsx` 依序引入 Bootstrap CSS、`styles/tokens.css`、`styles/global.css`。需要覆寫的全域設計值集中在 tokens；元件專屬樣式使用 CSS Modules。本地字型／圖示的授權聲明放 public/licenses，隨正式 artifact 發布。互動元件以 React-Bootstrap 管理 React 狀態，不另外引入 Bootstrap 的 DOM 操作 bundle。Bootstrap Icons 以 `bootstrap-icons/icons/<name>.svg` 單獨 import，避免為少數圖示載入整套 icon font。現階段使用完整 Bootstrap CSS；後續再按實際版型需求評估 Sass 裁剪。
 
-Load Bootstrap CSS before tokens and global overrides. Use React-Bootstrap for interactive components and individual SVG imports for icons. Component-specific styles belong in CSS Modules; selective Sass imports can be evaluated after the design migration.
+Load Bootstrap CSS before tokens and global overrides. Local font/icon license notices ship in public/licenses and remain in the client artifact. Use React-Bootstrap for interactive components and individual SVG imports for icons. Component-specific styles belong in CSS Modules; selective Sass imports can be evaluated when measured stylesheet needs justify them.
 
 ### 建置與檢查範圍 / Build and Verification Scope
 
-靜態交付目錄為 `build/client`，包含各語系 `index.html`、路由資料、資產及 `__spa-fallback.html`；正式 hosting 須先提供匹配的靜態檔，再對前端路由使用該 fallback，並獨立處理 API 路徑。`npm run preview` 使用 sirv-cli 預覽這個規則，不是正式 hosting 設定。
+`npm run build` 在隔離產物目錄執行 React Router，再檢查四語系路徑的有效 Site 標記、公開檔案與資產預算，全部通過才替換 `build`。CLI exit=0 不足以代表 loader 成功，錯誤 HTML 不能通過。Site 缺少／契約錯誤使建置失敗並保留上一份產物；其餘區的建置請求可獨立失敗，瀏覽器提供重試。
 
-Deploy `build/client` with static-file precedence and the generated SPA fallback for frontend routes. API routing is separate. The preview command provides local static verification, not production hosting configuration.
+Builds use an isolated directory and accept output only after verifying all four locale profiles, public-file policy and asset budgets. Router CLI success alone is insufficient: rendered loader errors cannot pass. A missing/invalid required Site preserves the previous artifact; independent domains can recover in the browser.
 
-目前測試涵蓋翻譯實例隔離、Provider 語系更新、四個 URL 的預先渲染 HTML、瀏覽器 hydration、Bootstrap CSS、SVG 圖示及未知語系錯誤頁；不需要執行中的後端。功能測試隨實作補齊。
+僅發布 `build/client`。`npm run preview` 以 sirv 靜態檔優先，並獨立代理公開 API；未知 API／asset 不回傳成功的 SPA HTML。[Nginx 範例](deploy/nginx.conf.example)提供相同分工，實際 upstream／root 在私有部署配置調整。HTML／route data 重新驗證，hashed assets 可長期快取；fallback 的未知前端路由先回 HTML，hydration 後顯示安全錯誤頁，不能當作伺服器已回 HTTP 404。
 
-Baseline tests cover isolated translations, provider updates, localized HTML, browser hydration, styles, icons, and invalid locale handling without requiring a backend.
+Publish only `build/client`. Local preview prioritizes static files and separately proxies public reads. Unknown APIs/assets retain failures. The generic Nginx example keeps routing responsibilities separate and revalidates HTML/data while caching hashed assets. Unknown frontend paths initially receive fallback HTML and show a route error after hydration; this does not imply an HTTP 404 response.
 
-後續 CI 應執行型別、lint、格式、必要測試與建置；瀏覽器測試使用可重現的 mock 或明確的整合環境。測試驗證實際規則與使用者行為，重點包含日期邊界、契約錯誤、分頁重試、技能預覽接續、三語切換與延遲回應、對話框焦點，以及手機版和 reduced-motion 行為。測試範圍依變更影響調整。
+SSG 是建置時的公開快照；後端內容變更後需重建／重新發布 HTML。Query staleTime=60 秒、gcTime=30 分鐘；有效資料在 fresh 期間不立即重複讀取。語言導覽會檢查相應 cache；正常內容沒有常駐區塊重新整理按鈕，載入失敗才呈現重試入口並保留已驗證資料。owner 技能第 1 頁來自分類 preview，後續頁由 75% 預覽量測或展開操作按需取得。沒有後端 revision 的情況下，前端以 ID、總數與頁碼驗證常見異常，不能保證多次讀取為同一資料庫快照。
 
-Future CI should check types, lint, formatting, relevant tests, and builds. Browser tests use reproducible fixtures or a defined integration environment and cover meaningful rules and user behavior.
+SSG changes require rebuilding and publishing. Browser queries are fresh for one minute and retained for thirty minutes, avoiding immediate duplicate reads. Locale navigation consults cache. Normal sections have no persistent refresh control; failed reads expose retry while retaining validated content. Owner previews seed skill page one; measured capacity or disclosure requests continuation as needed. Identity/count/page checks detect common changes without claiming transaction-level snapshot consistency.
 
-## 遷移流程 / Migration Sequence
+Vitest 涵蓋六契約、日期、HTTP timeout／取消、頁碼與 label 一致性、locale staging、地圖、播放及偏好；Playwright 使用合成公開 fixtures 驗證四 URL、分頁、對話框、切語言／取消、fault、RWD／四色、鍵盤、無 JavaScript 和建置故障保留。 `*-parity.spec.ts` 對照實際版型、paint 與互動：四邊／導覽進場時序、光暈與慢 chunk、短 viewport、三語／四色、手機／平板／桌面至 4K、選單內距／焦點、對話框技能與流程、聯絡漸層及 Journey 鍵盤／overflow。開發 runtime 與正式 preview 分開執行；宣告的測試範圍不等同當次執行結果。CI 執行 npm ci、type／lint／format／unit、Chromium 與 audit；測試建置產物是 synthetic snapshot，不能發布為正式網站。CI workflow 使用固定 action commit，僅有 contents:read 權限。[Checkout](https://github.com/actions/checkout)及[setup-node](https://github.com/actions/setup-node)為官方來源。
 
-1. **盤點 / Inventory：** 以 `portfolio-web` 實際程式與畫面確認功能、資產、三語、資料契約及離線需求；核對後端現況，更新過時紀錄。
-2. **建立基線 / Baseline：** 環境、Provider、三語路由、預先渲染、檢查工具與模組邊界已完成；首個 API 功能開發時建立共用 HTTP transport 與契約解析。
-3. **完整流程 / First complete feature：** 先完成 Site 的 API、回應解析、Hook、元件、樣式與錯誤呈現。
-4. **功能遷移 / Feature migration：** 依序導入經歷、專案與技能；沿用既有規則，從實際共用情境抽取元件與函式。
-5. **互動遷移 / Interaction migration：** 導入地圖、動畫、語系與外觀；把舊全域註冊器改為明確 import/export，拆開純計算與 DOM 副作用。
-6. **驗證與部署 / Verification and deployment：** 驗證 API、分頁、三語、RWD、鍵盤與動畫；依已選渲染模式確認建置、路由、metadata 和交付方式。
+Vitest covers contracts, dates, bounded HTTP failures/cancellation, pagination consistency, locale staging, map/playback and preferences. Chromium verifies static delivery, interactions, faults, responsive layouts, keyboard behavior, JavaScript-disabled content and artifact preservation. Parity tests inspect visible geometry, paint and behavior: entrance timing, halo/slow chunks, short viewports, three languages/four themes, mobile/tablet/desktop through 4K, menu padding/focus, detail skills/flow, contact surfaces and Journey keyboard/overflow boundaries. Development runtime and production preview are exercised separately; declared coverage does not claim that a particular run passed. CI also runs the independent development-runtime suite, using reproducible synthetic data, pinned action commits and read-only repository permissions; its snapshot is not a production website.
 
-遷移時保留可驗證的規則，調整其相依與生命週期；舊 mock、client 或文件的版本可能不同，以實際程式及現行後端契約為準。Mock 與正式請求使用同一組呈現元件，避免維護兩套畫面實作。
+真 API 驗證是額外的只讀模式：在 shell 設定 `PORTFOLIO_API_SMOKE_TARGET` 為你的公開 API origin 後，執行 `npm run test`（六 endpoint／所有續頁）及 `npm run test:e2e -- live.spec.ts`（三語靜態交付及實際分頁）。未設定時跳過 live checks；一般測試不需要你的後端，也不停止服務。`npm run verify:public` 可重跑公開產物檢查。
 
-Preserve validated behavior while adapting dependencies and lifecycles. Reconcile reference code against current backend contracts and use the same presentation components for mock and real data.
+For optional read-only live verification, set `PORTFOLIO_API_SMOKE_TARGET` in the shell, then run the unit suite for all endpoint/pages and `npm run test:e2e -- live.spec.ts` for three-language browser integration. Live checks are skipped when unset; normal tests do not depend on or stop a personal backend. `npm run verify:public` reruns public-output inspection.
+
+從乾淨 checkout 驗證時，先執行 `npm run typecheck`（重新產生 `.react-router` 型別）、`npm run lint`、`npm run format:check`、`npm run test`；再**依序**執行 `npm run test:dev` 與 `npm run test:e2e`。兩者共用自動管理的 fixture API 4181，開發驗證使用 5174，正式 preview 使用 4173，不能同時啟動。瀏覽器測試會以合成資料重建 `build/`；要交付正式網站，測試結束後以有效公開 API 執行 `npm run build`，再 `npm run verify:public` 與 `npm run preview`。
+
+For a fresh checkout, generate route types, then run lint, formatting and unit checks. Run development and production browser suites sequentially: both own fixture port 4181, with frontend ports 5174 and 4173 respectively. Browser verification replaces `build/` with a synthetic snapshot. Rebuild against valid public API content before delivering a site, verify the output, then preview it.
+
+原始碼、CSS、字典、字型／地圖／圖片及授權、測試 fixtures、scripts、deploy 範例與工具設定必須隨功能提交。`.gitignore` 僅排除依賴、本機環境及可重建產物；`.react-router` 由 typecheck／dev／build 產生，`build/client` 由正式 build 產生，測試瀏覽器由 Playwright 安裝。使用者不需要取得其他開發者的 `node_modules` 或環境檔；重建所需輸入與安裝指令在本儲存庫中。
+
+Commit every source, style, locale, asset/license, fixture, script, deployment example and tool configuration with its feature. Ignore dependencies, local settings and reproducible output. Route types regenerate through framework commands, static delivery comes from the production build, and Playwright installs its browser separately.
+
+### 載入與資產預算 / Loading and Asset Budgets
+
+Route code 自動分割；JourneyMap 在鄰近 viewport 載入，ProjectDetail 在開啟詳情時載入，ContactBubble／吉祥物在聯絡介紹揭露時載入（包含首次進場後的自動揭露）。`BackgroundField` 外殼與 pointer glow 隨頁面載入，只有可選 `BackgroundSignals` 格線／脈衝 controller 分開 lazy import，避免裝飾 chunk 延遲阻擋四邊進場與光暈。第一次載入可包含已進入 viewport 的地圖，不能把 lazy 當成一定不會首屏下載。Bootstrap CSS 暫採完整本地檔，React-Bootstrap 不載入 Bootstrap DOM bundle。
+
+Route splitting is automatic: maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. Bootstrap CSS remains a full local stylesheet and component behavior uses React-Bootstrap.
+
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.05 MB raw／350 KB gzip、CSS 330 KB raw／60 KB gzip、字型 250 KB、map 250 KB、吉祥物 1.25 MB。超限會停止接受新產物。
+
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.05 MB raw/350 KB gzip for JavaScript, 330 KB raw/60 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the mascot. Output exceeding a ceiling is rejected.
+
+## 共用元件規格 / Shared Component Specifications
+
+| 元件 / Component  | 規格 / Specification                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SectionState`    | 接收已本地化的 message、busy、retryLabel、onRetry 與可選 children；呈現 loading／empty／error／舊資料更新提示，不讀業務 API。Receives localized copy and optional recovery; presents section state without owning domain requests.                                                                                                                                                                     |
+| `SectionBoundary` | 以 resetKey 控制 render／lazy chunk 錯誤恢復，只影響自己的子樹；不顯示錯誤堆疊或 response。Contains render and lazy failures within its subtree, with safe retry and reset identity. Chunk recovery explicitly reloads the document; optional decoration may use silent fallback.                                                                                                                      |
+| `LoadMoreControl` | 接收 busy、label、busyLabel、error、onLoad；loading 時禁止重複操作，失敗保留已有資料並由父層重試同頁。Receives pagination feedback and callback, prevents concurrent clicks and leaves cache ownership to its feature.                                                                                                                                                                                 |
+| `Icon`            | allowlist 本地 Bootstrap inline SVG，currentColor 繼承主題；可選 label 同時提供 accessible name／title，裝飾預設 aria-hidden。可選 `pulse="chat"`／`"disclosure"` 重用共用呼吸樣式與停止政策，不在領域元件複製動畫。Renders bundled allowlisted SVG with inherited color, an optional accessible label/title and shared chat/disclosure pulse modes; decorative icons are hidden from assistive tools. |
+| `SectionHeader`   | 接收 eyebrow、title 與可選 note；標題在左、補充文字靠右並右對齊，1150px 以下隱藏 note，保留原版響應式字級。不含常駐重新整理控制；失敗重試由 feature 的 `QueryStatus` 呈現。Receives heading copy and an optional right-aligned note, hidden at widths up to 1150px with legacy responsive title sizes. Failure recovery belongs to the feature's `QueryStatus`.                                        |
+| `QueryStatus`     | 共用 loading／empty／error／stale 呈現，接收 query 旗標與翻譯 copy，不擁有 query。Shared request feedback receives flags and localized copy; the feature owns its cache.                                                                                                                                                                                                                               |
+
+## 頁面規格 / Page Specification
+
+`PortfolioPage(locale, nowMonth)` 是跨 feature 的組合層：依 URL 語言訂閱資料、建立各區獨立的 render boundary，並協調導覽、進場與共用摘要。`careerYearRange` 從完整 Journey 推導職涯年分範圍（包含教育，ongoing 使用 nowMonth），再以 yearRange 注入 ExperiencesSection；不能從經歷第一頁計算完整範圍。工作年資另用排除教育與重疊月份的 `workDuration`。route loader 使用獨立 QueryClient 產生 SSG snapshot，HydrationBoundary 交接成功資料，避免首屏重複請求。頁面不保存另一份 API 資料副本。
+
+`PortfolioPage(locale, nowMonth)` composes feature boundaries and coordinates navigation, entrance and shared summaries. `careerYearRange` derives the year span from the complete Journey, including education and the explicit month for ongoing periods, then injects it into ExperiencesSection. A first experience page cannot define the complete span. Work tenure separately uses `workDuration`, excluding education and overlapping months. The route loader builds an isolated locale snapshot and HydrationBoundary restores validated queries without immediate duplicate reads. Domain DTOs remain in the query cache.
+
+| 框架元件 / Framework component   | 規格 / Specification                                                                                                                                                                                                                                                                                                             |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppProviders(locale, children)` | 組裝 Query、每個 locale 的 i18n instance 與 AppearanceProvider；SSR client 隔離，瀏覽器 cache 跨語言持續使用。Composes isolated translations, Query service and appearance, retaining the browser cache across locale navigation.                                                                                                |
+| `PortfolioRoute`                 | 驗證 URL locale，將 loader 的 dehydratedState 放入 HydrationBoundary，再傳 locale／UTC nowMonth 給頁面；SPA fallback 缺少快照時走 clientLoader。Validates route language, hydrates loader queries and supplies explicit UTC month, with browser loading for empty SPA fallback.                                                  |
+| `Layout` / `App`                 | document lang 與驗證後的 locale 一致；可信外觀 bootstrap 在 CSS 前恢復偏好，本地 `favicon.svg` 沿用固定 dark／mint 品牌，不發外部請求。App 把 Outlet 放入 Providers。Own document language, trusted first-paint preferences and the local fixed-brand favicon; App provides the route outlet without external branding requests. |
+| `ErrorBoundary`                  | root 僅呈現安全的路由錯誤（未知語言／地址等），不揭露 exception／stack；業務請求錯誤由 feature 區段處理。Presents safe routing errors without exception detail; domain request failures stay in their own sections.                                                                                                              |
+
+## 集合與標籤規格 / Collection and Tag Specifications
+
+| 元件 / Component          | 規格 / Specification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ExpandableCollection<T>` | 首六筆、真實 total、hasMore、busy、error、renderItems 與載入 callback；可選 className 透過 `--collection-inset` 對齊領域卡片。展開隱藏 summary；鍵盤展開於資料準備後聚焦新增內容，收合卸下額外 DOM、還原 summary 焦點與可見位置，cache 留在 feature。Receives records and callbacks, with optional className/inset token for feature geometry. Expansion hides the summary and keyboard activation focuses new content after loading; collapse unmounts extras and restores the summary/focus while retaining feature cache.                                                                                                                                                                                                            |
+| `ExpandableTagList`       | 有序 items、真實 total、可選 onLoadMore／onPreviewMore；`tagCopy` 共用本地化可見「N 項技能／N skills」與完整 accessible label，同字體／文案量測標籤加控制的總寬，不超過 75% row。僅當目前全部標籤與控制仍能放下，才通知 feature 補預覽；新資料須重新量測，busy／error／locked 時停止。標籤保留 7px gap、4px radius、虛線透明控制與 accent hover／expanded 狀態；category 的 CSS tokens 同時套用 inert 量測副本，margin 0、桌面 12px／手機 11px。Shares ordered localized tags within a 75% budget including disclosure width. Optional onPreviewMore fills spare capacity after measuring current inputs; the feature owns requests. Busy/error states stop continuation, replicas cannot widen the page, and observers are cleaned up. |
+| `ExperienceCard`          | Experience DTO 與 locale，純文字摘要、optional detail 日期、完整 skills；不打 skills API。Renders one career DTO with optional supplementary period and complete local skill tags.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `ExperiencesSection`      | 接收 locale、可選 locked 與 page 從完整 Journey 注入的 yearRange；feature 擁有 Query 分頁，共用集合控制，不以第一頁推導職涯範圍。錯誤保留卡片，契約變更提供從首頁重新載入。Receives locale, optional pagination lock and a complete-index year range from the page. Owns ordered experience pages and independent recovery without deriving the career span from page one.                                                                                                                                                                                                                                                                                                                                                              |
+
+## Project 元件規格 / Project Component Specifications
+
+| 元件 / Component  | 規格 / Specification                                                                                                                                                                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ProjectCard`     | Project DTO／locale／可選 onDetail；呈現組織、inclusive 期間、專案名稱、純文字介紹與 nullable skills。Renders validated project copy and local nullable skill labels, with an optional meaningful-detail callback.                                          |
+| `ProjectTimeline` | 只分組相鄰相同 startMonth，保留 API 順序；首六筆與展開區的月份群組各自呈現，選中範圍由外層集合統一管理。Groups only consecutive equal months, preserves backend order and retains the preview boundary; the owning collection provides one selection scope. |
+| `ProjectsSection` | Query 擁有三頁等實際分頁，重用 `ExpandableCollection` 與 `usePagedCollection`，續頁失敗保留原內容。Owns project pages with shared disclosure and first-page recovery for invalid append data.                                                               |
+
+經歷與專案時間軸共用 `--timeline-point-size` 的 12px 外徑，明確採 border-box，避免 Bootstrap reset 改變含邊框尺寸。選中的圓點實心，沿用 2.2 秒 ease-in-out heartbeat：光環由 6px 擴至 10px、柔光由 8px 至 22px，本體不縮放。CSS Modules 透過 `--timeline-point-keyframe` 引用同一份全域 keyframes，避免動畫名稱被局部改寫。
+
+Experience and project timelines share an explicit 12px outer diameter through `--timeline-point-size`. The selected point fills and uses the shared 2.2-second ease-in-out heartbeat: its ring grows from 6px to 10px and glow from 8px to 22px without scaling the point. Modules resolve `--timeline-point-keyframe` to one global animation, preserving its name across CSS scoping.
+
+每個 feature 的預覽與展開歷史位於同一選中範圍。預設只有原始第一筆啟用 heartbeat；fine pointer 移到其他卡片時，效果轉移至該日期圓點，離開後復原。展開歷史不新增第二個預設選中點；同月份的多張專案卡共用日期圓點。暫停／背景頁籤沿用共用動畫暫停政策，減少動態偏好停用裝飾動畫，內容與手動操作保持可用。
+
+Each feature owns one selection scope spanning its preview and expanded history. Only the original first item pulses by default; fine-pointer hover moves the effect to that card's date point and leaving restores the default. Expansion adds no second default selection, and projects sharing a month share a point. Existing pause/hidden policies suspend decoration and reduced motion disables it without blocking content or controls.
+
+`ProjectDetail(project,locale,onClose,localeControl?)` 只在開啟有實質內容的 project 時 dynamic import；以列表 payload 呈現 workflow、flow、technical、contribution、outcome，省略 null／空白欄位。skills 重用 `labelTags`／`tagCopy`／`ExpandableTagList`，不新增詳情或技能請求。流程以有序列表搭配裝飾箭頭呈現；對話框最大寬 680px、桌面內距 42px、760px 以下 30px／24px、最大高度 85vh，遮罩使用 token 透明度與 6px blur。Bootstrap 管理啟閉、Escape、backdrop 與還原焦點；共用 `cycleDialogTab` 補上 Tab／Shift+Tab 首末邊界循環，略過 hidden／inert／disabled 並尊重子控制已 preventDefault 的事件。選取只記錄 stable ID，切語言可保留對應專案。
+
+`ProjectDetail(project,locale,onClose,localeControl?)` is imported only when meaningful detail is opened. It reuses the list payload and shared tag disclosure for skills, hides empty fields and issues no detail/skill request. Workflow steps form an ordered list with decorative arrows. The dialog retains a 680px maximum width, 42px desktop padding, 30px/24px padding at widths up to 760px and an 85vh height bound; its backdrop uses the semantic alpha token and 6px blur. Bootstrap manages activation, Escape, dismissal and restoration. Shared `cycleDialogTab` wraps first/last Tab boundaries, excludes hidden/inert/disabled controls and preserves a child control's prevented event. Stable-ID selection survives language changes.
+
+## Skills 元件規格 / Skills Component Specifications
+
+`SkillsSection` 把所有分類直接呈現在同一個 toolkit，不套用首六筆收合。`prefetchCategoryIndex` 在建置時透過共用 `fillNumberedPages` 續讀完整分類；瀏覽器自動補完缺頁，失敗停止且保留已驗證分類，提供同頁重試或契約重載。每列上下內距 23px、桌面標題欄 190px／欄距 30px，2200px 以上標題欄 220px；760px 以下單欄、欄距 12px。標題 15px、行高 1.65，標籤 gap 7px。
+
+`SkillsSection` renders every category in one toolkit without a six-row disclosure. `prefetchCategoryIndex` uses shared `fillNumberedPages` to prepare the complete index; browser continuation fills missing pages, stops on failure and retains valid rows with local recovery. Rows preserve 23px vertical padding, a 190px desktop label column with a 30px gap, a 220px label column at widths of 2200px and above, and a single column with a 12px gap up to 760px. Labels use 15px text at line-height 1.65; tags retain a 7px gap.
+
+`SkillCategoryRow` 以分類內 `skills` 第 1 頁初始化獨立 owner Query，不重抓已內嵌的頁面。內部收合預覽的「標籤＋More」最多佔標籤容器 75%；已載入標籤全部放得下且還有後頁時，才續讀下一頁填補可用寬度。填滿即停止；完整技能全部放得下就不顯示 More。展開與剩餘續頁保留明確操作，縮放重用 cache。Query key 包含 locale／ownerId／ownerType／size，頁碼由 pageParam 管理；label 不一致或 owner 失效提供局部重載，共用 UI 不讀 API。
+
+`SkillCategoryRow` seeds an independent owner cache from embedded page one. The collapsed prefix and More control fit within 75% of the tag container. Only spare capacity with all loaded tags fitting triggers another page; filling the preview stops automatic reads, and a complete fitting list needs no More control. Expansion and remaining continuation stay explicit, resizing reuses cache, and owner keys include locale/type/size. Invalid owners or inconsistent labels provide local recovery; shared UI owns no API.
+
+## 語言元件規格 / Language Specifications
+
+`LanguageMenu(locale,busy,onChange,onOpen?)` 呈現三語選項、EN／简／繁角落標記、目前語言 check 與透明的選中列；選單最小寬 170px、內距 6px，開啟聚焦目前語言，ArrowUp／ArrowDown 在首末循環，Home／End 跳首末；瀏覽只移動焦點，不提交語言。處理既有鍵盤事件時保留 defaultPrevented，Escape／Tab 與選取仍交給 Dropdown／共用 dialog 焦點管理。鍵盤關閉或選取後還原觸發器焦點。可選 onOpen 在開啟前通知 page，讓明確操作優先於自動聯絡介紹；feature 不引用其他 feature。page 的 `useLocaleSwitch` 以隔離的短期 QueryClient 準備已讀頁數及 owner 範圍，全部驗證成功後才 hydrate 正式 cache 並切 URL。分類 preview 直接提供技能第 1 頁；已展開的第 2／3 頁逐頁續載。失敗保留原 UI／URL，快速選擇會取消過期請求；沒有有效資料的失敗區不阻擋切換。準備時續頁暫停，已展開集合與 selected project ID 保留；Modal 可注入同一語言控制。
+
+`LanguageMenu` receives an optional page-owned onOpen callback and retains three choices, the EN/简/繁 corner badge, selected check and transparent current-language row in a 170px minimum-width menu with 6px padding. Opening focuses the current language; ArrowUp/ArrowDown wrap at both boundaries and Home/End jump to the first/last option. Browsing changes focus without committing a locale, preserves already-prevented events and leaves Escape/Tab/selection to the dropdown or shared dialog lifecycle. Keyboard dismissal or selection restores the trigger. The opening callback lets the page prioritize explicit controls over automatic contact without a cross-feature import. The page coordinator prepares loaded ranges in an isolated QueryClient and commits validated cache/URL together. Category previews seed owner page one; only previously read continuation pages are fetched. Failures preserve the visible language, later choices cancel obsolete requests and independently failed sections do not block switching. Pagination pauses during preparation while disclosure and selected project IDs are preserved.
+
+## 外觀規格 / Appearance Specifications
+
+`AppearanceProvider` 是 app 組裝的唯一偏好來源；`AppearanceMenu(onOpen?)` 呈現 mint／blue／amber／mist、blink frequency 0.4–2（step 0.1）、intensity 20–100（step 5）、pause／reset。設定面板沿用 300px 最大寬、18px 內距、標題分隔線、兩欄主題選項與 token 色票；按鈕為 4px 圓角、44px 高度，面板與觸發器間距 10px，短橫向螢幕可捲動至最後動作。開啟聚焦第一個 range，Escape 還原觸發器；具體的 Bootstrap bridge selector 保護內距與圓形觸發器，不依賴開發／正式 CSS 順序。Cookie 為優先、localStorage 為後備，彼此獨立且只儲存驗證值。初始 script 重用 normalization，在 CSS 前恢復 palette；SSR 不讀 storage。focused range 不因設定／語言更新重建；可選 onOpen 由 page 協調聯絡介紹的 dismiss，避免 pause 提前完成進場後覆蓋已開啟選單，背景停止政策不阻擋手動聯絡操作。
+
+`AppearanceProvider` owns validated preferences. `AppearanceMenu(onOpen?)` supplies four palettes, bounded frequency/intensity, pause and reset in the original 300px panel with 18px padding, divided heading, two-column choices and semantic swatches. Buttons retain 4px corners/44px height, the disclosure offset is 10px and short landscape screens scroll to the final actions. Opening focuses the first range; Escape restores the trigger. Explicit Bootstrap bridge selectors protect padding and circular controls from CSS load order. Cookies are primary, localStorage is a fallback and each may fail independently. The first-paint script reuses normalization before styling without server storage access. Focused controls survive updates. The optional opening callback delegates contact dismissal to the page so finishing entrance through pause cannot cover an already-open menu. Motion policy does not block manual contact interaction.
+
+`useThemeTransition(theme, reduced, visible)` 將主題繪製交由 appearance 領域的 `createThemeTransition` 管理；Provider 仍是唯一偏好來源。切換以一次 800ms 呼吸式漸變呈現：使用舊主題背景色的固定遮罩淡入 400ms，完全覆蓋時套用最新選擇，再淡出 400ms 顯露新色。背景、漸層、文字、SVG、陰影與選單一起過渡；遮罩 aria-hidden、pointer-events:none，不參與版面，不重建內容或搬動焦點。themeTransitionTiming 共用時長／easing，沒有永久 transition:all。首次載入直接恢復已儲存主題，單純調整 speed／brightness／pause 不觸發換色動畫。
+
+快速選色在覆蓋階段合併成最後選擇；若在顯露階段再選，完成當前漸變後才為最新顏色啟動下一次，避免中途撤掉遮罩造成閃爍。背景 Pause 保留這項有限的操作回饋；Reduced Motion 或文件隱藏則立即套色並清理遮罩。關閉／卸載／取消以 generation 防止舊動畫完成後重新覆寫顏色；動畫 API 不可用或拒絕時仍可直接套用主題。Cookie／localStorage 仍由既有 normalization／persistence 處理。
+
+`useThemeTransition(theme, reduced, visible)` delegates palette paint to the appearance-owned `createThemeTransition`; the Provider remains the single preference owner. One 800ms breathing cycle fades an old-background-colored fixed veil in for 400ms, applies the latest selection while fully covered, then fades out for 400ms to reveal the new palette. Backgrounds, gradients, text, SVG, shadows and menus change together. The aria-hidden, pointer-transparent veil does not affect layout, remount content or move focus. themeTransitionTiming supplies shared duration/easing without permanent transition:all. First paint restores saved colors immediately; speed, brightness and pause changes alone do not animate palette paint.
+
+Rapid selections coalesce before the covered midpoint. A selection during reveal waits for the current cycle to finish before the latest palette gets a fresh cycle, preserving continuous paint. Background pause retains this finite interaction feedback; reduced motion or a hidden document applies colors immediately and removes the veil. Generation guards prevent cancelled/unmounted animation completions from overwriting current colors. Missing or rejected animation support retains direct theme selection. Existing normalization and cookie/localStorage persistence remain the data boundary. The implementation uses [Element.animate](https://developer.mozilla.org/en-US/docs/Web/API/Element/animate) and its finished promise.
+
+## 聯絡元件規格 / Contact Specifications
+
+`useContactDisclosure` 管理桌面／手機共用的一份 open／presented／appearing／idle／fade 狀態。穩定的 `dismiss()` 記錄明確使用者操作、關閉介紹且不搬動焦點，page 將它注入外觀／語言控制（含 Modal）；之後不再自動揭露，手動 toggle 仍可使用。`ContactIntroduction` 在開啟時才 lazy import `ContactBubble` 與吉祥物資產；Site 的 chatme 是聯絡介紹，不新增 chat API。共用 PixelBubble 外殼透過背景／內距／blur tokens 呈現漸層、chat bevel、3px backdrop blur 與便箋呼吸光暈。吉祥物為 104px、760px 以下 80px、380px 以下 64px。桌面定位在 icon 旁、手機 clamp 至 viewport，並透過 page 注入的 controls ref 與實際固定 header 邊界避開按鈕列；resize／scroll 重新定位，短視窗以共用高度 budget 在框內捲動正文。時間由 feature 的 contactTiming 統一管理並傳入 CSS；元件真正掛載才回報 presented，延遲載入不消耗正文的閱讀時間：首次自動顯示先淡入 400ms，再完整閒置 3000ms，最後淡出 400ms（約 3.8 秒）；手動開啟直接顯示，閒置＋淡出約 3.4 秒。淡入完成移除 appearing 狀態，不保留 opacity 的動畫最後一幀。框內 hover／可見鍵盤焦點取消 fade，離開／移出焦點後重新倒數；滑鼠焦點與只停在 chat trigger 不暫停計時。淡出中再次點擊 trigger 會恢復顯示並重啟完整閒置倒數；loading surface 換成正文時重新核對 hover／鍵盤焦點，不繼承已卸載節點的互動狀態。Escape／外部點擊關閉並按需復原焦點。API icon 只能映射可信本地檔，失敗仍提供 email。聯絡介紹保持 layer 60，控制／選單高於它、Bootstrap Modal 高於兩者，避免 popup 攔截真實選單點擊。停止背景只取消無限呼吸，不凍結揭露與淡出；Reduced Motion 則跳過淡入／淡出動畫，仍在閒置 3 秒後關閉。
+
+`ContactBubble` 將 API 正文依換行分成純文字段落，忽略空白行，各段保留 7px 上下間距；桌面內距 15px／17px，手機 20px／14px／14px。關閉按鈕透過共用外殼的 close tokens 設定：桌面 32px 點擊範圍、距頂／右 7px，手機 44px 範圍、距頂／右 4px，兩者圖示均為 12px。CTA 圖示跟隨內文字級，桌面 13px／手機 14px；最小高度桌面 34px／手機 44px。Chat trigger 維持 44px 透明範圍與 28px SVG；滑鼠與鍵盤 focus-visible 均以圖示變色及雙層光暈回饋，不繪製矩形框。關閉後的焦點復原仍由 disclosure 管理；其他控制保留各自的 focus 樣式。
+
+A single `useContactDisclosure` owns responsive open, presented, appearance, idle and fade state. Its stable `dismiss()` records explicit interaction and closes without moving focus; the page injects it into appearance/language controls, including the dialog. Later automatic offers are suppressed while manual toggling remains available. `ContactIntroduction` defers `ContactBubble`/mascot until disclosure and uses Site data without a chat API. Shared PixelBubble tokens provide the gradient, chat bevel, 3px backdrop blur and note breathing. The mascot is 104px on desktop, 80px up to 760px and 64px up to 380px. Desktop placement sits beside its trigger; mobile placement is clamped below the actual fixed header and page-injected controls ref. Resize/scroll reposition the panel and short viewports scroll copy within the shared height budget. Feature-owned contactTiming also supplies CSS duration. Timing starts when the mounted surface reports presented, so lazy loading does not consume the copy’s reading interval. Automatic introduction enters for 400ms, then waits the full 3000ms idle interval and fades for 400ms (about 3.8 seconds); a manual opening appears directly and closes after about 3.4 seconds idle/fade. Entrance releases its opacity frame when appearing ends. Hover or visible keyboard focus inside the bubble cancels fading, leaving or moving focus outside restarts idle. Pointer focus or focus on the chat trigger alone does not suspend dismissal. Activating the trigger during fading restores the mounted copy and restarts the full idle interval. Replacing a loading surface reconciles actual hover/keyboard focus instead of inheriting engagement from an unmounted node. Escape/outside dismissal retains conditional focus restoration. Trusted local icon mapping preserves email on asset failure. The introduction remains at layer 60, beneath explicit profile controls/menus and Bootstrap dialogs, so its popup cannot intercept menu activation. Pausing removes infinite breathing while leaving disclosure and fade operational. Reduced Motion skips entrance/fade animation but still closes after three idle seconds.
+
+`ContactBubble` renders newline-delimited API copy as plain-text paragraphs, ignores blank lines and retains 7px vertical paragraph margins. Content padding is 15px/17px on desktop and 20px/14px/14px on mobile. Shared close tokens provide a 32px desktop target at 7px top/right and a 44px mobile target at 4px top/right; both use a 12px glyph. The CTA arrow follows the text size (13px desktop/14px mobile) with a minimum height of 34px on desktop/44px on mobile. The chat trigger keeps its transparent 44px target and 28px SVG. Pointer and keyboard focus feedback use color and a two-layer SVG halo without a rectangular outline. Disclosure still owns focus restoration; other controls retain their own focus styles.
+
+`ContactFallback` 重用相同 disclosure 計時與 hover／鍵盤焦點政策。載入中提供 email 與關閉按鈕，等待正文完成後才倒數；chunk 失敗時顯示不可用提示、email、重載與關閉操作，跳過淡入並啟動正常閒置／淡出。
+
+`ContactFallback` shares disclosure timing and hover/keyboard engagement. Loading retains email and close controls without consuming the final copy’s idle interval. A failed chunk provides an unavailable message, email, reload and close actions; it skips entrance and starts the normal idle/fade policy.
+
+## 導覽元件規格 / Navigation Specifications
+
+`Navigation` 接收 Site 品牌、active、compact、onCompact、onNavigate、endpoints 與可選 contact／onOpen callback。桌面 rail 在短 viewport 可捲動，收合以共用 duration／ease 平滑調整寬度、品牌、label、footer 與頁面 inset。compact icon 保留 accessible name；`NavLinks` 的 tooltip portal 在 rail 外 clamp，Escape、blur、resize 或 rail scroll 關閉描述，不搬動 link 焦點。760px 以下採 64px 固定 header 與 header 下方 250px Offcanvas；header／drawer／backdrop 分別為 layer 75／70／69，高於流動社群控制 65 與聯絡介紹 60，Bootstrap Modal 維持 1055。Bootstrap 管理焦點啟用、Escape、遮罩與焦點復原，Tab 邊界由共用 `cycleDialogTab` 補強。`onOpen` 由 page 注入 `contact.dismiss`，手動開啟導覽時收起介紹並抑制稍後自動揭露；未互動的首次入口仍正常運作。內部 `NavLinks` 重用同一份五區段設定。
+
+`Navigation` receives branding, active section, collapse state, callbacks and optional journey/contact/onOpen inputs. A short desktop rail scrolls; collapse smoothly updates width, branding, labels, footer and page inset through shared motion tokens. Compact icons retain accessible names. `NavLinks` portals a clamped tooltip outside the rail; Escape, blur, resize and rail scrolling dismiss it without moving link focus. Widths up to 760px use a fixed 64px header and a 250px drawer beneath it. Header, drawer and backdrop use layers 75, 70 and 69, above scrolling social controls at 65 and contact at 60; Bootstrap Modal stays at 1055. Bootstrap owns focus activation, Escape, backdrop dismissal and restoration; shared `cycleDialogTab` handles Tab boundaries. The page supplies `contact.dismiss` through `onOpen`, so explicit navigation dismisses contact and suppresses later automatic offers while an untouched entrance retains its normal behavior. Both layouts share one section configuration.
+
+`cycleDialogTab(event, surface)` 位於 `shared/lib/focus.ts`，補足最後一個 control 按 Tab 離開 document／瀏覽器 chrome 而無法觸發 focus enforcement 的情況。它只處理 Tab／Shift+Tab 首末邊界，尊重子元件已 preventDefault 的事件，排除 disabled、hidden、inert、負 tabIndex 與不可見元素，並保留正 tabIndex 排序。Bootstrap 仍擁有 modal 生命週期，helper 不註冊全域 listener、不接管 Escape 或關閉後焦點復原。
+
+`cycleDialogTab(event, surface)` in `shared/lib/focus.ts` prevents the final control's Tab press from leaving the document for browser chrome without a focus event. It wraps only Tab/Shift+Tab boundaries, preserves child-prevented events, excludes disabled, hidden, inert, negative-tab-index and invisible controls, and respects positive tab order. Bootstrap retains modal lifecycle ownership; the helper adds no global listener and does not handle Escape or restoration after closing.
+
+`useSectionNavigation` 統一錨點生命週期：明確導覽 push，scroll spy replace；保留 query 與語言 path，支援 intro／stack／toolkit 舊錨點。頁面不再使用第二套 ScrollRestoration。`useSectionNavigation` owns hash restoration and scroll tracking, preserves query and locale paths, pushes explicit navigation and replaces passive scroll positions, including legacy aliases.
+
+## Journey 元件規格 / Journey Component Specifications
+
+`JourneySection(locale)` 使用完整 Journey index；loading／empty／error 各自呈現，合法資料保留 API 順序，header summary 以不重複的城市數量呈現 badge。站點城市、組織與日期皆來自 DTO；完整資料供 page 計算年資、職涯年分範圍、側欄起終點與頁尾所在地。工作年資採 UTC、inclusive 月份、重疊工作只計一次、教育不計；職涯年分範圍包含完整 index 的教育。expected 固定區間保留舊政策，ongoing 使用 loader 傳入的 nowMonth。
+
+`JourneySection(locale)` owns independent full-index feedback and ordered destinations; its header summary badge counts distinct cities. The page derives tenure, complete career-year bounds, endpoints and footer location from this index. Work tenure uses UTC/inclusive month intervals, counts overlapping employment once and excludes education; the career-year span includes education. Expected fixed periods preserve the original policy and an explicit loader month keeps ongoing calculations consistent across build/hydration.
+
+| 元件 / Component              | 規格 / Specification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JourneyMap`                  | 鄰近 viewport 才 lazy import map／本地 atlas；保留 caption 狀態 dot、Looping／Paused、Play／Pause 文字與最後站點座標／下一章。SVG marker 支援鍵盤／觸控、stable-ID 選取、量測 label 避讓；active destination 保留呼吸 halo；手機地圖高 220px，1700px 以上採 500–760px 流動高度。Lazily loads the trusted atlas, retaining caption status, playback text and final-destination coordinates/next chapter. Accessible markers use stable selection, measured label collision handling and active-destination breathing. Mobile maps are 220px high; screens from 1700px use a 500–760px fluid height. |
+| `JourneyAtlas(finalCountry?)` | memo 化可信本地 atlas；country DOM 不隨播放、浮框或 locale re-render 重建，只有最後一筆已驗證 countryCode 變更才更新國家裝飾，避免呼吸 paint 被 React 重設。Preserves trusted atlas nodes across playback, popup and locale rerenders; only a changed validated final-country code updates country decoration.                                                                                                                                                                                                                                                                                     |
+| `StopCarousel`                | 接收 items、selectedId、locale、onSelect 與可選 onBlur；量測 overflow 後才顯示箭頭，邊界禁止無效方向。ArrowLeft／ArrowRight／Home／End 移動焦點並只捲動 strip，Enter／Space 選取；blur 可關閉浮框，map chunk 失敗仍可操作。Receives ordered destinations, selection and optional blur callback; measured overflow controls arrow visibility/boundaries. Arrow/Home/End navigation focuses and scrolls only the strip; activation selects a chapter, with a usable map-failure fallback.                                                                                                            |
+| `CityBubble`                  | 接收 Journey DTO、locale、anchor/container/bottom refs，clamp 浮框並避開站點列；Escape／外部點擊、滑鼠離開或焦點移出會關閉，但 anchor／浮框之間移動保留內容，touch 不套用 hover leave。Renders escaped detail above the strip; Escape/outside dismissal, mouse leave and blur close it while movement between popup/anchor remains usable and touch avoids hover dismissal.                                                                                                                                                                                                                        |
+| `PixelBubble`                 | 共用外層 18px／6px 與內層 12px／6px 階梯裁切、6px 四邊包邊／內陰影、tail、closeLabel／onClose 與 children；tail 為純裝飾，不攔截觸發器的 pointer 操作；background／padding／backdrop 與 close 幾何／色彩 tokens 可由領域覆寫，未設定沿用共用預設。Shared outer 18px/6px and inner 12px/6px stepped clips preserve the 6px outline and bevel around all corners. Tail, close control and children share one shell. The decorative tail never intercepts anchor pointer actions; optional surface and close geometry/color tokens retain safe defaults. Features own positioning and lifecycle.      |
+
+`useAnchoredPanel` 重用 `floatingPosition`，可注入單個／多個上方 ref 與下方站點列作為保護範圍；上界取目前各元素底部的最大值，由同一個 observer 與定位計算追蹤。`CityBubble` 依 `--floating-max-height` 限制長文字並內部捲動，初次定位在 paint 前完成；覆蓋自身 anchor 時隱藏 tail，避免遮住播放控制。ResizeObserver 與 scroll／resize listener 在卸載時清理。
+
+`useAnchoredPanel` shares `floatingPosition` and accepts one or several optional upper refs and a lower surface. The maximum current bottom edge of the upper surfaces forms one protected boundary, tracked by the same observer and position calculation. `CityBubble` consumes the available height token to scroll long content within those bounds, positions before first paint and suppresses its tail when covering its own anchor. Observers and scroll/resize listeners are cleaned up on unmount.
+
+地圖右下角北向標示以 N 與共用 Bootstrap `arrowUp` SVG 分兩列呈現，圖示沿用 1em 尺寸並視為裝飾。
+
+The bottom-right north indicator presents N above the shared Bootstrap `arrowUp` SVG, preserving its 1em size and decorative semantics.
+
+`JourneySummary(entry, locale, index, count, nextCity)` 共用組織／職稱／城市與期間呈現；SSG 或 map chunk 故障時，站點選取仍會更新可讀的職涯資訊，完整 map 重用同一元件。`JourneySummary` shares readable chapter information between static/failure fallback and the enhanced map, keeping destination detail usable without its optional atlas.
+
+旅程播放 / Playback：`useJourneyPlayback` 使用單一可取消 rAF 與 ref clock；每幀只更新 SVG，章節／phase 才更新 React。沿用 hold 1500、flight 5200、arrival 500、finalHold 3000ms；最後 500ms 先畫亮目的地，summary／strip／ARIA selection 在完整 7200ms 後才切換章節。最後一站停留後回第一站，不畫不存在的返程。手動選站暫停，Restart 回第一站；hidden 停止排程並保留 elapsed，reduced-motion 停用自動動畫，unmount 清理。`atlasViewport` 延展 viewBox 以涵蓋所有 API 座標和超寬畫面。
+
+`useJourneyPlayback` owns one cancellable animation frame loop and a ref clock. Frames update SVG directly; React updates only chapters and phases. Original hold/flight/arrival/final durations are preserved. The arrival destination highlights during the last 500ms while chapter summary/strip/ARIA selection remain on the source until the complete 7200ms interval ends. The final stop rests before restarting without a fabricated return arc. Manual selection pauses, restart selects the first stop, hidden documents stop scheduling and reduced motion disables automatic flight. The atlas viewport expands for all supplied coordinates and wide displays.
+
+## Site 元件規格 / Site Component Specifications
+
+| 元件 / Component  | 規格 / Specification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ProfileOverview` | 依 locale 訂閱 Site，姓名／標點採 accent、問候維持 text，eyebrow 保留 24×2px tiny line；tenure／controls 與可選 controlsRef 由 page 注入；controlsRef 讓聯絡框共用實際按鈕列邊界，onExplore 交共用導覽。社群控制以 layer 65 高於可選聯絡介紹，main 不建立限制它的 stacking context；1150px 以下維持 positioned normal-flow，760px 以下包行並調整字級／教育資訊，超寬螢幕放大字級，中文保留 -1px 字距。只允許安全 web／email 連結。Subscribes to Site with accented name/punctuation and a tiny rule, injected tenure/controls, an optional controlsRef for contact placement and shared navigation. Social controls remain above optional contact at layer 65 without a trapping main stacking context. Responsive socials retain positioned normal flow up to 1150px and wrap with mobile type up to 760px; wide layouts scale type and Chinese retains tighter spacing. Links are validated and API text is escaped. |
+| `Brand`           | 共用 sidebar／mobile 品牌；site 無資料仍可導覽首頁。Shares the API wordmark and home callback with an empty-data fallback.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `SiteFooter`      | 依 Site 與注入的最後所在地顯示 brand.title／titleSub、copyright、tagline 與 email；不 import Journey。Displays both brand title and subtitle with maintained copyright, tagline/email and an injected final location; no Journey dependency.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+## API 契約與故障政策 / API Contracts and Failure Policy
+
+六支 endpoint 由各 feature 的 Zod schema 驗證；共用分頁固定 `{items,total,pages,page,size}`，size=6。`items:null`、重複 ID、不合法日期或頁數算術皆拒絕進入 Query cache。可選欄位的 null 語意保留於 DTO，僅在呈現時轉換。HTTP 請求預設 10 秒 timeout；network、timeout、5xx 最多自動重試一次，取消不呈現為服務故障。不同 section 獨立載入；更新與續頁失敗保留已驗證資料。
+
+Each feature validates its six-endpoint DTOs with Zod. All pagination uses the same five-field contract and size six. Null items, duplicate identities, invalid calendar periods and inconsistent page arithmetic cannot enter the query cache. Nullable DTO semantics are preserved. Reads time out after ten seconds and transient failures retry once. Sections load independently and retain validated content when refresh or continuation fails.
+
+靜態預覽 / Static preview：`npm run preview` 以靜態檔案優先，`/api` 由本機 server 單獨轉交公開 API，未知 API 不回傳 SPA HTML。API_PROXY_TARGET 用於 preview／dev；API_BUILD_TARGET 僅供 server loader，瀏覽器始終使用 VITE_API_BASE_URL。`npm run preview` serves static files first and proxies public reads under `/api` separately, preserving API error status instead of returning SPA HTML.
+
+## 裝飾與進場規格 / Decoration and Entrance Specifications
+
+`BackgroundField(paused,speed,compact)` 是隨 page 載入的非互動外殼，不依賴 API；四邊、靜態格線 fallback 與 pointer glow 不等待 lazy chunk。可選 `BackgroundSignals(paused,speed)` 依 viewport 量測格線，最多 400 個十字與 6 個同時脈衝，重建／卸載清理 ResizeObserver、timer、rAF 與 Web Animations。強度沿用 appearance token；hidden／reduced-motion／使用者 pause 停止排程。Pointer glow 是 fixed radial-gradient，僅支援 mouse＋fine pointer，事件合併為每幀最多一次 paint、無閒置 loop；離開 viewport、blur、touch 或停止政策會隱藏，慢／失敗的 signals chunk 不阻擋它。
+
+`BackgroundField(paused,speed,compact)` is an eager, noninteractive page shell with no API dependency. Four edges, a static grid fallback and the pointer halo do not wait for a lazy chunk. Optional `BackgroundSignals(paused,speed)` measures viewport geometry, caps allocation at 400 crosses/six pulses and releases observers, timers, frames and Web Animations on rebuild/unmount. Shared appearance intensity and hidden/reduced/paused policies control scheduling. A fixed radial-gradient halo uses mouse/fine-pointer events with one coalesced paint per frame and no idle loop; viewport exit, blur, touch or suspension hides it. Slow or failed signals do not block the halo.
+
+`useEntrance(root,ready,reveal,paused)` 只啟動一次有限進場：上下框線 650ms、左右 ruler 650ms＋100ms 延遲、signals 淡入 800ms；內容 450ms＋750ms 延遲、左側 rail／手機 header 450ms＋800ms 延遲，1400ms 結束 marker 後才提出一次聯絡介紹。hidden／reduced-motion／pause 立即完成進場，恢復時不重播；較晚到達的 API 僅補上聯絡介紹，不重啟四邊或導覽。手動聯絡操作優先，SSR／無 JavaScript 保持可讀，裝飾失敗不影響資料與操作。
+
+`useEntrance(root,ready,reveal,paused)` coordinates one finite sequence: upper/lower edges take 650ms, side rulers add a 100ms delay, signals fade over 800ms, content runs 450ms after 750ms and rail/mobile header runs 450ms after 800ms. At 1400ms the marker is removed and contact is offered once. Hidden/reduced/paused policies finish immediately without replay on resume; late API data may offer contact but does not restart the frame/navigation. Manual interaction takes priority, SSR/no-JavaScript content remains readable and decoration failures leave operations usable.
 
 ## 官方參考 / Official References
 

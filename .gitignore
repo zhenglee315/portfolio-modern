@@ -1,18 +1,31 @@
 /agent/
 *test*.py
-# Keep backend regression tests and the mock importer while ignoring ad hoc test scripts.
-!/backend/tests/test_database_core.py
-!/backend/tests/test_sqlalchemy_tools.py
-!/backend/tests/test_redis_tools.py
-!/backend/tests/test_fastapi_cbv.py
-!/backend/tests/test_portfolio_skills.py
+# Keep the entire maintained test suite and importer while ignoring ad hoc test scripts.
+!/backend/tests/**
 !/backend/test.py
 /test/
 # macOS Finder metadata.
 .DS_Store
 
-# Local deployment configuration (may contain credentials).
-/backend/SYSTEM/config.yaml
+# Publish SYSTEM/config.yaml with development-only defaults; keep local secrets out of Git.
+.env
+.env.*
+!.env.example
+# Python dependencies and generated verification/package output.
+/backend/.venv/
+/backend/.pytest_cache/
+/backend/.mypy_cache/
+/backend/.ruff_cache/
+/backend/.coverage
+/backend/htmlcov/
+/backend/dist/
+/backend/*.egg-info/
+# Legacy SQLite filenames have no extension; they are still local database data.
+/backend/porfolio_modern
+/backend/porfolio_modern-journal
+/backend/porfolio_modern-wal
+/backend/porfolio_modern-shm
+/backend/SYSTEM/models/sqlite/
 # Local SQLite databases and their journal/WAL files.
 *.db
 *.db-*
@@ -22,11 +35,6 @@
 *.sqlite-*
 *.sqlite3
 *.sqlite3-*
-/backend/porfolio_modern
-/backend/porfolio_modern-journal
-/backend/porfolio_modern-shm
-/backend/porfolio_modern-wal
-/backend/SYSTEM/models/sqlite/
 
 # Python bytecode cache.
 __pycache__/

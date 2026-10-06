@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 import sys
 
 from fastapi import FastAPI
@@ -18,13 +18,16 @@ def skill_client(monkeypatch, request):
     """Serve real routes and ORM queries with only the six skill tables populated."""
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
 
-    # The real settings require a private deployment config; these routes use
-    # only the session factory patched below and never open that configured DB.
+    # Isolate import-time settings and extension wiring while retaining the real
+    # route, model, constants, and query code against the session factory below.
     settings = ModuleType("SYSTEM.settings")
     settings.CACHE_CONF = {}
     settings.DB_CONF = {}
     settings.SQLALCHEMY_ENGINE_CONF = {}
     monkeypatch.setitem(sys.modules, "SYSTEM.settings", settings)
+    extension = ModuleType("SYSTEM.extension")
+    extension.SYS_CONF = SimpleNamespace(get=lambda section, option=None, fallback=None: fallback)
+    monkeypatch.setitem(sys.modules, "SYSTEM.extension", extension)
 
     views = import_module("APPs.Portfolio.views_portfolio")
     sql_tools = import_module("COMMON.tools.storage.sqlalchemy.tools_sqlalchemy_async")

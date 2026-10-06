@@ -1,0 +1,250 @@
+/* Experience cards, aligned timeline axis and default/hover emphasis. */
+.collection {
+  min-width: 0;
+}
+.timeline {
+  position: relative;
+  display: grid;
+  gap: 20px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 23px;
+  bottom: 35px;
+  width: 1px;
+  background: linear-gradient(var(--accent), var(--timeline-end));
+}
+.experience-row {
+  display: grid;
+  position: relative;
+}
+.experience-date {
+  font: 12px/1.7 var(--mono);
+  padding-top: 23px;
+  color: var(--muted);
+}
+.experience-date span {
+  display: block;
+  color: var(--date-muted);
+  font-size: 11px;
+  margin-top: 7px;
+}
+.experience-card {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 24px 27px;
+  transition: var(--duration-hover);
+}
+.experience-card::before {
+  content: '';
+  position: absolute;
+  top: 30px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 5px var(--bg);
+}
+.experience-card:hover {
+  border-color: var(--card-active-border);
+  background: var(--card-active);
+}
+.experience-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+.experience-card h3 {
+  font-weight: 500;
+  margin: 0;
+}
+.experience-card .company {
+  color: var(--accent);
+  margin: 3px 0 12px;
+}
+.location {
+  font: 12px var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.experience-card p {
+  color: var(--card-copy);
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 0;
+}
+@media (max-width: 1150px) {
+  .experience-title {
+    display: block;
+  }
+  .location {
+    display: block;
+    margin-bottom: 12px;
+  }
+}
+@media (max-width: 760px) {
+  .experience-date {
+    padding-top: 0;
+    font-size: 12px;
+  }
+  .experience-date span {
+    display: inline;
+    margin-left: 9px;
+  }
+  .timeline::before {
+    left: 4px;
+    top: 38px;
+  }
+  .experience-card {
+    padding: 19px;
+  }
+  .experience-card::before {
+    left: -25px;
+    top: 27px;
+  }
+  .experience-card p {
+    font-size: 14px;
+  }
+}
+.experience-card h3 {
+  font-size: 21px;
+  line-height: 1.4;
+}
+.experience-card .company {
+  font-size: 15px;
+  margin-top: 5px;
+}
+.experience-card .experience-ta {
+  margin-top: 12px;
+  color: var(--accent);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .experience-card h3 {
+    font-size: 19px;
+  }
+  .experience-card .company {
+    font-size: 14px;
+  }
+}
+.experience-card p {
+  max-width: 115ch;
+}
+.experience-title {
+  min-width: 0;
+}
+@media (min-width: 2200px) {
+  .experience-card {
+    padding: 28px 32px;
+  }
+  .experience-card h3 {
+    font-size: 23px;
+  }
+  .experience-card p {
+    font-size: 16px;
+  }
+}
+@media (max-width: 760px) {
+  .experience-title {
+    overflow-wrap: anywhere;
+  }
+  .experience-row {
+    min-width: 0;
+  }
+  .experience-date span {
+    overflow-wrap: anywhere;
+  }
+}
+.experience-card h3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.experience-card h3 > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.category {
+  width: 22px;
+  height: 22px;
+  margin-top: 3px;
+  color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .experience-card h3 {
+    gap: 8px;
+  }
+  .category {
+    width: 20px;
+    height: 20px;
+  }
+}
+.timeline,
+.disclosure {
+  --experience-date-width: 116px;
+  --experience-gap: 43px;
+  --experience-card-start: calc(var(--experience-date-width) + var(--experience-gap));
+  --experience-axis: calc(var(--experience-date-width) + var(--experience-gap) / 2);
+  --collection-inset: var(--experience-card-start);
+}
+.experience-row {
+  grid-template-columns: var(--experience-date-width) minmax(0, 1fr);
+  gap: var(--experience-gap);
+}
+.timeline::before {
+  left: var(--experience-axis);
+  transform: translateX(-50%);
+}
+.experience-card::before {
+  box-sizing: border-box;
+  width: var(--timeline-point-size);
+  height: var(--timeline-point-size);
+  left: calc(var(--experience-axis) - var(--experience-card-start) - 1px);
+  transform: translateX(-50%);
+}
+@media (max-width: 760px) {
+  .timeline,
+  .disclosure {
+    --experience-card-start: 23px;
+    --experience-axis: 4.5px;
+  }
+  .experience-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    padding-left: var(--experience-card-start);
+  }
+}
+
+.collection > .timeline > .experience-row:first-child .experience-card {
+  border-color: var(--card-active-border);
+  background: var(--card-active);
+}
+.collection > .timeline > .experience-row:first-child .experience-card::before {
+  background: var(--accent);
+  animation: var(--timeline-point-keyframe) var(--duration-timeline-pulse) ease-in-out infinite;
+}
+@media (hover: hover) and (pointer: fine) {
+  /* Keep preview and expanded history in one hover selection scope. */
+  .collection:has(.experience-card:hover)
+    > .timeline
+    > .experience-row:first-child
+    .experience-card:not(:hover) {
+    border-color: var(--border);
+    background: var(--panel);
+  }
+  .collection:has(.experience-card:hover)
+    > .timeline
+    > .experience-row:first-child
+    .experience-card:not(:hover)::before {
+    background: var(--bg);
+    animation: none;
+  }
+  .experience-card:hover::before {
+    background: var(--accent);
+    animation: var(--timeline-point-keyframe) var(--duration-timeline-pulse) ease-in-out infinite;
+  }
+}

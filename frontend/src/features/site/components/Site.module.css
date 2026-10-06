@@ -1,0 +1,197 @@
+/* API profile typography and shared wordmark preserve the original visual hierarchy. */
+.intro {
+  padding-top: 62px;
+  padding-bottom: 37px;
+  position: relative;
+}
+.intro h1 {
+  font-size: clamp(36px, 4.3vw, 69px);
+  font-weight: 500;
+  letter-spacing: -2.5px;
+  line-height: 1.15;
+  margin: 23px 0 21px;
+  overflow-wrap: anywhere;
+}
+.intro h1 span {
+  color: var(--accent);
+}
+.intro h1 .greeting {
+  color: var(--text);
+}
+/* The legacy introduction starts with a short accent rule rather than another icon. */
+.tinyLine {
+  display: inline-block;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 2px;
+  background: var(--accent);
+}
+:global(html[lang^='zh']) .intro h1 {
+  letter-spacing: -1px;
+}
+.intro > :global(.eyebrow) {
+  padding-right: calc(6 * var(--control-size) + 70px);
+}
+.copy {
+  color: var(--profile-copy);
+  line-height: 1.8;
+  margin: 0;
+  font-size: 17px;
+}
+.explore {
+  display: flex;
+  width: fit-content;
+  margin: 16px 0 0 auto;
+}
+.meta {
+  margin-top: 27px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: var(--muted);
+  font: 12px var(--mono);
+}
+.meta i {
+  width: 3px;
+  height: 3px;
+  background: var(--accent);
+}
+.socials {
+  position: absolute;
+  /* Explicit profile controls stay clickable above the optional contact portal (layer 60). */
+  z-index: 65;
+  top: 35px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wordmark {
+  font: 600 34px/1 var(--mono);
+  letter-spacing: -4px;
+  display: inline-block;
+  white-space: nowrap;
+}
+.wordmark b {
+  color: var(--accent);
+}
+.wordmark small {
+  margin-left: 9px;
+  font-size: 0.45em;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+}
+.brand {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  min-height: 44px;
+}
+.footer {
+  padding: 45px 0 35px;
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 30px;
+  justify-content: space-between;
+}
+.footer p {
+  color: var(--footer-text);
+  font-size: 13px;
+  margin-top: 12px;
+}
+.footer > small {
+  flex-basis: 100%;
+  font: 11px var(--mono);
+  color: var(--footer-muted);
+  overflow-wrap: anywhere;
+}
+.footer .wordmark {
+  font-size: 28px;
+}
+@media (max-width: 1150px) {
+  .socials {
+    /* Relative positioning keeps the original normal-flow layout and enables control layering. */
+    position: relative;
+    top: auto;
+    right: auto;
+    justify-content: flex-end;
+    margin-bottom: 18px;
+  }
+  .intro > :global(.eyebrow) {
+    padding-right: 0;
+  }
+  .copy {
+    font-size: 16px;
+  }
+  .meta {
+    flex-wrap: wrap;
+    gap: 10px;
+    line-height: 1.8;
+  }
+  .explore {
+    display: none;
+  }
+  .wordmark {
+    font-size: 30px;
+  }
+}
+@media (max-width: 760px) {
+  .intro {
+    padding-top: 20px;
+    padding-bottom: 25px;
+  }
+  .intro h1 {
+    font-size: 43px;
+    letter-spacing: -1.8px;
+    max-width: 400px;
+  }
+  .copy {
+    font-size: 15px;
+  }
+  .socials {
+    gap: clamp(4px, 1.7vw, 9px);
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .meta {
+    font-size: 10px;
+    gap: 8px;
+  }
+  .meta i {
+    display: none;
+  }
+  .meta > span {
+    flex-basis: 100%;
+  }
+  .footer {
+    padding: 30px 0;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .footer p {
+    max-width: 190px;
+  }
+  .wordmark {
+    font-size: 28px;
+  }
+}
+@media (min-width: 1700px) {
+  .socials {
+    top: 40px;
+  }
+  .intro {
+    padding-bottom: 32px;
+  }
+}
+@media (min-width: 2200px) {
+  .intro h1 {
+    font-size: clamp(64px, 3.4vw, 88px);
+  }
+  .copy {
+    font-size: 19px;
+  }
+}

@@ -1,0 +1,256 @@
+/* Project cards, timeline groups and history disclosure. */
+.collection {
+  min-width: 0;
+}
+.project-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-menu);
+  background: var(--project-surface);
+  padding: 27px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color var(--duration-hover);
+}
+.project-card:hover {
+  border-color: var(--project-hover-border);
+}
+.project-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--control-size);
+  align-items: start;
+  gap: 14px;
+}
+.project-heading {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.project-top .project-organization-name {
+  margin-top: 0;
+}
+.project-open {
+  height: var(--control-size);
+  width: var(--control-size);
+  background: var(--project-open-surface);
+  color: var(--accent);
+  border: 1px solid var(--project-open-border);
+  border-radius: 50%;
+  font-size: 21px;
+  transition: var(--duration-hover);
+}
+.project-open:hover,
+.project-open:focus-visible {
+  background: var(--accent);
+  color: var(--project-open-hover);
+  transform: rotate(45deg);
+}
+.project-title {
+  color: var(--project-title);
+  font: 11px var(--mono);
+  margin: 18px 0 7px;
+  letter-spacing: 1px;
+}
+.project-card h3 {
+  font-size: 23px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  margin: 0 0 13px;
+}
+.project-card p {
+  max-width: 100ch;
+  color: var(--project-copy);
+  font-size: 15px;
+  margin: 0 0 20px;
+  line-height: 1.8;
+}
+.project-card :global(.tag-list) {
+  margin-top: 0;
+}
+@media (max-width: 1150px) {
+  .project-card {
+    padding: 22px;
+  }
+}
+.project-timeline,
+.disclosure {
+  --project-date-width: 116px;
+  --project-gap: 43px;
+  --collection-inset: calc(var(--project-date-width) + var(--project-gap));
+}
+.project-timeline {
+  position: relative;
+  display: grid;
+  gap: 26px;
+}
+.project-timeline::before {
+  content: '';
+  position: absolute;
+  left: 137px;
+  top: 33px;
+  bottom: 30px;
+  width: 1px;
+  background: linear-gradient(var(--accent), var(--timeline-end));
+}
+.project-time-row {
+  display: grid;
+  grid-template-columns: var(--project-date-width) minmax(0, 1fr);
+  gap: var(--project-gap);
+  position: relative;
+}
+.project-start {
+  font: 13px/1.7 var(--mono);
+  color: var(--accent);
+  padding-top: 24px;
+}
+.project-start span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.6px;
+  margin-top: 7px;
+}
+.project-group-cards {
+  position: relative;
+  display: grid;
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.project-group-cards::before {
+  content: '';
+  position: absolute;
+  left: -27px;
+  top: 30px;
+  /* Explicit outer diameter preserves the legacy 8px content plus two 2px borders under Bootstrap. */
+  box-sizing: border-box;
+  width: var(--timeline-point-size);
+  height: var(--timeline-point-size);
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 5px var(--bg);
+}
+.project-group-cards:has(> .project-card:only-child) {
+  grid-template-columns: 1fr;
+}
+.project-organization-name {
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 500;
+  color: var(--accent);
+  margin-top: 18px;
+}
+.project-period {
+  font: 12px/1.7 var(--mono);
+  color: var(--date-text);
+  margin-top: 4px;
+}
+@media (max-width: 1150px) {
+  .project-group-cards {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .project-timeline,
+  .disclosure {
+    --collection-inset: 23px;
+  }
+  .project-time-row {
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding-left: 23px;
+  }
+  .project-timeline::before {
+    left: 4px;
+    top: 12px;
+  }
+  .project-group-cards::before {
+    left: -25px;
+    top: 30px;
+  }
+  .project-start {
+    padding-top: 0;
+  }
+  .project-start span {
+    display: inline;
+    margin-left: 12px;
+  }
+  .project-organization-name {
+    font-size: 14px;
+  }
+  .project-card {
+    padding: 21px;
+  }
+  .project-period {
+    font-size: 12px;
+  }
+}
+@media (min-width: 2200px) {
+  .project-card p {
+    font-size: 16px;
+  }
+  .project-card {
+    padding: 30px;
+  }
+  .project-card h3 {
+    font-size: 27px;
+  }
+  .project-group-cards {
+    gap: 24px;
+  }
+}
+@media (max-width: 760px) {
+  .project-time-row {
+    min-width: 0;
+  }
+}
+.collection
+  > .project-timeline
+  > .project-time-row:first-child
+  > .project-group-cards
+  > .project-card:first-child {
+  border-color: var(--card-active-border);
+  background: var(--card-active);
+}
+.collection > .project-timeline > .project-time-row:first-child > .project-group-cards::before {
+  background: var(--accent);
+  animation: var(--timeline-point-keyframe) var(--duration-timeline-pulse) ease-in-out infinite;
+}
+@media (hover: hover) and (pointer: fine) {
+  /* Preview and expanded history form one selection scope, with only the original first item active. */
+  .collection:has(.project-card:hover)
+    > .project-timeline
+    > .project-time-row:first-child
+    > .project-group-cards
+    > .project-card:first-child:not(:hover) {
+    border-color: var(--border);
+    background: var(--project-surface);
+  }
+  .collection:has(.project-card:hover)
+    > .project-timeline
+    > .project-time-row:first-child
+    > .project-group-cards:not(:has(.project-card:hover))::before {
+    background: var(--bg);
+    animation: none;
+  }
+  .project-timeline .project-card:hover {
+    border-color: var(--card-active-border);
+    background: var(--card-active);
+  }
+  .project-group-cards:has(.project-card:hover)::before {
+    background: var(--accent);
+    animation: var(--timeline-point-keyframe) var(--duration-timeline-pulse) ease-in-out infinite;
+  }
+}
+
+.project-open :global(.icon) {
+  width: 18px;
+  height: 18px;
+}
+
+/* Keep the pulsing arrow readable over the filled hover and keyboard-focus surface. */
+.project-open:is(:hover, :focus-visible) :global(.icon) {
+  --icon-pulse-rest-color: var(--project-open-hover);
+  --icon-pulse-peak-color: var(--project-open-hover);
+}

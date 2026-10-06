@@ -1,0 +1,507 @@
+/* Atlas and career summaries retain the legacy frame, paint and responsive geometry. */
+.panel {
+  position: relative;
+  border: 1px solid var(--panel-outline);
+  background: var(--map-surface);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px var(--shadow-subtle);
+}
+.caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 17px 22px;
+  border-bottom: 1px solid var(--map-grid);
+}
+.captionLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--map-caption);
+  font: 12px var(--mono);
+  letter-spacing: 1px;
+}
+.statusDot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.loopLabel {
+  color: var(--accent);
+  font-size: 11px;
+}
+.playControls {
+  display: flex;
+  gap: 8px;
+}
+.playControls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 5px 10px;
+  background: var(--map-control);
+  border: 1px solid var(--map-control-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.playControls button:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.playControls .playToggle {
+  min-width: 80px;
+}
+.stage {
+  position: relative;
+  aspect-ratio: 1080/490;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 62% 50%, var(--map-gradient-end), transparent 65%);
+}
+.map {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.map :global(.country) {
+  fill: var(--country-fill);
+  stroke: var(--country-border);
+  stroke-width: 0.65;
+}
+.map :global(.graticule) {
+  fill: none;
+  stroke: var(--map-graticule);
+  stroke-width: 0.7;
+  stroke-opacity: 0.22;
+}
+/* The API's final record owns the highlighted country; appearance pause changes paint only. */
+.map :global(.final-country) {
+  fill: var(--country-final);
+  stroke: var(--country-final-border);
+  stroke-width: 0.9;
+  animation: country-breathe var(--duration-country-pulse) ease-in-out infinite;
+}
+@keyframes country-breathe {
+  0%,
+  100% {
+    fill: var(--country-final);
+    stroke: var(--country-final-border);
+    filter: none;
+  }
+  50% {
+    fill: var(--country-pulse-fill);
+    stroke: var(--accent);
+    filter: var(--country-pulse-glow);
+  }
+}
+.route {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+  stroke-opacity: 0.22;
+}
+.activeRoute {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: url(#glow);
+}
+.plane {
+  fill: var(--plane);
+  color: var(--plane);
+  filter: url(#glow);
+  pointer-events: none;
+}
+.plane svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.city {
+  cursor: pointer;
+  outline: none;
+}
+.halo {
+  fill: var(--accent);
+  opacity: 0.07;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.core {
+  fill: var(--city-core);
+  stroke: var(--accent);
+  stroke-width: 1.8;
+}
+.selected:not([data-highlighted='false']) .core,
+.city[data-highlighted='true'] .core,
+.city:is(:hover, :focus) .core {
+  fill: var(--accent);
+  stroke: var(--city-active);
+}
+.bubbleActive .core {
+  fill: var(--bubble-surface);
+  stroke: var(--white);
+}
+/* Breathing never changes the geographic position or target size of a destination. */
+.selected:not([data-highlighted='false']) .halo,
+.city[data-highlighted='true'] .halo,
+.bubbleActive .halo,
+.city:is(:hover, :focus-visible) .halo {
+  animation: city-breathe var(--duration-city-pulse) ease-in-out infinite;
+}
+@keyframes city-breathe {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.14;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.34;
+  }
+}
+.city:focus-visible .halo {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.label {
+  fill: var(--city-label);
+  font: 12px var(--mono);
+  paint-order: stroke;
+  stroke: var(--map-surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.selected:not([data-highlighted='false']) .label,
+.city[data-highlighted='true'] .label {
+  fill: var(--accent);
+}
+.leader {
+  stroke: var(--accent);
+  stroke-opacity: 0.4;
+  fill: none;
+  pointer-events: none;
+}
+.coordinates {
+  position: absolute;
+  left: 22px;
+  bottom: 17px;
+  font: 10px var(--mono);
+  letter-spacing: 1px;
+  color: var(--map-coordinate);
+  pointer-events: none;
+  white-space: pre;
+}
+.coordinates span {
+  display: block;
+  font-size: 9px;
+  margin-top: 3px;
+  color: var(--map-coordinate-muted);
+}
+.compass {
+  position: absolute;
+  bottom: 23px;
+  right: 24px;
+  color: var(--map-compass);
+  font: 12px/1.2 var(--mono);
+  text-align: center;
+}
+/* Preserve the legacy inline Bootstrap arrow at the compass's 12px text size. */
+.compass :global(.icon) {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  border-top: 1px solid var(--border);
+  padding: 21px 24px;
+  min-height: 127px;
+  background: var(--control-surface);
+}
+.status > div {
+  min-width: 0;
+}
+.status p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.status > div > p:first-child {
+  font-size: 12px;
+  color: var(--accent);
+}
+.status h3 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+.stepIndex {
+  flex-shrink: 0;
+  color: var(--accent);
+  font: 13px var(--mono);
+  padding: 10px;
+  border: 1px solid var(--scroll-track);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.routeLabel {
+  margin-left: auto;
+  flex-shrink: 0;
+  font: 11px var(--mono);
+  color: var(--journey-muted);
+  text-align: right;
+  max-width: 170px;
+  overflow-wrap: anywhere;
+}
+/* Overflow controls occupy space only when destinations exceed the complete strip width. */
+.carousel {
+  display: grid;
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+  min-width: 0;
+  border-top: 1px solid var(--border);
+}
+.carousel[data-overflow='true'] {
+  grid-template-columns: var(--control-size) minmax(0, 1fr) var(--control-size);
+}
+.stops {
+  grid-column: 2;
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  min-width: 0;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.stops::-webkit-scrollbar {
+  display: none;
+}
+.stop {
+  position: relative;
+  flex: 1 0 160px;
+  min-width: 0;
+  text-align: left;
+  padding: 17px 13px 15px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  scroll-snap-align: start;
+  overflow-wrap: anywhere;
+  transition: background var(--duration-hover);
+}
+.stop:last-child {
+  border-right: 0;
+}
+.stopYear,
+.stopCode {
+  display: block;
+  color: var(--stop-muted);
+  font-size: 11px;
+}
+.stopYear {
+  font: 11px var(--mono);
+  margin-bottom: 5px;
+}
+.stopCode {
+  margin-top: 3px;
+}
+.stop strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.active,
+.stop:hover {
+  background: var(--control-hover);
+}
+.active::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--accent);
+}
+.active strong,
+.stop:hover strong {
+  color: var(--accent);
+}
+.carouselArrow {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: var(--control-surface);
+  color: var(--accent);
+}
+.carouselArrow[hidden] {
+  display: none;
+}
+.carouselArrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.carouselArrow:hover:not(:disabled) {
+  background: var(--control-hover);
+}
+.previous {
+  grid-column: 1;
+  border-right: 1px solid var(--border);
+}
+.next {
+  grid-column: 3;
+  border-left: 1px solid var(--border);
+  transform: rotate(180deg);
+}
+.stop:focus-visible,
+.carouselArrow:focus-visible {
+  outline-offset: -4px;
+}
+.hint {
+  font-size: 12px;
+  color: var(--map-hint);
+  text-align: right;
+  margin: 12px 0 0;
+}
+/* Pixel shell and dismissal are shared; only destination-specific copy lives here. */
+.bubble {
+  width: min(320px, calc(100% - 24px));
+  font-size: 12px;
+  --bubble-padding: 13px 15px 15px;
+}
+/* Shell chrome is 12px plus the owned 28px padding; long detail uses the remaining region. */
+.bubbleContent {
+  max-height: max(0px, calc(var(--floating-max-height, 9999px) - 40px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.bubble h3 {
+  font-size: 11px;
+  padding-right: 24px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.bubble h3 span {
+  font-weight: 400;
+  color: var(--bubble-muted);
+}
+.bubble p {
+  margin: 8px 0;
+}
+.bubbleDate {
+  border-bottom: 2px dashed var(--bubble-divider);
+  padding-bottom: 8px;
+}
+.detail {
+  border-left: 4px solid var(--bubble-ta-border);
+  padding-left: 8px;
+  margin-top: 9px;
+}
+.placeholder {
+  min-height: 240px;
+}
+@media (max-width: 1150px) {
+  .routeLabel {
+    display: none;
+  }
+  .captionLabel {
+    font-size: 11px;
+  }
+  .stop {
+    padding: 14px 9px;
+  }
+  .stop strong {
+    font-size: 13px;
+  }
+}
+@media (max-width: 760px) {
+  .caption {
+    padding: 13px 12px;
+    gap: 8px;
+  }
+  .captionLabel {
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    gap: 6px;
+  }
+  .loopLabel,
+  .coordinates {
+    display: none;
+  }
+  .playControls button {
+    min-height: 44px;
+    padding: 3px 7px;
+  }
+  .stage {
+    height: 220px;
+    aspect-ratio: auto;
+  }
+  .halo {
+    r: 19;
+  }
+  .core {
+    r: 7;
+  }
+  .compass {
+    right: 12px;
+    bottom: 15px;
+  }
+  .status {
+    padding: 17px 14px;
+    gap: 12px;
+    min-height: 133px;
+  }
+  .stepIndex {
+    padding: 7px;
+    font-size: 10px;
+  }
+  .status h3 {
+    font-size: 17px;
+    line-height: 1.4;
+  }
+  .status p {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .status > div > p:first-child {
+    font-size: 11px;
+  }
+  .stop {
+    flex-basis: 132px;
+    padding: 13px;
+  }
+  .hint {
+    text-align: left;
+    font-size: 11px;
+  }
+  .bubble {
+    font-size: 11px;
+  }
+}
+@media (min-width: 1700px) {
+  .stage {
+    aspect-ratio: auto;
+    height: clamp(500px, 62vh, 760px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map :global(.final-country),
+  .selected:not([data-highlighted='false']) .halo,
+  .city[data-highlighted='true'] .halo,
+  .bubbleActive .halo,
+  .city:is(:hover, :focus-visible) .halo {
+    animation: none;
+  }
+}

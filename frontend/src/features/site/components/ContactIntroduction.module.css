@@ -1,0 +1,14 @@
+/* Basic contact remains within the viewport even when its enhancement cannot load. */
+.fallback {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(410px, calc(100vw - 32px));
+  z-index: 60;
+  opacity: 1;
+  transition: opacity var(--contact-fade-duration) ease-out;
+}
+/* A failed enhancement shares the same finite fade rather than abruptly removing basic contact. */
+.fallback[data-fading='true'] {
+  opacity: 0;
+}

@@ -6,14 +6,16 @@ import {
   Meta,
   Outlet,
   Scripts,
-  ScrollRestoration,
   useRouteLoaderData,
+  type ShouldRevalidateFunction,
 } from 'react-router';
 
 import type { Route } from './+types/root';
 import { AppProviders } from '@/app/providers/AppProviders';
 import { defaultLocale, localeSchema } from '@/i18n/config';
+import { appearanceBootstrapScript } from '@/features/appearance';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import '@/assets/fonts/fonts.css';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
 
@@ -40,21 +42,29 @@ export function clientLoader({ params }: Route.ClientLoaderArgs) {
 
 clientLoader.hydrate = true as const;
 
+/** Parent routes also consume the child's locale, so pathname changes must revalidate it. */
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => currentUrl.pathname !== nextUrl.pathname || defaultShouldRevalidate;
+
 /** Supply the document shell and language for every route. */
 export function Layout({ children }: { children: ReactNode }) {
   const loaderData = useRouteLoaderData<typeof loader>('root');
 
   return (
-    <html lang={loaderData?.locale ?? defaultLocale}>
+    <html lang={loaderData?.locale ?? defaultLocale} data-theme="mist" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <script dangerouslySetInnerHTML={{ __html: appearanceBootstrapScript }} />
         <Meta />
         <Links />
       </head>
       <body>
         {children}
-        <ScrollRestoration />
         <Scripts />
       </body>
     </html>

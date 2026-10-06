@@ -1,0 +1,162 @@
+/* Responsive contact copy reuses the shared pixel shell, gradient/bevel tokens and anchor lifecycle. */
+.bubble[data-contact-bubble] {
+  position: fixed;
+  width: min(410px, calc(100vw - 28px));
+  z-index: 60;
+  --bubble-text: var(--chat-text);
+  --bubble-background: linear-gradient(
+    135deg,
+    var(--chat-gradient-start),
+    var(--chat-gradient-end)
+  );
+  --bubble-bevel-light: var(--chat-bevel-light);
+  --bubble-bevel-dark: var(--chat-bevel-dark);
+  --bubble-padding: 15px 17px;
+  --bubble-backdrop-filter: blur(3px);
+  /* Preserve the original small close glyph and desktop target; mobile expands only the hit area. */
+  --bubble-close-size: 32px;
+  --bubble-close-icon-size: 12px;
+  --bubble-close-top: 7px;
+  --bubble-close-right: 7px;
+  --bubble-close-text: var(--chat-text);
+  --bubble-close-hover-background: transparent;
+  --bubble-close-hover-text: var(--chat-link-hover);
+  --bubble-close-focus-color: var(--chat-link);
+  --bubble-close-focus-offset: 1px;
+  filter: drop-shadow(3px 4px 0 var(--chat-shadow));
+  opacity: 1;
+  transition: opacity var(--contact-fade-duration) ease-out;
+  animation: contact-note-breathe var(--duration-chat-pulse) ease-in-out infinite;
+}
+.bubble[data-appearing='true'] {
+  /* Release the entrance opacity when it ends; retaining its last frame would mask idle fade-out. */
+  animation:
+    contact-enter var(--contact-fade-duration) ease-out backwards,
+    contact-note-breathe var(--duration-chat-pulse) ease-in-out infinite;
+}
+.bubble[data-fading='true'] {
+  opacity: 0;
+}
+/* Pausing the note glow must leave the finite disclosure entrance and idle fade operational. */
+:global(html[data-motion-paused='true']) .bubble {
+  animation: none;
+}
+:global(html[data-motion-paused='true']) .bubble[data-appearing='true'] {
+  animation: contact-enter var(--contact-fade-duration) ease-out backwards;
+}
+.content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 16px;
+  align-items: center;
+  /* The shared placement budget includes the 12px shell and at most 34px vertical mobile padding. */
+  max-height: max(0px, min(calc(100vh - 100px), calc(var(--floating-max-height, 100vh) - 46px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font: 13px/1.55 var(--sans);
+}
+.content:has(> div:only-child) {
+  grid-template-columns: 1fr;
+}
+.content > div {
+  min-width: 0;
+}
+.content h2 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+  margin: 5px 0 0;
+}
+.content p {
+  margin: 7px 0;
+}
+.content a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--chat-link);
+  border-top: 1px dashed var(--chat-divider);
+  padding-top: 8px;
+  margin-top: 10px;
+  min-height: 34px;
+  font-weight: 600;
+}
+/* The CTA keeps the legacy glyph size independently of the shared Icon wrapper. */
+.content a > :global(.icon) {
+  width: 1em;
+  height: 1em;
+}
+.content a:hover {
+  text-decoration: underline;
+}
+.content a:focus-visible {
+  outline-color: var(--chat-link);
+  outline-offset: 2px;
+}
+.content img {
+  display: block;
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
+}
+.content .eyebrow {
+  margin: 0;
+  font: 9px/1.6 var(--mono);
+  letter-spacing: 0.6px;
+  color: var(--chat-muted);
+}
+@keyframes contact-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes contact-note-breathe {
+  0%,
+  100% {
+    filter: drop-shadow(3px 4px 0 var(--chat-shadow));
+  }
+  50% {
+    filter: drop-shadow(3px 4px 0 var(--chat-shadow)) drop-shadow(0 0 4px var(--glow-medium));
+  }
+}
+@media (max-width: 760px) {
+  .bubble[data-contact-bubble] {
+    width: min(380px, calc(100vw - 40px));
+    --bubble-padding: 20px 14px 14px;
+    --bubble-close-size: var(--control-size);
+    --bubble-close-top: 4px;
+    --bubble-close-right: 4px;
+  }
+  .content {
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .content h2 {
+    font-size: 15px;
+  }
+  .content a {
+    min-height: var(--control-size);
+  }
+  .content .eyebrow {
+    font-size: 10px;
+  }
+  .content img {
+    width: 80px;
+    height: 80px;
+  }
+}
+@media (max-width: 380px) {
+  .content {
+    grid-template-columns: minmax(0, 1fr) 64px;
+    gap: 10px;
+  }
+  .content img {
+    width: 64px;
+    height: 64px;
+  }
+}

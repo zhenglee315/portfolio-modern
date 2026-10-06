@@ -1,7 +1,269 @@
+/* Element defaults, focus visibility and reduced-motion policy. */
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 35px;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 var(--sans);
+}
+a {
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+}
+.mono {
+  font-family: var(--mono);
+}
+.skip {
+  position: fixed;
+  left: 20px;
+  top: -100px;
+  background: var(--accent);
+  color: var(--bg);
+  padding: 10px;
+  z-index: 100;
+}
+.skip:focus {
+  top: 10px;
+}
+.text-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.text-link > span {
+  margin-left: 20px;
+}
+@media (max-width: 760px) {
+  html {
+    scroll-padding-top: 85px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+[data-social][hidden] {
+  display: none;
+}
+
+/* Preserve plain-text paragraphs from normal form input without interpreting markup. */
+.plain-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Bootstrap bridge and shared feedback; domain geometry uses CSS Modules. */
+:root {
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--text);
+  --bs-body-font-family: var(--sans);
+  --bs-border-color: var(--border);
+  --bs-link-color: var(--accent);
+  --bs-link-hover-color: var(--accent);
+}
 html {
   min-width: 320px;
 }
-
 body {
   min-height: 100vh;
+}
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+}
+.icon-button,
+.icon-button.btn {
+  /* React-Bootstrap adds .btn/.btn-link after global CSS in dev; retain one shared shape. */
+  --bs-btn-focus-box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-size);
+  height: var(--control-size);
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--social-border);
+  border-radius: 50%;
+  background: var(--card-active);
+  color: var(--social-icon);
+  text-decoration: none;
+  transition:
+    background var(--duration-hover),
+    color var(--duration-hover),
+    transform var(--duration-hover);
+}
+.icon-button:is(:hover, :focus-visible),
+.icon-button.btn:is(:hover, :focus-visible) {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.icon {
+  /* Decorative SVG nodes may be replaced by React; clicks belong to their stable control. */
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  flex-shrink: 0;
+  vertical-align: -0.2em;
+}
+.icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.eyebrow {
+  font: 500 12px/1.6 var(--mono);
+  letter-spacing: 1.8px;
+  color: var(--muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Links and link-shaped controls share one visual contract and touch target. */
+.text-link {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+  border: 0;
+  border-bottom: 1px solid var(--link-border);
+  padding: 8px 0;
+  background: transparent;
+  color: var(--text);
+  min-height: 44px;
+  white-space: normal;
+}
+.section-state {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  margin-block: 12px;
+  color: var(--muted);
+}
+.section-state p {
+  margin: 0;
+}
+.load-more-control {
+  padding: 16px 0;
+}
+.load-more-control p {
+  color: var(--muted);
+}
+.skip {
+  z-index: 1100;
+}
+@media (max-width: 760px) {
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+  }
+}
+
+/* Paused preferences and hidden documents suspend CSS decoration without hiding content. */
+html[data-motion-paused='true'] [data-decoration],
+html[data-motion-paused='true'] [data-decoration]::before,
+html[data-motion-paused='true'] [data-decoration]::after,
+html[data-motion-paused='true'] [data-decoration] *,
+html[data-motion-paused='true'] [data-decoration] *::before,
+html[data-motion-paused='true'] [data-decoration] *::after {
+  animation-play-state: paused !important;
+}
+
+/* Both timelines consume the global keyframe through --timeline-point-keyframe.
+ * Feature collection scopes own selection across preview/history; no animation controller is duplicated.
+ */
+@keyframes timeline-point-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 5px var(--bg),
+      0 0 0 6px var(--pulse-soft),
+      0 0 8px var(--pulse-medium);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px var(--bg),
+      0 0 0 10px var(--pulse-medium),
+      0 0 22px var(--pulse-strong);
+  }
+}
+
+/* One SVG silhouette pulse serves contact triggers and disclosure/detail controls.
+ * Animation stays inside the stable control hit target and obeys shared pause policy.
+ */
+@keyframes icon-breathe {
+  0%,
+  100% {
+    opacity: var(--icon-pulse-rest-opacity, 1);
+    transform: scale(1);
+    color: var(--icon-pulse-rest-color, currentColor);
+    filter: drop-shadow(0 0 1px var(--glow-low));
+  }
+  50% {
+    opacity: 1;
+    transform: scale(var(--icon-pulse-peak-scale, 1));
+    color: var(--icon-pulse-peak-color, currentColor);
+    filter: var(--icon-pulse-peak-glow, drop-shadow(0 0 7px var(--glow-bright)));
+  }
+}
+[data-icon-pulse] > svg {
+  animation: icon-breathe var(--duration-icon-pulse) ease-in-out infinite;
+}
+[data-icon-pulse='chat'] > svg {
+  animation-duration: var(--duration-chat-pulse);
+}
+[data-icon-pulse='disclosure'] {
+  --icon-pulse-rest-opacity: 0.55;
+  --icon-pulse-rest-color: var(--accent);
+  --icon-pulse-peak-color: var(--text);
+  --icon-pulse-peak-scale: var(--disclosure-icon-pulse-scale);
+  --icon-pulse-peak-glow: var(--disclosure-icon-pulse-glow);
+}
+button:is(:hover, :focus-visible, :active) [data-icon-pulse='chat'] > svg {
+  animation: none;
+  filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--glow-bright));
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-icon-pulse] > svg {
+    animation: none;
+    filter: drop-shadow(0 0 3px var(--glow-medium));
+  }
 }

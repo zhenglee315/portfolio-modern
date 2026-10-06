@@ -1,0 +1,141 @@
+/* Native-dialog geometry is preserved while Bootstrap retains focus trapping and restoration. */
+.dialog {
+  --bs-modal-bg: var(--control-surface);
+  --bs-modal-color: var(--text);
+  --bs-modal-border-color: var(--dialog-border);
+  --bs-modal-header-border-color: transparent;
+  --bs-modal-footer-border-color: transparent;
+}
+.dialog .viewport:global(.modal-dialog) {
+  width: min(680px, calc(100% - 32px));
+  max-width: none;
+  margin-inline: auto;
+}
+.dialog .content:global(.modal-content) {
+  max-height: 85vh;
+  padding: 42px;
+  border: 1px solid var(--dialog-border);
+  border-radius: 12px;
+  background: var(--control-surface);
+  box-shadow: 0 30px 100px var(--shadow-strong);
+}
+.backdrop:global(.modal-backdrop) {
+  background: var(--dialog-backdrop);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+/* The backdrop token already contains alpha; Bootstrap must not dim it for a second time. */
+.backdrop:global(.modal-backdrop.show) {
+  opacity: 1;
+}
+.dialog :global(.modal-header) {
+  align-items: flex-start;
+  gap: 16px;
+  /* Reserve the close hit target so an injected language control cannot overlap it. */
+  padding: 0 42px 0 0;
+  border: 0;
+}
+.dialog :global(.modal-header) > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.dialog :global(.modal-title) {
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.dialog :global(.modal-body) {
+  padding: 0;
+}
+.dialog h3 {
+  font-size: 15px;
+  color: var(--accent);
+  margin-top: 25px;
+}
+.dialog p {
+  color: var(--date-text);
+  overflow-wrap: anywhere;
+}
+.dialog .organization {
+  color: var(--accent);
+  margin: 18px 0 4px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.55;
+}
+.dialog .organizationTitle {
+  color: var(--muted);
+  margin: 4px 0;
+}
+.dialog .period {
+  color: var(--date-text);
+  margin-top: 4px;
+  font: 12px/1.7 var(--mono);
+}
+.dialog :global(.eyebrow) {
+  color: var(--muted);
+}
+/* The close control remains outside the content flow, matching the legacy top-right affordance. */
+.close {
+  position: absolute;
+  right: 15px;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.close:hover {
+  color: var(--accent);
+}
+.close :global(.icon) {
+  width: 20px;
+  height: 20px;
+}
+/* Connectors are decorative; the ordered list retains the workflow sequence for assistive tools. */
+.flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  list-style: none;
+  gap: 9px;
+  padding: 0;
+  margin: 24px 0;
+}
+.flow li {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  max-width: 100%;
+}
+.flow [data-flow-step] {
+  min-width: 0;
+  max-width: 100%;
+  padding: 9px;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  background: var(--flow-surface);
+  font: 12px var(--mono);
+  overflow-wrap: anywhere;
+}
+.connector {
+  color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+@media (max-width: 760px) {
+  .dialog .content:global(.modal-content) {
+    padding: 30px 24px;
+  }
+  .dialog :global(.modal-title) {
+    font-size: 26px;
+  }
+}

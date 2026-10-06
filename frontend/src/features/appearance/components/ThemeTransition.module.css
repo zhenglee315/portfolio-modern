@@ -1,0 +1,9 @@
+/* A single old-background veil fades all palette paint without changing layout or intercepting input. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+}

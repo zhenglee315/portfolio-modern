@@ -1,0 +1,113 @@
+/* Bootstrap supplies disclosure behavior; scoped geometry preserves the original settings panel. */
+.dropdown > :global(.dropdown-toggle)::after {
+  display: none;
+}
+/* The combined selector also wins when development loads Bootstrap after feature CSS. */
+.menu:global(.dropdown-menu) {
+  --bs-dropdown-bg: var(--control-surface);
+  --bs-dropdown-color: var(--text);
+  --bs-dropdown-border-color: var(--control-border);
+  --bs-dropdown-border-radius: var(--radius-menu);
+  z-index: 65;
+  width: min(300px, calc(100vw - 40px));
+  padding: 18px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-menu);
+  background: var(--control-surface);
+  color: var(--text);
+  box-shadow: 0 12px 32px var(--shadow-medium);
+  /* A short landscape viewport scrolls the controls rather than clipping the final actions. */
+  max-height: calc(100dvh - 180px);
+  overflow-y: auto;
+}
+.heading {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.menu label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.menu output {
+  color: var(--accent);
+  font: 11px var(--mono);
+}
+.menu input {
+  display: block;
+  width: 100%;
+  height: 24px;
+  margin: 6px 0 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.menu input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.menu p {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+/* Palette choices keep two equal columns, transparent surfaces and semantic theme swatches. */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.palette button,
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--control-size);
+  flex: 1;
+  padding: 8px 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.palette button:hover,
+.palette button[aria-pressed='true'],
+.actions button:hover,
+.actions button[aria-pressed='true'] {
+  background: var(--selection-surface);
+  border-color: var(--accent);
+}
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.palette i {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--swatch-mint);
+}
+.palette [data-theme-option='blue'] i {
+  background: var(--swatch-blue);
+}
+.palette [data-theme-option='amber'] i {
+  background: var(--swatch-amber);
+}
+.palette [data-theme-option='mist'] i {
+  background: var(--swatch-mist);
+  box-shadow: 0 0 0 1px var(--muted);
+}
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+}
+.actions :global(.icon) {
+  width: 14px;
+  height: 14px;
+}

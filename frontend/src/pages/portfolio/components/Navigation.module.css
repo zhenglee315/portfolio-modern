@@ -1,0 +1,344 @@
+/* Fixed desktop rail and mobile focus-managed drawer share one navigation component. */
+.sidebar {
+  position: fixed;
+  width: var(--rail-width);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-track) transparent;
+  inset: 0 auto 0 0;
+  border-right: 1px solid var(--border);
+  padding: 38px 24px 26px;
+  background: var(--sidebar-surface);
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+  transition:
+    width var(--duration-drawer) var(--ease-drawer),
+    padding var(--duration-drawer) var(--ease-drawer);
+}
+/* A short viewport scrolls the rail instead of shrinking or overlapping its sections. */
+.sidebar > * {
+  flex-shrink: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: gap var(--duration-drawer) var(--ease-drawer);
+}
+.brand > span {
+  min-width: 0;
+  max-width: 200px;
+  overflow: hidden;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    max-width var(--duration-drawer) var(--ease-drawer),
+    opacity var(--duration-hover),
+    visibility var(--duration-hover);
+}
+.links {
+  margin-top: 32px;
+  display: grid;
+  gap: 8px;
+}
+.links a {
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 12px;
+  padding: 12px;
+  min-height: 48px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
+  color: var(--nav-text);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition:
+    gap var(--duration-drawer) var(--ease-drawer),
+    background var(--duration-hover),
+    color var(--duration-hover),
+    border-color var(--duration-hover);
+}
+.links a > :global(.icon) {
+  flex: 0 0 23px;
+  width: 23px;
+  font-size: 18px;
+}
+.links a > :global(.icon) svg {
+  width: 18px;
+  height: 18px;
+}
+.links a:hover,
+.links .active {
+  background: var(--selection-surface);
+  color: var(--accent);
+  border-color: var(--selection-border);
+}
+.links small {
+  margin-left: auto;
+  font: 12px var(--mono);
+  opacity: 0.5;
+}
+.label,
+.links small {
+  max-width: 200px;
+  overflow: hidden;
+  visibility: visible;
+  transition:
+    max-width var(--duration-drawer) var(--ease-drawer),
+    opacity var(--duration-hover),
+    transform var(--duration-drawer) var(--ease-drawer),
+    visibility var(--duration-hover);
+}
+.foot {
+  margin-top: auto;
+  padding-top: 30px;
+  color: var(--muted);
+  font-size: 14px;
+  max-height: 400px;
+  overflow: hidden;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    max-height var(--duration-drawer) var(--ease-drawer),
+    padding var(--duration-drawer) var(--ease-drawer),
+    opacity var(--duration-hover),
+    visibility var(--duration-hover);
+}
+.foot > :global(.mono) {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.foot small {
+  display: block;
+  color: var(--sidebar-muted);
+  font-size: 12px;
+  margin-top: 25px;
+}
+.collapse {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: right var(--duration-drawer) var(--ease-drawer);
+}
+.collapse:hover,
+.collapse:focus-visible {
+  color: var(--accent);
+  background: var(--selection-surface);
+}
+.collapse > :global(.icon) {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  transition: transform var(--duration-drawer) var(--ease-drawer);
+}
+.compact {
+  width: var(--rail-compact-width);
+  padding-inline: 12px;
+}
+.compact .brand > span,
+.compact .label,
+.compact .links small {
+  max-width: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+.compact .label {
+  transform: translateX(-12px);
+}
+.compact .links small {
+  margin-left: 0;
+}
+.compact .brand {
+  gap: 0;
+}
+.compact .foot {
+  max-height: 0;
+  padding-top: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+.compact .links a {
+  justify-content: center;
+  gap: 0;
+}
+.compact .collapse {
+  right: calc((var(--rail-compact-width) - 32px) / 2);
+}
+.compact .collapse > :global(.icon) {
+  transform: rotate(180deg);
+}
+.tooltip {
+  position: fixed;
+  z-index: 65;
+  max-width: min(240px, calc(100vw - 28px));
+  padding: 7px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-card);
+  background: var(--control-surface);
+  color: var(--text);
+  box-shadow: 0 4px 14px var(--shadow-subtle);
+  pointer-events: none;
+  font-size: 13px;
+}
+.tooltip:not([data-side='true']) {
+  visibility: hidden;
+}
+/* Bare contact hit area keeps feedback on the shared animated SVG silhouette. */
+.contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--control-size);
+  width: var(--control-size);
+  height: var(--control-size);
+  padding: 4px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent);
+}
+.contact > :global(.icon) {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+.contact:is(:hover, :focus-visible, :active) {
+  /* This bare control signals keyboard focus through the SVG halo, like its pointer feedback. */
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  color: var(--text);
+}
+.mobile {
+  display: none;
+}
+.drawer:global(.offcanvas) {
+  --bs-offcanvas-width: 250px;
+  --bs-offcanvas-bg: var(--sidebar-surface);
+  --bs-offcanvas-color: var(--text);
+  --bs-offcanvas-border-color: var(--border);
+  --bs-offcanvas-transition: transform var(--duration-drawer) var(--ease-drawer);
+  top: 64px;
+  z-index: 70;
+}
+.drawerBackdrop:global(.offcanvas-backdrop) {
+  --bs-backdrop-opacity: 1;
+  top: 64px;
+  height: calc(100dvh - 64px);
+  z-index: 69;
+  background: var(--menu-backdrop);
+}
+.drawer :global(.offcanvas-header) {
+  padding: 0;
+}
+.drawer :global(.offcanvas-body) {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 17px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-track) transparent;
+}
+.drawer :global(.offcanvas-body) > * {
+  flex-shrink: 0;
+}
+.drawerClose {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+}
+.drawer .links {
+  margin-top: 16px;
+}
+.drawer .foot {
+  padding-top: 20px;
+}
+.drawer .foot > p:not(:global(.mono)) {
+  display: none;
+}
+@media (max-width: 1150px) {
+  .sidebar {
+    padding: 30px 17px;
+  }
+  .compact {
+    padding-inline: 12px;
+  }
+  .brand {
+    gap: 5px;
+  }
+}
+@media (min-width: 2200px) {
+  .sidebar {
+    padding-inline: 28px;
+  }
+  .compact {
+    padding-inline: 12px;
+  }
+}
+@media (max-width: 760px) {
+  .sidebar {
+    display: none;
+  }
+  .mobile {
+    height: 64px;
+    display: flex;
+    gap: 8px;
+    position: fixed;
+    inset: 0 0 auto;
+    background: var(--header-surface);
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    padding: 0 16px;
+    /* Fixed navigation remains above scrolling controls (65) and contact offers (60). */
+    z-index: 75;
+  }
+  .mobile > :last-child {
+    margin-left: auto;
+  }
+}
+
+/* Navigation follows the inward frame instead of painting before it settles. */
+:global([data-entering='true']) .sidebar {
+  animation: navigation-enter 450ms 800ms var(--ease-drawer) backwards;
+}
+:global([data-entering='true']) .mobile {
+  animation: header-enter 450ms 800ms var(--ease-drawer) backwards;
+}
+@keyframes navigation-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes header-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

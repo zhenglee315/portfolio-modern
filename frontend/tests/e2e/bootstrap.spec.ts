@@ -1,40 +1,44 @@
 import { expect, test } from '@playwright/test';
 
-const locales = [
-  { path: '/', language: 'en', title: 'Personal profile' },
-  { path: '/en', language: 'en', title: 'Personal profile' },
-  { path: '/zh-Hans', language: 'zh-Hans', title: '个人档案' },
-  { path: '/zh-Hant', language: 'zh-Hant', title: '個人檔案' },
-];
-
-for (const { path, language, title } of locales) {
-  test(`${path} delivers localized HTML and hydrates with styles and an icon`, async ({
+for (const [path, language] of [
+  ['/', 'en'],
+  ['/en', 'en'],
+  ['/zh-Hans', 'zh-Hans'],
+  ['/zh-Hant', 'zh-Hant'],
+]) {
+  test(`${path} delivers localized fixture content and hydrates its query snapshot`, async ({
     page,
     request,
   }) => {
-    const response = await request.get(path);
+    const response = await request.get(path!);
     expect(response.ok()).toBe(true);
     const html = await response.text();
     expect(html).toContain(`<html lang="${language}"`);
-    expect(html).toContain(`<title>${title}</title>`);
-    expect(html).toContain(title);
-
+    expect(html).toMatch(/<h1[^>]*>.+<\/h1>/);
+    expect(html).toContain('data-project-id');
+    expect(html).toContain('data-experience-id');
+    expect(html).toContain('data-category-id');
+    expect(html).not.toContain('<title>Personal profile</title>');
+    expect(html).toContain('rel="canonical"');
+    expect(html).toContain('hrefLang="zh-Hant"');
     const errors: string[] = [];
+    const siteRequests: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(path);
+    page.on('request', (request) => {
+      if (request.url().includes('/api/portfolio/site')) siteRequests.push(request.url());
+    });
+    await page.goto(path!);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { name: title })).toBeVisible();
-    await expect(page.locator('html')).toHaveAttribute('lang', language);
-    await expect(page.getByRole('main')).toHaveCSS('padding-top', '48px');
-    await expect(page.locator('main img')).toHaveJSProperty('complete', true);
-    await expect(page.locator('main img')).toHaveJSProperty('naturalWidth', 16);
-    await expect(page).toHaveTitle(title);
+    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('lang', language!);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'mist');
+    await expect(page.locator('.icon svg').first()).toBeVisible();
+    expect(siteRequests).toEqual([]);
     expect(errors).toEqual([]);
   });
 }
 
-test('unsupported language shows the route error after browser hydration', async ({ page }) => {
+test('unsupported language shows a safe route error after hydration', async ({ page }) => {
   await page.goto('/fr');
   await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Personal profile' })).toHaveCount(0);
 });

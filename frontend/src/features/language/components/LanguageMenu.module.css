@@ -1,0 +1,65 @@
+/* Language disclosure retains the original compact badge and checked, transparent choices. */
+.dropdown > :global(.dropdown-toggle)::after {
+  display: none;
+}
+.trigger {
+  position: relative;
+}
+.badge {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  font: 9px/1 var(--mono);
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--accent);
+}
+/* Pair feature and Bootstrap classes so lazy CSS order cannot erase padding or theme surfaces. */
+.menu:global(.dropdown-menu) {
+  --bs-dropdown-bg: var(--control-surface);
+  --bs-dropdown-color: var(--text);
+  --bs-dropdown-border-color: var(--control-border);
+  --bs-dropdown-border-radius: var(--radius-menu);
+  --bs-dropdown-link-color: var(--text);
+  --bs-dropdown-link-hover-bg: var(--control-hover);
+  --bs-dropdown-link-hover-color: var(--text);
+  --bs-dropdown-link-active-bg: transparent;
+  --bs-dropdown-link-active-color: var(--accent);
+  min-width: 170px;
+  padding: 6px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-menu);
+  background: var(--control-surface);
+  box-shadow: 0 12px 32px var(--shadow-medium);
+  z-index: 65;
+}
+.menu :global(.dropdown-item) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-height: var(--control-size);
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 14px;
+}
+.menu :global(.dropdown-item):hover,
+.menu :global(.dropdown-item):focus-visible {
+  background: var(--control-hover);
+}
+.menu :global(.dropdown-item)[aria-current='true'] {
+  color: var(--accent);
+}
+.check {
+  visibility: hidden;
+}
+.menu [aria-current='true'] .check {
+  visibility: visible;
+}

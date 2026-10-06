@@ -1,4 +1,389 @@
+/* Canonical palette, typography, geometry and motion tokens. Components consume these values. */
 :root {
-  --profile-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --bs-body-font-family: var(--profile-font-family);
+  color-scheme: dark;
+  --mobile-layout: 0;
+  --rail-width: 260px;
+  --rail-compact-width: 80px;
+  --page-gutter: clamp(28px, 3.8vw, 96px);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'DM Sans', Arial, sans-serif;
+  --control-size: 44px;
+  --radius-card: 6px;
+  --radius-menu: 8px;
+  --duration-hover: 0.2s;
+  --duration-drawer: 0.32s;
+  --ease-drawer: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-timeline-pulse: 2.2s;
+  --timeline-point-size: 12px;
+  /* Resolve the shared name through a token so CSS Modules cannot localize its keyframe reference. */
+  --timeline-point-keyframe: timeline-point-breathe;
+  --duration-city-pulse: 2.4s;
+  --duration-country-pulse: 4s;
+  --country-pulse-fill: color-mix(in srgb, var(--country-final) 78%, var(--accent));
+  --country-pulse-glow: drop-shadow(0 0 2px var(--glow-medium));
+  --duration-chat-pulse: 4s;
+  --duration-icon-pulse: 2.4s;
+  --collection-icon-size: 24px;
+  --disclosure-icon-pulse-scale: 1.18;
+  --disclosure-icon-pulse-glow: drop-shadow(0 0 3px var(--accent))
+    drop-shadow(0 0 10px var(--glow-bright));
+  --link-border: #587b7b;
+  --bg: #0c1215;
+  --panel: #111c20;
+  --panel2: #152126;
+  --border: #263438;
+  --muted: #96a8af;
+  --text: #ecf2f1;
+  --accent: #81d8d0;
+  --on-accent: var(--bubble-text);
+  --control-hover: #213c3f;
+  --chat-shadow: #040c0e;
+  --chat-text: #16393c;
+  --chat-muted: #376462;
+  --chat-divider: #79aaa5;
+  --chat-link: #174f4b;
+  --glow-low: #81d8d033;
+  --glow-bright: #81d8d0aa;
+  --glow-medium: #81d8d055;
+  --pointer-glow-color: #81d8d012;
+  --pointer-glow-radius: clamp(280px, 40vw, 560px);
+  --chat-link-hover: #14736d;
+  --chat-gradient-start: #d7f3f2f2;
+  --chat-gradient-end: #cbedede6;
+  --chat-bevel-light: #edfdf7d9;
+  --chat-bevel-dark: #8cbabebf;
+  --control-surface: #142126;
+  --dialog-border: #4f7774;
+  --shadow-strong: #0008;
+  --dialog-backdrop: #03090cba;
+  --date-text: #adc0c5;
+  --flow-surface: #223b3e;
+  --control-border: #426260;
+  --timeline-end: #395052;
+  --date-muted: #677e85;
+  --card-active-border: #59847f;
+  --card-active: #152428;
+  --card-copy: #a5b8be;
+  --pulse-soft: #81d8d026;
+  --pulse-medium: #81d8d040;
+  --pulse-strong: #81d8d099;
+  --panel-outline: #35474b;
+  --map-surface: #111b1f;
+  --shadow-subtle: #0002;
+  --map-grid: #233438;
+  --map-caption: #bdcdce;
+  --map-control: #1b2a2e;
+  --map-control-border: #324449;
+  --map-gradient-end: #1b32344d;
+  --map-coordinate: #93a7ac;
+  --map-coordinate-muted: #677e84;
+  --map-compass: #8a9fa5;
+  --country-fill: #24383d;
+  --country-border: #3a5156;
+  --map-graticule: #385156;
+  --city-core: #122328;
+  --city-active: #d8fffb;
+  --city-label: #beced1;
+  --plane: #c6fff8;
+  --scroll-track: #395755;
+  --journey-muted: #95afb3;
+  --stop-muted: #839ba2;
+  --map-hint: #80969d;
+  --scroll-thumb: #558881;
+  --bubble-surface: #cbeded;
+  --white: #fff;
+  --country-final: #335552;
+  --country-final-border: #68928b;
+  --shadow-medium: #0006;
+  --profile-copy: #adbdc2;
+  --social-border: #3d595b;
+  --social-icon: #b7cfce;
+  --bubble-text: #102b30;
+  --bubble-outline: #071315;
+  --bubble-bevel-light: #edfdf7;
+  --bubble-bevel-dark: #8cbabe;
+  --bubble-muted: #41636a;
+  --bubble-divider: #93bdc0;
+  --bubble-ta-border: #398c88;
+  --bubble-ta-text: #284e53;
+  --bubble-close: #245b5d;
+  --bubble-close-hover: #a6d0d1;
+  --project-surface: #121d21;
+  --project-hover-border: #6ca69f;
+  --project-open-surface: #21363a;
+  --project-open-border: #395454;
+  --project-open-hover: #0e2022;
+  --project-title: #849da4;
+  --project-copy: #9fb4bb;
+  --collection-surface: #142428;
+  --selection-surface: #1d3537;
+  --tag-surface: #203035;
+  --tag-text: #b0cccf;
+  --tag-border: #31464b;
+  --skill-toggle-border: #608d87;
+  --sidebar-surface: #10191d;
+  --nav-text: #aab8bc;
+  --selection-border: #2b4c4d;
+  --sidebar-muted: #82949b;
+  --header-surface: #10191df5;
+  --menu-surface: #213438;
+  --menu-border: #3a5658;
+  --menu-backdrop: #0009;
+  --footer-text: #829aa1;
+  --footer-muted: #70868e;
+}
+/* CSS owns responsive geometry; shared mobileQuery uses the same 760px mobile boundary. */
+@media (min-width: 2200px) {
+  :root {
+    --page-gutter: clamp(60px, 3.5vw, 120px);
+  }
+}
+@media (max-width: 1150px) {
+  :root {
+    --rail-width: 230px;
+    --page-gutter: 28px;
+  }
+}
+@media (max-width: 760px) {
+  :root {
+    --mobile-layout: 1;
+    --rail-width: 0px;
+    --page-gutter: 20px;
+  }
+}
+@media (max-width: 360px) {
+  :root {
+    --page-gutter: 14px;
+  }
+}
+/* Native CJK fallback fonts keep both Chinese locales usable offline. */
+html:lang(zh-Hant),
+html:lang(zh-Hans) {
+  --sans: 'DM Sans', 'Microsoft JhengHei', 'Microsoft YaHei', 'PingFang TC', sans-serif;
+  --mono: 'IBM Plex Mono', 'Microsoft JhengHei', 'Microsoft YaHei', monospace;
+}
+
+/* Theme IDs match appearanceSettings and the palette controls. Mint preserves the original palette. */
+:root {
+  --swatch-mint: #81d8d0;
+  --swatch-blue: #8dddff;
+  --swatch-amber: #ffcc8e;
+  --swatch-mist: #edf3f1;
+  --field-ambient: color-mix(in srgb, var(--accent) 4%, transparent);
+  --field-line: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+/* Mist is a light palette with dark teal accents; semantic roles remain shared. */
+:root[data-theme='mist'] {
+  color-scheme: light;
+  --bg: #f3f6f4;
+  --panel: #fcfdfc;
+  --panel2: #eaf0ed;
+  --border: #ccd9d4;
+  --text: #233c38;
+  --muted: #536d66;
+  --accent: #176b61;
+  --on-accent: #ffffff;
+  --link-border: #789c92;
+  --control-surface: var(--panel);
+  --control-border: #93aea4;
+  --control-hover: #deebe5;
+  --card-active: #e7f0eb;
+  --card-active-border: #749d8d;
+  --card-copy: #435f55;
+  --profile-copy: var(--card-copy);
+  --date-text: var(--muted);
+  --date-muted: #5c726a;
+  --flow-surface: var(--panel2);
+  --timeline-end: #b7ccc2;
+  --panel-outline: var(--border);
+  --dialog-border: var(--control-border);
+  --dialog-backdrop: #243c3866;
+  --shadow-subtle: #243c380d;
+  --shadow-medium: #243c3826;
+  --shadow-strong: #243c3838;
+  --glow-low: #176b6120;
+  --glow-medium: #176b6130;
+  --glow-bright: #176b6155;
+  --pointer-glow-color: #176b610a;
+  --pulse-soft: #176b611a;
+  --pulse-medium: #176b6133;
+  --pulse-strong: #176b6155;
+  /* Map land, labels and the final country retain distinct light-surface contrast. */
+  --map-surface: #edf3ef;
+  --map-grid: #afc5b9;
+  --map-caption: var(--text);
+  --map-control: var(--panel);
+  --map-control-border: var(--control-border);
+  --map-gradient-end: #d0e4d54d;
+  --map-coordinate: var(--muted);
+  --map-coordinate-muted: var(--muted);
+  --map-compass: var(--muted);
+  --country-fill: #ccddd3;
+  --country-border: #94afa0;
+  --map-graticule: #829e90;
+  --country-final: #92c1aa;
+  --country-final-border: #487e68;
+  --city-core: var(--panel);
+  --city-active: var(--panel);
+  --city-label: #30574b;
+  --plane: var(--accent);
+  --journey-muted: var(--muted);
+  --stop-muted: var(--muted);
+  --map-hint: var(--muted);
+  --scroll-track: #d4e0d9;
+  --scroll-thumb: #7d9d8f;
+  /* Pixel bubbles stay pale; their outlines are softened rather than inverted. */
+  --chat-shadow: #91aca3;
+  --chat-text: var(--text);
+  --chat-muted: var(--muted);
+  --chat-divider: #9bb7aa;
+  --chat-link: var(--accent);
+  --chat-link-hover: #124c43;
+  --chat-gradient-start: #fffffffa;
+  --chat-gradient-end: #e7f2ecef;
+  --chat-bevel-light: #ffffff;
+  --chat-bevel-dark: #b7d0c2;
+  --bubble-surface: #eef7f0;
+  --bubble-text: var(--text);
+  --bubble-outline: #98b3a7;
+  --bubble-bevel-light: #ffffff;
+  --bubble-bevel-dark: #b7d0c2;
+  --bubble-muted: var(--muted);
+  --bubble-divider: #aac5b6;
+  --bubble-ta-border: var(--control-border);
+  --bubble-ta-text: var(--text);
+  --bubble-close: var(--accent);
+  --bubble-close-hover: #d8e9df;
+  --project-surface: var(--panel);
+  --project-hover-border: var(--card-active-border);
+  --project-open-surface: var(--panel2);
+  --project-open-border: var(--control-border);
+  --project-open-hover: #d5e8dc;
+  --project-title: var(--muted);
+  --project-copy: var(--card-copy);
+  --collection-surface: var(--panel2);
+  --selection-surface: #dcebe2;
+  --selection-border: #9dbbad;
+  --tag-surface: #e8efea;
+  --tag-text: #335b4c;
+  --tag-border: #bacfc1;
+  --skill-toggle-border: #739b86;
+  --sidebar-surface: #e8efea;
+  --nav-text: #415f52;
+  --sidebar-muted: var(--muted);
+  --header-surface: #e8efeaf5;
+  --menu-surface: #dce9e0;
+  --menu-border: var(--control-border);
+  --menu-backdrop: #243c384d;
+  --social-border: var(--control-border);
+  --social-icon: #3b6253;
+  --footer-text: var(--muted);
+  --footer-muted: var(--muted);
+}
+:root[data-theme='blue'] {
+  --theme-hue: 198;
+  --accent: var(--swatch-blue);
+}
+:root[data-theme='amber'] {
+  --theme-hue: 35;
+  --accent: var(--swatch-amber);
+}
+/* Shared tonal scale covers cards, maps, bubbles and text without per-component palettes. */
+:root[data-theme='blue'],
+:root[data-theme='amber'] {
+  --link-border: hsl(var(--theme-hue) 16.6% 41.4%);
+  --bg: hsl(var(--theme-hue) 27.3% 6.5%);
+  --panel: hsl(var(--theme-hue) 30.6% 9.6%);
+  --panel2: hsl(var(--theme-hue) 28.8% 11.6%);
+  --border: hsl(var(--theme-hue) 19.1% 18.4%);
+  --muted: hsl(var(--theme-hue) 13.5% 63.7%);
+  --text: hsl(var(--theme-hue) 18.7% 93.7%);
+  --control-hover: hsl(var(--theme-hue) 31.3% 18.8%);
+  --chat-text: hsl(var(--theme-hue) 46.3% 16.1%);
+  --chat-muted: hsl(var(--theme-hue) 29% 30.4%);
+  --chat-divider: hsl(var(--theme-hue) 22.4% 57.1%);
+  --chat-link: hsl(var(--theme-hue) 54.9% 20%);
+  --glow-low: hsl(var(--theme-hue) 52.7% 67.6% / 0.2);
+  --glow-bright: hsl(var(--theme-hue) 52.7% 67.6% / 0.667);
+  --glow-medium: hsl(var(--theme-hue) 52.7% 67.6% / 0.333);
+  --pointer-glow-color: hsl(var(--theme-hue) 52.7% 67.6% / 0.071);
+  --chat-link-hover: hsl(var(--theme-hue) 70.4% 26.5%);
+  --chat-gradient-start: hsl(var(--theme-hue) 53.8% 89.8% / 0.949);
+  --chat-gradient-end: hsl(var(--theme-hue) 48.6% 86.3% / 0.902);
+  --chat-bevel-light: hsl(var(--theme-hue) 80% 96.1% / 0.851);
+  --chat-bevel-dark: hsl(var(--theme-hue) 27.8% 64.7% / 0.749);
+  --control-surface: hsl(var(--theme-hue) 31% 11.4%);
+  --dialog-border: hsl(var(--theme-hue) 20.2% 38.8%);
+  --dialog-backdrop: hsl(var(--theme-hue) 60% 2.9% / 0.729);
+  --date-text: hsl(var(--theme-hue) 17.1% 72.5%);
+  --flow-surface: hsl(var(--theme-hue) 29.2% 18.8%);
+  --control-border: hsl(var(--theme-hue) 19.5% 32.2%);
+  --timeline-end: hsl(var(--theme-hue) 18% 27.3%);
+  --date-muted: hsl(var(--theme-hue) 12.7% 46.3%);
+  --card-active-border: hsl(var(--theme-hue) 19.5% 43.3%);
+  --card-active: hsl(var(--theme-hue) 31.1% 12%);
+  --card-copy: hsl(var(--theme-hue) 16.1% 69.6%);
+  --pulse-soft: hsl(var(--theme-hue) 52.7% 67.6% / 0.149);
+  --pulse-medium: hsl(var(--theme-hue) 52.7% 67.6% / 0.251);
+  --pulse-strong: hsl(var(--theme-hue) 52.7% 67.6% / 0.6);
+  --panel-outline: hsl(var(--theme-hue) 17.2% 25.1%);
+  --map-surface: hsl(var(--theme-hue) 29.2% 9.4%);
+  --map-grid: hsl(var(--theme-hue) 23.1% 17.8%);
+  --map-caption: hsl(var(--theme-hue) 14.8% 77.5%);
+  --map-control: hsl(var(--theme-hue) 26% 14.3%);
+  --map-control-border: hsl(var(--theme-hue) 18.7% 24.1%);
+  --map-gradient-end: hsl(var(--theme-hue) 31.6% 15.5% / 0.302);
+  --map-coordinate: hsl(var(--theme-hue) 13.1% 62.5%);
+  --map-coordinate-muted: hsl(var(--theme-hue) 12.3% 46.1%);
+  --map-compass: hsl(var(--theme-hue) 13% 59.4%);
+  --country-fill: hsl(var(--theme-hue) 25.8% 19%);
+  --country-border: hsl(var(--theme-hue) 19.4% 28.2%);
+  --map-graticule: hsl(var(--theme-hue) 21.1% 27.8%);
+  --city-core: hsl(var(--theme-hue) 37.9% 11.4%);
+  --city-active: hsl(var(--theme-hue) 100% 92.4%);
+  --city-label: hsl(var(--theme-hue) 17.1% 78.2%);
+  --plane: hsl(var(--theme-hue) 100% 88.8%);
+  --scroll-track: hsl(var(--theme-hue) 20.8% 28.2%);
+  --journey-muted: hsl(var(--theme-hue) 16.5% 64.3%);
+  --stop-muted: hsl(var(--theme-hue) 14.3% 57.5%);
+  --map-hint: hsl(var(--theme-hue) 12.9% 55.9%);
+  --scroll-thumb: hsl(var(--theme-hue) 23.1% 43.3%);
+  --bubble-surface: hsl(var(--theme-hue) 48.6% 86.3%);
+  --country-final: hsl(var(--theme-hue) 25% 26.7%);
+  --country-final-border: hsl(var(--theme-hue) 16.8% 49%);
+  --profile-copy: hsl(var(--theme-hue) 14.7% 72%);
+  --social-border: hsl(var(--theme-hue) 19.7% 29.8%);
+  --social-icon: hsl(var(--theme-hue) 20% 76.5%);
+  --bubble-text: hsl(var(--theme-hue) 50% 12.5%);
+  --bubble-outline: hsl(var(--theme-hue) 50% 5.5%);
+  --bubble-bevel-light: hsl(var(--theme-hue) 80% 96.1%);
+  --bubble-bevel-dark: hsl(var(--theme-hue) 27.8% 64.7%);
+  --bubble-muted: hsl(var(--theme-hue) 24% 33.5%);
+  --bubble-divider: hsl(var(--theme-hue) 26.3% 66.5%);
+  --bubble-ta-border: hsl(var(--theme-hue) 42.1% 38.6%);
+  --bubble-ta-text: hsl(var(--theme-hue) 35% 24.1%);
+  --bubble-close: hsl(var(--theme-hue) 44.2% 25.3%);
+  --bubble-close-hover: hsl(var(--theme-hue) 31.9% 73.5%);
+  --project-surface: hsl(var(--theme-hue) 29.4% 10%);
+  --project-hover-border: hsl(var(--theme-hue) 24.6% 53.7%);
+  --project-open-surface: hsl(var(--theme-hue) 27.5% 17.8%);
+  --project-open-border: hsl(var(--theme-hue) 19.1% 27.6%);
+  --project-open-hover: hsl(var(--theme-hue) 41.7% 9.4%);
+  --project-title: hsl(var(--theme-hue) 15% 58%);
+  --project-copy: hsl(var(--theme-hue) 17.1% 67.8%);
+  --collection-surface: hsl(var(--theme-hue) 33.3% 11.8%);
+  --selection-surface: hsl(var(--theme-hue) 31% 16.5%);
+  --tag-surface: hsl(var(--theme-hue) 24.7% 16.7%);
+  --tag-text: hsl(var(--theme-hue) 24.4% 75.1%);
+  --tag-border: hsl(var(--theme-hue) 21% 24.3%);
+  --skill-toggle-border: hsl(var(--theme-hue) 19% 46.5%);
+  --sidebar-surface: hsl(var(--theme-hue) 28.9% 8.8%);
+  --nav-text: hsl(var(--theme-hue) 11.8% 70.2%);
+  --selection-border: hsl(var(--theme-hue) 28.3% 23.5%);
+  --sidebar-muted: hsl(var(--theme-hue) 11.1% 55.9%);
+  --header-surface: hsl(var(--theme-hue) 28.9% 8.8% / 0.961);
+  --menu-surface: hsl(var(--theme-hue) 25.8% 17.5%);
+  --menu-border: hsl(var(--theme-hue) 20.5% 28.6%);
+  --footer-text: hsl(var(--theme-hue) 14.2% 57.1%);
+  --footer-muted: hsl(var(--theme-hue) 11.8% 49.8%);
 }

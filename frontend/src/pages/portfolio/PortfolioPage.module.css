@@ -1,0 +1,52 @@
+/* Portfolio frame follows the legacy rail and 760px mobile breakpoint. */
+.frame[data-entering='true'] .main > * {
+  animation: page-enter 450ms 750ms ease-out backwards;
+}
+/* The field settles first, followed by the legacy brief content reveal and soft flicker.
+   Only hydrated pages receive the finite marker; SSR and missing JS remain readable. */
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.88;
+  }
+  65% {
+    opacity: 0.66;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.main {
+  position: relative;
+  margin-left: var(--rail-width);
+  min-width: 0;
+  padding: 0 var(--page-gutter);
+  /* Keep child controls in the page stacking tree so they can sit above portal introductions.
+     Positioned DOM order already paints the content after the non-interactive field at layer zero. */
+  transition: margin-left var(--duration-drawer) var(--ease-drawer);
+}
+.section {
+  padding: var(--control-size) 0;
+  scroll-margin-top: 20px;
+}
+.compact .main {
+  margin-left: var(--rail-compact-width);
+}
+@media (max-width: 760px) {
+  .main,
+  .compact .main {
+    margin-left: 0;
+    padding-top: 64px;
+  }
+  .section {
+    padding-top: 35px;
+    padding-bottom: 25px;
+  }
+}
+@media (min-width: 1700px) {
+  .section {
+    padding-block: 48px;
+  }
+}

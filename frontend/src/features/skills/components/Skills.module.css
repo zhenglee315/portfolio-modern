@@ -1,0 +1,39 @@
+/* Category labels and measured owner tags retain the original toolkit row geometry. */
+.toolkit {
+  border-top: 1px solid var(--border);
+}
+.row {
+  /* Category context reaches both live chips and their inert width-measuring replicas. */
+  --tag-list-margin: 0px;
+  --tag-font-size: 12px;
+  --tag-surface: transparent;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 30px;
+  padding: 23px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.row h3 {
+  font-size: 15px;
+  font-weight: 500;
+  /* Bootstrap headings otherwise replace the legacy inherited body line height. */
+  line-height: 1.65;
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.row > div {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .row {
+    --tag-font-size: 11px;
+    gap: 12px;
+    grid-template-columns: 1fr;
+  }
+}
+@media (min-width: 2200px) {
+  .row {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}

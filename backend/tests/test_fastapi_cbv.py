@@ -1,6 +1,6 @@
 """Verify that separate CBV classes can use the same application router."""
 
-from importlib import import_module
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -9,9 +9,13 @@ import pytest
 
 
 @pytest.fixture
-def cbv_tools(monkeypatch):
-    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
-    return import_module("SYSTEM.tools.tools_fastapi")
+def cbv_tools():
+    """Load the real router helpers without importing the YAML-backed SYSTEM package."""
+    path = Path(__file__).resolve().parents[1] / "SYSTEM/tools/tools_fastapi.py"
+    spec = spec_from_file_location("fastapi_cbv_tools_under_test", path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_multiple_cbv_classes_share_one_router(cbv_tools):

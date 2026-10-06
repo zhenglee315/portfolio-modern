@@ -55,6 +55,8 @@ export default defineConfig(
       'node_modules/**',
       '.react-router/**',
       'build/**',
+      '.build-staging/**',
+      '.build-previous/**',
       'coverage/**',
       'test-results/**',
       'playwright-report/**',
@@ -63,7 +65,7 @@ export default defineConfig(
   js.configs.recommended,
   tseslint.configs.recommended,
   {
-    files: ['**/*.{js,ts,tsx}'],
+    files: ['**/*.{js,mjs,ts,tsx}'],
     languageOptions: { globals: globals.node },
   },
   {

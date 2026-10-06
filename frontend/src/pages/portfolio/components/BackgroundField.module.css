@@ -1,0 +1,187 @@
+/* Viewport geometry follows the desktop rail; decoration never captures input. */
+.field {
+  position: fixed;
+  inset: 0 0 0 var(--rail-width);
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--accent);
+  /* Keep the frame attached to the same animated rail edge as the content column. */
+  transition: left var(--duration-drawer) var(--ease-drawer);
+}
+.field[data-compact='true'] {
+  left: var(--rail-compact-width);
+}
+.signals {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  opacity: var(--field-brightness, 0.8);
+}
+.signalSvg {
+  width: 100%;
+  height: 100%;
+}
+/* A CSS-owned grid survives a slow or rejected optional signal chunk. */
+.gridPreview {
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  background-image:
+    linear-gradient(currentColor 1px, transparent 1px),
+    linear-gradient(90deg, currentColor 1px, transparent 1px);
+  background-size: 60px 60px;
+  background-position: center;
+}
+.signals[data-signals-ready='true'] .gridPreview {
+  display: none;
+}
+.grid {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.06;
+}
+.cross {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.75;
+  opacity: 0.15;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ambient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 72% 40%, var(--field-ambient), transparent 65%);
+}
+.frame {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  background: var(--bg);
+}
+.top {
+  top: 0;
+  border-bottom: 1px solid var(--field-line);
+}
+.bottom {
+  bottom: 0;
+  border-top: 1px solid var(--field-line);
+}
+.ruler {
+  position: absolute;
+  top: 28px;
+  bottom: 28px;
+  width: 5px;
+  opacity: 0.32;
+  background: repeating-linear-gradient(to bottom, var(--accent) 0 1px, transparent 1px 8px);
+}
+.left {
+  left: 8px;
+}
+.right {
+  right: 8px;
+}
+/* One eager shell starts all four edges together; lazy signals inherit its timeline. */
+:global([data-entering='true']) .top {
+  animation: field-top-in 650ms ease-out backwards;
+}
+:global([data-entering='true']) .bottom {
+  animation: field-bottom-in 650ms ease-out backwards;
+}
+:global([data-entering='true']) .left {
+  animation: field-left-in 650ms 100ms ease-out backwards;
+}
+:global([data-entering='true']) .right {
+  animation: field-right-in 650ms 100ms ease-out backwards;
+}
+:global([data-entering='true']) .signals {
+  animation: field-reveal 800ms ease-out backwards;
+}
+@keyframes field-top-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes field-bottom-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes field-left-in {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 0.32;
+  }
+}
+@keyframes field-right-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 0.32;
+  }
+}
+@keyframes field-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: var(--field-brightness, 0.8);
+  }
+}
+/* Pointer events paint at most once per frame; opacity uses only an event-driven transition. */
+.glow {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle var(--pointer-glow-radius) at var(--pointer-glow-x, 50%) var(--pointer-glow-y, 50%),
+    var(--pointer-glow-color),
+    transparent 75%
+  );
+  transition: opacity var(--duration-hover) ease-out;
+}
+.glow[data-visible='true'] {
+  opacity: 1;
+}
+@media (max-width: 760px) {
+  .field,
+  .field[data-compact='true'] {
+    inset: 64px 0 0;
+  }
+  .frame {
+    height: 6px;
+  }
+  .ruler {
+    width: 3px;
+  }
+  .left {
+    left: 4px;
+  }
+  .right {
+    right: 4px;
+  }
+}
+@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .glow {
+    display: none;
+  }
+}

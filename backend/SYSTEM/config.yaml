@@ -1,0 +1,118 @@
+# 公開開發設定：API 127.0.0.1:8080、Redis 127.0.0.1:6379、SQLite。
+# Public development defaults: API 127.0.0.1:8080, Redis 127.0.0.1:6379, SQLite.
+# 請勿將正式金鑰、私有主機或資料庫密碼提交到 Git。
+# Never commit production keys, private hosts, or database passwords.
+
+# ------------------------------------------------------( Application metadata )
+INFO:
+  description: Backend APIs for a modern personal profile system, covering personal information, education and work experience, journeys, project experience, skills, and multilingual content.
+  # Application owner or responsible team.
+  owner: System-Team
+  summary: A modern personal profile system with structured, multilingual content.
+  # Terms-of-service link; application metadata only.
+  terms: https://github.com/zhenglee315/portfolio-modern/blob/main/README.md
+  title: Modern Personal Profile System
+
+# ------------------------------------------------------( Maintainer contact )
+CONTACT:
+  # Maintainer contact email.
+  mail: zhenglee315@gmail.com
+  # Maintainer display name.
+  name: Zheng Lee
+  # Maintainer profile or contact page.
+  url: https://github.com/zhenglee315
+
+# ------------------------------------------------------( API documentation and metrics paths )
+URL:
+  # Swagger UI path when documentation routes are registered.
+  docs: /swagger
+  # OpenAPI schema endpoint.
+  openapi: /openapi.json
+  # Reserved metrics path; requires an exporter integration.
+  prometheus: /metrics
+  # ReDoc path when documentation routes are registered.
+  redoc: /redoc
+
+# ------------------------------------------------------( Server runtime options )
+SERVER:
+  # Enable application debugging; keep disabled in production.
+  debug: false
+  # Text encoding used by application-level encoding and decoding.
+  decode: utf-8
+  # Network interface on which the API server listens.
+  host: 127.0.0.1
+  # Application HTTPS flag; TLS must be configured separately.
+  https: false
+  # Application-defined local-development flag.
+  locally: false
+  # TCP port on which the API server listens.
+  port: 8080
+  # Number of API server worker processes.
+  worker: 1
+
+# ------------------------------------------------------( Time configuration )
+TIME:
+  # Datetime format including the UTC offset; the backend always uses UTC.
+  time_format: "%Y-%m-%dT%H:%M:%S%z"
+  # Start time for a daily interval, interpreted in UTC.
+
+# ------------------------------------------------------( Security configuration )
+SECURITY:
+  # Allow credentialed cross-origin requests; allowed origins are configured separately.
+  cors_allow_creds: true
+  # Private signing key; keep real values out of version control.
+  # 公開的開發占位值；正式環境必須換成部署專用、隨機產生的 security key。
+  # Public development placeholder; replace with a unique random security key in production.
+  # 部署時以私有檔案或 secret mount 提供本 YAML；目前不支援環境變數覆寫。
+  # Supply this YAML through a private deployment file or secret mount; environment overrides are not implemented.
+  secret_key: development-only-change-before-production
+  # Session lifetime in seconds.
+  session_ttl: 1800
+
+# ------------------------------------------------------( Redis connection )
+CACHE:
+  # Redis server address reachable by the API process.
+  host: 127.0.0.1
+  # Redis TCP port.
+  port: 6379
+
+# ------------------------------------------------------( Database configuration )
+DATABASE:
+  # ----------------------------------( Engine options )
+  OPTIONS:
+    # ---------------------> SQLAlchemy compatibility
+    # Legacy compatibility flag; SQLAlchemy 2.x already uses 2.x behavior.
+    future: true
+    # ---------------------> SQL connection pool options
+    POOL:
+      # Additional simultaneous connections allowed beyond the pool size.
+      max_overflow: 10
+      # Check pooled connections for availability before use.
+      pre_ping: true
+      # Recycle aged pooled connections on checkout; age is in seconds.
+      recycle_sec: 1800
+      # Maximum number of connections retained by this pool.
+      size: 5
+      # Maximum wait, in seconds, for a connection from the pool.
+      timeout_sec: 20
+      # Reuse the most recently returned connection first.
+      use_lifo: true
+
+  # ----------------------------------( Primary application database )
+  META:
+    # Database backend; the loader must select its matching async driver.
+    type: sqlite # sqlite, postgresql
+    # Database server address for PostgreSQL; not used by SQLite.
+    host: 127.0.0.1
+    # Database server port for PostgreSQL; not used by SQLite.
+    port: 5432
+    # Select asynchronous database access and a compatible driver.
+    is_async: true
+    # Database name; SQLite file-path mapping must be defined by the loader.
+    name: porfolio_modern
+    # PostgreSQL login name; not used by SQLite.
+    user: portfolio
+    # PostgreSQL login password; not used by SQLite and must remain private.
+    # SQLite 不使用下列帳密；切換 PostgreSQL 時由私有部署設定替換。
+    # SQLite ignores these credentials; replace them in private deployment configuration for PostgreSQL.
+    password: development-only-change-before-production

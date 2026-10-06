@@ -1,18 +1,11 @@
 # ◆—< Pack >—————————————————————————————————◆ Common
-from COMMON.schema.help import (
-    HELP_CURSOR_TOTAL,
-    HELP_HAS_MORE,
-    HELP_ITEMS,
-    HELP_NEXT_CURSOR,
-    HELP_PAGES,
-)
 from COMMON.schema.resp import RespRecords
 
 # ◆—< Pack >—————————————————————————————————◆ Pydantic
 from pydantic import BaseModel, Field
 
 # ◆—< Pack >—————————————————————————————————◆ Python
-from typing import Literal, List, Optional
+from typing import Literal
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Site - Brand
@@ -112,15 +105,12 @@ class RespPortfolioExperienceItem(BaseModel):
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Experiences - Page
-class RespPortfolioExperiences(RespRecords):
+class RespPortfolioExperiences(RespRecords[RespPortfolioExperienceItem]):
     """
     Return one page of localized experiences with collection totals.
 
                                                                                                ♂ ZhengLee 2026.10.04
     """
-
-    pages: int = Field(..., ge=0, **HELP_PAGES)
-    items: Optional[List[RespPortfolioExperienceItem]] = Field(..., **HELP_ITEMS)
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Project - Detail
@@ -151,15 +141,12 @@ class RespPortfolioProjectItem(BaseModel):
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Projects - Page
-class RespPortfolioProjects(RespRecords):
+class RespPortfolioProjects(RespRecords[RespPortfolioProjectItem]):
     """
     Return one page of localized projects with collection totals.
 
                                                                                                ♂ ZhengLee 2026.10.04
     """
-
-    pages: int = Field(..., ge=0, **HELP_PAGES)
-    items: Optional[List[RespPortfolioProjectItem]] = Field(..., **HELP_ITEMS)
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Skills - Item
@@ -168,50 +155,26 @@ class RespPortfolioSkillItem(BaseModel):
     label: str = Field(..., description="Skill label in the requested language.")
 
 
-# ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Skills - Cursor Page
-class RespPortfolioCursorPage(BaseModel):
-    limit: int = Field(
-        ..., ge=1, le=50,
-        description="Maximum items in this page; category previews use 6 and collection pages use the requested limit.",
-    )
-    total: int = Field(..., ge=0, **HELP_CURSOR_TOTAL)
-    hasMore: bool = Field(..., **HELP_HAS_MORE)
-    nextCursor: str | None = Field(..., **HELP_NEXT_CURSOR)
+# ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Skills - Page
+class RespPortfolioSkills(RespRecords[RespPortfolioSkillItem]):
+    """
+    Return one numbered page of localized skills in a category.
+
+                                                                                               ♂ ZhengLee 2026.10.06
+    """
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Skill Categories - Item
 class RespPortfolioSkillCategoryItem(BaseModel):
     id: str = Field(..., description="Stable skill category identifier across languages.")
     label: str = Field(..., description="Skill category label in the requested language.")
-    skillIds: list[str] = Field(..., max_length=6, description="Up to six ordered preview skill IDs.")
-    skillsPage: RespPortfolioCursorPage = Field(..., description="Cursor page for this category's skill preview.")
-
-
-# ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Skill Categories - Included
-class RespPortfolioSkillCategoriesIncluded(BaseModel):
-    skills: list[RespPortfolioSkillItem] = Field(..., description="Distinct localized skills referenced by this page's previews.")
+    skills: RespPortfolioSkills = Field(..., description="First numbered skill page; continue with /portfolio/skills.")
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Skill Categories - Page
-class RespPortfolioSkillCategories(BaseModel):
+class RespPortfolioSkillCategories(RespRecords[RespPortfolioSkillCategoryItem]):
     """
-    Return category previews with only their referenced skill labels.
+    Return one numbered category page with a first skill page inside each item.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
     """
-
-    items: list[RespPortfolioSkillCategoryItem] = Field(..., **HELP_ITEMS)
-    page: RespPortfolioCursorPage = Field(..., description="Cursor page of skill categories.")
-    included: RespPortfolioSkillCategoriesIncluded = Field(..., description="Localized labels for preview skills.")
-
-
-# ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Skills - Page
-class RespPortfolioSkills(BaseModel):
-    """
-    Return one localized cursor page of skills in a category.
-
-                                                                                               ♂ ZhengLee 2026.10.04
-    """
-
-    items: list[RespPortfolioSkillItem] = Field(..., **HELP_ITEMS)
-    page: RespPortfolioCursorPage = Field(..., description="Cursor page of category skills.")

@@ -1,5 +1,5 @@
 # ◆—< Pack >—————————————————————————————————◆ Common
-from COMMON.schema.help import HELP_CACHING, HELP_LOCALE, HELP_PAGE, HELP_SIZE, HELP_CURSOR_LIMIT, HELP_CURSOR
+from COMMON.schema.help import HELP_CACHING, HELP_LOCALE, HELP_PAGE, HELP_SIZE
 
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.constants import EnumLocal
@@ -74,28 +74,3 @@ async def parser_pagination(
         raise HTTPException(status_code=400, detail="INVALID_SIZE")
 
     return {"page": page, "size": size}
-
-
-# ■—< PARAM >———————————————————————————————————————————————————————————————————————————■ Cursor Pagination
-async def parser_cursor_pagination(
-    limit: Union[int, str] = Query(default=12, **HELP_CURSOR_LIMIT),
-    cursor: str | None = Query(default=None, **HELP_CURSOR),
-) -> dict[str, int | str | None]:
-    """
-    Validate the shared cursor pagination parameters.
-
-    :param limit: Number of records per page, from one to fifty.
-    :param cursor: Opaque cursor returned by an earlier page, if any.
-    :return: Validated limit and unchanged cursor for the collection module.
-    :raises HTTPException: The page limit is invalid.
-
-                                                                                               ♂ ZhengLee 2026.10.04
-    """
-    try:
-        limit = int(limit)
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="INVALID_LIMIT") from None
-    if limit < 1 or limit > 50:
-        raise HTTPException(status_code=400, detail="INVALID_LIMIT")
-
-    return {"limit": limit, "cursor": cursor}

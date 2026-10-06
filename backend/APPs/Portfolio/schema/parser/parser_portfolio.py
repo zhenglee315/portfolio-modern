@@ -2,7 +2,6 @@
 from COMMON.schema.help import HELP_OWNER_TYPE, HELP_OWNER_ID
 from COMMON.schema.parser import (
     parser_caching,
-    parser_cursor_pagination,
     parser_locale,
     parser_pagination,
 )
@@ -60,14 +59,14 @@ def parser_portfolio_projects(
 # ■—< PARAM >———————————————————————————————————————————————————————————————————————————■ Portfolio - Skill Categories
 def parser_portfolio_skill_categories(
     locale: str = Depends(parser_locale),
-    pagination: dict = Depends(parser_cursor_pagination),
+    pagination: dict[str, int] = Depends(parser_pagination),
     is_caching: bool = Depends(parser_caching),
 ) -> dict:
     """
     Combine the shared query parameters for the Skill Categories collection.
 
     :param locale: Requested content language.
-    :param pagination: Validated cursor page size and optional cursor.
+    :param pagination: Validated one-based page number and fixed page size.
     :param is_caching: Whether response caching is enabled.
     :return: Validated parameters for the Skill Categories API.
 
@@ -90,7 +89,7 @@ def parser_portfolio_skills(
     ),
     owner_id: str = Query(..., alias="ownerId", **HELP_OWNER_ID),
     locale: str = Depends(parser_locale),
-    pagination: dict = Depends(parser_cursor_pagination),
+    pagination: dict[str, int] = Depends(parser_pagination),
     is_caching: bool = Depends(parser_caching),
 ) -> dict:
     """
@@ -99,7 +98,7 @@ def parser_portfolio_skills(
     :param owner_type: Supported skill owner type, currently category.
     :param owner_id: Required category identifier.
     :param locale: Requested content language.
-    :param pagination: Validated cursor page size and optional cursor.
+    :param pagination: Validated one-based page number and fixed page size.
     :param is_caching: Whether response caching is enabled.
     :return: Validated parameters for the Skills API.
     :raises HTTPException: The owner type or identifier is invalid.

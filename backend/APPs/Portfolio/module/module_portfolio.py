@@ -1,5 +1,6 @@
 # ◆—< Pack >—————————————————————————————————◆ Common
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
+from COMMON.schema.resp import RespRecords
 
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.models import (
@@ -18,15 +19,12 @@ from SYSTEM.models import (
 )
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import func, select
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import HTTPException
 
 # ◆—< Pack >—————————————————————————————————◆ Python
-from base64 import b64decode, urlsafe_b64encode
-from binascii import Error as Base64Error
-import json
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Portfolio - Site
@@ -288,13 +286,7 @@ class PortfolioExperiencesModule(SqlAlchemyExecAsync):
                 item["expected"] = True
             items.append(item)
 
-        return {
-            "total": result.total,
-            "pages": result.pages,
-            "page": result.page,
-            "size": result.size,
-            "items": items,
-        }
+        return RespRecords.from_records(items, total=result.total, page=result.page, size=result.size).model_dump()
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Portfolio - Projects
@@ -387,113 +379,54 @@ class PortfolioProjectsModule(SqlAlchemyExecAsync):
                 }
             )
 
-        return {
-            "total": result.total,
-            "pages": result.pages,
-            "page": result.page,
-            "size": result.size,
-            "items": items,
-        }
+        return RespRecords.from_records(items, total=result.total, page=result.page, size=result.size).model_dump()
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Portfolio - Skills
 class PortfolioSkillsModule(SqlAlchemyExecAsync):
     """
-    Read localized skill categories and their ordered skills through one ORM module.
+    Read category and skill collections with the shared numbered response.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
     """
-
-    PREVIEW_LIMIT = 6
 
     def __init__(
         self,
         locale: str,
-        limit: int,
-        cursor: str | None = None,
+        page: int,
+        size: int,
         owner_type: str | None = None,
         owner_id: str | None = None,
         **_: object,
     ) -> None:
         """
-        Prepare the requested language, cursor page, and optional skill category.
+        Prepare the requested language, numbered page, and optional category owner.
 
-        :param locale: Supported portfolio content language.
-        :param limit: Maximum number of categories or skills in the requested page.
-        :param cursor: Optional position of the previous page's final item.
+        :param locale: Supported content language.
+        :param page: Positive one-based page number.
+        :param size: Shared fixed page size of six, also used for skill previews.
         :param owner_type: Skill owner kind; only category is supported.
         :param owner_id: Category slug when querying its skills.
-        :param _: Other parser values, such as is_caching, not needed for the ORM query.
-        :return: None; each ORM query opens its session when executed.
+        :param _: Parser values, such as is_caching, not used by the ORM query.
+        :return: None; each ORM query opens its own session when executed.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
         """
         super().__init__()
         self.locale = locale
-        self.limit = limit
-        self.cursor = cursor
+        self.page = page
+        self.size = size
         self.owner_type = owner_type
         self.owner_id = owner_id
 
-    @staticmethod
-    def _encode_cursor(resource: str, locale: str, position: int, item_id: str) -> str:
-        """Encode the resource and its final sort key as a URL-safe cursor."""
-        value = {"v": 1, "resource": resource, "locale": locale, "position": position, "id": item_id}
-        return urlsafe_b64encode(json.dumps(value, separators=(",", ":")).encode()).decode().rstrip("=")
-
-    def _decode_cursor(self, resource: str) -> tuple[int, str] | None:
-        """Validate a cursor's shape and scope before applying its sort key."""
-        if self.cursor is None:
-            return None
-        try:
-            if not 1 <= len(self.cursor) <= 512 or any(
-                character not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
-                for character in self.cursor
-            ):
-                raise ValueError
-            raw = b64decode(self.cursor + "=" * (-len(self.cursor) % 4), altchars=b"-_", validate=True)
-            value = json.loads(raw)
-            if (
-                not isinstance(value, dict)
-                or set(value) != {"v", "resource", "locale", "position", "id"}
-                or type(value["v"]) is not int
-                or value["v"] != 1
-                or value["resource"] != resource
-                or value["locale"] != self.locale
-                or type(value["position"]) is not int
-                or value["position"] < 0
-                or value["position"] > 9007199254740991
-                or not isinstance(value["id"], str)
-                or not 1 <= len(value["id"]) <= 128
-            ):
-                raise ValueError
-            return value["position"], value["id"]
-        except (Base64Error, UnicodeDecodeError, ValueError, TypeError, KeyError):
-            raise HTTPException(status_code=400, detail="INVALID_CURSOR") from None
-
-    @staticmethod
-    def _after_cursor(position, item_id, cursor: tuple[int, str] | None):
-        """Build a stable position-and-ID keyset filter for either collection."""
-        if cursor is None:
-            return None
-        return or_(position > cursor[0], and_(position == cursor[0], item_id > cursor[1]))
-
-    def _page(self, rows: list, total: int, resource: str, limit: int) -> dict:
-        """Return cursor page metadata for rows already fetched with one extra item."""
-        has_more = len(rows) > limit
-        last = rows[limit - 1] if has_more else None
-        return {
-            "limit": limit,
-            "total": total,
-            "hasMore": has_more,
-            "nextCursor": (
-                self._encode_cursor(resource, self.locale, last["position"], last["id"])
-                if last is not None else None
-            ),
-        }
-
     def _skill_query(self):
-        """Select ordered category membership with one localized label per skill."""
+        """
+        Select ordered category membership with one localized label per skill.
+
+        :return: A SQLAlchemy Select with category, skill, ordering and label columns.
+
+                                                                                               ♂ ZhengLee 2026.10.06
+        """
         return (
             select(
                 PortfolioCategorySkill.category_id.label("category_id"),
@@ -509,15 +442,12 @@ class PortfolioSkillsModule(SqlAlchemyExecAsync):
 
     async def select_categories(self) -> dict:
         """
-        Return a category cursor page with six preview skills per category.
+        Return a numbered category page with the first skill page in each item.
 
-        :return: Localized categories, ordered preview IDs, referenced labels, and page metadata.
-        :raises HTTPException: The cursor does not belong to this resource or locale.
+        :return: The common items/total/pages/page/size response, including nested skill pages.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
         """
-        resource = "portfolio:skill-categories"
-        cursor = self._decode_cursor(resource)
         category_query = (
             select(
                 PortfolioSkillCategory.id.label("id"),
@@ -527,89 +457,62 @@ class PortfolioSkillsModule(SqlAlchemyExecAsync):
             .join(PortfolioSkillCategoryLocale, PortfolioSkillCategoryLocale.category_id == PortfolioSkillCategory.id)
             .join(PortfolioLocale, PortfolioLocale.code == PortfolioSkillCategoryLocale.locale)
             .where(PortfolioSkillCategoryLocale.locale == self.locale, PortfolioLocale.is_active.is_(True))
+            .order_by(PortfolioSkillCategory.position, PortfolioSkillCategory.id)
         )
-        total = (await self.execute_orm(select(func.count()).select_from(category_query.subquery()))).scalar_one()
-        page_query = category_query
-        if cursor is not None:
-            page_query = page_query.where(
-                self._after_cursor(PortfolioSkillCategory.position, PortfolioSkillCategory.id, cursor)
-            )
-        rows = (
-            await self.execute_orm(
-                page_query.order_by(PortfolioSkillCategory.position, PortfolioSkillCategory.id).limit(self.limit + 1)
-            )
-        ).mappings().all()
-        page = self._page(rows, total, resource, self.limit)
-        category_rows = rows[: self.limit]
-        if not category_rows:
-            return {"items": [], "page": page, "included": {"skills": []}}
-
-        category_ids = [row["id"] for row in category_rows]
-        membership = self._skill_query().where(PortfolioCategorySkill.category_id.in_(category_ids))
-        ranked = membership.add_columns(
-            func.row_number().over(
-                partition_by=PortfolioCategorySkill.category_id,
-                order_by=(PortfolioCategorySkill.position, PortfolioCategorySkill.skill_id),
-            ).label("row_number"),
-            func.count().over(partition_by=PortfolioCategorySkill.category_id).label("total"),
-        ).subquery()
-        preview_rows = (
-            await self.execute_orm(
-                select(ranked)
-                .where(ranked.c.row_number <= self.PREVIEW_LIMIT)
-                .order_by(ranked.c.category_id, ranked.c.row_number)
-            )
-        ).mappings().all()
-        previews = {category_id: [] for category_id in category_ids}
-        for row in preview_rows:
-            previews[row["category_id"]].append(row)
-
+        result = await self.paginate_orm(category_query, page=self.page, size=self.size, unique=False)
+        category_rows = result.items
         items = []
-        included_skills = {}
-        for category in category_rows:
-            members = previews[category["id"]]
-            count = members[0]["total"] if members else 0
-            skill_ids = []
-            for member in members:
-                skill_ids.append(member["id"])
-                included_skills.setdefault(member["id"], {"id": member["id"], "label": member["label"]})
-            has_more = count > len(members)
-            items.append(
-                {
-                    "id": category["id"],
-                    "label": category["label"],
-                    "skillIds": skill_ids,
-                    "skillsPage": {
-                        "limit": self.PREVIEW_LIMIT,
-                        "total": count,
-                        "hasMore": has_more,
-                        "nextCursor": (
-                            self._encode_cursor(
-                                f"portfolio:skills:category:{category['id']}",
-                                self.locale,
-                                members[-1]["position"],
-                                members[-1]["id"],
-                            ) if has_more else None
-                        ),
-                    },
-                }
+        if category_rows:
+            category_ids = [row["id"] for row in category_rows]
+            membership = self._skill_query().where(PortfolioCategorySkill.category_id.in_(category_ids))
+            ranked = membership.add_columns(
+                func.row_number()
+                .over(
+                    partition_by=PortfolioCategorySkill.category_id,
+                    order_by=(PortfolioCategorySkill.position, PortfolioCategorySkill.skill_id),
+                )
+                .label("row_number"),
+                func.count().over(partition_by=PortfolioCategorySkill.category_id).label("total"),
+            ).subquery()
+            preview_rows = (
+                (
+                    await self.execute_orm(
+                        select(ranked)
+                        .where(ranked.c.row_number <= self.size)
+                        .order_by(ranked.c.category_id, ranked.c.row_number)
+                    )
+                )
+                .mappings()
+                .all()
             )
-
-        return {"items": items, "page": page, "included": {"skills": list(included_skills.values())}}
+            previews = {category_id: [] for category_id in category_ids}
+            for row in preview_rows:
+                previews[row["category_id"]].append(row)
+            for category in category_rows:
+                members = previews[category["id"]]
+                skills = [{"id": member["id"], "label": member["label"]} for member in members]
+                items.append(
+                    {
+                        "id": category["id"],
+                        "label": category["label"],
+                        "skills": RespRecords.from_records(
+                            skills, total=members[0]["total"] if members else 0, page=1, size=self.size
+                        ).model_dump(),
+                    }
+                )
+        return RespRecords.from_records(items, total=result.total, page=result.page, size=result.size).model_dump()
 
     async def select_skills(self) -> dict:
         """
-        Return one cursor page of the requested category's localized skills.
+        Return a numbered skill page in the requested category's membership order.
 
-        :return: Ordered skill items and page metadata.
-        :raises HTTPException: The owner is invalid, missing, or the cursor is out of scope.
+        :return: The common items/total/pages/page/size response with localized skill labels.
+        :raises HTTPException: The owner is unsupported, empty, or absent in this language.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
         """
         if self.owner_type != "category" or not self.owner_id:
             raise HTTPException(status_code=400, detail="INVALID_OWNER")
-        resource = f"portfolio:skills:category:{self.owner_id}"
-        cursor = self._decode_cursor(resource)
         owner = (
             select(PortfolioSkillCategory.id)
             .join(PortfolioSkillCategoryLocale, PortfolioSkillCategoryLocale.category_id == PortfolioSkillCategory.id)
@@ -623,21 +526,11 @@ class PortfolioSkillsModule(SqlAlchemyExecAsync):
         )
         if (await self.execute_orm(owner)).first() is None:
             raise HTTPException(status_code=404, detail="NOT_FOUND")
-
-        skill_query = self._skill_query().where(PortfolioCategorySkill.category_id == self.owner_id)
-        total = (await self.execute_orm(select(func.count()).select_from(skill_query.subquery()))).scalar_one()
-        page_query = skill_query
-        if cursor is not None:
-            page_query = page_query.where(
-                self._after_cursor(PortfolioCategorySkill.position, PortfolioCategorySkill.skill_id, cursor)
-            )
-        rows = (
-            await self.execute_orm(
-                page_query.order_by(PortfolioCategorySkill.position, PortfolioCategorySkill.skill_id).limit(self.limit + 1)
-            )
-        ).mappings().all()
-        page = self._page(rows, total, resource, self.limit)
-        return {
-            "items": [{"id": row["id"], "label": row["label"]} for row in rows[: self.limit]],
-            "page": page,
-        }
+        query = (
+            self._skill_query()
+            .where(PortfolioCategorySkill.category_id == self.owner_id)
+            .order_by(PortfolioCategorySkill.position, PortfolioCategorySkill.skill_id)
+        )
+        result = await self.paginate_orm(query, page=self.page, size=self.size, unique=False)
+        items = [{"id": row["id"], "label": row["label"]} for row in result.items]
+        return RespRecords.from_records(items, total=result.total, page=result.page, size=result.size).model_dump()

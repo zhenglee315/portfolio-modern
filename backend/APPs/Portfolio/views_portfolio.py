@@ -308,54 +308,45 @@ class PortfolioProjects:
 @cbv(router)
 class PortfolioSkills:
     """
-    Serve the localized skill categories and their ordered skill collections.
+    Serve skill collections through the common numbered response model.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
     """
 
     @router.get(
         RoutePortfolio.SKILL_CATEGORIES,
         summary="Query Portfolio Skill Categories",
         description=(
-            "Retrieve one cursor page of skill categories with a small preview of each category.\n\n"
-            "🌐 **Language:**\n"
-            "- Select `en`, `zh-Hans`, or `zh-Hant`; English is the default.\n"
-            "- Category names and skill labels are returned directly in that language.\n\n"
+            "Retrieve one numbered page of localized skill categories.\n\n"
+            "🌐 **Language:** en, zh-Hans or zh-Hant; English is the default.\n\n"
             "📄 **Pagination:**\n"
-            "- `limit` defaults to 12 and accepts values from 1 to 50.\n"
-            "- Pass `page.nextCursor` as `cursor` to continue in stored category order.\n"
-            "- Every category previews at most six skills; its `skillsPage.nextCursor` continues through `/skills`.\n\n"
-            "🧩 **How It Works:**\n"
-            "- Categories follow their saved position, then ID. Skills follow their position within each category.\n"
-            "- `included.skills` contains only skills referenced by this page's `skillIds`, once per skill.\n"
-            "- Categories, previews, and localized labels are read in batches.\n\n"
-            "⚡ **Caching:**\n"
-            "- Set `is_caching=true` to allow a response cached for up to 60 seconds.\n\n"
+            "- Use page=1 and size=6; other sizes return 400 INVALID_SIZE.\n"
+            "- The response always contains items, total, pages, page and size.\n"
+            "- Each category's skills field contains its first skill page in the same format.\n"
+            "- Continue through /portfolio/skills?ownerId=<id>&page=2&size=6.\n"
+            "- Empty collections have items=[] and pages=0; beyond-end pages retain total.\n\n"
+            "🧩 **Ordering:** Categories follow saved position then ID. Previews are read in batches.\n\n"
+            "⚡ **Caching:** is_caching=true allows a response cached for up to 60 seconds.\n\n"
             "📦 **Response Format:**\n"
             "```json\n"
-            "{\n"
-            '  "items": [{"id": "backend-apis", "label": "Backend & APIs",\n'
-            '    "skillIds": ["python", "fastapi"],\n'
-            '    "skillsPage": {"limit": 6, "total": 8, "hasMore": true, "nextCursor": "..."}}],\n'
-            '  "page": {"limit": 12, "total": 7, "hasMore": false, "nextCursor": null},\n'
-            '  "included": {"skills": [{"id": "python", "label": "Python"},\n'
-            '    {"id": "fastapi", "label": "FastAPI"}]}\n'
-            "}\n"
+            '{"items":[{"id":"backend-apis","label":"Backend & APIs",\n'
+            ' "skills":{"items":[{"id":"python","label":"Python"},{"id":"fastapi","label":"FastAPI"}],\n'
+            ' "total":2,"pages":1,"page":1,"size":6}}],\n'
+            ' "total":1,"pages":1,"page":1,"size":6}\n'
             "```\n\n"
-            "📝 **Notes:**\n"
-            "- An invalid limit or cursor returns 400. The response has no revision or translation envelope."
+            "There is no included or revision envelope; continuation uses numbered pages."
         ),
         response_model=RespPortfolioSkillCategories,
     )
     @cache(expire=CacheExpiry.MIN)
     async def get_skill_categories(self, query_string: dict = Depends(parser_portfolio_skill_categories)) -> dict:
         """
-        Return categories, preview references, localized skill labels, and cursor metadata.
+        Return categories with a localized first skill page inside each item.
 
-        :param query_string: Validated locale, cursor page, and caching parameters.
-        :return: One category page with only its referenced skill labels.
+        :param query_string: Validated locale, page, size and caching parameters.
+        :return: The common five-field numbered response with nested skill pages.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
         """
         return await PortfolioSkillsModule(**query_string).select_categories()
 
@@ -363,40 +354,30 @@ class PortfolioSkills:
         RoutePortfolio.SKILLS,
         summary="Query Portfolio Skills",
         description=(
-            "Retrieve one ordered page of skills belonging to a portfolio category.\n\n"
-            "🌐 **Language:**\n"
-            "- Select `en`, `zh-Hans`, or `zh-Hant`; each skill includes its localized `label`.\n\n"
-            "🔎 **Category:**\n"
-            "- Use `ownerType=category` and the category's `ownerId` slug.\n"
-            "- A missing category returns 404; unsupported owner types return 400.\n\n"
+            "Retrieve one numbered page of skills in a localized category.\n\n"
+            "🌐 **Language:** en, zh-Hans or zh-Hant.\n\n"
+            "🔎 **Category:** Use ownerType=category and the required ownerId slug.\n"
+            "Missing owners return 422; unknown categories return 404.\n\n"
             "📄 **Pagination:**\n"
-            "- `limit` defaults to 12 and accepts values from 1 to 50.\n"
-            "- Pass a category's `skillsPage.nextCursor` as `cursor` to continue after its preview.\n"
-            "- Pass this endpoint's `page.nextCursor` to fetch any later page.\n"
-            "- A cursor belongs to one category and language; reusing it elsewhere returns 400.\n\n"
-            "⚡ **Caching:**\n"
-            "- Set `is_caching=true` to allow a response cached for up to 60 seconds.\n\n"
+            "- page starts at 1; size is fixed at 6.\n"
+            "- Category previews contain page 1; request page 2 to continue.\n"
+            "- Stop when page >= pages. Results follow saved membership position then skill ID.\n\n"
+            "⚡ **Caching:** is_caching=true allows a response cached for up to 60 seconds.\n\n"
             "📦 **Response Format:**\n"
             "```json\n"
-            "{\n"
-            '  "items": [{"id": "python", "label": "Python"}],\n'
-            '  "page": {"limit": 12, "total": 8, "hasMore": false, "nextCursor": null}\n'
-            "}\n"
-            "```\n\n"
-            "📝 **Notes:**\n"
-            "- Results follow the category's saved skill order. Skills shared by other categories appear once here.\n"
-            "- The response contains only `items` and `page`; it does not repeat skills in `included`."
+            '{"items":[{"id":"python","label":"Python"}],"total":1,"pages":1,"page":1,"size":6}\n'
+            "```"
         ),
         response_model=RespPortfolioSkills,
     )
     @cache(expire=CacheExpiry.MIN)
     async def get_skills(self, query_string: dict = Depends(parser_portfolio_skills)) -> dict:
         """
-        Return the requested category's localized skill cursor page.
+        Return the requested category's ordered numbered skill page.
 
-        :param query_string: Validated locale, category, cursor page, and caching parameters.
-        :return: Ordered skill items and the next page cursor.
+        :param query_string: Validated locale, category, page, size and caching parameters.
+        :return: The common five-field response with localized skill items.
 
-                                                                                               ♂ ZhengLee 2026.10.04
+                                                                                               ♂ ZhengLee 2026.10.06
         """
         return await PortfolioSkillsModule(**query_string).select_skills()

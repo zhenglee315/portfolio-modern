@@ -73,9 +73,9 @@ HTTP request
   → schema/resp → JSON response
 ```
 
-Portfolio 的 `site`、`journey` 直接回傳物件或陣列；`experiences`、`projects` 回傳頁碼資料；技能兩支使用游標分頁。沒有統一的外層 `data/meta/revision` 包裝。`is_caching=true` 才會使用 `EnumCache.WEB` 的回應快取；session 與心跳使用 `EnumCache.SYS`。目前所有內容屬於單份 Portfolio，多作者歸屬與隔離尚待資料模型擴充。
+Portfolio 的 `site`、`journey` 直接回傳物件或陣列；四種集合 `experiences`、`projects`、`skill-categories`、`skills` 共用五欄位頁碼分頁。沒有統一的外層 `data/meta/revision` 包裝。`is_caching=true` 才會使用 `EnumCache.WEB` 的回應快取；session 與心跳使用 `EnumCache.SYS`。目前所有內容屬於單份 Portfolio，多作者歸屬與隔離尚待資料模型擴充。
 
-`site` and `journey` return a direct object or array; `experiences` and `projects` use numbered pages; both skill APIs use cursor pages. There is no universal `data/meta/revision` envelope. `is_caching=true` opts into the `EnumCache.WEB` response cache; sessions and heartbeats use `EnumCache.SYS`. The current data belongs to one Portfolio, with multi-author ownership and isolation still to be modeled.
+`site` and `journey` return a direct object or array; all four collections use the same five-field numbered pagination. There is no universal `data/meta/revision` envelope. `is_caching=true` opts into the `EnumCache.WEB` response cache; sessions and heartbeats use `EnumCache.SYS`. The current data belongs to one Portfolio, with multi-author ownership and isolation still to be modeled.
 
 ## 啟動與生命週期 / Startup and Lifespan
 
@@ -102,21 +102,25 @@ All six Portfolio APIs accept `locale=en|zh-Hans|zh-Hant` (default `en`) and `is
 | `GET /portfolio/journey` | 供地圖與時間線使用的完整旅程，依儲存順序排列 / Complete ordered journey for the map and timeline | 無 / None | `JourneyItem[]` |
 | `GET /portfolio/experiences` | 學經歷、內容、詳情及完整技能清單 / Work and education records with details and skills | `page=1`, `size=6`（固定 / fixed） | `{total, pages, page, size, items}` |
 | `GET /portfolio/projects` | 專案介紹、完整詳情及技能 / Projects with introductions, full details, and skills | `page=1`, `size=6`（固定 / fixed） | `{total, pages, page, size, items}` |
-| `GET /portfolio/skill-categories` | 技能分類；每類最多預覽 6 個技能 / Categories with up to six skill previews each | `limit=12`（1–50）, `cursor`（可省略 / optional） | `{items, page, included: {skills}}` |
-| `GET /portfolio/skills` | 取得指定分類中的技能，亦可接續分類預覽 / Ordered skills in one category, including preview continuation | `ownerType=category`（預設 / default）, `ownerId`（必填 / required）, `limit=12`（1–50）, `cursor`（可省略 / optional） | `{items, page}` |
+| `GET /portfolio/skill-categories` | 技能分類；每類最多預覽 6 個技能 / Categories with up to six skill previews each | `page=1`, `size=6`（固定 / fixed） | `{items, total, pages, page, size}` |
+| `GET /portfolio/skills` | 取得指定分類中的技能，亦可接續分類預覽 / Ordered skills in one category, including preview continuation | `ownerType=category`（預設 / default）, `ownerId`（必填 / required）, `page=1`, `size=6`（固定 / fixed） | `{items, total, pages, page, size}` |
 | `GET /system/heartbeat` | 依近期心跳估算在線人數 / Estimated online count from recent heartbeats | `is_caching=false` | `{online: number}` |
 
 `/site` 是單一物件，缺少站點內容回 404；`/journey` 一次回傳地圖需要的資料，沒有資料時回 `[]`。`/experiences` 與 `/projects` 每頁固定 6 筆，超過最後一頁時 `items` 為空；前者每筆提供完整技能字串陣列，後者包含完整專案詳情與技能。
 
 `/site` is one object and returns 404 when site content is missing. `/journey` returns the full map dataset or `[]` when empty. `/experiences` and `/projects` use fixed six-item pages and return empty `items` beyond the last page; experience items include their complete skill labels, and project items include full details and skills.
 
-技能分類和技能使用 `{limit, total, hasMore, nextCursor}` 游標頁資訊。分類項目含 `id`、指定語言的 `label`、預覽 `skillIds` 和各自的 `skillsPage`；`included.skills` 只放當頁預覽引用到的 `{id, label}`，並依 ID 去重。可將 `skillsPage.nextCursor` 傳給 `/portfolio/skills` 的 `cursor`，搭配同一分類 `ownerId` 取得其餘技能。`nextCursor=null` 表示沒有下一頁；游標不能跨語言或分類使用。
+所有分頁都繼承 `COMMON/schema/resp/resp_common.py` 的 `RespRecords[T]`，使用 `from_records(items, total=..., page=..., size=...)` 計算 `pages=ceil(total/size)`。回應固定為 `{items,total,pages,page,size}`；空集合 total=0、pages=0、items=[]，超頁保留請求頁碼與真實總數。公開 API 每頁固定 6 筆。
 
-Skill category and skill pages contain `{limit, total, hasMore, nextCursor}`. Each category includes `id`, a localized `label`, preview `skillIds`, and its own `skillsPage`; `included.skills` contains only referenced `{id, label}` records, deduplicated by ID. Pass `skillsPage.nextCursor` to `/portfolio/skills` with the same category `ownerId` to fetch remaining skills. `nextCursor=null` means there is no next page; cursors cannot be reused across languages or categories.
+All paginated responses inherit `RespRecords[T]` from `COMMON/schema/resp/resp_common.py`. Use `from_records()` to compute pages consistently. The response is `{items,total,pages,page,size}`; empty collections use total=0 and pages=0, while out-of-range requests keep the requested page and actual totals. Public endpoints use size=6.
 
-`/system/heartbeat` 回傳近期心跳對應的估算人數，並非登入帳號或瀏覽器分頁數；設 `is_caching=true` 時最多快取 30 秒。語言、頁碼、limit、cursor 或 owner 參數錯誤由 API 回傳對應 400；省略 `/skills` 必填的 `ownerId` 由 FastAPI 驗證回 422，找不到分類回 404。完整欄位與範例可在 `/swagger` 查看。
+分類每項提供 `{id,label,skills}`，內層 skills 也使用同一五欄位模型，為該分類的第 1 頁技能預覽。`skills.items` 直接提供指定語言的 `{id,label}`，最多 6 筆；`skills.total` 與 `skills.pages` 描述完整技能集合。展開時以相同 locale、ownerId 呼叫 `/portfolio/skills?page=2&size=6`，之後逐頁續取。分類預覽使用視窗函式批次查詢，避免每類各查一次。
 
-`/system/heartbeat` estimates recent visitors from heartbeats; it does not count logged-in accounts or browser tabs. `is_caching=true` allows up to 30 seconds of caching. Invalid language, page, limit, cursor, or owner values return the relevant 400 response; an omitted required `/skills` `ownerId` returns FastAPI 422, and an unknown category returns 404. `/swagger` documents fields and examples.
+Each category contains `{id,label,skills}`. Its nested skills response uses the same five fields and represents page 1 of that category, with up to six localized `{id,label}` records. Continue through `/portfolio/skills?page=2&size=6` with the same locale and ownerId. Window functions batch preview queries across categories instead of querying each category separately.
+
+`/system/heartbeat` 回傳近期心跳對應的估算人數，並非登入帳號或瀏覽器分頁數；設 `is_caching=true` 時最多快取 30 秒。語言、頁碼、size 或 owner 參數錯誤由 API 回傳對應 400；省略 `/skills` 必填的 `ownerId` 由 FastAPI 驗證回 422，找不到分類回 404。完整欄位與範例可在 `/swagger` 查看。
+
+`/system/heartbeat` estimates recent visitors from heartbeats; it does not count logged-in accounts or browser tabs. `is_caching=true` allows up to 30 seconds of caching. Invalid language, page, size, or owner values return the relevant 400 response; an omitted required `/skills` `ownerId` returns FastAPI 422, and an unknown category returns 404. `/swagger` documents fields and examples.
 
 前端的 React 重構規劃見[前端 README](../frontend/README.md)。正式串接時以本後端的 `/portfolio` 路徑、直接回應格式與 OpenAPI 為契約依據；參考前端與舊文件須核對實際版本，不能沿用過時的回應包裝或 `revision` 假設。
 
@@ -144,7 +148,7 @@ For SQLite, a relative `DATABASE.META.name` uses `DB_CONF["sqlite"]` in `SYSTEM/
 | `fastapi`, `fastapi-utils`, `uvicorn[standard]`, `python-socketio` | HTTP API、CBV、ASGI server 與 Socket.IO / HTTP API, CBVs, ASGI server, and Socket.IO |
 | `sqlalchemy[asyncio]`, `aiosqlite`, `asyncpg`, `alembic` | 非同步 ORM、SQLite／PostgreSQL 驅動與 migration / Async ORM, database drivers, and migrations |
 | `redis`, `fastapi-cache2`, `starsessions` | Redis clients、WEB cache 與 session / Redis clients, WEB cache, and sessions |
-| `fastapi-pagination` | ORM 頁碼分頁工具；技能游標分頁由 Portfolio module 處理 / ORM numbered pagination; Portfolio module handles skill cursors |
+| `fastapi-pagination` | 四種集合共用的 ORM 頁碼分頁工具 / Shared ORM numbered pagination for all four collections |
 | `pydantic`, `pydantic-settings`, `pyyaml`, `httpx` | 資料與設定驗證、YAML 讀取及 HTTP client 設定 / Data and settings validation, YAML loading, and HTTP client settings |
 | `jinja2` | 已宣告的模板依賴；目前文件頁使用本機靜態資產。 / Declared template dependency; current docs pages use local static assets. |
 | `black`, `pytest` | 開發依賴：排版與測試 / Development dependencies: formatting and tests |
@@ -177,3 +181,23 @@ Run the currently applicable regression tests with:
 ```bash
 uv run pytest -q tests/test_fastapi_cbv.py tests/test_portfolio_skills.py tests/test_sqlalchemy_tools.py tests/test_redis_tools.py
 ```
+
+## 分頁與技能方法索引 / Pagination and Skill Reference
+
+| 類別／方法 / Class or method | 參數 / Parameters | 職責與回傳 / Responsibility and result |
+| --- | --- | --- |
+| `RespRecords[T]` | items、total、pages、page、size | 共用 typed response；items 必為陣列，總數和頁數非負、頁碼和容量為正 / Shared typed response with required items and numeric bounds. |
+| `RespRecords.from_records()` | items；keyword-only total、page、size | 計算 pages，建立回應；size ≤ 0 回 ValueError / Compute page count and build the response; reject nonpositive size. |
+| `parser_pagination()` | page=1、size=6 | 驗證正頁碼與固定容量；回傳 dict / Validate page and fixed capacity, return a dictionary. |
+| `parser_portfolio_skill_categories()` | locale、pagination | 合併語系與共用頁碼參數 / Combine locale and shared pagination. |
+| `parser_portfolio_skills()` | locale、pagination、owner_type、owner_id | 合併參數，限定 category 並驗證非空 ownerId / Validate category ownership and combine parameters. |
+| `PortfolioSkillsModule.__init__()` | locale、page、size、owner_type?、owner_id? | 建立分類與技能共用查詢上下文 / Initialize query context for categories and skills. |
+| `PortfolioSkillsModule._skill_query()` | 無 / None | 組裝指定語言的技能關聯查詢 / Build the localized skill membership query. |
+| `PortfolioSkillsModule.select_categories()` | 無 / None | 回傳分類頁與批次取得的 skills 第 1 頁 / Return category pagination and batched nested skill previews. |
+| `PortfolioSkillsModule.select_skills()` | 無 / None | 驗證分類存在，回傳有序技能頁 / Check category existence and return ordered skill pagination. |
+| `PortfolioExperiencesModule.select()`、`PortfolioProjectsModule.select()` | 無 / None | ORM 分頁後以共用 from_records 建立回應 / Build the shared response after ORM pagination. |
+| `PortfolioSkills.get_skill_categories()`、`PortfolioSkills.get_skills()` | FastAPI Depends 注入 parser 及 is_caching / Injected parser and cache settings | 宣告 HTTP schema，委派 module 執行 / Declare HTTP schemas and delegate business queries. |
+
+`RespPortfolioExperiences`、`RespPortfolioProjects`、`RespPortfolioSkills`、`RespPortfolioSkillCategories` 僅特化共用模型的 item 型別；`RespPortfolioSkillCategoryItem.skills` 直接使用 `RespPortfolioSkills`。分頁欄位不得在各 API 重複宣告或計算。
+
+The four resource responses specialize only the item type of the shared model. Category skills directly use `RespPortfolioSkills`; keep pagination fields and arithmetic in the common response.

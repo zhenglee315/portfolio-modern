@@ -216,7 +216,7 @@ Evaluate responsibility, dependencies, actual consumers, ownership, and interfac
 | 經歷、專案與技能都需要展開標籤 / Expandable labels | `shared/ui/ExpandableTagList` 接收標籤與互動參數；資源取得留在各功能 / Share presentation while retaining resource fetching in features |
 | 多處格式化月份或計算期間 / Month formatting and arithmetic | 共用純函式，明確傳入日期與語系 / Pure helpers with explicit dates and locale |
 | 工作年資或專案分組 / Career duration or project grouping | 留在擁有該業務規則的 `model`，跨功能使用再評估公開介面 / Business model with deliberate public exposure |
-| 頁碼與游標兩種分頁 / Numbered and cursor pages | 共用載入按鈕與錯誤呈現；保留各自參數、契約與延續規則 / Share controls, preserve pagination semantics |
+| 共用頁碼分頁 / Shared numbered pagination | 共用五欄位契約、載入按鈕與錯誤呈現；保留資源及 owner 範圍 / Share the page contract and controls, retain resource and owner scope |
 | 地圖投影與標籤量測 / Projection and label measurement | 純幾何計算與 DOM 量測拆分；量測透過 ref 與生命週期管理 / Separate geometry from lifecycle-managed DOM measurement |
 
 Effect 中建立的事件監聽、計時器、observer、動畫與連線須對應清理；支援重複掛載與依賴變更。React 管理的畫面依 props/state 更新，必要的 SVG、canvas 或第三方 DOM 操作限制在明確的 ref 邊界。元件參數與純函式不讀取舊版 `window.Portfolio`、`I18n` 等隱含全域狀態。
@@ -237,17 +237,17 @@ Backend models, query parsers, and OpenAPI define the API contract. Separate gen
 | `GET /portfolio/journey` | `JourneyItem[]` | 無 / None |
 | `GET /portfolio/experiences` | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page |
 | `GET /portfolio/projects` | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page |
-| `GET /portfolio/skill-categories` | `{items, page, included: {skills}}` | 游標；每類最多預覽 6 個技能 / Cursor with skill previews |
-| `GET /portfolio/skills` | `{items, page}` | 分類內的技能游標頁 / Skills within a category |
+| `GET /portfolio/skill-categories` | `{items, total, pages, page, size}` | 頁碼；每類 skills 也是分頁 / Numbered with nested skill pages |
+| `GET /portfolio/skills` | `{items, total, pages, page, size}` | 分類內的技能頁碼分頁 / Skills within a category |
 
 - 六支 API 接受 `locale=en|zh-Hans|zh-Hant`，預設 `en`；所有業務文字直接使用指定語系。
 - 回應沒有共通的 `data/meta/revision` envelope，也不使用資料集 revision 比對；保留資源自己的回應形狀。
-- 技能游標頁為 `{limit, total, hasMore, nextCursor}`；集合請求的 `limit` 預設 12、範圍 1–50。`nextCursor=null` 表示結束，cursor 視為不透明值，原樣交回 API。
-- `/skills` 需要 `ownerId`，`ownerType` 只接受 `category`。分類預覽的 `skillsPage.nextCursor` 可接續該分類。
+- 四種集合共用 `{items,total,pages,page,size}`，page 從 1 開始，size 固定 6；空集合 pages=0，超頁 items=[]。
+- `/skills` 需要 `ownerId`，`ownerType` 只接受 `category`。分類內的 `skills` 是同一五欄位回應，預覽為第 1 頁，展開以 `page=2&size=6` 接續同一分類。
 - Projects 與 Experiences 已包含各筆技能；Projects 也包含詳情，展開時使用已載入內容。
 - 保留 API 的穩定 ID、陣列順序，以及 `null`、空陣列和缺少欄位的差異。DOM/React key 使用穩定 ID；技能參照可用 selector 建立查找表。
 
-Responses retain their resource-specific shapes and localized text. Treat cursors as opaque, preserve backend ordering and null semantics, and reuse loaded project details and skills.
+Responses retain their resource-specific shapes and localized text. Preserve numbered pagination, backend ordering and null semantics, and reuse loaded project details and skills.
 
 狀態依所有權管理：
 
@@ -262,9 +262,9 @@ Query cache 保留回應作為來源，避免把同一批 API 資料再複製到
 
 Keep one authoritative server-data cache. Query caching is not a globally normalized entity store; derive lookup tables and deduplicate references where the feature needs them.
 
-快取鍵包含資源、語系及影響結果的頁碼、分類、limit 或其他篩選條件；游標載入依選用的 Query API 管理延續參數。切換語系或分類時重新使用相應範圍的資料與游標，失敗不得前進頁碼。重試依錯誤類型與次數設定，取消請求傳遞 `AbortSignal`；舊請求完成後不得覆蓋新選擇的畫面。
+快取鍵包含資源、語系、頁碼、size、分類及其他篩選條件。四種集合使用相同五欄位頁碼回應；分類 skills 預覽已是第 1 頁，後續從第 2 頁接續。切換語系或分類時重新使用相應範圍的資料與頁碼，失敗不得前進頁碼。重試依錯誤類型與次數設定，取消請求傳遞 `AbortSignal`；舊請求完成後不得覆蓋新選擇的畫面。
 
-Cache keys identify the resource and all relevant selection parameters. Manage continuation parameters according to the Query API, keep cursors scoped, and ensure failed or outdated requests do not advance or overwrite visible state.
+Cache keys identify the resource and all relevant selection parameters. Manage numbered pages according to the Query API, keep pages scoped, and ensure failed or outdated requests do not advance or overwrite visible state.
 
 目前後端服務單份 Portfolio。未來加入多人作品集時，公開識別、後端資料隔離與快取範圍需一起完成；前端在路由、API 參數與快取鍵納入真正的作品集識別後才能支援。現階段不預設尚未實作的 slug endpoint。
 

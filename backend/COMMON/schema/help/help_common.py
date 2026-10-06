@@ -85,48 +85,6 @@ HELP_ITEMS = {
 }
 
 
-# ■—< CONST >———————————————————————————————————————————————————————————————————————————■ Cursor Pagination
-HELP_CURSOR_LIMIT = {
-    "title": "Cursor Page Size",
-    "description": (
-        "### Cursor Page Size\n"
-        "📦 **Maximum number of records returned in one cursor page.**\n\n"
-        "- Defaults to `12`; valid values are `1` through `50`.\n"
-        "- Invalid values return `400 INVALID_LIMIT`."
-    ),
-    "examples": [12],
-}
-
-HELP_CURSOR = {
-    "title": "Next Page Cursor",
-    "description": (
-        "### Next Page Cursor\n"
-        "➡️ **Continue from a previous cursor page.**\n\n"
-        "- Omit this parameter to read the first page.\n"
-        "- Use the exact `nextCursor` returned by the previous page.\n"
-        "- The cursor belongs to its original collection, language, and category."
-    ),
-}
-
-HELP_CURSOR_TOTAL = {
-    "title": "Total Records",
-    "description": "Number of records in the complete cursor collection, including records outside this page.",
-    "examples": [12],
-}
-
-HELP_HAS_MORE = {
-    "title": "More Records Available",
-    "description": "True when this collection has another page after the current items.",
-    "examples": [False],
-}
-
-HELP_NEXT_CURSOR = {
-    "title": "Following Page Cursor",
-    "description": "Pass this value as `cursor` for the next page; null when no further page exists.",
-    "examples": [None],
-}
-
-
 # ■—< CONST >———————————————————————————————————————————————————————————————————————————■ Skill Owner
 HELP_OWNER_TYPE = {
     "title": "Skill Owner Type",

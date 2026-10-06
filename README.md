@@ -135,8 +135,8 @@ The backend exposes six public read APIs and one system diagnostic API:
 | `GET /portfolio/journey` | 完整旅程與地圖資料 | Complete journey and map data |
 | `GET /portfolio/experiences` | 學經歷與技能，每頁 6 筆 | Education/work experience and skills, six per page |
 | `GET /portfolio/projects` | 專案、完整詳情與技能，每頁 6 筆 | Projects with full details and skills, six per page |
-| `GET /portfolio/skill-categories` | 技能分類游標頁；每類最多預覽 6 個技能 | Cursor-paged categories with up to six skill previews each |
-| `GET /portfolio/skills` | 指定分類下的技能游標頁 | Cursor-paged skills in one category |
+| `GET /portfolio/skill-categories` | 技能分類頁碼分頁；每類包含最多 6 個技能的內層 skills 分頁 | Numbered categories with nested skill preview pages |
+| `GET /portfolio/skills` | 指定分類下的技能頁碼分頁 | Numbered skills in one category |
 | `GET /system/heartbeat` | 依近期心跳估算目前在線人數 | Estimated online count from recent heartbeats |
 
 Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。目前只有單份 Portfolio，未建立多作者資料隔離；登入、管理後台、寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。

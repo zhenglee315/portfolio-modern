@@ -1,0 +1,4 @@
+:root {
+  --profile-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bs-body-font-family: var(--profile-font-family);
+}

@@ -4,9 +4,9 @@
 
 This directory plans the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
 
-**目前狀態：架構規劃。** 採用 React Router Framework Mode、React 與 TypeScript，初期規劃預先渲染公開的三語個人檔案頁面，互動與後續資料由瀏覽器按需載入。React 應用、套件宣告、設定檔、測試與下列程式目錄尚未建立；公開 URL、內容更新後的重建流程與離線交付方式須在實作前確認。實作時同步更新文件，區分已完成能力與後續規劃。
+**目前狀態：開發基線已完成。** 已建立 React Router Framework Mode、React、TypeScript 與 Vite 應用，安裝 Bootstrap 樣式、React-Bootstrap 與 Bootstrap Icons，配置 Provider、三語路由、預先渲染、開發 API proxy 及檢查工具。現在可啟動開發；功能目錄先預留，既有 HTML 版型、業務 API 串接、地圖與互動尚未遷移。
 
-**Status: architecture planning.** The selected architecture is React Router Framework Mode with React and TypeScript. The initial plan pre-renders public profile pages in three languages and loads interactions and subsequent data in the browser as needed. The application, dependencies, configuration, tests, and source directories do not exist yet. Confirm public URLs, rebuild triggers, and offline delivery before implementation, and keep this document aligned with progress.
+**Status: development baseline ready.** React Router Framework Mode, React, TypeScript, Vite, Bootstrap, React-Bootstrap, and Bootstrap Icons are installed. Providers, locale routes, pre-rendering, the development API proxy, and verification tools are configured. Feature directories are reserved; the original design, business API integration, maps, and interactions still need migration.
 
 ## 工程原則 / Engineering Principles
 
@@ -20,23 +20,28 @@ These principles apply to responsibility and behavior as well as directory layou
 
 ## 技術基線 / Technology Baseline
 
-下列為初始化時的建議組合；實際套件版本以未來的 `package.json` 與 `package-lock.json` 為準。
+下列工具已安裝；實際套件版本以 [package.json](package.json) 與 `package-lock.json` 為準。Node.js 以 `.node-version` 記錄版本，`engines` 限定 Node.js 24；npm 版本記錄於 `packageManager`，依賴採精確版本與鎖定檔。
 
-The following is the proposed initialization baseline. Installed versions will be recorded in the dependency manifest and lockfile.
+The tools below are installed. The manifest and lockfile record exact dependencies; `.node-version`, `engines`, and `packageManager` document the runtime and package manager baseline.
 
-| 項目 / Tool | 責任 / Responsibility |
-| --- | --- |
-| Node.js 24 LTS | 開發工具與建置執行環境 / Development and build runtime |
-| npm | 依賴、鎖定檔與專案指令管理 / Dependencies, lockfile, and project scripts |
-| React | 函式元件、畫面組合與互動 / Function components, composition, and interaction |
-| TypeScript | API、元件參數與函式介面；啟用 `strict` / Strictly typed API, component, and function interfaces |
-| React Router Framework Mode | 路由、資料載入入口、metadata、路由程式碼分割與渲染策略 / Routing, data-loading entry points, metadata, route code splitting, and rendering strategies |
-| Vite | 透過 React Router plugin 提供開發與建置 / Development and builds through the React Router plugin |
-| TanStack Query | API 資料快取、載入、重試與分頁 / Server data caching, loading, retries, and pagination |
-| CSS、CSS Modules | 沿用既有 CSS，逐步隔離元件樣式 / Existing CSS plus scoped component styles |
-| ESLint、Prettier | 程式規範、Hooks 規則與一致排版 / Code rules, Hooks rules, and formatting |
-| Vitest、React Testing Library | 純邏輯、資料契約與元件行為測試 / Logic, contract, and component behavior tests |
-| Playwright | 瀏覽器互動與跨畫面驗證 / Browser interaction and viewport checks |
+| 項目 / Tool                                   | 責任 / Responsibility                                                                                                                                 |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js 24 LTS                                | 開發工具與建置執行環境 / Development and build runtime                                                                                                |
+| npm                                           | 依賴、鎖定檔與專案指令管理 / Dependencies, lockfile, and project scripts                                                                              |
+| React                                         | 函式元件、畫面組合與互動 / Function components, composition, and interaction                                                                          |
+| TypeScript                                    | API、元件參數與函式介面；啟用 `strict` / Strictly typed API, component, and function interfaces                                                       |
+| React Router Framework Mode                   | 路由、資料載入入口、metadata、路由程式碼分割與渲染策略 / Routing, data-loading entry points, metadata, route code splitting, and rendering strategies |
+| Vite                                          | 透過 React Router plugin 提供開發與建置 / Development and builds through the React Router plugin                                                      |
+| TanStack Query                                | API 資料快取、載入、重試與分頁 / Server data caching, loading, retries, and pagination                                                                |
+| Bootstrap、React-Bootstrap                    | Bootstrap 5 樣式與由 React 管理的互動元件 / Bootstrap styles and React-managed components                                                             |
+| Bootstrap Icons                               | 按需 import 個別 SVG 圖示 / Individual SVG imports                                                                                                    |
+| CSS、CSS Modules                              | 全域 tokens 與逐步隔離的元件樣式 / Global tokens and scoped component styles                                                                          |
+| Zod                                           | 外部資料的執行期驗證與型別推導 / Runtime validation and inferred types                                                                                |
+| i18next、react-i18next                        | 固定 UI 三語字典與 React Provider / UI dictionaries and React integration                                                                             |
+| ESLint、typescript-eslint、import-x、Prettier | 型別語法、Hooks、依賴邊界與一致排版 / Typed syntax, Hooks, import boundaries, and formatting                                                          |
+| Vitest、React Testing Library                 | 純邏輯、資料契約與元件行為測試 / Logic, contract, and component behavior tests                                                                        |
+| Playwright                                    | Chromium 瀏覽器驗證，可後續增加其他瀏覽器 / Chromium checks, extensible to other browsers                                                             |
+| sirv-cli                                      | 正式建置的本機靜態預覽 / Local static build preview                                                                                                   |
 
 React、Vite 與其他工具安裝為專案依賴。Node.js 與 npm 是本機準備事項；安裝 npm 套件不代表已啟動 FastAPI、資料庫或 Redis。日常可直接在本機開發，Docker 按實際服務或部署需要使用。
 
@@ -48,15 +53,15 @@ React Router Framework Mode 是前端框架，Vite 是其開發與建置基礎�
 
 React Router Framework Mode uses Vite for development and builds and supports client rendering, pre-rendering, and server rendering. FastAPI remains responsible for business APIs, validation, authorization, and persistence. Feature boundaries remain the same across rendering strategies.
 
-| 情境 / Requirement | 方案與影響 / Approach and implications |
-| --- | --- |
-| 初期公開個人檔案頁 / Initial public profile pages | 預先渲染（SSG）：建置時取得公開資料，產生包含主要內容與 metadata 的 HTML；內容更新需重新建置 / Pre-render public content and metadata at build time; updates require rebuilding |
-| 地圖、對話框、後續分頁 / Maps, dialogs, and subsequent pages | 瀏覽器互動與按需載入；依操作載入程式碼或取得 API 資料 / Client interaction with code or data loaded when needed |
-| 未來公開 HTML 須即時反映資料 / Future live public HTML | 評估伺服器渲染（SSR），增加相應前端執行服務 / Evaluate SSR with an appropriate frontend runtime |
+| 情境 / Requirement                                           | 方案與影響 / Approach and implications                                                                                                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 初期公開個人檔案頁 / Initial public profile pages            | 預先渲染（SSG）：建置時取得公開資料，產生包含主要內容與 metadata 的 HTML；內容更新需重新建置 / Pre-render public content and metadata at build time; updates require rebuilding |
+| 地圖、對話框、後續分頁 / Maps, dialogs, and subsequent pages | 瀏覽器互動與按需載入；依操作載入程式碼或取得 API 資料 / Client interaction with code or data loaded when needed                                                                 |
+| 未來公開 HTML 須即時反映資料 / Future live public HTML       | 評估伺服器渲染（SSR），增加相應前端執行服務 / Evaluate SSR with an appropriate frontend runtime                                                                                 |
 
-初期靜態部署規劃設定 `ssr: false`，並明確列出需要預先渲染的語系 URL；動態路由參數不能只靠路由宣告自動產生所有頁面。部署時提供產生的 HTML、路由資料及靜態資產，並配置必要的路由回退。這種部署不需要常駐前端 Node.js 服務，Node.js 仍用於開發與建置。[官方預先渲染說明](https://reactrouter.com/how-to/pre-rendering)
+目前設定 `ssr: false`，預先渲染 `/`（英文）、`/en`、`/zh-Hans` 與 `/zh-Hant` 四個 URL。已產生對應語系的 HTML、標題與描述，但目前僅有啟動頁文案；正式業務內容與 SEO metadata 隨版型及 API 遷移補齊。瀏覽器 loader 使用相同語系驗證，未知語系呈現錯誤頁。動態路由參數不能只靠路由宣告自動產生所有頁面。部署時提供產生的 HTML、路由資料及靜態資產，並配置必要的路由回退。這種部署不需要常駐前端 Node.js 服務，Node.js 仍用於開發與建置。[官方預先渲染說明](https://reactrouter.com/how-to/pre-rendering)
 
-The initial static deployment plan disables runtime SSR and explicitly lists locale URLs to pre-render. Dynamic route parameters need concrete build paths. Serve generated HTML, route data, and assets with the required routing fallback. Node.js is needed for development and builds, without a persistent frontend Node.js service.
+Runtime SSR is disabled, and `/`, `/en`, `/zh-Hans`, and `/zh-Hant` are pre-rendered. They currently contain localized bootstrap copy; business content and complete SEO metadata remain migration work. Browser loading applies the same locale validation. Dynamic route parameters need concrete build paths. Serve generated HTML, route data, and assets with the required routing fallback. Node.js is needed for development and builds, without a persistent frontend Node.js service.
 
 按需載入包含兩個不同責任：**Code Splitting** 將程式拆成可獨立下載的區塊；**Lazy Loading** 決定何時取得與呈現。框架自動按路由分割程式碼；同一頁中的地圖或對話框仍須設計動態 import 與觸發條件。立即渲染所有 lazy 元件仍會立即觸發載入，不能只靠資料夾分組達成延遲下載。API 資料載入與程式碼下載也分開管理。[官方程式碼分割說明](https://reactrouter.com/explanation/code-splitting)
 
@@ -66,11 +71,11 @@ Code splitting creates separately downloadable modules; lazy loading controls wh
 
 Retain section anchors and design locale and future profile URLs deliberately. Pre-rendered output contains only public content. Keep browser-only APIs and imperative initialization behind lifecycle boundaries that are safe during build-time rendering. Direct `file://` delivery requires a separate design.
 
-## 規劃目錄 / Proposed Directory Layout
+## 目錄分層 / Directory Layout
 
-目錄圖只呈現主要分層，個別檔案與功能內部分工在後續章節說明。React Router 的 `appDirectory` 設為 `src`，框架根入口與路由設定放在此處；`src/app` 則是本專案的應用組裝層。目錄依實際責任建立，單元與元件測試可與程式放在一起。[官方目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)
+目錄圖只呈現主要分層，個別檔案與功能內部分工在後續章節說明。React Router 的 `appDirectory` 已設為 `src`，框架根入口與路由設定放在此處；`src/app` 則是本專案的應用組裝層。目錄依實際責任建立，單元與元件測試可與程式放在一起。[官方目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)
 
-This tree shows the main layers rather than every implementation file. Configure React Router's application directory as `src`; `src/app` is the project's assembly layer. Create directories as needed and colocate unit and component tests with their implementation.
+This tree shows the main layers rather than every implementation file. React Router's application directory is configured as `src`; `src/app` is the project's assembly layer. Create directories as needed and colocate unit and component tests with their implementation.
 
 ```text
 frontend/
@@ -105,18 +110,23 @@ frontend/
 │   ├── styles/                    # Base styles, themes, design tokens
 │   └── assets/                    # Imported fonts, icons, maps, images
 └── tests/
+    ├── unit/                      # Baseline unit and component tests
     └── e2e/                       # Browser scenarios
 ```
 
+功能與共用能力先預留資料夾；檔案隨實際實作建立，不為每個功能複製空白模板。目前只有框架入口、Provider、語系設定、啟動頁、樣式及必要測試。Git 不保存空資料夾，其他電腦 checkout 後可在實作時建立相應目錄。
+
+Reserved directories do not imply implemented features. Files are added as responsibilities become real. Git does not track empty directories, so create them as needed after a fresh checkout.
+
 ### 與後端分層的對照 / Backend Layer Mapping
 
-| 後端 / Backend | 前端 / Frontend | 共同目的 / Shared purpose |
-| --- | --- | --- |
-| `APPs` | `features` | 依業務或功能組織 / Feature boundaries |
-| `COMMON` | `shared` | 跨模組能力 / Shared capabilities |
-| `SYSTEM` | `app`、框架入口與設定檔 / Framework entry and configuration | 系統組裝 / Application assembly |
-| `schema` | 功能內的 `schemas` / Feature schemas | 資料契約 / Data contracts |
-| `module` | `api`、`model`、`hooks` | 請求、計算與流程分責 / Requests, calculations, and state |
+| 後端 / Backend | 前端 / Frontend                                             | 共同目的 / Shared purpose                                |
+| -------------- | ----------------------------------------------------------- | -------------------------------------------------------- |
+| `APPs`         | `features`                                                  | 依業務或功能組織 / Feature boundaries                    |
+| `COMMON`       | `shared`                                                    | 跨模組能力 / Shared capabilities                         |
+| `SYSTEM`       | `app`、框架入口與設定檔 / Framework entry and configuration | 系統組裝 / Application assembly                          |
+| `schema`       | 功能內的 `schemas` / Feature schemas                        | 資料契約 / Data contracts                                |
+| `module`       | `api`、`model`、`hooks`                                     | 請求、計算與流程分責 / Requests, calculations, and state |
 
 ## 模組責任與依賴 / Responsibilities and Dependencies
 
@@ -137,9 +147,9 @@ app / routes / pages → features → shared
 app / routes / pages / features → i18n → shared
 ```
 
-`shared` 不反向依賴功能、路由或應用組裝；功能之間由頁面協調，例如由頁面串接技能資料與專案呈現所需的 props／事件，避免 `projects` 與 `skills` 互相引用。外部使用功能的 `index.ts`，不直接引用內部實作；公開匯出保持明確，功能內部直接引用自己的檔案，避免循環依賴。初始化時配置 import 限制，將可檢查的邊界交給 lint。
+`shared` 不反向依賴功能、路由或應用組裝；功能之間由頁面協調，例如由頁面串接技能資料與專案呈現所需的 props／事件，避免 `projects` 與 `skills` 互相引用。外部使用功能的 `index.ts`，不直接引用內部實作；公開匯出保持明確，功能內部直接引用自己的檔案，避免循環依賴。`eslint.config.js` 已配置 import-x 規則，檢查 alias 與相對路徑的依賴方向、功能間引用及功能公開入口。新增功能名稱時同步更新設定中的 `features` 清單；目前預留的七個功能已登記。
 
-Keep shared code independent of features, routes, and application assembly. Pages connect feature data and interactions through props and events rather than circular feature imports. Expose explicit public exports and enforce import boundaries with lint rules.
+Keep shared code independent of features, routes, and application assembly. Pages coordinate features. The ESLint configuration enforces import direction, feature isolation, and public indexes; register new feature names in its `features` list.
 
 ### 功能內部分工 / Feature Structure
 
@@ -147,14 +157,14 @@ Keep shared code independent of features, routes, and application assembly. Page
 
 A feature groups related frontend behavior rather than representing one page, component, or endpoint. It may own several API calls or only local interactions. Apply consistent responsibilities and create only the directories each feature needs.
 
-| 位置 / Location | 責任與邊界 / Responsibility and boundary |
-| --- | --- |
-| `api/` | 功能 endpoint、參數、回應解析、query keys 與查詢設定；不操作 DOM / Endpoint calls, response parsing, query keys, and query options without DOM access |
-| `schemas/` | 外部資料契約與執行期解析；可從 schema 推導型別時，避免另寫一份相同欄位 / External contracts and runtime parsers; derive types where possible |
-| `model/` | 功能型別、業務計算、資料轉換與 selector；保持輸入輸出明確，不發 HTTP 請求 / Feature types and pure business calculations, transformations, and selectors |
-| `hooks/` | React 資料訂閱、互動狀態與副作用生命週期；可組合 API 查詢設定與 model / React subscriptions, interaction state, and lifecycle-managed effects |
-| `components/` | 功能畫面、props、事件與元件樣式；不重寫 transport 或契約解析 / Feature UI, props, events, and styles |
-| `index.ts` | 明確列出外部可用的元件、函式與型別；不匯出所有內部細節 / Explicit public components, functions, and types |
+| 位置 / Location | 責任與邊界 / Responsibility and boundary                                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api/`          | 功能 endpoint、參數、回應解析、query keys 與查詢設定；不操作 DOM / Endpoint calls, response parsing, query keys, and query options without DOM access    |
+| `schemas/`      | 外部資料契約與執行期解析；可從 schema 推導型別時，避免另寫一份相同欄位 / External contracts and runtime parsers; derive types where possible             |
+| `model/`        | 功能型別、業務計算、資料轉換與 selector；保持輸入輸出明確，不發 HTTP 請求 / Feature types and pure business calculations, transformations, and selectors |
+| `hooks/`        | React 資料訂閱、互動狀態與副作用生命週期；可組合 API 查詢設定與 model / React subscriptions, interaction state, and lifecycle-managed effects            |
+| `components/`   | 功能畫面、props、事件與元件樣式；不重寫 transport 或契約解析 / Feature UI, props, events, and styles                                                     |
+| `index.ts`      | 明確列出外部可用的元件、函式與型別；不匯出所有內部細節 / Explicit public components, functions, and types                                                |
 
 功能檔案依具體責任命名，例如 `projectsApi.ts`、`project.schema.ts`、`useProjects.ts`、`ProjectCard.tsx`。檔案與目錄在責任增長時拆分；不為每個短函式建立一層資料夾。
 
@@ -185,11 +195,11 @@ Transport owns HTTP mechanics, resource APIs own endpoint contracts, hooks own s
 
 ### 元件放置 / Component Placement
 
-| 元件範圍 / Scope | 位置與例子 / Location and example |
-| --- | --- |
-| 不依賴業務的通用 UI / Business-independent UI | `shared/ui`：Button、Dialog、ExpandableTagList；資料透過 props 傳入 / Receive data through props |
-| 理解特定功能資料與規則 / Feature-specific UI | `features/<feature>/components`：ProjectCard、ProjectDetailDialog、JourneyMap |
-| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：PortfolioLayout |
+| 元件範圍 / Scope                                 | 位置與例子 / Location and example                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| 不依賴業務的通用 UI / Business-independent UI    | `shared/ui`：Button、Dialog、ExpandableTagList；資料透過 props 傳入 / Receive data through props |
+| 理解特定功能資料與規則 / Feature-specific UI     | `features/<feature>/components`：ProjectCard、ProjectDetailDialog、JourneyMap                    |
+| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：PortfolioLayout                                                       |
 
 `ProjectDetailDialog` 可使用共用 `Dialog`，前者負責專案內容，後者負責開關、焦點與鍵盤等彈窗行為。業務元件被多個頁面使用，仍留在所屬功能；只有語意與依賴都通用時才移入 `shared`。共用 `ExpandableTagList` 不自行呼叫技能 API，取得更多資料的責任交給功能並透過事件連接。
 
@@ -211,13 +221,13 @@ Use function components for UI, hooks for React state and lifecycles, and pure f
 
 Evaluate responsibility, dependencies, actual consumers, ownership, and interface clarity before extracting reusable code. Similar-looking code alone is insufficient evidence for a shared abstraction.
 
-| 情境 / Scenario | 放置與責任 / Placement and responsibility |
-| --- | --- |
-| 經歷、專案與技能都需要展開標籤 / Expandable labels | `shared/ui/ExpandableTagList` 接收標籤與互動參數；資源取得留在各功能 / Share presentation while retaining resource fetching in features |
-| 多處格式化月份或計算期間 / Month formatting and arithmetic | 共用純函式，明確傳入日期與語系 / Pure helpers with explicit dates and locale |
-| 工作年資或專案分組 / Career duration or project grouping | 留在擁有該業務規則的 `model`，跨功能使用再評估公開介面 / Business model with deliberate public exposure |
-| 共用頁碼分頁 / Shared numbered pagination | 共用五欄位契約、載入按鈕與錯誤呈現；保留資源及 owner 範圍 / Share the page contract and controls, retain resource and owner scope |
-| 地圖投影與標籤量測 / Projection and label measurement | 純幾何計算與 DOM 量測拆分；量測透過 ref 與生命週期管理 / Separate geometry from lifecycle-managed DOM measurement |
+| 情境 / Scenario                                            | 放置與責任 / Placement and responsibility                                                                                               |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 經歷、專案與技能都需要展開標籤 / Expandable labels         | `shared/ui/ExpandableTagList` 接收標籤與互動參數；資源取得留在各功能 / Share presentation while retaining resource fetching in features |
+| 多處格式化月份或計算期間 / Month formatting and arithmetic | 共用純函式，明確傳入日期與語系 / Pure helpers with explicit dates and locale                                                            |
+| 工作年資或專案分組 / Career duration or project grouping   | 留在擁有該業務規則的 `model`，跨功能使用再評估公開介面 / Business model with deliberate public exposure                                 |
+| 共用頁碼分頁 / Shared numbered pagination                  | 共用五欄位契約、載入按鈕與錯誤呈現；保留資源及 owner 範圍 / Share the page contract and controls, retain resource and owner scope       |
+| 地圖投影與標籤量測 / Projection and label measurement      | 純幾何計算與 DOM 量測拆分；量測透過 ref 與生命週期管理 / Separate geometry from lifecycle-managed DOM measurement                       |
 
 Effect 中建立的事件監聽、計時器、observer、動畫與連線須對應清理；支援重複掛載與依賴變更。React 管理的畫面依 props/state 更新，必要的 SVG、canvas 或第三方 DOM 操作限制在明確的 ref 邊界。元件參數與純函式不讀取舊版 `window.Portfolio`、`I18n` 等隱含全域狀態。
 
@@ -231,14 +241,14 @@ Backend models, query parsers, and OpenAPI define the API contract. Separate gen
 
 目前 Portfolio API 摘要如下；完整欄位與錯誤格式見[後端 README](../backend/README.md#目前的-get-api--available-get-apis)。
 
-| Endpoint | 回應 / Response | 分頁 / Pagination |
-| --- | --- | --- |
-| `GET /portfolio/site` | `{brand, profile, social, chatme}` | 無 / None |
-| `GET /portfolio/journey` | `JourneyItem[]` | 無 / None |
-| `GET /portfolio/experiences` | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page |
-| `GET /portfolio/projects` | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page |
+| Endpoint                          | 回應 / Response                     | 分頁 / Pagination                                             |
+| --------------------------------- | ----------------------------------- | ------------------------------------------------------------- |
+| `GET /portfolio/site`             | `{brand, profile, social, chatme}`  | 無 / None                                                     |
+| `GET /portfolio/journey`          | `JourneyItem[]`                     | 無 / None                                                     |
+| `GET /portfolio/experiences`      | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page           |
+| `GET /portfolio/projects`         | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page           |
 | `GET /portfolio/skill-categories` | `{items, total, pages, page, size}` | 頁碼；每類 skills 也是分頁 / Numbered with nested skill pages |
-| `GET /portfolio/skills` | `{items, total, pages, page, size}` | 分類內的技能頁碼分頁 / Skills within a category |
+| `GET /portfolio/skills`           | `{items, total, pages, page, size}` | 分類內的技能頁碼分頁 / Skills within a category               |
 
 - 六支 API 接受 `locale=en|zh-Hans|zh-Hant`，預設 `en`；所有業務文字直接使用指定語系。
 - 回應沒有共通的 `data/meta/revision` envelope，也不使用資料集 revision 比對；保留資源自己的回應形狀。
@@ -251,12 +261,12 @@ Responses retain their resource-specific shapes and localized text. Preserve num
 
 狀態依所有權管理：
 
-| 狀態 / State | 所有者 / Owner |
-| --- | --- |
+| 狀態 / State                                                     | 所有者 / Owner                                                                             |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | API 回應、載入、錯誤、已取得頁面 / Server data and request state | TanStack Query，銜接路由載入的初始資料 / TanStack Query initialized from route-loaded data |
-| 對話框、卡片展開、地圖播放 / Local interaction | 對應元件或 Hook / Owning component or hook |
-| 語系、外觀偏好 / Shared preferences | 有明確範圍的 Provider；需要時才持久化 / Scoped providers with deliberate persistence |
-| 日期文字、分組、查找表 / Derived values | 純函式或 selector，從來源資料計算 / Pure functions or selectors |
+| 對話框、卡片展開、地圖播放 / Local interaction                   | 對應元件或 Hook / Owning component or hook                                                 |
+| 語系、外觀偏好 / Shared preferences                              | 有明確範圍的 Provider；需要時才持久化 / Scoped providers with deliberate persistence       |
+| 日期文字、分組、查找表 / Derived values                          | 純函式或 selector，從來源資料計算 / Pure functions or selectors                            |
 
 Query cache 保留回應作為來源，避免把同一批 API 資料再複製到全域 store。TanStack Query 的查詢快取不等於全域實體正規化；跨分類的技能查找與去重依實際需求在 selector 處理。
 
@@ -283,43 +293,81 @@ Multi-author support requires coordinated backend ownership, public identifiers,
 
 Enforce strict types, consistent naming, explicit module contracts, and separate error presentation from transport errors. Centralize design tokens and UI translations, preserve semantic HTML and accessibility, and configure public frontend settings centrally.
 
-`package.json`、鎖定檔、工具設定與 `.env.example` 納入版本控制；初始化時補齊 `node_modules/`、建置產物、測試產物與本機環境檔的忽略規則。新增功能或共用工具時，在對應模組的 README 記錄詳細介面；本文件維護架構、責任與操作入口。
+`package.json`、鎖定檔、工具設定與 `.env.example` 納入版本控制；`.gitignore` 已排除 `node_modules/`、框架產生的型別、建置與測試產物、本機環境檔。新增功能或共用工具時，在對應模組的 README 記錄詳細介面；本文件維護架構、責任與操作入口。
 
-Track dependency manifests, lockfiles, tooling configuration, and public examples. Add ignore rules for dependencies, generated outputs, and local settings during initialization. Keep detailed module interfaces in their own README files.
+Track dependency manifests, lockfiles, tooling configuration, and public examples. Ignore rules exclude dependencies, generated outputs, and local settings. Keep detailed module interfaces in their own README files.
 
 ## 開發與驗證 / Development and Verification
 
-安裝 Node.js LTS 與 npm 後，可先確認環境：
+環境基線為 Node.js **24.21.0**、npm **11.19.0**。Mac 可透過 Homebrew 安裝 `node@24` 並依安裝提示加入 PATH；其他作業系統使用 Node.js 官方安裝方式。確認 `node --version` 與 `npm --version` 後，在專案根目錄執行：
+
+The runtime baseline is Node.js **24.21.0** and npm **11.19.0**. Ensure both commands are on PATH. From the repository root:
 
 ```bash
-node --version
-npm --version
+cd frontend
+npm ci
+npm run dev
 ```
 
-初始化時固定實際 Node 版本，建立並提交 `package.json`、鎖定檔與工具設定。下列是**待建立的指令介面**；目前尚不能用來啟動或驗證 React 應用。
+開發網址為 `http://127.0.0.1:5173`；dev server 使用固定 port，若已被占用會停止。第一次安裝或更新 Playwright 後，執行 `npx playwright install chromium` 下載測試瀏覽器。
 
-Pin the runtime and commit manifests and tooling during initialization. The commands below are planned interfaces, not currently available scripts.
+Development runs at `http://127.0.0.1:5173` on a fixed port. Install the test browser with `npx playwright install chromium` after the first install or a Playwright update.
 
-| 指令 / Command | 目的 / Purpose |
-| --- | --- |
-| `npm ci` | 依鎖定檔安裝 / Install locked dependencies |
-| `npm run dev` | 本機開發 / Local development |
-| `npm run typecheck` | TypeScript 檢查 / Type checking |
-| `npm run lint` | 程式與依賴邊界檢查 / Code and import rules |
-| `npm run format:check` | 排版檢查 / Formatting check |
-| `npm run test` | 一次執行單元與元件測試 / Unit and component tests |
-| `npm run test:e2e` | 瀏覽器流程測試 / Browser scenarios |
-| `npm run build` | 正式建置 / Production build |
-| `npm run preview` | 本機檢視建置結果 / Local build preview |
+| 指令 / Command                            | 目的 / Purpose                                                                                 |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `npm ci`                                  | 依鎖定檔重新安裝 / Reinstall locked dependencies                                               |
+| `npm run dev`                             | 本機開發與 HMR / Development with hot module replacement                                       |
+| `npm run typecheck`                       | 產生路由型別並執行 TypeScript 檢查 / Generate route types and check TypeScript                 |
+| `npm run lint`                            | 程式、Hooks 與依賴邊界檢查 / Code, Hooks, and import rules                                     |
+| `npm run format` / `npm run format:check` | 排版／排版檢查 / Format or check formatting                                                    |
+| `npm run test` / `npm run test:watch`     | 單元與元件測試／持續監看 / Unit and component tests or watch mode                              |
+| `npm run test:e2e`                        | 自動建置、啟動靜態預覽與執行 Chromium 測試 / Build, preview, and run Chromium scenarios        |
+| `npm run build`                           | 正式建置與三語預先渲染 / Production build and locale pre-rendering                             |
+| `npm run preview`                         | 預覽既有 `build/client`，通常使用 port 4173 / Preview an existing build, normally on port 4173 |
+| `npm run check`                           | 型別、lint、格式、單元測試及建置 / Types, lint, formatting, unit tests, and build              |
 
-CI 執行型別、lint、格式、必要測試與建置；瀏覽器測試使用可重現的 mock 或明確的整合環境。測試驗證實際規則與使用者行為，重點包含日期邊界、契約錯誤、分頁重試、技能預覽接續、三語切換與延遲回應、對話框焦點，以及手機版和 reduced-motion 行為。測試範圍依變更影響調整。
+### 環境變數與 API / Environment and API Configuration
 
-CI checks types, lint, formatting, relevant tests, and builds. Browser tests use reproducible fixtures or a defined integration environment and cover meaningful rules and user behavior.
+需要更改本機 API target 時，複製公開範例，再編輯忽略的 `.env.local`：
+
+To customize the local API target, copy the public example and edit the ignored `.env.local`:
+
+```bash
+cp .env.example .env.local
+```
+
+- `VITE_API_BASE_URL=/api`：供後續 HTTP transport 使用的公開 URL 前綴；目前尚未實作 API client。所有 `VITE_` 變數可進入瀏覽器建置，只能填公開值。
+- `API_PROXY_TARGET=http://127.0.0.1:8000`：通用本機範例，僅供 Vite 開發 proxy。請依本機後端設定調整；變更後重新啟動 dev server。
+- 瀏覽器請求 `/api/portfolio/site` 時，開發 proxy 轉交 `/portfolio/site` 並保留 query。建置時的 loader 不經開發 proxy；未來預先渲染的 API 存取需另外設定及驗證。
+- 正式環境與靜態 preview 不包含開發 proxy；正式 hosting 須將 `/api` 導向 FastAPI，或在 HTTP client 實作時配置合適的公開 API base。
+- 本機環境檔不提交；API 憑證、資料庫設定及其他機密不放入前端。
+
+`VITE_API_BASE_URL` is a public prefix reserved for the future HTTP client. `API_PROXY_TARGET` is used only by the local development proxy, which removes `/api` and preserves queries. Build-time API access and production routing require their own configuration. Never place secrets in frontend variables or assets.
+
+### 樣式與圖示 / Styles and Icons
+
+`root.tsx` 依序引入 Bootstrap CSS、`styles/tokens.css`、`styles/global.css`。需要覆寫的全域設計值集中在 tokens；元件專屬樣式使用 CSS Modules。互動元件以 React-Bootstrap 管理 React 狀態，不另外引入 Bootstrap 的 DOM 操作 bundle。Bootstrap Icons 以 `bootstrap-icons/icons/<name>.svg` 單獨 import，避免為少數圖示載入整套 icon font。現階段使用完整 Bootstrap CSS；後續再按實際版型需求評估 Sass 裁剪。
+
+Load Bootstrap CSS before tokens and global overrides. Use React-Bootstrap for interactive components and individual SVG imports for icons. Component-specific styles belong in CSS Modules; selective Sass imports can be evaluated after the design migration.
+
+### 建置與檢查範圍 / Build and Verification Scope
+
+靜態交付目錄為 `build/client`，包含各語系 `index.html`、路由資料、資產及 `__spa-fallback.html`；正式 hosting 須先提供匹配的靜態檔，再對前端路由使用該 fallback，並獨立處理 API 路徑。`npm run preview` 使用 sirv-cli 預覽這個規則，不是正式 hosting 設定。
+
+Deploy `build/client` with static-file precedence and the generated SPA fallback for frontend routes. API routing is separate. The preview command provides local static verification, not production hosting configuration.
+
+目前測試涵蓋翻譯實例隔離、Provider 語系更新、四個 URL 的預先渲染 HTML、瀏覽器 hydration、Bootstrap CSS、SVG 圖示及未知語系錯誤頁；不需要執行中的後端。功能測試隨實作補齊。
+
+Baseline tests cover isolated translations, provider updates, localized HTML, browser hydration, styles, icons, and invalid locale handling without requiring a backend.
+
+後續 CI 應執行型別、lint、格式、必要測試與建置；瀏覽器測試使用可重現的 mock 或明確的整合環境。測試驗證實際規則與使用者行為，重點包含日期邊界、契約錯誤、分頁重試、技能預覽接續、三語切換與延遲回應、對話框焦點，以及手機版和 reduced-motion 行為。測試範圍依變更影響調整。
+
+Future CI should check types, lint, formatting, relevant tests, and builds. Browser tests use reproducible fixtures or a defined integration environment and cover meaningful rules and user behavior.
 
 ## 遷移流程 / Migration Sequence
 
 1. **盤點 / Inventory：** 以 `portfolio-web` 實際程式與畫面確認功能、資產、三語、資料契約及離線需求；核對後端現況，更新過時紀錄。
-2. **建立基線 / Baseline：** 初始化 React Router Framework Mode，確認三語公開 URL 與預先渲染範圍，建立環境、Provider、HTTP transport、檢查工具與模組邊界。
+2. **建立基線 / Baseline：** 環境、Provider、三語路由、預先渲染、檢查工具與模組邊界已完成；首個 API 功能開發時建立共用 HTTP transport 與契約解析。
 3. **完整流程 / First complete feature：** 先完成 Site 的 API、回應解析、Hook、元件、樣式與錯誤呈現。
 4. **功能遷移 / Feature migration：** 依序導入經歷、專案與技能；沿用既有規則，從實際共用情境抽取元件與函式。
 5. **互動遷移 / Interaction migration：** 導入地圖、動畫、語系與外觀；把舊全域註冊器改為明確 import/export，拆開純計算與 DOM 副作用。
@@ -340,3 +388,7 @@ Preserve validated behavior while adapting dependencies and lifecycles. Reconcil
 - [TanStack Query：query keys](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys)與[初始資料](https://tanstack.com/query/latest/docs/framework/react/guides/initial-query-data)
 - [ESLint](https://eslint.org/docs/latest/use/getting-started)、[Prettier](https://prettier.io/docs/install)
 - [Vitest](https://vitest.dev/guide/)、[React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)、[Playwright](https://playwright.dev/docs/intro)
+
+- [Bootstrap](https://getbootstrap.com/docs/5.3/getting-started/introduction/)、[React-Bootstrap](https://react-bootstrap.github.io/docs/getting-started/introduction/)與[Bootstrap Icons](https://icons.getbootstrap.com/)
+- [Zod](https://zod.dev/)與[react-i18next](https://react.i18next.com/getting-started)
+- [import-x 依賴路徑規則](https://github.com/un-ts/eslint-plugin-import-x/blob/master/docs/rules/no-restricted-paths.md)

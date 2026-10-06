@@ -1,0 +1,12 @@
+/node_modules/
+/.react-router/
+/build/
+/coverage/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/.cache/
+*.tsbuildinfo
+*.log
+/.env*
+!/.env.example

@@ -88,7 +88,7 @@ test('mobile drawer retains the 64px header and 250px panel while trapping and r
   await expect(drawer).toHaveCSS('width', '250px');
   await expect(page.locator('.offcanvas-backdrop')).toHaveCSS('top', '64px');
   await expect(header).toBeVisible();
-  for (let index = 0; index < 8; index++) {
+  for (let index = 0; index < 9; index++) {
     await page.keyboard.press('Tab');
     // Bootstrap schedules enforcement after focus events; assert its settled result.
     await expect
@@ -96,7 +96,7 @@ test('mobile drawer retains the 64px header and 250px panel while trapping and r
       .toBe(true);
   }
   const firstControl = drawer.getByRole('button', { name: 'Close navigation' });
-  const lastControl = drawer.getByRole('link', { name: 'Skills', exact: true });
+  const lastControl = drawer.locator('[data-online-visitors]');
   await expect(drawer.getByRole('link', { name: 'Overview', exact: true })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(firstControl).toBeFocused();

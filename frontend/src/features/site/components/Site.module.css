@@ -119,6 +119,10 @@
     top: auto;
     right: auto;
     justify-content: flex-end;
+    /* Measure only the actual toolbar; empty row space must not block anchored panels. */
+    width: fit-content;
+    max-width: 100%;
+    margin-left: auto;
     margin-bottom: 18px;
   }
   .intro > :global(.eyebrow) {

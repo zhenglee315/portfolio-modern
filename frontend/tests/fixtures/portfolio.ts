@@ -128,6 +128,8 @@ export function endpointFixture(url: URL) {
     label: `${locale} Skill ${i + 1}`,
   }));
   switch (url.pathname.replace(/^\/api/, '')) {
+    case '/system/heartbeat':
+      return { online: 3 };
     case '/portfolio/site':
       return siteFixture;
     case '/portfolio/journey':

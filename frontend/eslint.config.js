@@ -8,7 +8,16 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 const directory = fileURLToPath(new URL('.', import.meta.url));
-const features = ['site', 'journey', 'experiences', 'projects', 'skills', 'appearance', 'language'];
+const features = [
+  'site',
+  'journey',
+  'experiences',
+  'projects',
+  'skills',
+  'appearance',
+  'language',
+  'online-visitors',
+];
 const upperLayers = [
   './src/app',
   './src/routes',

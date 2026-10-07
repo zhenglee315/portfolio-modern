@@ -257,8 +257,10 @@ html[data-motion-paused='true'] [data-decoration] *::after {
   --icon-pulse-peak-scale: var(--disclosure-icon-pulse-scale);
   --icon-pulse-peak-glow: var(--disclosure-icon-pulse-glow);
 }
-button:is(:hover, :focus-visible, :active) [data-icon-pulse='chat'] > svg {
+/* Bare interactive silhouettes share chat's highlight independently of idle breathing. */
+button:is(:hover, :focus-visible, :active) [data-icon-highlight] > svg {
   animation: none;
+  color: var(--text);
   filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--glow-bright));
 }
 @media (prefers-reduced-motion: reduce) {

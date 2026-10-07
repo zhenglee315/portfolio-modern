@@ -99,12 +99,16 @@ export function LabelPreview({ labels }: { labels: string[] | null }) {
 | [`hooks/useDocumentVisible.ts`](hooks/useDocumentVisible.ts) | `useDocumentVisible()` 提供文件可見狀態，讓持續播放／裝飾效果停止排程。 / Document visibility used to suspend ongoing playback and decoration.                                                                                                                                                                                                     |
 | [`hooks/useDisclosureFocus.ts`](hooks/useDisclosureFocus.ts) | `useDisclosureFocus(open, surfaceRef, initialRef, onClose)` 統一非 modal 選單開啟後的初始焦點、焦點移出關閉及 rAF／listener 清理；refs 與 `onClose` 維持穩定。Appearance 指向第一個 slider，Language 指向已選語系。 / Shared initial focus, outside-focus dismissal, and cleanup with stable refs/callback; the owner selects its initial control. |
 | [`lib/floating-panel.ts`](lib/floating-panel.ts)             | `floatingPosition(anchor, container, width, height, bottom?, topBoundary?)` 純計算座標、tail 方向與 `maxHeight`；輸入是同一 viewport 的 bounds。 / Pure anchored placement and available-content budget calculations.                                                                                                                              |
-| [`hooks/useAnchoredPanel.ts`](hooks/useAnchoredPanel.ts)     | `useAnchoredPanel(panelRef, anchor, containerRef?, bottomRef?, placement?, topRef?)` 共用量測、resize／scroll 監聽與清理；`placement` 為 `above` 或 `side`，`topRef` 可傳一個或多個保護區域。 / Shared geometry measurement, coalesced updates, and observer/listener cleanup.                                                                     |
+| [`hooks/useAnchoredPanel.ts`](hooks/useAnchoredPanel.ts)     | `useAnchoredPanel(panelRef, anchor, containerRef?, bottomRef?, placement?, topRef?)` 共用量測、resize／scroll 監聽與清理；`placement` 為 `above`、`side` 或 `below-header`，`topRef` 可傳一個或多個保護區域。 / Shared geometry measurement, coalesced updates, and observer/listener cleanup.                                                     |
 | [`lib/focus.ts`](lib/focus.ts)                               | `cycleDialogTab(event, surface)` 在 dialog 邊界循環 Tab，略過 disabled、hidden、inert 元素；呼叫端／Bootstrap 仍管理開啟、Escape 與還原焦點。 / Boundary Tab wrapping without replacing the owning dialog lifecycle.                                                                                                                               |
 
 `useAnchoredPanel` 以元素 inline style 寫入 `left`、`top`、`--tail-x`、`--tail-y`，並標記 `data-below`、`data-side`、`data-over-point`。有保護上界時，呼叫端須以 `--floating-max-height` 限制面板並允許內容捲動，不能只量測卻不處理過高的內容。傳入的 ref／ref 清單保持穩定，以免無意重建 observer。所有 DOM 定位與訂閱在瀏覽器生命週期內啟動。
 
 Anchored placement writes position, tail variables, and orientation attributes. A protected upper boundary publishes `--floating-max-height`; the consumer must constrain its panel and provide content scrolling. Keep refs and ref arrays stable. Browser effects own DOM access, subscriptions, and complete cleanup.
+
+`placement="below-header"` 以 `topRef` 清單的第一個元素作為外框上界；其餘與面板水平重疊的區域改為 `--floating-content-inset`，讓呼叫端增加正文／關閉按鈕的頂部留白並從高度 budget 扣除。外框與尾巴因此能貼近 header 內的 trigger，而不覆蓋工具列。一般 `above`／`side` 維持原本定位。
+
+With `placement="below-header"`, the first upper ref protects the shell's top edge. Subsequent horizontally overlapping guards publish `--floating-content-inset`; consumers add it to copy/close spacing and subtract it from the content height budget. This keeps the frame and tail near a header trigger while protecting the toolbar. Ordinary above/side placement retains its existing geometry.
 
 `useDisclosureFocus` 的 `surfaceRef` 包含 trigger 與面板；`initialRef` 指向實際可聚焦控制項。`onClose` 使用穩定 callback，避免每次更改 slider 或文案時重新啟動初始焦點。Hook 不攔截 Tab，也不接管 Bootstrap 的 Escape、outside pointer 與關閉後焦點還原。
 
@@ -164,18 +168,26 @@ export function AnchoredNotice({
 | [`ui/LoadMoreControl.tsx`](ui/LoadMoreControl.tsx)                                       | 傳入 `busy`、文字、可選錯誤與 `onLoad`；忙碌時停用按鈕，API 責任留在 feature。 / Shared continuation feedback and disabled in-flight controls.                                                                                                                |
 | [`ui/ExpandableCollection.tsx`](ui/ExpandableCollection.tsx)                             | 傳入 records、真實 `total`、續頁狀態、文案、`onLoadMore` 與 `renderItems`。預覽第一頁、展開後渲染額外記錄，收起移除額外 DOM 並還原焦點，保留 query cache。 / First-page preview and cache-preserving collection disclosure with feature-owned item rendering. |
 | [`ui/ExpandableTagList.tsx`](ui/ExpandableTagList.tsx)                                   | 完整陣列只需 `items`／`copy`；分頁 owner 再傳 `total`、`hasMore`、`busy`、`error`、`onLoadMore`。`onPreviewMore` 可補讀尚未填滿的 75% 預覽；元件本身不決定 endpoint。 / Measured local or paginated label disclosure with optional preview continuation.      |
-| [`ui/PixelBubble.tsx`](ui/PixelBubble.tsx)                                               | 共用包邊、bevel、tail 與關閉按鈕；傳入 `ref`、`closeLabel`、`onClose`、內容及 HTML attributes。定位、內容語意與自動關閉留在呼叫端。 / Reusable stepped shell; callers own placement, semantics, content, and closing policy.                                  |
+| [`ui/PixelBubble.tsx`](ui/PixelBubble.tsx)                                               | 共用包邊、bevel、tail 與可選關閉按鈕；傳入 `ref`、內容及 HTML attributes，需關閉按鈕時成對提供 `closeLabel`／`onClose`。定位、內容語意與自動關閉留在呼叫端。 / Reusable stepped shell; callers own placement, semantics, content, and closing policy.         |
 | [`ui/Icon.tsx`](ui/Icon.tsx)                                                             | `name: IconName` 對應本地 Bootstrap SVG allowlist；`label` 提供無障礙文字，裝飾圖示預設隱藏；`pulse="chat"`／`"disclosure"` 引用共同圖示呼吸效果。 / Allowlisted local SVGs with accessible labels and shared optional breathing decoration.                  |
 
 `PixelBubble` 的可調整樣式採 CSS custom properties：`--bubble-background`、`--bubble-padding`、`--bubble-backdrop-filter`，以及 `--bubble-close-size`、`--bubble-close-icon-size`、`--bubble-close-top`、`--bubble-close-right`、`--bubble-close-text`、hover／focus 對應 tokens。Feature CSS 將差異設定在自己的根 class，不複製 shared markup，也不依賴 shared CSS Modules 產生的 class 名稱。
 
-Customize `PixelBubble` through its background, padding, backdrop, and close-control variables on the feature's root class. Preserve shared markup and avoid depending on generated CSS Modules class names. The shared tail is decorative and never intercepts pointer input.
+Customize `PixelBubble` through its background, padding, backdrop, and close-control variables on the feature's root class. Preserve shared markup and avoid depending on generated CSS Modules class names. The shared tail is decorative and never intercepts pointer input. Supply both `closeLabel` and `onClose` for an interactive close control; omit both for a passive tooltip. Positioning and hover/focus dismissal remain with the caller.
 
 ## 視覺效果的共用來源 / Shared Visual Sources
 
 全域幾何、色彩與時間在 [`styles/tokens.css`](../styles/tokens.css) 定義；共用裝飾與動態政策在 [`styles/global.css`](../styles/global.css)。經歷與專案 timeline 引用 `--timeline-point-size`、`--timeline-point-keyframe`、`--duration-timeline-pulse`，不各自建立另一份 heartbeat。`Icon` 的 chat 與 disclosure 引用同一個 `icon-breathe`，以 tokens 表達差異。`data-decoration` 讓背景暫停政策統一停止持續動畫；減少動態效果由 CSS 與 shared media 訂閱共同處理。
 
 Global tokens define palette, geometry, and timing. Shared global styles define timeline/icon breathing and decoration pause policy. Experience and project timelines reference the same point keyframe and size; icon roles customize one shared breathing effect through variables. Decoration pauses and reduced-motion preferences remain consistent across features.
+
+`Icon highlight` 共用 chat 圖示在 hover／focus-visible／active 時的高亮前景與光暈，不需要閒置呼吸動畫；`pulse="chat"` 自動啟用此互動效果。
+
+`Icon highlight` shares chat's foreground and halo on hover, visible keyboard focus and activation, without adding idle breathing. Chat pulse icons enable this feedback automatically.
+
+`ExpandableTagList` 收合時的「＋」圖示使用 `Icon pulse="disclosure"`，共用區段圓圈「＋」的縮放與光暈 heartbeat；展開後「−」保持靜態，寬度量測副本也不播放動畫。hover 填色時以 `--on-accent` 保持圖示對比，暫停與 reduced-motion 沿用共用政策。
+
+Collapsed tag-list plus icons reuse the same disclosure breathing as section-level dotted plus controls. Expanded minus icons and inert measurement copies remain static. Hover uses the filled button's foreground token for contrast; shared pause and reduced-motion rules apply.
 
 主題切換的有限生命週期由 `useAppearance().subscribeThemeTransition(listener)` 提供 `prepare`／`replay`／`cancel` 通知；Portfolio page 重用自己的 `createEntrance` 與既有 CSS，遮罩完全覆蓋時暫停於首幀，顯露完成後開始進場。Appearance 不引用 page DOM，page 不另外建立換色控制器。新增元件使用語意色彩 tokens，頁面內容沿用既有進場外殼；不複製 heartbeat、換色或進場 keyframes。具體時序、首次聯絡介紹與中斷規則見[前端 SPEC](../../README.md)。
 

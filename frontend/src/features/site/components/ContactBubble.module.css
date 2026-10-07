@@ -49,8 +49,14 @@
   grid-template-columns: minmax(0, 1fr) 104px;
   gap: 16px;
   align-items: center;
-  /* The shared placement budget includes the 12px shell and at most 34px vertical mobile padding. */
-  max-height: max(0px, min(calc(100vh - 100px), calc(var(--floating-max-height, 100vh) - 46px)));
+  /* Reserve overlapping mobile controls inside the shell without exceeding its shared budget. */
+  max-height: max(
+    0px,
+    min(
+      calc(100vh - 100px),
+      calc(var(--floating-max-height, 100vh) - 46px - var(--floating-content-inset, 0px))
+    )
+  );
   overflow-y: auto;
   overscroll-behavior: contain;
   font: 13px/1.55 var(--sans);
@@ -126,9 +132,10 @@
 @media (max-width: 760px) {
   .bubble[data-contact-bubble] {
     width: min(380px, calc(100vw - 40px));
-    --bubble-padding: 20px 14px 14px;
+    /* The frame stays near chat; copy and close remain below any overlapping controls. */
+    --bubble-padding: calc(20px + var(--floating-content-inset, 0px)) 14px 14px;
     --bubble-close-size: var(--control-size);
-    --bubble-close-top: 4px;
+    --bubble-close-top: calc(4px + var(--floating-content-inset, 0px));
     --bubble-close-right: 4px;
   }
   .content {

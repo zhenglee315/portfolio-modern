@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import { useTranslation } from 'react-i18next';
 import { Brand, fullName, type Site } from '@/features/site';
+import { OnlineVisitors, useOnlineVisitors } from '@/features/online-visitors';
 import { Icon } from '@/shared/ui/Icon';
 import { mobileQuery, useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
@@ -126,6 +127,7 @@ function NavLinks({
 
 /** Supply responsive navigation with focus-managed Bootstrap drawer and desktop collapse.
  * The single 760px media contract matches CSS; the drawer restores its trigger focus.
+ * One browser query supplies both live-count indicators; compact mode hides only descriptive copy.
  */
 export function Navigation({
   site,
@@ -140,6 +142,7 @@ export function Navigation({
 }: Props) {
   const { t } = useTranslation();
   const mobile = useMediaQuery(mobileQuery);
+  const onlineVisitors = useOnlineVisitors();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!mobile) {
@@ -169,17 +172,22 @@ export function Navigation({
   };
   const foot = (
     <div className={styles.foot} data-nav-footer>
-      <p className="mono">{endpoints}</p>
-      <p>
-        {t('ui.sidebarLine1')}
-        <br />
-        {t('ui.sidebarLine2')}
-      </p>
-      {site && (
-        <small>
-          © {site.brand.copyrightYear} {fullName(site.profile)}
-        </small>
-      )}
+      <div className={styles.footCopy}>
+        <p className="mono">{endpoints}</p>
+        <p>
+          {t('ui.sidebarLine1')}
+          <br />
+          {t('ui.sidebarLine2')}
+        </p>
+      </div>
+      <div className={styles.footerRow}>
+        {site && (
+          <small className={styles.copyright}>
+            © {site.brand.copyrightYear} {fullName(site.profile)}
+          </small>
+        )}
+        <OnlineVisitors data={onlineVisitors.data} failed={onlineVisitors.isError} />
+      </div>
     </div>
   );
   return (

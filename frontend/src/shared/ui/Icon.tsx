@@ -25,6 +25,7 @@ import check from 'bootstrap-icons/icons/check-lg.svg?raw';
 import arrowRight from 'bootstrap-icons/icons/arrow-right.svg?raw';
 import arrowUp from 'bootstrap-icons/icons/arrow-up.svg?raw';
 import plusCircle from 'bootstrap-icons/icons/plus-circle-dotted.svg?raw';
+import personHearts from 'bootstrap-icons/icons/person-hearts.svg?raw';
 import { memo } from 'react';
 
 const icons = {
@@ -55,22 +56,26 @@ const icons = {
   arrowRight,
   arrowUp,
   plusCircle,
+  personHearts,
 };
 export type IconName = keyof typeof icons;
 
 /** Render allowlisted bundled SVG with currentColor and optional accessible copy.
  * API text is never interpreted as markup; an unknown key uses a safe fallback.
+ * Highlight reuses chat's interactive foreground/halo without requiring an idle pulse.
  */
 export const Icon = memo(function Icon({
   name,
   label,
   className = '',
   pulse,
+  highlight = false,
 }: {
   name: IconName;
   label?: string;
   className?: string;
   pulse?: 'chat' | 'disclosure';
+  highlight?: boolean;
 }) {
   return (
     <span
@@ -80,6 +85,7 @@ export const Icon = memo(function Icon({
       title={label}
       aria-hidden={label ? undefined : true}
       data-icon-pulse={pulse}
+      data-icon-highlight={highlight || pulse === 'chat' ? '' : undefined}
       data-decoration={pulse ? '' : undefined}
       dangerouslySetInnerHTML={{ __html: icons[name] ?? icons.braces }}
     />

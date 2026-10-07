@@ -33,7 +33,7 @@ export default function ContactBubble({
   const present = disclosure.present;
   const root = useRef<HTMLDivElement>(null);
   const [imageFailed, setImageFailed] = useState(false);
-  /** Keep mobile copy below visible controls and the fixed header; desktop retains side placement. */
+  /** Anchor the mobile shell to its header; reserve interior space for overlapping profile controls. */
   const protectedTop = useMemo(() => {
     if (!mobile) return undefined;
     const header = { current: disclosure.anchor?.closest('header') ?? null };
@@ -44,7 +44,7 @@ export default function ContactBubble({
     disclosure.anchor,
     undefined,
     undefined,
-    mobile ? 'above' : 'side',
+    mobile ? 'below-header' : 'side',
     protectedTop,
   );
   // Begin the finite disclosure lifecycle only after its lazy content has actually mounted.

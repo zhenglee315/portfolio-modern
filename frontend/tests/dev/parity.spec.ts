@@ -8,3 +8,4 @@ import '../e2e/timeline-parity.spec';
 import '../e2e/skills-parity.spec';
 import '../e2e/contact.spec';
 import '../e2e/theme-transition.spec';
+import '../e2e/online-visitors.spec';

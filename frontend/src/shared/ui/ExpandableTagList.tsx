@@ -28,6 +28,7 @@ type Props = {
  * @param props Ordered labels, real owner total and optional domain continuation callback.
  * Resize/font observers measure the same localized labels in inert replicas; no API is owned.
  * An optional preview callback fills remaining width from a paginated owner without expanding it.
+ * Collapsed live plus icons reuse Icon's disclosure breathing; measurement copies remain static.
  */
 export function ExpandableTagList({
   items,
@@ -132,7 +133,7 @@ export function ExpandableTagList({
             aria-label={expanded ? copy.lessLabel : copy.more(hidden)}
             onClick={toggle}
           >
-            <Icon name={expanded ? 'minus' : 'plus'} />
+            <Icon name={expanded ? 'minus' : 'plus'} pulse={expanded ? undefined : 'disclosure'} />
             {expanded ? copy.less : copy.compact(hidden)}
           </button>
         )}

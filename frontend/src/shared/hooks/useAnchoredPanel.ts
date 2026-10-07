@@ -4,13 +4,15 @@ import { floatingPosition } from '@/shared/lib/floating-panel';
 /** Keep an open floating panel within its viewport/container, with complete observer cleanup.
  * @param topElement Optional protected header or header list. Bounded callers consume --floating-max-height
  * to scroll oversized content before measurement; callers without a header keep prior geometry.
+ * Below-header placement protects the first header and reserves an interior inset for subsequent
+ * overlapping controls, allowing the shell/tail to stay attached without covering interactive copy.
  */
 export function useAnchoredPanel(
   panel: RefObject<HTMLDivElement | null>,
   anchor: Element | null,
   container?: RefObject<HTMLElement | null>,
   bottomElement?: RefObject<HTMLElement | null>,
-  placement: 'above' | 'side' = 'above',
+  placement: 'above' | 'side' | 'below-header' = 'above',
   topElement?: RefObject<HTMLElement | null> | readonly RefObject<HTMLElement | null>[],
 ) {
   useLayoutEffect(() => {
@@ -33,7 +35,7 @@ export function useAnchoredPanel(
         : bounds.height;
       const topBoundary = Math.max(
         0,
-        ...headers.map((header) =>
+        ...(placement === 'below-header' ? headers.slice(0, 1) : headers).map((header) =>
           header.current ? header.current.getBoundingClientRect().bottom - bounds.top : 0,
         ),
       );
@@ -48,6 +50,25 @@ export function useAnchoredPanel(
       );
       const bounded = headers.some((header) => header.current);
       if (bounded) {
+        // Interior guards affect copy/close spacing, not the header-attached shell's top edge.
+        const inset =
+          placement === 'below-header'
+            ? Math.max(
+                0,
+                ...headers.slice(1).map((header) => {
+                  const guard = header.current?.getBoundingClientRect();
+                  if (
+                    !guard ||
+                    guard.right <= bounds.left + rect.left ||
+                    guard.left >= bounds.left + rect.left + element.offsetWidth ||
+                    guard.top >= bounds.top + rect.top + element.offsetHeight
+                  )
+                    return 0;
+                  return guard.bottom - bounds.top - rect.top;
+                }),
+              )
+            : 0;
+        element.style.setProperty('--floating-content-inset', `${inset}px`);
         // Apply the available content budget before reading the now-constrained shell height.
         element.style.setProperty('--floating-max-height', `${rect.maxHeight}px`);
         rect = floatingPosition(
@@ -103,6 +124,7 @@ export function useAnchoredPanel(
       window.removeEventListener('resize', schedule);
       window.removeEventListener('scroll', schedule, true);
       mounted?.style.removeProperty('--floating-max-height');
+      mounted?.style.removeProperty('--floating-content-inset');
     };
   }, [panel, anchor, container, bottomElement, placement, topElement]);
 }

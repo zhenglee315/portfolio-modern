@@ -123,6 +123,11 @@
     "reloadSection": "重新加载此区",
     "settingsTitle": "外观设置",
     "noLocation": "暂无所在地数据",
-    "reloadPage": "重新加载页面"
+    "reloadPage": "重新加载页面",
+    "onlineVisitors": "当前在线：{{count}}",
+    "onlineVisitorsStale": "上次在线人数：{{count}}，暂时无法更新。",
+    "onlineVisitorsLoading": "正在读取在线人数…",
+    "onlineVisitorsUnavailable": "暂时无法读取在线人数。",
+    "onlineVisitorsNow": "当前在线人数：{{count}}"
   }
 }

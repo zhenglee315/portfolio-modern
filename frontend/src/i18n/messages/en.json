@@ -123,6 +123,11 @@
     "reloadSection": "Reload this section",
     "settingsTitle": "Appearance",
     "noLocation": "Location unavailable",
-    "reloadPage": "Reload page"
+    "reloadPage": "Reload page",
+    "onlineVisitors": "Online now: {{count}}",
+    "onlineVisitorsStale": "Last known online count: {{count}}. Update unavailable.",
+    "onlineVisitorsLoading": "Loading online count…",
+    "onlineVisitorsUnavailable": "Online count unavailable.",
+    "onlineVisitorsNow": "People online now: {{count}}"
   }
 }

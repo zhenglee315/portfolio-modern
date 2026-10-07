@@ -57,6 +57,12 @@
   width: 16px;
   height: 16px;
 }
+/* The shared disclosure pulse follows the filled button's foreground on hover;
+ * accent-colored frames would disappear against this control's accent background. */
+.toggle:hover :global([data-icon-pulse='disclosure']) {
+  --icon-pulse-rest-color: var(--on-accent);
+  --icon-pulse-peak-color: var(--on-accent);
+}
 .measure {
   position: absolute;
   inset: 0 auto auto 0;

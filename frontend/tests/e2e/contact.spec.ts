@@ -231,7 +231,6 @@ parityTest(
     const close = bubble.getByRole('button', { name: 'Close internship chatme', exact: true });
     await expect(close).toHaveCSS('width', '44px');
     await expect(close).toHaveCSS('height', '44px');
-    await expect(close).toHaveCSS('top', '4px');
     await expect(close).toHaveCSS('right', '4px');
     await expect(close.locator('svg')).toHaveCSS('width', '12px');
     const cta = bubble.getByRole('link', { name: 'Let’s talk', exact: true });
@@ -239,7 +238,12 @@ parityTest(
     await expect(cta.locator('svg')).toHaveCSS('width', '14px');
     const bounds = (await bubble.boundingBox())!;
     const controls = (await page.locator('[data-profile-controls]').boundingBox())!;
-    expect(bounds.y).toBeGreaterThanOrEqual(controls.y + controls.height + 12);
+    const header = (await page.locator('header[data-entrance-navigation]').boundingBox())!;
+    expect(bounds.y).toBeCloseTo(header.y + header.height + 12, 1);
+    const copy = (await bubble.locator('[data-contact-content]').boundingBox())!;
+    const closeBounds = (await close.boundingBox())!;
+    expect(copy.y).toBeGreaterThanOrEqual(controls.y + controls.height);
+    expect(closeBounds.y).toBeGreaterThanOrEqual(controls.y + controls.height);
     expect(bounds.x).toBeGreaterThanOrEqual(0);
     expect(bounds.y).toBeGreaterThanOrEqual(0);
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
@@ -255,14 +259,14 @@ parityTest(
     await page.keyboard.press('Escape');
     await expect(bubble).toHaveCount(0);
     await expect(trigger).toBeFocused();
-    // Short viewports and wrapped rows keep the full shell below controls while copy can scroll.
+    // Short viewports keep the frame attached to chat while guarded copy can scroll.
     for (const width of [320, 760]) {
       await page.setViewportSize({ width, height: 430 });
       await trigger.click();
       await expect(bubble).toBeVisible();
       const compact = (await bubble.boundingBox())!;
-      const row = (await page.locator('[data-profile-controls]').boundingBox())!;
-      expect(compact.y).toBeGreaterThanOrEqual(row.y + row.height + 12);
+      const top = (await page.locator('header[data-entrance-navigation]').boundingBox())!;
+      expect(compact.y).toBeCloseTo(top.y + top.height + 12, 1);
       expect(compact.y + compact.height).toBeLessThanOrEqual(430);
       await bubble.getByRole('button', { name: 'Close internship chatme', exact: true }).click();
       await expect(bubble).toHaveCount(0);

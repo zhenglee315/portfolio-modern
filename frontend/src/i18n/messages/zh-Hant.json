@@ -123,6 +123,11 @@
     "reloadSection": "重新載入此區",
     "settingsTitle": "外觀設定",
     "noLocation": "暫無所在地資料",
-    "reloadPage": "重新載入頁面"
+    "reloadPage": "重新載入頁面",
+    "onlineVisitors": "目前在線：{{count}}",
+    "onlineVisitorsStale": "上次在線人數：{{count}}，暫時無法更新。",
+    "onlineVisitorsLoading": "正在讀取在線人數…",
+    "onlineVisitorsUnavailable": "暫時無法讀取在線人數。",
+    "onlineVisitorsNow": "目前在線人數：{{count}}"
   }
 }

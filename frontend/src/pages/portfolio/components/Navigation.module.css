@@ -99,6 +99,9 @@
   padding-top: 30px;
   color: var(--muted);
   font-size: 14px;
+}
+/* Collapse descriptive copy separately so the live indicator stays at the rail's bottom. */
+.footCopy {
   max-height: 400px;
   overflow: hidden;
   opacity: 1;
@@ -109,17 +112,36 @@
     opacity var(--duration-hover),
     visibility var(--duration-hover);
 }
-.foot > :global(.mono) {
+.footCopy > :global(.mono) {
   font-size: 12px;
   letter-spacing: 1px;
   color: var(--accent);
   overflow-wrap: anywhere;
 }
-.foot small {
-  display: block;
+.footerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 25px;
+}
+.copyright {
+  min-width: 0;
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
   color: var(--sidebar-muted);
   font-size: 12px;
-  margin-top: 25px;
+}
+/* Only the desktop rail collapses copy. Drawer descendants must not emit inherited
+ * visibility transitions that can interrupt Bootstrap's own transition-end handling. */
+.sidebar .copyright {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    max-width var(--duration-drawer) var(--ease-drawer),
+    opacity var(--duration-hover),
+    visibility var(--duration-hover);
 }
 .collapse {
   position: absolute;
@@ -167,11 +189,21 @@
 .compact .brand {
   gap: 0;
 }
-.compact .foot {
+.compact .footCopy {
   max-height: 0;
   padding-top: 0;
   opacity: 0;
   visibility: hidden;
+}
+.compact .copyright {
+  max-width: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+.compact .footerRow {
+  justify-content: center;
+  gap: 0;
+  margin-top: 0;
 }
 .compact .links a {
   justify-content: center;
@@ -271,7 +303,7 @@
 .drawer .foot {
   padding-top: 20px;
 }
-.drawer .foot > p:not(:global(.mono)) {
+.drawer .footCopy > p:not(:global(.mono)) {
   display: none;
 }
 @media (max-width: 1150px) {

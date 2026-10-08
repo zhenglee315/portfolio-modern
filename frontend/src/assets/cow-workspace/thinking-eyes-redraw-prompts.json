@@ -1,0 +1,35 @@
+{
+  "mode": "built-in image_gen",
+  "asset": "cowEyesThinking",
+  "variants": [
+    {
+      "source": "rig-source/cowEyesThinkingRedrawnV1.png",
+      "generatedOriginal": "/Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-041ad3e3-3755-4831-b2a0-c21737e3f480.png",
+      "prompt": "Use case: precise-object-edit.\nAsset type: a NEW complete independent transparent eye pair for the THINKING expression of this existing pixel-art cow, about 2K wide.\nInput images: Image 1 is the user's small cow-eye reference, the PRIMARY EXPRESSION AND BROW/LID SHAPE reference. Image 2 is the approved \"looking at you\" pixel eye pair, reference ONLY for the existing character's visual identity, pixel medium, eye spacing and exact gray-brown iris color. Image 3 is the approved coding eye pair, reference ONLY to ensure the NEW thinking expression is clearly different from it. Do not change or copy over the approved two other expressions.\nPrimary request: freshly draw BOTH complete eyes, brows, and central crease to faithfully resemble Image 1's serious contemplative expression. Shorter thick slightly curved/arched eyebrows, inner brow ends lowered toward the bridge; rounded, domed heavy upper eyelids partially concealing the large dark pupils, compact rounded lower eye outlines, small clear ivory whites visible within the eye shapes. The brow and upper lid masses should feel rounded and compact like Image 1, not the long straight flared diagonal V and angular eyelid wings in the coding reference Image 3. Both pupils should look steadily forward under the heavy lids, near the upper-middle of the eyes, rather than downward at code. Retain a short, strong centered vertical brow furrow. Capture the thoughtful intent of Image 1 at clean high source resolution; do not make sleepy horizontal closed-eye slits, angry shouting, tearful, or crossed eyes.\nColor identity: use ONLY the same low-saturation dark gray-brown iris palette as the approved observer, reference RGB(79,69,63) #4f453f, RGB(81,71,65) #514741, shadow #3e3631 and #4b423d. No amber/orange/copper/golden iris. Keep navy-charcoal black brows/lids, near-black pupils, crisp small white catchlights, ivory white strictly INSIDE fully drawn dark eyelid contours.\nComposition: one centered paired overlay in the same overall proportions and spacing as Image 2, with fully transparent padding. Symmetric eye height and balanced brow spacing. Strong stepped pixel shapes, coherent pixel scale, clean complete silhouettes.\nCritical transparency and invariants: draw ONLY eyes, brows, pupils, catchlights and central furrow. Everything outside their closed contours, between the eyes and surrounding the eyebrows is genuinely transparent. NO cream facial fur backing, no white rim around eyebrows, no stray fragments, no detached pixels, no face, head, muzzle, mouth, nose, cheeks, body, props, text, labels, grid or checkerboard background, no cast shadow. Complete independent eye material suitable for layering over an existing head; no scene cropping or patches.",
+      "review": "Too similar to observer; refine narrowed round upper lids and compact eyebrows before selection."
+    },
+    {
+      "source": "rig-source/cowEyesThinkingRedrawnV2.png",
+      "generatedOriginal": "/Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-a91bb676-23bb-41c0-bc03-c25dcdfbeba5.png",
+      "prompt": "Use case: precise-object-edit.\nEDIT TARGET: image 4, the most recently generated independent thinking eye pair. It is TOO OPEN and TOO SIMILAR to the existing observer eyes. Change ONLY this new pair. Image 1 is the small user-provided cow eyes, the PRIMARY desired expression; Image 2 and 3 are the approved observer/coding pairs to keep unchanged and only use for palette and pixel style.\nREQUIRED VISUAL CHANGE, be substantial: reduce each visible eye opening to about 55% of the height in image 4. Put a heavy ROUNDED DOMED black upper eyelid over the upper half of each round dark iris. Make the eye silhouette a compact broad curved squint like image 1: arched upper edge, short rounded lower contour, predominantly dark eye mass with just small ivory white crescents at the lower/outer edges. Both black pupils remain visible as the lower portion under the thick lids, staring steadily forward in deep thought, with one tiny clear white catchlight per eye. Do NOT leave large circular open white eye bowls as in image 2 or image 4. Do NOT use the sharp straight descending angular coding upper lids of image 3.\nBrows: shorten the left and right eyebrows by about 25%, with stout compact slightly arched brow shapes and inner ends pressing down near the vertical centered brow crease. Flatten the long diagonal tips compared with image 4: thoughtful compact brow/rounded squint, not another long V eyebrow pair. Keep the short central vertical crease. Follow image 1's heavy serious contemplative expression closely. Different from the viewer's alert open round eyes and from the coder's long slanted angular brows/downward gaze.\nKeep precisely the same existing pixel-art style and LOW SATURATION gray-brown iris colors #4f453f/#514741/#3e3631/#4b423d; no amber/orange iris. Navy-charcoal black eye outlines, near-black pupils, tiny white highlights. Same left/right eye height, horizontal centers and inter-eye spacing as image 4, no crossed eyes, complete paired independent asset around 2K wide.\nTRUE transparency: only brows, full closed eye contours, contained eye whites, irises, pupils/highlights, central furrow. All surrounding space and the gap between the eyes fully transparent. No facial fur/cream patches or halo, no head/face/muzzle/mouth/nose/cheeks/body, no scene crop, no disconnected fragments, no extra pixels, no text, background, grid, checkerboard or cast shadow.",
+      "review": "Selected for native same-head review: compact arched brows and narrowed rounded eye opening, distinct from observer and coding."
+    }
+  ],
+  "finalSource": "rig-source/cowEyesThinkingRedrawnV2.png",
+  "inputImages": [
+    {
+      "role": "primary expression reference",
+      "reference": "User attachment: cow thinking eyes, 2026-10-08"
+    },
+    {
+      "role": "character identity and iris palette",
+      "reference": "rig-source/cowEyesObserverDirectRedrawn.png"
+    },
+    {
+      "role": "coding expression distinction reference",
+      "reference": "rig-source/cowEyesWorkingFocusedRedrawnV3.png"
+    }
+  ],
+  "nativeIrisPaletteReference": "rig-cowEyesObserver.svg",
+  "observerNativeIrisPalette": ["#342c24", "#3c342c", "#443c34", "#4c443c", "#544c44"]
+}

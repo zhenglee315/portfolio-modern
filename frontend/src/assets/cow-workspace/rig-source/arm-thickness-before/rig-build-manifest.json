@@ -1,0 +1,61 @@
+{
+  "sceneSize": [1254, 1254],
+  "entries": [
+    {
+      "name": "cowBodyComplete",
+      "source": "rig-source/cowBodyTorsoRedrawnV2.png",
+      "placement": [418.4513108614232, 538, 512.0973782771536, 565],
+      "promptsSource": "body-edge-redraw-prompts.json"
+    },
+    {
+      "name": "cowBodyTyping",
+      "source": "rig-source/cowBodyTorsoRedrawnV2.png",
+      "placement": [418.4513108614232, 538, 512.0973782771536, 565],
+      "promptsSource": "body-edge-redraw-prompts.json"
+    },
+    {
+      "name": "cowHeadComplete",
+      "source": "rig-source/cowHeadComplete.png",
+      "placement": [208, 62, 818, 674]
+    },
+    {
+      "name": "cowEyesObserver",
+      "source": "rig-source/cowEyesObserverDirectRedrawn.png",
+      "placement": [387.577033492823, 276.64306220095693, 409.54641148325356, 114.177990430622],
+      "promptsSource": "observer-eyes-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmLeftThinking",
+      "source": "rig-source/cowArmLeftThinkingRedrawn.png",
+      "placement": [342.32, 630.36, 255.06, 244.4],
+      "promptsSource": "arm-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmLeftTyping",
+      "source": "rig-source/cowArmLeftTypingRedrawn.png",
+      "placement": [297.6, 656.4, 273.36, 267.36],
+      "promptsSource": "typing-arm-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmRightTyping",
+      "source": "rig-source/cowArmRightTypingRedrawn.png",
+      "placement": [778.14, 658.18, 254.1, 268.84],
+      "promptsSource": "typing-arm-redraw-prompts.json"
+    },
+    {
+      "name": "cowEyesWorking",
+      "source": "rig-source/cowEyesWorkingIndependentRedrawn.png",
+      "placement": [387.34354066985645, 276.17607655502394, 410.0133971291866, 115.34545454545454],
+      "promptsSource": "working-eyes-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmRightResting",
+      "source": "rig-source/cowArmRightRestingRedrawn.png",
+      "placement": [880.26, 657.78, 244.12, 382.84],
+      "promptsSource": "arm-redraw-prompts.json"
+    }
+  ],
+  "promptsSource": "rig-prompts.json",
+  "grid": 4,
+  "palette": 128
+}

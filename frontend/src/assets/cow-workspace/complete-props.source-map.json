@@ -1,0 +1,179 @@
+{
+  "sourceManifest": "props-redraw-manifest.json",
+  "coordinateSpace": [1254, 1254],
+  "grid": 2,
+  "paletteColors": 384,
+  "provenance": "Only newly illustrated independent prop-source PNGs; no old scene, masks, fragments, source SVGs or contact shadows are read.",
+  "sources": [
+    {
+      "name": "books",
+      "source": "prop-source/books.png",
+      "sourceSha256": "32df21b9d89b462b97975292c75333da9fd883ee731dff7bb793533d9bdac580",
+      "sourceSize": [1254, 1254],
+      "alphaBounds": [89, 205, 1162, 1179],
+      "alphaThreshold": 192,
+      "placementBox": [16, 778, 400, 364],
+      "placement": {
+        "scale": 0.3727865796831314,
+        "translateX": -17.178005591798694,
+        "translateY": 702.484622553588,
+        "placedAlphaBounds": [16.0, 778.90587138863, 416.0, 1142.0]
+      },
+      "inputKind": "new-complete-independent-illustration"
+    },
+    {
+      "name": "globe",
+      "source": "prop-source/globe.png",
+      "sourceSha256": "1fcf928e490d3ba53629f756c7d2f4adae22d3cf07a946c4f4de8bd467b19585",
+      "sourceSize": [1081, 1455],
+      "alphaBounds": [161, 219, 950, 1294],
+      "alphaThreshold": 192,
+      "placementBox": [294, 946, 164, 228],
+      "placement": {
+        "scale": 0.20785804816223066,
+        "translateX": 260.53485424588087,
+        "translateY": 905.0316856780735,
+        "placedAlphaBounds": [294.0, 950.552598225602, 458.0, 1174.0]
+      },
+      "inputKind": "new-complete-independent-illustration",
+      "sourceSphere": {
+        "cx": 514,
+        "cy": 679,
+        "r": 352
+      },
+      "worldSphere": {
+        "cx": 367.374,
+        "cy": 1046.167,
+        "r": 73.166
+      }
+    },
+    {
+      "name": "openBook",
+      "source": "prop-source/openBook.png",
+      "sourceSha256": "f31f56bab772f4c255110384811e0967cc29d5fb1a19fae4cf01e65813c39bc7",
+      "sourceSize": [2098, 749],
+      "alphaBounds": [63, 95, 2035, 716],
+      "alphaThreshold": 192,
+      "placementBox": [404, 1054, 578, 196],
+      "placement": {
+        "scale": 0.29310344827586204,
+        "translateX": 385.5344827586207,
+        "translateY": 1040.1379310344828,
+        "placedAlphaBounds": [404.0, 1067.9827586206898, 982.0, 1250.0]
+      },
+      "inputKind": "new-complete-independent-illustration"
+    },
+    {
+      "name": "laptop",
+      "source": "prop-source/laptop.png",
+      "sourceSha256": "8b151a5ba8367a8958b93e01a93956abf91297bf00bf05ffb11cd058d3783106",
+      "sourceSize": [1536, 1024],
+      "alphaBounds": [202, 266, 1334, 840],
+      "alphaThreshold": 192,
+      "placementBox": [425, 827, 432, 264],
+      "placement": {
+        "scale": 0.38162544169611307,
+        "translateX": 347.9116607773852,
+        "translateY": 725.4876325088339,
+        "placedAlphaBounds": [425.0, 827, 857.0, 1046.053003533569]
+      },
+      "inputKind": "new-complete-independent-illustration"
+    },
+    {
+      "name": "coffee",
+      "source": "prop-source/coffee.png",
+      "sourceSha256": "390ac8385ef9e1bd9891bacfdc7f4f5df76fc2e51db071a6fe300c9892f095fc",
+      "sourceSize": [1254, 1254],
+      "alphaBounds": [210, 227, 1199, 1117],
+      "alphaThreshold": 192,
+      "placementBox": [857, 891, 244, 237],
+      "placement": {
+        "scale": 0.24671385237613752,
+        "translateX": 805.1900910010111,
+        "translateY": 852.4206268958544,
+        "placedAlphaBounds": [857.0, 908.4246713852376, 1101.0, 1128.0]
+      },
+      "inputKind": "new-complete-independent-illustration",
+      "nativeSteamMouthCenter": [948, 942]
+    },
+    {
+      "name": "plantPot",
+      "source": "prop-source/plantPot.png",
+      "sourceSha256": "f862ef5e95a85d4c599196344d324db19fb0774ef0c62e304c9f436838678e16",
+      "sourceSize": [1254, 1254],
+      "alphaBounds": [268, 312, 987, 1047],
+      "alphaThreshold": 192,
+      "placementBox": [1084, 1005, 134, 136],
+      "placement": {
+        "scale": 0.18503401360544217,
+        "translateX": 1034.891156462585,
+        "translateY": 947.269387755102,
+        "placedAlphaBounds": [1084.4802721088436, 1005.0, 1217.5197278911564, 1141.0]
+      },
+      "inputKind": "new-complete-independent-illustration"
+    },
+    {
+      "name": "plantLeaves",
+      "source": "prop-source/plantLeaves.png",
+      "sourceSha256": "d7c3c1a8ec5671d2f9390264a5fb0e9d8713a28384f134b1488dafad145f519b",
+      "sourceSize": [1254, 1254],
+      "alphaBounds": [116, 151, 1140, 1174],
+      "alphaThreshold": 192,
+      "placementBox": [1074, 893, 154, 134],
+      "placement": {
+        "scale": 0.13098729227761485,
+        "translateX": 1068.7399804496579,
+        "translateY": 873.2209188660802,
+        "placedAlphaBounds": [1083.9345063538613, 893.0, 1218.0654936461387, 1027.0]
+      },
+      "inputKind": "new-complete-independent-illustration"
+    },
+    {
+      "name": "desk",
+      "source": "prop-source/desk.png",
+      "sourceSha256": "71d6263b452e954d689d093f6a5dd6e90eb601d071bf69dc65800035864a2fb8",
+      "sourceSize": [2160, 728],
+      "alphaBounds": [59, 218, 2101, 644],
+      "alphaThreshold": 192,
+      "placementBox": [0, 1006, 1254, 248],
+      "placement": {
+        "scale": 0.5821596244131455,
+        "translateX": -1.7323943661971555,
+        "translateY": 879.0892018779343,
+        "placedAlphaBounds": [32.61502347417843, 1006.0, 1221.3849765258215, 1254.0]
+      },
+      "inputKind": "new-complete-independent-illustration"
+    }
+  ],
+  "bounds": {
+    "laptop": "421 823 440 228",
+    "coffee": "853 754 252 378",
+    "plantPot": "1080 1001 142 144",
+    "plantLeaves": "1079 889 144 142",
+    "plant": "1079 889 144 256",
+    "books": "12 774 408 372",
+    "globe": "290 946 172 232",
+    "openBook": "400 1063 586 191",
+    "desk": "28 1002 1198 252"
+  },
+  "globeGeometry": {
+    "cx": 367.374,
+    "cy": 1046.167,
+    "r": 73.166
+  },
+  "pathCounts": {
+    "laptop": 93,
+    "mug": 141,
+    "steam": 2,
+    "plantPot": 86,
+    "plantLeaves": 49,
+    "books": 310,
+    "globeFrame": 92,
+    "globeMap": 100,
+    "openBook": 160,
+    "desk": 141,
+    "deskContactShadows": 0
+  },
+  "deskContactShadows": "Empty",
+  "nativeGeometry": "Complete opaque globe circle, circular dark rim, and new native coffee steam."
+}

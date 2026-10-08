@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "inputKind": "new-complete-independent-transparent-illustrations",
+  "coordinateSpace": [1254, 1254],
+  "grid": 2,
+  "paletteColors": 384,
+  "alphaThreshold": 192,
+  "props": [
+    {
+      "name": "books",
+      "source": "prop-source/books.png",
+      "box": [16, 778, 400, 364],
+      "align": "center-bottom"
+    },
+    {
+      "name": "globe",
+      "source": "prop-source/globe.png",
+      "box": [294, 946, 164, 228],
+      "align": "center-bottom",
+      "sourceSphere": { "cx": 514, "cy": 679, "r": 352 }
+    },
+    {
+      "name": "openBook",
+      "source": "prop-source/openBook.png",
+      "box": [404, 1054, 578, 196],
+      "align": "center-bottom"
+    },
+    {
+      "name": "laptop",
+      "source": "prop-source/laptop.png",
+      "box": [425, 827, 432, 264],
+      "align": "center-top",
+      "alphaThreshold": 192
+    },
+    {
+      "name": "coffee",
+      "source": "prop-source/coffee.png",
+      "box": [857, 891, 244, 237],
+      "align": "center-bottom"
+    },
+    {
+      "name": "plantPot",
+      "source": "prop-source/plantPot.png",
+      "box": [1084, 1005, 134, 136],
+      "align": "center-bottom"
+    },
+    {
+      "name": "plantLeaves",
+      "source": "prop-source/plantLeaves.png",
+      "box": [1074, 893, 154, 134],
+      "align": "center-bottom"
+    },
+    {
+      "name": "desk",
+      "source": "prop-source/desk.png",
+      "box": [0, 1006, 1254, 248],
+      "align": "center-bottom"
+    }
+  ]
+}

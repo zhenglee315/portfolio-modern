@@ -1,0 +1,78 @@
+{
+  "sceneSize": [1254, 1254],
+  "entries": [
+    {
+      "name": "cowBodyComplete",
+      "source": "rig-source/cowBodyTorsoRedrawnV2.png",
+      "placement": [418.4513108614232, 538, 512.0973782771536, 565],
+      "promptsSource": "body-edge-redraw-prompts.json"
+    },
+    {
+      "name": "cowBodyTyping",
+      "source": "rig-source/cowBodyTorsoRedrawnV2.png",
+      "placement": [418.4513108614232, 538, 512.0973782771536, 565],
+      "promptsSource": "body-edge-redraw-prompts.json"
+    },
+    {
+      "name": "cowHeadComplete",
+      "source": "rig-source/cowHeadComplete.png",
+      "placement": [208, 62, 818, 674],
+      "nativeEdits": "head-mouth-native-edits.json"
+    },
+    {
+      "name": "cowEyesObserver",
+      "source": "rig-source/cowEyesObserverDirectRedrawn.png",
+      "placement": [387.577033492823, 276.64306220095693, 409.54641148325356, 114.177990430622],
+      "promptsSource": "observer-eyes-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmLeftThinking",
+      "source": "rig-source/cowArmLeftThinkingThickRedrawnV2.png",
+      "placement": [308.58860234445444, 608.2845807033364, 303.48061316501355, 280.0],
+      "promptsSource": "arm-thickness-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmLeftTyping",
+      "source": "rig-source/cowArmLeftTypingRedrawn.png",
+      "placement": [230.1181, 603.019, 455.6, 445.6],
+      "promptsSource": "typing-arm-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmRightTyping",
+      "source": "rig-source/cowArmRightTypingRedrawn.png",
+      "placement": [705.0533, 615.3604, 392.7, 415.48],
+      "promptsSource": "typing-arm-redraw-prompts.json"
+    },
+    {
+      "name": "cowEyesWorking",
+      "source": "rig-source/cowEyesWorkingFocusedRedrawnV3.png",
+      "placement": [384.3081339712919, 266.9737629820304, 415.38373205741624, 129.12153110047848],
+      "promptsSource": "working-eyes-focus-redraw-prompts.json"
+    },
+    {
+      "name": "cowArmRightResting",
+      "source": "rig-source/cowArmRightRestingThickRedrawnV3.png",
+      "placement": [843.3476907426246, 640.7419532044761, 320.2938351983722, 399.8780467955238],
+      "promptsSource": "arm-thickness-redraw-prompts.json"
+    },
+    {
+      "name": "cowMouthNeutral",
+      "nativeSvgSource": "rig-source/cowMouthNeutralNative.svg",
+      "designSpec": "head-mouth-native-edits.json"
+    },
+    {
+      "name": "cowMouthSmile",
+      "nativeSvgSource": "rig-source/cowMouthSmileNative.svg",
+      "designSpec": "mouth-smile-native-spec.json"
+    },
+    {
+      "name": "cowEyesThinking",
+      "source": "rig-source/cowEyesThinkingRedrawnV2.png",
+      "placement": [402.98755980861245, 286.6832535885168, 378.95885167464115, 92.93014354066986],
+      "promptsSource": "thinking-eyes-redraw-prompts.json"
+    }
+  ],
+  "promptsSource": "rig-prompts.json",
+  "grid": 4,
+  "palette": 128
+}

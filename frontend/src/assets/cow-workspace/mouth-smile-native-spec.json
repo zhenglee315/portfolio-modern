@@ -1,0 +1,25 @@
+{
+  "method": "native-vector-redraw",
+  "asset": "cowMouthSmile",
+  "source": "rig-source/cowMouthSmileNative.svg",
+  "style": "closed shallow U, raised corners, stepped pixels, transparent around the stroke",
+  "sceneCoordinates": true,
+  "width": 161.95302013422818,
+  "pixelStep": [
+    2.7449664429530203,
+    2.54820415879017
+  ],
+  "origin": [
+    534.6510067114094,
+    581.8336483931947
+  ],
+  "columns": 59,
+  "curve": "row = round(9 * (1 - ((column - 29) / 29)^2))",
+  "strokeRows": 3,
+  "palette": [
+    "#3c2424",
+    "#3c2c2c"
+  ],
+  "intendedPhase": "glance",
+  "independentSource": true
+}

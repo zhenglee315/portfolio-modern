@@ -1,0 +1,14 @@
+{
+  "mode": "built-in image_gen",
+  "useCase": "precise-object-edit",
+  "asset": "cowEyesWorkingLivelyRedrawnV2",
+  "finalSource": "rig-source/cowEyesWorkingLivelyRedrawnV2.png",
+  "generatedOriginal": "/Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-fe5f7cf4-b67f-4d65-8e57-ab0997ccf902.png",
+  "inputImages": [
+    {
+      "role": "edit target and identity/style reference: approved lively observer eyes",
+      "reference": "rig-source/cowEyesObserverDirectRedrawn.png"
+    }
+  ],
+  "prompt": "Use case: precise-object-edit.\nAsset type: high-resolution transparent paired working-eye overlay for the established pixel-art cow mascot, to be traced into independent SVG.\nInput image 1: edit target and identity reference, the approved lively \"looking at you\" observer eyes.\nPrimary request: freshly redraw a matching NEW pair of eyes looking slightly DOWN toward laptop code, with the same liveliness, large deep-brown irises and crisp white catchlights as the reference. Preserve BOTH eyes' spacing, thick slanted brows, dark eyelid outlines, warm-brown iris shading and the short central vertical brow crease. It must look alert and attentive at work.\nExpression: keep the rounded open eye shapes and at least 85–90% of the observer eye opening. Shift both irises and pupils slightly downward together, approximately one reference pixel row / 8–10% of iris diameter, so the gaze is toward code below. Keep visible ivory sclera on both sides and a little above each iris. Upper lids gently curve, without becoming straight horizontal half-closed sleepy lids. Keep most of the circular iris visible, with strong bright small white square catchlights near its upper-left. Symmetric cohesive downward gaze, pupils remain on the same horizontal level, no inward convergence.\nStyle and clarity: newly drawn crisp detailed pixel art at high source resolution (about 2K wide, wide horizontal canvas); coherent stepped dark pixel edges, clean brown iris ring and pupil contrast, matching the reference's original palette and pixel size. The eyes occupy most of the width with generous transparent margin.\nTrue transparent independent overlay: ONLY both brows, complete dark eye outlines, ivory sclera INSIDE those outlines, irises/pupils/catchlights and the tiny middle crease. All surrounding space, gap between eyes, space above/below, between brows and eyelids is genuinely transparent. No ivory/cream fur around brows or eyelids, no white sticker outline, no skin-color face patch, no rectangular backing, no halo. Complete closed outlines, no clipped corners or stray disconnected specks. No head, muzzle, ears, body, props, text, checkerboard, watermark or background. Output ONE whole paired asset, not separate crops."
+}

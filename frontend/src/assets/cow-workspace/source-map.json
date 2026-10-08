@@ -1,0 +1,45 @@
+{
+  "source": "../../../../backend/SYSTEM/static/icon/logo.png",
+  "sourceSha256": "97263b4430d2644b80473d17e3bb7dad896df1391296b3235582303dcac7db23",
+  "sourceSize": [1254, 1254],
+  "grid": 2,
+  "paletteColors": 512,
+  "colorRMSE": 2.602,
+  "bounds": {
+    "cow": "204 56 898 974",
+    "laptop": "422 822 440 274",
+    "coffee": "870 712 254 418",
+    "plant": "1080 872 164 272",
+    "books": "0 770 420 376",
+    "globe": "288 942 172 232",
+    "openBook": "400 1050 588 204",
+    "desk": "0 1002 1254 252"
+  },
+  "pathCounts": {
+    "cowTorso": 349,
+    "cowHead": 591,
+    "cowEyes": 0,
+    "cowBrows": 0,
+    "cowPupils": 0,
+    "cowThinkingArm": 177,
+    "cowTypingHands": 2,
+    "laptop": 133,
+    "mug": 176,
+    "steam": 47,
+    "plantPot": 137,
+    "plantLeaves": 216,
+    "books": 529,
+    "globeFrame": 174,
+    "globeMap": 103,
+    "openBook": 278,
+    "openBookDetails": 0,
+    "desk": 282,
+    "deskContactShadows": 62
+  },
+  "notes": [
+    "Original coordinates are retained. No affine transforms or face replacement.",
+    "Occluded surfaces have simple backfills covered by the original foreground pixels in the neutral pose.",
+    "Contact shadows belong to the full scene only; independent props and desk omit cast-shadow fragments.",
+    "A 2-pixel grid and shared 512-color palette are used. Exported art contains SVG paths only."
+  ]
+}

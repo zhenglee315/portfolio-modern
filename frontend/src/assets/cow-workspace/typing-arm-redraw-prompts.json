@@ -1,0 +1,40 @@
+{
+  "mode": "built-in image_gen",
+  "purpose": "Complete the two independently displayed typing arms: rounded shoulder roots, continuous sleeves and clean outer contours while retaining the existing typing gesture.",
+  "entries": [
+    {
+      "key": "cowArmLeftTyping",
+      "prompt": "Use case: precise-object-edit. Asset type: one complete independently reusable pixel-art cow typing arm with real alpha transparency. Image 1 is the EDIT TARGET: the existing single typing arm. Image 2 is the full matching typing hoodie, supplied only as a fabric, perspective and body-fit reference. Repair and complete Image 1 into ONE fully drawn independent arm, keeping the existing navy palette, chunky pixel scale, cloth folds, natural low bent elbow, short cream-white wrist and dark cloven hoof pose/proportions as closely as possible. Orientation: VIEWER-LEFT arm. The shoulder is at the upper-left/upper-center, the elbow is low on the left, the forearm bends inward toward the RIGHT, and the hoof is on the RIGHT, poised palm-down over a keyboard. Do NOT mirror or reverse it. Preserve the relative elbow/cuff/wrist/hoof positions and the typing gesture. The flaw to repair is the abruptly sliced shoulder/inner upper sleeve at the top: reconstruct a COMPLETE naturally rounded, thick, filled shoulder root and upper sleeve, with a continuous closed pixel-stepped outline, enough finished cloth for overlapping the torso. Complete every formerly hidden edge of the shoulder and sleeve, including the medial inner edge. Remove any cut-off torso remnant or detached diagonal strip underneath the sleeve/hoof; complete the sleeve's own closed lower contour instead. Navy cloth, wrist and hoof interiors must be solid with NO transparent cracks, holes, missing wedges or broken outlines. All parts remain one connected arm; NO separate shoulder pad, no chopped straight seam at the top, no dangling fragments, no awkwardly inflated giant shoulder. Render the whole independent arm with ample 12 percent transparent padding and no clipping. Keep same original pixel-art navy-black hoodie, muted gray highlights, creamy ivory wrist and rounded charcoal cloven cow hoof. No new gesture, no long human forearm, no human fingers, no torso/chest/collar/logo/drawstrings, no other arm, no head, no props, no keyboard/laptop, no background, no text or watermark. Preserve real transparency and sharp stepped pixel-art edges. Only this ONE complete repaired arm in the image.",
+      "inputImages": [
+        {
+          "path": "rig-source/cowArmLeftTypingEditReference.png",
+          "role": "edit target: actual original independent SVG rendered with transparent alpha"
+        },
+        {
+          "path": "rig-source/cowTypingHoodieMaster.png",
+          "role": "matching whole typing hoodie: style, material and body-fit reference only"
+        }
+      ],
+      "transparentBackground": true,
+      "output": "rig-source/cowArmLeftTypingRedrawn.png",
+      "generatedOutputHint": "Generated images are saved to /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388 as /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-0602967e-0d75-47c7-aeeb-45e78a43ae79.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link."
+    },
+    {
+      "key": "cowArmRightTyping",
+      "prompt": "Use case: precise-object-edit. Asset type: one complete independently reusable pixel-art cow typing arm with real alpha transparency. Image 1 is the EDIT TARGET: the existing single typing arm. Image 2 is the full matching typing hoodie, supplied only as a fabric, perspective and body-fit reference. Repair and complete Image 1 into ONE fully drawn independent arm, keeping the existing navy palette, chunky pixel scale, cloth folds, natural low bent elbow, short cream-white wrist and dark cloven hoof pose/proportions as closely as possible. Orientation: VIEWER-RIGHT arm. The shoulder is at the upper-right/upper-center, the elbow is low on the right, the forearm bends inward toward the LEFT, and the hoof is on the LEFT, poised palm-down over a keyboard. Do NOT mirror or reverse it. Preserve the relative elbow/cuff/wrist/hoof positions and the typing gesture. The flaw to repair is the abruptly sliced shoulder/inner upper sleeve at the top: reconstruct a COMPLETE naturally rounded, thick, filled shoulder root and upper sleeve, with a continuous closed pixel-stepped outline, enough finished cloth for overlapping the torso. Complete every formerly hidden edge of the shoulder and sleeve, including the medial inner edge. Remove any cut-off torso remnant or detached diagonal strip underneath the sleeve/hoof; complete the sleeve's own closed lower contour instead. Navy cloth, wrist and hoof interiors must be solid with NO transparent cracks, holes, missing wedges or broken outlines. All parts remain one connected arm; NO separate shoulder pad, no chopped straight seam at the top, no dangling fragments, no awkwardly inflated giant shoulder. Render the whole independent arm with ample 12 percent transparent padding and no clipping. Keep same original pixel-art navy-black hoodie, muted gray highlights, creamy ivory wrist and rounded charcoal cloven cow hoof. No new gesture, no long human forearm, no human fingers, no torso/chest/collar/logo/drawstrings, no other arm, no head, no props, no keyboard/laptop, no background, no text or watermark. Preserve real transparency and sharp stepped pixel-art edges. Only this ONE complete repaired arm in the image.",
+      "inputImages": [
+        {
+          "path": "rig-source/cowArmRightTypingEditReference.png",
+          "role": "edit target: actual original independent SVG rendered with transparent alpha"
+        },
+        {
+          "path": "rig-source/cowTypingHoodieMaster.png",
+          "role": "matching whole typing hoodie: style, material and body-fit reference only"
+        }
+      ],
+      "transparentBackground": true,
+      "output": "rig-source/cowArmRightTypingRedrawn.png",
+      "generatedOutputHint": "Generated images are saved to /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388 as /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-0f1c8313-73e4-4b14-9489-874e9bfe97c2.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link."
+    }
+  ]
+}

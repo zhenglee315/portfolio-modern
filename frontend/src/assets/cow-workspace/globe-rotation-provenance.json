@@ -1,0 +1,134 @@
+{
+  "source": "complete-globe.svg",
+  "sourceSha256": "e018ee077e906faa0be82d381969683c9c88baf1c3c09aae6bfa0ab6787c7a91",
+  "sourceMapSha256": "a30e7f1f2212d3c9ee724b521acef10c52425ed7c26c93c7b5a01b4a9439408c",
+  "method": "Inverse/forward orthographic sphere, longitude += angle; no planar rotation.",
+  "geometry": {
+    "cx": 367.374,
+    "cy": 1046.167,
+    "r": 73.166
+  },
+  "frameCount": 120,
+  "durationSeconds": 36,
+  "worldGrid": 4,
+  "raysPerFrame": 980,
+  "landPalette": [
+    "#7ccc6c",
+    "#5cac5c",
+    "#bdec79",
+    "#89d274",
+    "#b2e56d",
+    "#62b65f",
+    "#3d895d",
+    "#b5e578",
+    "#50a263",
+    "#8ad065"
+  ],
+  "frontSourceLandCells": 1360,
+  "sourceLandGlossHoleRepairs": [
+    {
+      "nativeGrid": 2,
+      "completedCells": 64,
+      "whiteGlossCells": 56,
+      "bounds": [326, 992, 346, 1014],
+      "method": "Closed non-land component intersecting small fixed white gloss; nearest original green boundary material."
+    }
+  ],
+  "backSurface": "Closed native stylized continent contours in UV; decorative, not geographic reference.",
+  "backContours": [
+    [
+      [111, 27],
+      [118, 43],
+      [132, 51],
+      [139, 64],
+      [153, 60],
+      [156, 50],
+      [168, 49],
+      [178, 39],
+      [185, 36],
+      [180, 22],
+      [188, 12],
+      [182, 2],
+      [169, 6],
+      [162, -5],
+      [149, -7],
+      [144, 4],
+      [133, 7],
+      [130, 18],
+      [117, 16]
+    ],
+    [
+      [167, -12],
+      [179, -8],
+      [194, -16],
+      [204, -19],
+      [212, -34],
+      [207, -46],
+      [196, -58],
+      [186, -52],
+      [183, -40],
+      [171, -36],
+      [166, -25],
+      [159, -20]
+    ],
+    [
+      [212, 34],
+      [220, 47],
+      [236, 49],
+      [247, 42],
+      [251, 29],
+      [242, 19],
+      [244, 10],
+      [235, 3],
+      [224, 9],
+      [218, 21],
+      [205, 25]
+    ],
+    [
+      [233, -24],
+      [244, -20],
+      [253, -27],
+      [249, -39],
+      [239, -43],
+      [231, -34]
+    ],
+    [
+      [197, 60],
+      [204, 66],
+      [214, 65],
+      [218, 59],
+      [208, 54]
+    ],
+    [
+      [222, -5],
+      [228, -3],
+      [232, -9],
+      [228, -14],
+      [221, -11]
+    ]
+  ],
+  "fixedBasePaths": 6,
+  "fixedOverlayPaths": 11,
+  "frameLandCells": [
+    335, 346, 350, 343, 339, 347, 341, 335, 333, 318, 318, 316, 303, 294, 293, 284, 276, 265, 257,
+    254, 255, 249, 242, 240, 239, 241, 237, 243, 248, 245, 247, 248, 247, 247, 246, 254, 256, 254,
+    260, 260, 265, 269, 271, 278, 284, 289, 293, 299, 305, 313, 327, 323, 339, 342, 352, 356, 368,
+    374, 378, 384, 377, 384, 378, 377, 369, 367, 361, 354, 346, 336, 328, 313, 302, 290, 284, 273,
+    258, 254, 242, 231, 223, 214, 209, 200, 197, 182, 177, 184, 176, 184, 188, 191, 190, 187, 205,
+    193, 195, 200, 199, 197, 198, 199, 198, 204, 201, 204, 211, 218, 231, 241, 253, 266, 282, 286,
+    305, 309, 313, 316, 326, 331
+  ],
+  "framePathCounts": [
+    10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 9, 9, 9,
+    9, 9, 9, 9, 9, 9, 9, 9, 9, 8, 8, 6, 7, 7, 6, 6, 6, 6, 5, 5, 5, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 6, 5, 7, 7, 7, 8, 7, 8, 7, 8, 8,
+    8, 8, 8, 9, 8, 8, 9, 8, 9, 8, 8, 9, 8, 9, 9, 8, 8, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+    10, 10, 10
+  ],
+  "quarterTurnFrames": [0, 30, 60, 90],
+  "loop360Equals0": true,
+  "allLandRectCornersInsideSphere": true,
+  "nativeFrameUnchanged": true,
+  "staticExact": "Original globeMap and globeFrame native paths, with prefers-reduced-motion fallback.",
+  "originalSvgUnchanged": true
+}

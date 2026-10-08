@@ -1,0 +1,814 @@
+{
+  "method": "exact-native-mouth-cell-extraction-and-muzzle-color-restoration",
+  "source": "rig-source/cowHeadComplete.png",
+  "sourceSha256": "d805862e5e6620f0b16d3c8465114ae6c765450f34d218b618b42bcec48470b3",
+  "originalNativeSource": "rig-source/cowHeadCompleteOriginal-v1.svg",
+  "tracedPathsSha256": "b912201876f8e5df5a4cdeab6bf204d52408d3bfebd9cb43818e82b7dea7e4ab",
+  "extractedNativeSource": "rig-source/cowMouthNeutralNative.svg",
+  "affectedBounds": {
+    "x": 531.906,
+    "y": 589.4783,
+    "width": 164.6981,
+    "height": 12.741
+  },
+  "backgroundMethod": "Replace exactly the extracted stroke footprints with the nearest existing native peach shade interpolated between the adjacent upper/lower muzzle rows; preserve original alpha. No overlay, crop, clipping, or PNG edit.",
+  "neighborRows": [
+    206,
+    212
+  ],
+  "nativeGridWorld": [
+    2.7449664429530203,
+    2.54820415879017
+  ],
+  "replacementPalette": [
+    "#f4c4a4",
+    "#f4c4ac",
+    "#fcc4ac",
+    "#fcccac",
+    "#fcccb4",
+    "#fcccbc",
+    "#fcd4bc"
+  ],
+  "replacements": [
+    {
+      "fill": "#342424",
+      "d": "M545.6309 594.5747h5.4899v2.5482H545.6309z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#342424",
+      "d": "M647.1946 594.5747h5.4899v2.5482H647.1946z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#342424",
+      "d": "M671.8993 594.5747h2.745v2.5482H671.8993z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#342424",
+      "d": "M680.1342 594.5747h2.745v2.5482H680.1342z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#342424",
+      "d": "M534.651 592.0265h2.745v7.6446H534.651z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#342424",
+      "d": "M548.3758 597.1229h2.745v2.5482H548.3758z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#342424",
+      "d": "M647.1946 597.1229h2.745v2.5482H647.1946z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#342424",
+      "d": "M674.6443 597.1229h8.2349v2.5482H674.6443z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#655957",
+      "d": "M669.1544 599.6711h2.745v2.5482H669.1544z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#655957",
+      "d": "M693.8591 599.6711h2.745v2.5482H693.8591z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#604d42",
+      "d": "M575.8255 599.6711h2.745v2.5482H575.8255z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#604d42",
+      "d": "M584.0604 599.6711h27.4497v2.5482H584.0604z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M540.1409 592.0265h5.4899v2.5482H540.1409z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M553.8658 592.0265h19.2148v2.5482H553.8658z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M578.5705 592.0265h16.4698v2.5482H578.5705z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M597.7852 592.0265h13.7248v2.5482H597.7852z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M617 592.0265h8.2349v2.5482H617z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M630.7248 592.0265h13.7248v2.5482H630.7248z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M658.1745 592.0265h10.9799v2.5482H658.1745z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M685.6242 592.0265h8.2349v2.5482H685.6242z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M559.3557 594.5747h5.4899v2.5482H559.3557z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M578.5705 594.5747h10.9799v2.5482H578.5705z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M603.2752 594.5747h5.4899v2.5482H603.2752z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M660.9195 594.5747h5.4899v2.5482H660.9195z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M691.1141 594.5747h2.745v2.5482H691.1141z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M540.1409 597.1229h2.745v2.5482H540.1409z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M562.1007 597.1229h2.745v2.5482H562.1007z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M575.8255 597.1229h10.9799v2.5482H575.8255z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M608.7651 597.1229h2.745v2.5482H608.7651z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M630.7248 597.1229h2.745v2.5482H630.7248z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M658.1745 597.1229h2.745v2.5482H658.1745z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M685.6242 597.1229h5.4899v2.5482H685.6242z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#54443c",
+      "d": "M545.6309 599.6711h5.4899v2.5482H545.6309z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#54443c",
+      "d": "M553.8658 599.6711h2.745v2.5482H553.8658z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#54443c",
+      "d": "M556.6107 599.6711h16.4698v2.5482H556.6107z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#4c3c34",
+      "d": "M534.651 599.6711h2.745v2.5482H534.651z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#4c3c3c",
+      "d": "M537.396 599.6711h8.2349v2.5482H537.396z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#4c3c3c",
+      "d": "M551.1208 599.6711h2.745v2.5482H551.1208z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#887e75",
+      "d": "M584.0604 589.4783h2.745v2.5482H584.0604z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#887e75",
+      "d": "M589.5503 589.4783h10.9799v2.5482H589.5503z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#63534c",
+      "d": "M578.5705 599.6711h5.4899v2.5482H578.5705z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#604d42",
+      "d": "M617 599.6711h10.9799v2.5482H617z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#7a6761",
+      "d": "M688.3691 589.4783h2.745v2.5482H688.3691z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M633.4698 599.6711h8.2349v2.5482H633.4698z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M647.1946 599.6711h19.2148v2.5482H647.1946z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M666.4094 599.6711h2.745v2.5482H666.4094z",
+      "replacementFill": "#f4c4a4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M671.8993 599.6711h2.745v2.5482H671.8993z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M674.6443 599.6711h10.9799v2.5482H674.6443z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M685.6242 599.6711h2.745v2.5482H685.6242z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M688.3691 599.6711h2.745v2.5482H688.3691z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M691.1141 599.6711h2.745v2.5482H691.1141z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#544646",
+      "d": "M573.0805 599.6711h2.745v2.5482H573.0805z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M573.0805 592.0265h5.4899v2.5482H573.0805z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#3c2c2c",
+      "d": "M625.2349 592.0265h2.745v2.5482H625.2349z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#a68474",
+      "d": "M534.651 589.4783h13.7248v2.5482H534.651z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#a68474",
+      "d": "M551.1208 589.4783h8.2349v2.5482H551.1208z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#a68474",
+      "d": "M562.1007 589.4783h2.745v2.5482H562.1007z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#a68474",
+      "d": "M567.5906 589.4783h5.4899v2.5482H567.5906z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#a68474",
+      "d": "M586.8054 589.4783h2.745v2.5482H586.8054z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#98867b",
+      "d": "M548.3758 589.4783h2.745v2.5482H548.3758z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#98867b",
+      "d": "M559.3557 589.4783h2.745v2.5482H559.3557z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#98867b",
+      "d": "M564.8456 589.4783h2.745v2.5482H564.8456z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M578.5705 589.4783h5.4899v2.5482H578.5705z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M600.5302 589.4783h2.745v2.5482H600.5302z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M603.2752 589.4783h2.745v2.5482H603.2752z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M606.0201 589.4783h2.745v2.5482H606.0201z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M608.7651 589.4783h2.745v2.5482H608.7651z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M611.5101 589.4783h8.2349v2.5482H611.5101z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M619.745 589.4783h5.4899v2.5482H619.745z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M627.9799 589.4783h2.745v2.5482H627.9799z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M630.7248 589.4783h2.745v2.5482H630.7248z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M633.4698 589.4783h5.4899v2.5482H633.4698z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M638.9597 589.4783h2.745v2.5482H638.9597z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M641.7047 589.4783h8.2349v2.5482H641.7047z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M652.6846 589.4783h35.6846v2.5482H652.6846z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M691.1141 589.4783h2.745v2.5482H691.1141z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M693.8591 589.4783h2.745v2.5482H693.8591z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#e4b49b",
+      "d": "M531.906 599.6711h2.745v2.5482H531.906z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#e0bba7",
+      "d": "M531.906 592.0265h2.745v7.6446H531.906z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c534c",
+      "d": "M630.7248 599.6711h2.745v2.5482H630.7248z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#42302e",
+      "d": "M693.8591 597.1229h2.745v2.5482H693.8591z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M575.8255 589.4783h2.745v2.5482H575.8255z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M625.2349 589.4783h2.745v2.5482H625.2349z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#8e7264",
+      "d": "M649.9396 589.4783h2.745v2.5482H649.9396z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#6c4c44",
+      "d": "M611.5101 599.6711h2.745v2.5482H611.5101z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c4c44",
+      "d": "M614.255 599.6711h2.745v2.5482H614.255z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#6c4c44",
+      "d": "M641.7047 599.6711h5.4899v2.5482H641.7047z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#a68474",
+      "d": "M573.0805 589.4783h2.745v2.5482H573.0805z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M537.396 592.0265h2.745v2.5482H537.396z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M595.0403 592.0265h2.745v2.5482H595.0403z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M611.5101 592.0265h5.4899v2.5482H611.5101z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M644.4497 592.0265h2.745v2.5482H644.4497z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M680.1342 592.0265h5.4899v2.5482H680.1342z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M564.8456 594.5747h2.745v2.5482H564.8456z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M589.5503 594.5747h2.745v2.5482H589.5503z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M633.4698 594.5747h8.2349v2.5482H633.4698z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M658.1745 594.5747h2.745v2.5482H658.1745z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M685.6242 594.5747h5.4899v2.5482H685.6242z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M633.4698 597.1229h2.745v2.5482H633.4698z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M655.4295 597.1229h2.745v2.5482H655.4295z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#4c3434",
+      "d": "M693.8591 592.0265h2.745v5.0964H693.8591z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M545.6309 592.0265h8.2349v2.5482H545.6309z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M647.1946 592.0265h8.2349v2.5482H647.1946z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M655.4295 592.0265h2.745v2.5482H655.4295z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M669.1544 592.0265h10.9799v2.5482H669.1544z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M537.396 594.5747h8.2349v2.5482H537.396z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M567.5906 594.5747h10.9799v2.5482H567.5906z",
+      "replacementFill": "#fcccb4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M592.2953 594.5747h10.9799v2.5482H592.2953z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M608.7651 594.5747h16.4698v2.5482H608.7651z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M627.9799 594.5747h5.4899v2.5482H627.9799z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M641.7047 594.5747h5.4899v2.5482H641.7047z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M652.6846 594.5747h5.4899v2.5482H652.6846z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M666.4094 594.5747h5.4899v2.5482H666.4094z",
+      "replacementFill": "#f4c4a4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M674.6443 594.5747h5.4899v2.5482H674.6443z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M537.396 597.1229h2.745v2.5482H537.396z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M542.8859 597.1229h5.4899v2.5482H542.8859z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M551.1208 594.5747h8.2349v5.0964H551.1208z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M559.3557 597.1229h2.745v2.5482H559.3557z",
+      "replacementFill": "#fcccac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M564.8456 597.1229h10.9799v2.5482H564.8456z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M586.8054 597.1229h21.9597v2.5482H586.8054z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M611.5101 597.1229h8.2349v2.5482H611.5101z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M636.2148 597.1229h10.9799v2.5482H636.2148z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M649.9396 597.1229h5.4899v2.5482H649.9396z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M660.9195 597.1229h13.7248v2.5482H660.9195z",
+      "replacementFill": "#f4c4a4",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M682.8792 594.5747h2.745v5.0964H682.8792z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M691.1141 597.1229h2.745v2.5482H691.1141z",
+      "replacementFill": "#f4c4ac",
+      "opacity": 0.992157
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M625.2349 594.5747h2.745v2.5482H625.2349z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#3c2424",
+      "d": "M619.745 597.1229h10.9799v2.5482H619.745z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#3c2b25",
+      "d": "M627.9799 592.0265h2.745v2.5482H627.9799z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    },
+    {
+      "fill": "#6c4c44",
+      "d": "M627.9799 599.6711h2.745v2.5482H627.9799z",
+      "replacementFill": "#fcc4ac",
+      "opacity": 0.996078
+    }
+  ]
+}

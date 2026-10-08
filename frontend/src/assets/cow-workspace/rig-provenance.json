@@ -1,0 +1,261 @@
+{
+  "sceneSize": [1254, 1254],
+  "method": "Independent transparent drawings, alpha-weighted sampling, per-part palette and merged closed rectangles.",
+  "promptsSource": "rig-prompts.json",
+  "prompt": null,
+  "entries": [
+    {
+      "name": "cowBodyComplete",
+      "source": "rig-source/cowBodyComplete.png",
+      "placement": [418.4513108614232, 538, 512.0973782771536, 565],
+      "promptsSource": "body-edge-redraw-prompts.json",
+      "sourceSize": [1278, 1230],
+      "selectedPixels": [155, 91, 1123, 1159],
+      "transparentPixels": 681296,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 609,
+      "rectangles": 13134,
+      "sampleColorRmse": 2.405,
+      "sourceSha256": "129fec4d6df81512ae2695842747a3c38ffcc4771abe7316fd3243cfa349f5dd",
+      "drawingBounds": {
+        "x": 418.4513,
+        "y": 538.0,
+        "width": 512.0974,
+        "height": 565.0
+      }
+    },
+    {
+      "name": "cowBodyTyping",
+      "source": "rig-source/cowBodyTyping.png",
+      "placement": [418.4513108614232, 538, 512.0973782771536, 565],
+      "promptsSource": "body-edge-redraw-prompts.json",
+      "sourceSize": [1278, 1230],
+      "selectedPixels": [155, 91, 1123, 1159],
+      "transparentPixels": 681296,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 609,
+      "rectangles": 13134,
+      "sampleColorRmse": 2.405,
+      "sourceSha256": "129fec4d6df81512ae2695842747a3c38ffcc4771abe7316fd3243cfa349f5dd",
+      "drawingBounds": {
+        "x": 418.4513,
+        "y": 538.0,
+        "width": 512.0974,
+        "height": 565.0
+      }
+    },
+    {
+      "name": "cowHeadComplete",
+      "source": "rig-source/cowHeadComplete.png",
+      "placement": [208, 62, 818, 674],
+      "nativeEdits": {
+        "source": "/Users/leezheng/Developer/portfolio-modern/frontend/src/assets/cow-workspace/head-mouth-native-edits.json",
+        "sourceSha256": "facb1d616529fa06870d776c404726edc6e0701a60681a6a79cb2657ee2cd9cd",
+        "method": "exact-native-mouth-cell-extraction-and-muzzle-color-restoration",
+        "replacedRectangles": 130,
+        "preservedFootprints": true,
+        "originalStrokeRetainedInHead": false
+      },
+      "sourceSize": [1254, 1254],
+      "selectedPixels": [31, 107, 1223, 1165],
+      "transparentPixels": 750050,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 1296,
+      "rectangles": 11537,
+      "sampleColorRmse": 2.0447,
+      "sourceSha256": "d805862e5e6620f0b16d3c8465114ae6c765450f34d218b618b42bcec48470b3",
+      "drawingBounds": {
+        "x": 208.0,
+        "y": 62.0,
+        "width": 818.0,
+        "height": 674.0
+      }
+    },
+    {
+      "name": "cowEyesObserver",
+      "source": "rig-source/cowEyesObserver.png",
+      "placement": [387.577033492823, 276.64306220095693, 409.54641148325356, 114.177990430622],
+      "promptsSource": "observer-eyes-redraw-prompts.json",
+      "sourceSize": [2170, 725],
+      "selectedPixels": [208, 129, 1962, 618],
+      "transparentPixels": 1046816,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 1604,
+      "rectangles": 10456,
+      "sampleColorRmse": 2.3557,
+      "sourceSha256": "13ddfbdd0a1f82877a29c38e858b64fbd725f861edbb1e50574ece9135cd952e",
+      "drawingBounds": {
+        "x": 387.577,
+        "y": 276.6431,
+        "width": 409.5465,
+        "height": 114.178
+      }
+    },
+    {
+      "name": "cowArmLeftThinking",
+      "source": "rig-source/cowArmLeftThinking.png",
+      "placement": [308.58860234445444, 608.2845807033364, 303.48061316501355, 280.0],
+      "promptsSource": "arm-thickness-redraw-prompts.json",
+      "sourceSize": [1254, 1254],
+      "selectedPixels": [26, 111, 1228, 1220],
+      "transparentPixels": 657677,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 650,
+      "rectangles": 17095,
+      "sampleColorRmse": 2.4436,
+      "sourceSha256": "db314567864fe7afcf8cf27b874cb84ddf2ab03e116895793b3e1f40958435e1",
+      "drawingBounds": {
+        "x": 308.5886,
+        "y": 608.2846,
+        "width": 303.4807,
+        "height": 280.0
+      }
+    },
+    {
+      "name": "cowArmLeftTyping",
+      "source": "rig-source/cowArmLeftTyping.png",
+      "placement": [230.1181, 603.019, 455.6, 445.6],
+      "promptsSource": "typing-arm-redraw-prompts.json",
+      "sourceSize": [1242, 1266],
+      "selectedPixels": [45, 85, 1184, 1199],
+      "transparentPixels": 840605,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 828,
+      "rectangles": 17297,
+      "sampleColorRmse": 2.7302,
+      "sourceSha256": "29dcb5b0e1ccf57029c9916d14caa73273cb10cff0b8f27055a836807ef7de91",
+      "drawingBounds": {
+        "x": 230.1181,
+        "y": 603.019,
+        "width": 455.6,
+        "height": 445.6
+      }
+    },
+    {
+      "name": "cowArmRightTyping",
+      "source": "rig-source/cowArmRightTyping.png",
+      "placement": [705.0533, 615.3604, 392.7, 415.48],
+      "promptsSource": "typing-arm-redraw-prompts.json",
+      "sourceSize": [1240, 1268],
+      "selectedPixels": [57, 29, 1212, 1251],
+      "transparentPixels": 770606,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 646,
+      "rectangles": 13231,
+      "sampleColorRmse": 2.2073,
+      "sourceSha256": "612daef9a65c4ced0d19754560d9e11ad9ab37ce2327dfeba8cb115c296158df",
+      "drawingBounds": {
+        "x": 705.0533,
+        "y": 615.3604,
+        "width": 392.7,
+        "height": 415.48
+      }
+    },
+    {
+      "name": "cowEyesWorking",
+      "source": "rig-source/cowEyesWorking.png",
+      "placement": [384.3081339712919, 266.9737629820304, 415.38373205741624, 129.12153110047848],
+      "promptsSource": "working-eyes-focus-redraw-prompts.json",
+      "sourceSize": [2172, 724],
+      "selectedPixels": [197, 95, 1976, 648],
+      "transparentPixels": 968571,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 1519,
+      "rectangles": 9594,
+      "sampleColorRmse": 2.4585,
+      "sourceSha256": "9208ba5c448706b83d75e5cd46851f83f6abb1c9f5760d3434b37d8b7497a877",
+      "drawingBounds": {
+        "x": 384.3081,
+        "y": 266.9738,
+        "width": 415.3838,
+        "height": 129.1215
+      }
+    },
+    {
+      "name": "cowArmRightResting",
+      "source": "rig-source/cowArmRightResting.png",
+      "placement": [843.3476907426246, 640.7419532044761, 320.2938351983722, 399.8780467955238],
+      "promptsSource": "arm-thickness-redraw-prompts.json",
+      "sourceSize": [1254, 1254],
+      "selectedPixels": [139, 22, 1121, 1248],
+      "transparentPixels": 985499,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 711,
+      "rectangles": 13777,
+      "sampleColorRmse": 2.5803,
+      "sourceSha256": "f704b82baf33bc4a771c67d0a3483e782828b9530ac7db219c00a560486beee0",
+      "drawingBounds": {
+        "x": 843.3477,
+        "y": 640.742,
+        "width": 320.2938,
+        "height": 399.878
+      }
+    },
+    {
+      "name": "cowMouthNeutral",
+      "nativeSvgSource": "rig-source/cowMouthNeutralNative.svg",
+      "designSpec": "head-mouth-native-edits.json",
+      "sourceSha256": "4f2b0c772a4d96c1c82f5e51ef6984e9109ac9140012db17fbdb5cbc4143b017",
+      "method": "whole-native-svg-source",
+      "paths": 30,
+      "rectangles": 130,
+      "sampleColorRmse": 0,
+      "sceneCoordinates": true,
+      "drawingBounds": {
+        "x": 531.906,
+        "y": 589.4783,
+        "width": 164.6981,
+        "height": 12.741
+      },
+      "source": "rig-source/cowMouthNeutralNative.svg"
+    },
+    {
+      "name": "cowMouthSmile",
+      "nativeSvgSource": "rig-source/cowMouthSmileNative.svg",
+      "designSpec": "mouth-smile-native-spec.json",
+      "sourceSha256": "0c8a81f5220319ef485dfed507a16ba3260c9177532fc9bd662f7edd2e7a2733",
+      "method": "whole-native-svg-source",
+      "paths": 2,
+      "rectangles": 38,
+      "sampleColorRmse": 0,
+      "sceneCoordinates": true,
+      "drawingBounds": {
+        "x": 534.651,
+        "y": 581.8336,
+        "width": 161.9531,
+        "height": 30.5785
+      },
+      "source": "rig-source/cowMouthSmileNative.svg"
+    },
+    {
+      "name": "cowEyesThinking",
+      "source": "rig-source/cowEyesThinking.png",
+      "placement": [402.98755980861245, 286.6832535885168, 378.95885167464115, 92.93014354066986],
+      "promptsSource": "thinking-eyes-redraw-prompts.json",
+      "sourceSize": [2170, 725],
+      "selectedPixels": [274, 172, 1897, 570],
+      "transparentPixels": 1151981,
+      "grid": 4,
+      "paletteColors": 128,
+      "paths": 1167,
+      "rectangles": 9283,
+      "sampleColorRmse": 2.3332,
+      "sourceSha256": "43397d29faa6ce0cd34ec0029ea53ff0cc4d9e545238df0a29397f625c46f952",
+      "drawingBounds": {
+        "x": 402.9876,
+        "y": 286.6833,
+        "width": 378.9588,
+        "height": 92.9301
+      }
+    }
+  ]
+}

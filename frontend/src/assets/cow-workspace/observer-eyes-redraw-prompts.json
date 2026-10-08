@@ -1,0 +1,22 @@
+{
+  "mode": "built-in imagegen",
+  "useCase": "precise-object-edit",
+  "asset": "cowEyesObserverDirectRedrawn",
+  "finalSource": "rig-source/cowEyesObserverDirectRedrawn.png",
+  "generatedOriginal": "/Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-f3f9e67d-102d-406a-8ea1-021e471c9dab.png",
+  "inputImages": [
+    {
+      "role": "primary expression and gaze reference",
+      "reference": "User's conversation attachment: frontal cow holding a sunflower"
+    },
+    {
+      "role": "approved head, palette and placement reference",
+      "reference": "rig-source/cowObserverHeadPlacementReference.png"
+    },
+    {
+      "role": "old eyes pixel density only",
+      "reference": "rig-source/cowEyesObserverEditReference.png"
+    }
+  ],
+  "prompt": "Use case: precise-object-edit.\nAsset type: one new paired EYE AND EYEBROW OVERLAY for a pixel-art cow mascot SVG rig.\nInput images: Image 1 is the user's cow holding a sunflower, the PRIMARY EXPRESSION AND GAZE REFERENCE. Image 2 is the approved blank-eyed pixel cow head, for identity, palette, eye placement, scale and pixel style only. Image 3 is the old isolated eyes, for pixel density only; its sideways gaze must not be copied.\nPrimary request: draw a NEW pair of eyes that clearly looks straight at the viewer/camera, inspired by Image 1. Reproduce the direct, alert, slightly skeptical cow expression: shaped ivory sclera, substantial round dark irises, centered black pupils looking OUT toward the viewer, one restrained small white highlight in each eye, and thick black eyebrows angled toward the nose. Both eyes must engage the same viewer. Keep a little personality in the eyebrow shapes but make the gaze frontal and balanced, with no inward cross-eye, no side glance and no downward-looking pupils. Use the slightly lifted lids and visible whites of the sunflower cow, rather than the nearly closed sideways old eyes.\nInclude the reference's small dark vertical frown crease between the eyebrows, centered on the pair. Preserve the cow identity and stern-but-engaging look; do not turn it into anime, oversized cute eyes or a smiling face.\nStyle: crisp chunky pixel art matching the approved head, navy-black to charcoal eyelid/brow shading, soft ivory whites, discrete blocky stepped contours and subtle sparse pixel shading. Complete eye shapes, complete eyebrows, equal iris sizes, consistent horizontal eye line. Eye outlines remain whole.\nComposition: ONE horizontal paired eye overlay at the original left/right spacing, with the central brow crease. Transparent everywhere outside the eyebrows, crease, eye outlines and the whites INSIDE each eyeball. No full opaque rectangular ivory face patches. Generous transparent margin, fully visible uncut parts. Do NOT draw the head, ears, face silhouette, muzzle, nostrils, mouth, skin/fur background, neck, body, sunflower, landscape, text, labels or watermark. This is an independent reusable eye component to layer onto Image 2; output only the paired eyes/brows and center crease with genuine transparent alpha."
+}

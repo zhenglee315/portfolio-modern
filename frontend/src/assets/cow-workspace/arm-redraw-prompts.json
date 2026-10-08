@@ -1,0 +1,40 @@
+{
+  "mode": "built-in image_gen",
+  "purpose": "Replace the two incomplete independently displayed resting/thinking arm assets with fully redrawn complete originals.",
+  "entries": [
+    {
+      "key": "cowArmLeftThinking",
+      "prompt": "Use case: stylized-concept. Asset type: ONE independent complete transparent pixel-art cow arm for a layered animation. Image 1 is the original pixel cow desk scene: STYLE and thinking-pose reference only. Image 2 is the matching navy hoodie: fabric, color and sleeve construction reference only. Redraw from scratch ONLY the VIEWER-LEFT THINKING ARM in a natural bent pose. Draw a complete navy upper sleeve from a rounded shoulder root at UPPER LEFT, descending to a bent elbow at LOWER LEFT, then a short ivory cow forearm rises diagonally UP AND RIGHT from the dark ribbed cuff, ending in a large rounded dark-charcoal bovine hoof at UPPER RIGHT, ready to rest below the cow chin. The arm is one connected anatomically coherent L/V-shaped object: entire shoulder cap, sleeve, elbow, cuff, cream wrist and dark hoof must be fully drawn even the formerly hidden areas. Keep generous navy sleeve thickness and original short broad cream wrist/hoof proportions, natural bent elbow, no extremely elongated forearm. Complete closed stepped dark outline throughout, opaque fabric and wrist interiors, no missing chunks, no white holes in navy sleeve, no transparent cracks or detached slivers. Match original soft chunky PIXEL ART, dark navy-black hoodie with muted gray cloth folds, ivory fur with light beige shadow, broad charcoal hoof with warm gray highlight. Full entire asset visible with 12 percent transparent padding and no cropping. Isolated single arm on REAL TRANSPARENT background. No head, eyes, mouth, neck, chest, torso, drawstrings, logo, second arm, desk, books, laptop, mug or props. No human fingers, no open empty cuff, no smooth vector lines, no captions or watermarks. The thinking hoof is upper-right and the shoulder is upper-left, the elbow is lowest on the left. Render the whole arm as an independent completed painting, never a crop from the source scene.",
+      "inputImages": [
+        {
+          "path": "../../../../backend/SYSTEM/static/icon/logo.png",
+          "role": "original cow pixel-art style and thinking-pose reference"
+        },
+        {
+          "path": "rig-source/cowBodyNeutralReference.png",
+          "role": "matching navy hoodie color and sleeve construction reference"
+        }
+      ],
+      "transparentBackground": true,
+      "output": "rig-source/cowArmLeftThinkingRedrawn.png",
+      "generatedOutputHint": "Generated images are saved to /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388 as /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-9c637c0a-740b-4cb1-9233-afe6f2e83ced.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link."
+    },
+    {
+      "key": "cowArmRightResting",
+      "prompt": "Use case: stylized-concept. Asset type: ONE independent complete transparent pixel-art cow arm for a layered animation. Image 1 is the original pixel cow desk scene: STYLE reference only. Image 2 is the matching navy hoodie: color, material and relaxed right sleeve shape reference only. Redraw from scratch ONLY the VIEWER-RIGHT RESTING ARM, hanging naturally down beside the torso, with a broad complete rounded shoulder root at UPPER LEFT and the slightly outward curving navy upper sleeve descending to the LOWER RIGHT elbow and ribbed cuff. End with a short ivory cow wrist and a compact closed dark-charcoal bovine hoof hanging downward; subtle forearm bend inward, relaxed pose, not raised, not typing. This is a standalone COMPLETE full arm from shoulder to hoof, one connected silhouette, entire thick shoulder and inner sleeve edge filled, full cuff seam and closed hoof all visible even formerly hidden areas. Opaque cloth and wrist interiors, continuous chunky stepped dark outer outline, no missing wedge, no torn edges, no floating fragments, no transparent holes or cracks. Match the original soft chunky PIXEL ART, navy-black hoodie, muted gray cloth folds, ivory wrist with light beige shadow, rounded dark hoof. No empty black circular hole at the cuff. Entire asset centered and comfortably framed with transparent padding, genuine alpha transparency. No head, eyes, neck, chest, body, collar, ZL logo, drawstrings, second arm, desk, books, laptop, mug, plant, smoke or other props. No human fingers, no long cream arm, no smooth vector lines, no captions or watermarks. Shoulder at upper-left, hanging hoof at lower-right. One fully redrawn production asset, never a cropped piece of the source hoodie.",
+      "inputImages": [
+        {
+          "path": "../../../../backend/SYSTEM/static/icon/logo.png",
+          "role": "original cow pixel-art style and thinking-pose reference"
+        },
+        {
+          "path": "rig-source/cowBodyNeutralReference.png",
+          "role": "matching navy hoodie color and sleeve construction reference"
+        }
+      ],
+      "transparentBackground": true,
+      "output": "rig-source/cowArmRightRestingRedrawn.png",
+      "generatedOutputHint": "Generated images are saved to /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388 as /Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-8dda893f-5585-4a90-addf-dd6fea697eee.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link."
+    }
+  ]
+}

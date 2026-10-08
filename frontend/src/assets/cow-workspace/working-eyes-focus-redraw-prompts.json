@@ -1,0 +1,24 @@
+{
+  "mode": "built-in image_gen",
+  "useCase": "precise-object-edit",
+  "asset": "cowEyesWorkingFocusedRedrawnV3",
+  "finalSource": "rig-source/cowEyesWorkingFocusedRedrawnV3.png",
+  "generatedOriginal": "/Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-b17dbacd-8359-4b95-b3cd-0d2d8105e946.png",
+  "inputImages": [
+    {
+      "role": "edit target: complete independent current working eyes",
+      "reference": "rig-source/cowEyesWorkingLivelyRedrawnV2.png"
+    },
+    {
+      "role": "sole identity and iris color reference: approved observer eyes",
+      "reference": "rig-source/cowEyesObserverDirectRedrawn.png"
+    },
+    {
+      "role": "expression and eyebrow slope reference only; omit facial backing",
+      "reference": "rig-source/cowEyesWorkingOriginal-v1.png"
+    }
+  ],
+  "prompt": "Use case: precise-object-edit.\nAsset type: one complete transparent FOCUSED THINKING / CODING eye pair for the existing pixel-art cow, high source resolution about 2K wide.\nInputs: image 1 is edit target, the clean current working eye pair. Image 2 is the APPROVED observer eye pair, the ONLY source of eye identity and exact iris color. Image 3 is an OLD expression reference ONLY for concentration and steeper eyebrows; completely ignore its cream facial backing and damaged fringes.\nPrimary request: change image 1 into a clearly much more SERIOUS, INTENT focused expression, distinct from image 2's direct friendly-attentive gaze. Make BOTH heavy eyebrows substantially more diagonal in a sharp symmetric V: outer ends raised, inner ends lowered toward the middle crease, slope about 37 degrees instead of the current 24 degrees. The brows should press toward the eyes at the inner corners. Tighten the eye opening to about 65–75% of observer height with sharply angled upper lids, retaining an alert dark iris and a crisp small white catchlight. Both pupils gaze downward together toward laptop code, about one iris pixel row lower; same horizontal level, no cross-eye. This must read as intense concentration like image 3, not drowsy and not the same open stare as image 2.\nCRITICAL EYE COLOR IDENTITY: use EXACTLY image 2's desaturated DARK GRAY-BROWN iris colors, not the warmer iris of image 1. Reference iris midtone RGB(79,69,63) #4f453f; light iris RGB(81,71,65) #514741; shadow iris RGB(62,54,49) #3e3631; another main graybrown RGB(75,66,61) #4b423d. Both left and right irises MUST match these same observer tones and balance. Absolutely no orange, honey, copper, reddish amber or golden brown iris colors. Keep black pupils and white catchlights. Preserve the navy-charcoal brows/eyelid outlines, existing eye spacing, centered short dark vertical brow furrow, stepped pixel style and complete outlines.\nIndependent TRUE transparent component: draw ONLY both brows, both complete dark eyelid contours, eye whites contained INSIDE those closed contours, gray-brown irises/black pupils/white highlights, and short central crease. All space outside these parts, between eyes, above/below, and around brows MUST be fully transparent. No cream/ivory facial fur patch, no light border around brows or eyes, no halo, no extra skin-colored pixels, no cropped face, no loose fragments. No head, muzzle, nose, cheeks, body, props, text, labels, checkerboard, backdrop or shadow. One complete paired overlay with transparent margin, cohesive bold pixel contours and crisp resolution.",
+  "nativeIrisPaletteReference": "rig-cowEyesObserver.svg",
+  "observerNativeIrisPalette": ["#342c24", "#3c342c", "#443c34", "#4c443c", "#544c44"]
+}

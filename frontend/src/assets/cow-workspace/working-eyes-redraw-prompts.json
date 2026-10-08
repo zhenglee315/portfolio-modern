@@ -1,0 +1,14 @@
+{
+  "mode": "built-in imagegen",
+  "useCase": "precise-object-edit",
+  "asset": "cowEyesWorkingIndependentRedrawn",
+  "finalSource": "rig-source/cowEyesWorkingIndependentRedrawn.png",
+  "generatedOriginal": "/Users/leezheng/.codex/generated_images/01a117a3-0651-7f00-9611-1e120cd29388/exec-be9b4363-9600-43fd-9eee-fa0730567d46.png",
+  "inputImages": [
+    {
+      "role": "edit target: paired observer eyes; identity, style and eye spacing",
+      "reference": "rig-source/cowEyesObserverDirectRedrawn.png"
+    }
+  ],
+  "prompt": "Use case: precise-object-edit.\nAsset type: one complete independent paired WORKING EYES component for a pixel-art cow mascot rig, for looking down at code on a laptop.\nInput image: the existing clean paired observer eyes is the edit target and identity/style/spacing reference.\nPrimary request: draw the matching working-gaze variant of these SAME eyes and eyebrows. Preserve the same left/right eye spacing, overall eye dimensions, balanced pupils, thick slanting brows, central short frown crease, navy/charcoal pixel colors and coarse stepped pixel style. Change the expression to focused work: the two pupils/irises look slightly downward together toward the laptop, with a restrained lowered upper eyelid, while leaving a modest visible ivory sclera within each outlined eyeball. Keep the two pupils aligned to the same task, not cross-eyed or looking in unrelated directions. Do not over-close the eyes.\nThis must be a genuinely independent asset on alpha: draw ONLY both dark eyebrows, both complete dark outlined eyelids, irises/pupils/highlights and the short central dark crease. The ivory eye white must be entirely INSIDE the closed eyelid outline, with no facial cream pixels outside the outline. All space around the eyebrows, around eyelids, between eyebrows and eyelids, between both eyes, above and below them is transparent. Absolutely no cream/ivory fur halo, outer light-colored stroke, skin/fur patch, white sticker outline, solid fill background, rectangular face patch, drop shadow, glow or antialias light fringe outside the dark eyelid. Separate eyebrows may have charcoal shading but no light surrounding border.\nKeep both eyes as a single whole paired asset with transparent margin, not fragments taken from a face. Complete contours, no clipped edges, no detached random pixels. Never draw the cow head, face silhouette, ears, cheeks, nose, muzzle, mouth, body, laptop, text, labels, checkerboard or background. Output only the paired eye/brow overlay with real transparent alpha."
+}

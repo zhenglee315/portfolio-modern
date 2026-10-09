@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { runtimeTest as test } from '../fixtures/browser';
+import { runtimeTest as test, waitForFixtureHydration } from '../fixtures/browser';
 
 /** Check visible legacy hierarchy and shared card geometry at the actual breakpoints. */
 test('profile accents, career span and footer alias survive every responsive layout', async ({
@@ -69,6 +69,7 @@ test('collection controls align with cards and preserve keyboard focus after laz
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/en#projects');
+    await waitForFixtureHydration(page);
     const section = page.locator('#projects');
     const summary = section
       .locator('button[aria-controls][aria-expanded]')

@@ -4,7 +4,6 @@
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
-    "dev:cow": "vite --config vite.cow-workspace.config.ts",
     "build": "node scripts/build.mjs",
     "preview": "node scripts/preview.mjs",
     "verify:public": "node scripts/verify-public.mjs",

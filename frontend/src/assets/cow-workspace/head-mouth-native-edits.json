@@ -12,14 +12,8 @@
     "height": 12.741
   },
   "backgroundMethod": "Replace exactly the extracted stroke footprints with the nearest existing native peach shade interpolated between the adjacent upper/lower muzzle rows; preserve original alpha. No overlay, crop, clipping, or PNG edit.",
-  "neighborRows": [
-    206,
-    212
-  ],
-  "nativeGridWorld": [
-    2.7449664429530203,
-    2.54820415879017
-  ],
+  "neighborRows": [206, 212],
+  "nativeGridWorld": [2.7449664429530203, 2.54820415879017],
   "replacementPalette": [
     "#f4c4a4",
     "#f4c4ac",

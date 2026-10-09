@@ -15,7 +15,13 @@ const JourneyMap = lazy(() => import('./JourneyMap'));
 /** Own full-index feedback and stable selection with a progressively enhanced atlas.
  * Lazy failure retains accessible destinations and never hides sibling sections.
  */
-export function JourneySection({ locale }: { locale: Locale }) {
+export function JourneySection({
+  locale,
+  suspended = false,
+}: {
+  locale: Locale;
+  suspended?: boolean;
+}) {
   const { t } = useTranslation();
   const query = useJourney(locale);
   const [selectedId, setSelectedId] = useState<number>();
@@ -86,6 +92,7 @@ export function JourneySection({ locale }: { locale: Locale }) {
                   selectedId={selected.id}
                   locale={locale}
                   onSelect={setSelectedId}
+                  suspended={suspended}
                 />
               </Suspense>
             ) : (

@@ -30,7 +30,7 @@
   letter-spacing: -1px;
 }
 .intro > :global(.eyebrow) {
-  padding-right: calc(6 * var(--control-size) + 70px);
+  padding-right: calc(7 * var(--control-size) + 84px);
 }
 .copy {
   color: var(--profile-copy);

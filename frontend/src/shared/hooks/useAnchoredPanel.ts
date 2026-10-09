@@ -1,5 +1,5 @@
 import { useLayoutEffect, type RefObject } from 'react';
-import { floatingPosition } from '@/shared/lib/floating-panel';
+import { floatingPosition, floatingSidePosition } from '@/shared/lib/floating-panel';
 
 /** Keep an open floating panel within its viewport/container, with complete observer cleanup.
  * @param topElement Optional protected header or header list. Bounded callers consume --floating-max-height
@@ -12,7 +12,7 @@ export function useAnchoredPanel(
   anchor: Element | null,
   container?: RefObject<HTMLElement | null>,
   bottomElement?: RefObject<HTMLElement | null>,
-  placement: 'above' | 'side' | 'below-header' = 'above',
+  placement: 'above' | 'side' | 'side-left' | 'below-header' = 'above',
   topElement?: RefObject<HTMLElement | null> | readonly RefObject<HTMLElement | null>[],
 ) {
   useLayoutEffect(() => {
@@ -80,29 +80,34 @@ export function useAnchoredPanel(
           topBoundary,
         );
       }
-      if (placement === 'side') {
-        rect.left = Math.max(
-          14,
-          Math.min(bounds.width - element.offsetWidth - 14, point.right - bounds.left + 18),
+      let side: 'left' | 'right' | null = null;
+      if (placement === 'side' || placement === 'side-left') {
+        const horizontal = floatingSidePosition(
+          point,
+          bounds,
+          element.offsetWidth,
+          element.offsetHeight,
+          placement === 'side-left' ? 'left' : 'right',
+          bottom,
+          topBoundary,
         );
-        rect.top = Math.max(
-          12,
-          Math.min(bounds.height - element.offsetHeight - 12, point.top - bounds.top),
-        );
-        rect.below = false;
+        rect = horizontal;
+        side = horizontal.side;
       }
       element.style.setProperty('left', `${rect.left}px`);
       element.style.setProperty('top', `${rect.top}px`);
       element.style.setProperty('--tail-x', `${rect.tail}px`);
       element.setAttribute('data-below', String(rect.below));
-      element.setAttribute('data-side', String(placement === 'side'));
-      element.setAttribute(
-        'data-over-point',
-        String(bounded && placement !== 'side' && rect.overPoint),
-      );
+      element.setAttribute('data-side', String(side === 'right'));
+      element.setAttribute('data-side-left', String(side === 'left'));
+      element.setAttribute('data-over-point', String(bounded && side === null && rect.overPoint));
       element.style.setProperty(
         '--tail-y',
         `${Math.max(18, Math.min(point.top + point.height / 2 - bounds.top - rect.top - 3, element.offsetHeight - 42))}px`,
+      );
+      element.style.setProperty(
+        '--tail-center-y',
+        `${point.top + point.height / 2 - bounds.top - rect.top}px`,
       );
     };
     const schedule = () => {

@@ -96,36 +96,46 @@
 }
 .tail {
   /* Decorative pixels may overlap an anchor, but must never intercept its pointer action. */
+  --tail-step: var(--bubble-tail-step, 6px);
   pointer-events: none;
   position: absolute;
   left: var(--tail-x, 50%);
-  top: calc(100% - 6px);
-  width: 30px;
-  height: 30px;
+  top: calc(100% - var(--tail-step));
+  width: calc(var(--tail-step) * 5);
+  height: calc(var(--tail-step) * 5);
   background: var(--bubble-outline);
   clip-path: polygon(
     0 0,
     100% 0,
-    100% 12px,
-    24px 12px,
-    24px 18px,
-    18px 18px,
-    18px 24px,
-    6px 24px,
-    6px 30px,
-    0 30px
+    100% calc(var(--tail-step) * 2),
+    calc(var(--tail-step) * 4) calc(var(--tail-step) * 2),
+    calc(var(--tail-step) * 4) calc(var(--tail-step) * 3),
+    calc(var(--tail-step) * 3) calc(var(--tail-step) * 3),
+    calc(var(--tail-step) * 3) calc(var(--tail-step) * 4),
+    var(--tail-step) calc(var(--tail-step) * 4),
+    var(--tail-step) calc(var(--tail-step) * 5),
+    0 calc(var(--tail-step) * 5)
   );
 }
 .tail::after {
   content: '';
   position: absolute;
-  inset: 0 6px 6px;
+  inset: 0 var(--tail-step) var(--tail-step);
   background: var(--bubble-close-hover);
-  clip-path: polygon(0 0, 100% 0, 100% 6px, 12px 6px, 12px 12px, 6px 12px, 6px 18px, 0 18px);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% var(--tail-step),
+    calc(var(--tail-step) * 2) var(--tail-step),
+    calc(var(--tail-step) * 2) calc(var(--tail-step) * 2),
+    var(--tail-step) calc(var(--tail-step) * 2),
+    var(--tail-step) calc(var(--tail-step) * 3),
+    0 calc(var(--tail-step) * 3)
+  );
 }
 .bubble[data-below='true'] .tail {
   top: auto;
-  bottom: calc(100% - 6px);
+  bottom: calc(100% - var(--tail-step));
   transform: scaleY(-1);
 }
 
@@ -134,9 +144,17 @@
   display: none;
 }
 
-/* Desktop introductions sit beside the rail, so their shared tail points toward its trigger. */
-.bubble[data-side='true'] .tail {
-  left: -24px;
+/* Side tails keep the original outlined triangle; mirror the complete silhouette.
+ * The root reaches the 6px shell outline even when a tooltip uses smaller pixel steps. */
+.bubble:is([data-side='true'], [data-side-left='true']) .tail {
   top: var(--tail-y, 19px);
+}
+.bubble[data-side='true'] .tail {
+  left: calc(6px - var(--tail-step) * 5);
   transform: rotate(90deg);
+}
+.bubble[data-side-left='true'] .tail {
+  left: auto;
+  right: calc(6px - var(--tail-step) * 5);
+  transform: rotate(90deg) scaleY(-1);
 }

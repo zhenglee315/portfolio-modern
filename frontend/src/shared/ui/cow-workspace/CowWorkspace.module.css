@@ -6,23 +6,15 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1;
-  perspective: 1000px;
+  perspective: 600px;
   isolation: isolate;
 }
 
-.canvas,
-.sceneLayer,
-.asset {
+.sceneLayer {
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
-}
-
-/* Asset-library thumbnails are stable; ambient animation belongs to the scene. */
-.assetStatic * {
-  animation: none !important;
-  transition: none !important;
 }
 
 .sceneCanvas,
@@ -32,35 +24,15 @@
   pointer-events: none;
 }
 
-.assetStatic .cowTypingArms,
-.assetStatic .cowBodyTyping,
-.assetStatic .globeRotation,
-.assetStatic .cowEyesWorking,
-.assetStatic .cowEyesObserver,
-.assetStatic .cowMouthSmile {
-  display: none !important;
-}
-
-.assetStatic .cowThinkingArm,
-.assetStatic .cowRestingArm,
-.assetStatic .cowBodyNeutral,
-.assetStatic .globeStill,
-.assetStatic .cowEyesThinking,
-.assetStatic .cowMouthNeutral {
-  display: initial !important;
-}
-
-.canvas,
 .sceneCanvas {
-  transform: rotateX(calc(var(--cow-pointer-y) * -1.5deg))
-    rotateY(calc(var(--cow-pointer-x) * 2deg));
+  transform: rotateX(calc(var(--cow-pointer-y) * -8deg)) rotateY(calc(var(--cow-pointer-x) * 10deg));
   transform-origin: 50% 65%;
 }
 
 .depth {
   transform: translate(
-    calc(var(--cow-pointer-x) * var(--cow-depth) * 1px),
-    calc(var(--cow-pointer-y) * var(--cow-depth) * 0.65px)
+    calc(var(--cow-pointer-x) * var(--cow-depth) * 4px),
+    calc(var(--cow-pointer-y) * var(--cow-depth) * 2.6px)
   );
 }
 
@@ -124,11 +96,80 @@
 }
 
 .scene[data-cow-motion='active'][data-cow-phase='thinking'] .cowRigHead {
-  transform: rotate(-0.45deg) translate(-0.4px, -0.2px);
+  animation: cow-rig-think 6.4s ease-in-out infinite;
 }
 
 .scene[data-cow-motion='active'][data-cow-phase='typing'] .cowRigHead {
   transform: rotate(0.45deg) translate(0, 1.2px);
+}
+
+.cowThinkingOrbit {
+  display: none;
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='thinking'] .cowThinkingOrbit {
+  display: initial;
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='thinking'] .thoughtSaucerOrbit {
+  animation: cow-thought-orbit 6s linear infinite;
+  animation-delay: var(--cow-orbit-delay, 0s);
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='thinking'] .thoughtOrbitBack,
+.scene[data-cow-motion='active'][data-cow-phase='thinking'] .thoughtOrbitFront {
+  animation: cow-thought-back 6s steps(1, end) infinite;
+  animation-delay: var(--cow-orbit-delay, 0s);
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='thinking'] .thoughtOrbitFront {
+  animation-name: cow-thought-front;
+}
+
+.scene[data-cow-motion='paused'] .cowThinkingOrbit,
+:global(html[data-motion-paused='true']) .scene .cowThinkingOrbit {
+  display: none !important;
+}
+
+.cowTypingSweat {
+  display: none;
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='typing'] .cowTypingSweat {
+  display: initial;
+}
+
+.typingSweatDrop {
+  opacity: 0;
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='typing'] .typingSweatDrop {
+  animation: cow-typing-sweat 2.4s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+  animation-delay: var(--cow-sweat-delay, 0s);
+}
+
+.scene[data-cow-motion='paused'] .cowTypingSweat,
+:global(html[data-motion-paused='true']) .scene .cowTypingSweat {
+  display: none !important;
+}
+
+.laptopTypingLight {
+  display: none;
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='typing'] .laptopTypingLight {
+  display: initial;
+}
+
+.laptopLightRay {
+  opacity: 0;
+  animation: cow-laptop-burst 1.8s cubic-bezier(0.16, 0.8, 0.4, 1) infinite;
+  animation-delay: var(--laptop-light-delay, 0s);
+}
+
+.scene[data-cow-motion='paused'] .laptopTypingLight,
+:global(html[data-motion-paused='true']) .scene .laptopTypingLight {
+  display: none !important;
 }
 
 .scene[data-cow-motion='active'][data-cow-phase='typing'] .cowBodyNeutral,
@@ -144,6 +185,11 @@
 
 .scene[data-cow-motion='active'][data-cow-phase='glance'] .cowRigHead {
   transform: translate(calc(var(--cow-look-x) * 0.8px), calc(var(--cow-look-y) * 0.6px));
+}
+
+.scene[data-cow-motion='active'][data-cow-phase='glance'] .cowThinkingArm {
+  transform-origin: 18% 20%;
+  animation: cow-rig-chin-rub 6.8s ease-in-out infinite;
 }
 
 .scene[data-cow-phase='thinking'] .cowEyesThinking,
@@ -203,11 +249,7 @@
   animation: cow-book-flex 14s ease-in-out infinite;
 }
 
-.screenGlow {
-  animation: cow-screen 1.8s steps(2, end) infinite;
-}
-
-/* Standalone exported groups stay still until composed in an active scene. */
+/* Keep scene animations still until the motion lifecycle enables them. */
 .cowRigBody,
 .cowThinkingArm,
 .cowTypingArmLeft,
@@ -217,12 +259,20 @@
 .leaves,
 .globeTurnFrame,
 .bookPages,
-.screenGlow {
+.thoughtSaucerOrbit,
+.thoughtOrbitBack,
+.thoughtOrbitFront,
+.typingSweatDrop,
+.laptopLightRay {
   animation-play-state: paused;
 }
 
 .scene[data-cow-motion='active'] * {
   animation-play-state: running;
+}
+
+.scene[data-cow-globe-motion='paused'] .globeTurnFrame {
+  animation-play-state: paused;
 }
 
 .scene[data-cow-motion='paused'] *,
@@ -268,12 +318,10 @@
   .steam,
   .leaves,
   .globeTurnFrame,
-  .bookPages,
-  .screenGlow {
+  .bookPages {
     animation: none;
     transition: none;
   }
-  .canvas,
   .sceneCanvas,
   .depth,
   .bookPages {
@@ -289,7 +337,10 @@
   }
   .cowTypingArms,
   .cowBodyTyping,
-  .globeRotation {
+  .globeRotation,
+  .cowThinkingOrbit,
+  .cowTypingSweat,
+  .laptopTypingLight {
     display: none !important;
   }
   .cowThinkingArm,
@@ -317,6 +368,110 @@
   }
   50% {
     transform: rotate(-0.5deg) translateY(-0.5px);
+  }
+}
+
+@keyframes cow-rig-think {
+  0%,
+  100% {
+    transform: rotate(-2deg) translate(-0.4px, -0.2px);
+  }
+  48%,
+  60% {
+    transform: rotate(-4deg) translate(-1px, -1.4px);
+  }
+}
+
+@keyframes cow-thought-orbit {
+  0%,
+  100% {
+    transform: translate(-185px, 0) scale(0.9);
+    opacity: 0.9;
+  }
+  6.25% {
+    transform: translate(-171px, -10px) scale(0.86);
+  }
+  12.5% {
+    transform: translate(-131px, -18px) scale(0.83);
+  }
+  18.75% {
+    transform: translate(-71px, -23px) scale(0.81);
+  }
+  25% {
+    transform: translate(0, -25px) scale(0.8);
+    opacity: 0.7;
+  }
+  31.25% {
+    transform: translate(71px, -23px) scale(0.81);
+  }
+  37.5% {
+    transform: translate(131px, -18px) scale(0.83);
+  }
+  43.75% {
+    transform: translate(171px, -10px) scale(0.86);
+  }
+  50% {
+    transform: translate(185px, 0) scale(0.9);
+    opacity: 0.9;
+  }
+  56.25% {
+    transform: translate(171px, 10px) scale(0.94);
+  }
+  62.5% {
+    transform: translate(131px, 18px) scale(0.97);
+  }
+  68.75% {
+    transform: translate(71px, 23px) scale(0.99);
+  }
+  75% {
+    transform: translate(0, 25px) scale(1);
+    opacity: 1;
+  }
+  81.25% {
+    transform: translate(-71px, 23px) scale(0.99);
+  }
+  87.5% {
+    transform: translate(-131px, 18px) scale(0.97);
+  }
+  93.75% {
+    transform: translate(-171px, 10px) scale(0.94);
+  }
+}
+
+/* The two copies exchange at the sides, preserving one saucer across depth layers. */
+@keyframes cow-thought-back {
+  0%,
+  100% {
+    visibility: visible;
+  }
+  50% {
+    visibility: hidden;
+  }
+}
+
+@keyframes cow-thought-front {
+  0%,
+  100% {
+    visibility: hidden;
+  }
+  50% {
+    visibility: visible;
+  }
+}
+
+@keyframes cow-rig-chin-rub {
+  0%,
+  5%,
+  22%,
+  100% {
+    transform: rotate(0deg) translate(0, 0);
+  }
+  12%,
+  14% {
+    transform: rotate(-2.5deg) translate(2px, -0.5px);
+  }
+  17% {
+    transform: rotate(-1deg) translate(-1px, 0.5px);
   }
 }
 
@@ -392,12 +547,43 @@
   }
 }
 
-@keyframes cow-screen {
-  0%,
-  100% {
-    opacity: 0.45;
+@keyframes cow-typing-sweat {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.68);
   }
-  50% {
+  12% {
     opacity: 1;
+    transform: translate(0, 9px) scale(1);
+  }
+  34% {
+    opacity: 0.95;
+    transform: translate(2px, 33px) scale(1);
+  }
+  52%,
+  100% {
+    opacity: 0;
+    transform: translate(5px, 62px) scale(0.8);
+  }
+}
+
+@keyframes cow-laptop-burst {
+  0%,
+  8% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  14% {
+    opacity: 0.9;
+    transform: translateY(0);
+  }
+  24% {
+    opacity: 0.85;
+    transform: translateY(-8px);
+  }
+  38%,
+  100% {
+    opacity: 0;
+    transform: translateY(-19px);
   }
 }

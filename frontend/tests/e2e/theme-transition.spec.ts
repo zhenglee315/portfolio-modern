@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { themeTransitionTiming } from '../../src/features/appearance/model/transition';
-import { openClientShell, runtimeTest as test } from '../fixtures/browser';
+import { openClientShell, runtimeTest as test, waitForFixtureHydration } from '../fixtures/browser';
 import { endpointFixture } from '../fixtures/portfolio';
 
 type EntranceEffect = {
@@ -155,6 +155,7 @@ async function paintReady(page: Page, count: number) {
 /** Open hydrated controls after fonts and entrance settle; keep the original focus lifecycle. */
 async function openThemeMenu(page: Page) {
   await page.goto('/en');
+  await waitForFixtureHydration(page);
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('[data-entering]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Background settings' }).click();

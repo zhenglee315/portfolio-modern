@@ -409,7 +409,6 @@ def main():
     assert all(frame["paths"] for frame in frames), "Every turn must contain a complete land surface"
     css = animation_css()
     (output / "globe-rotation.ts").write_text(typescript(sphere, base, overlay, frames, source_hash))
-    (output / "globe-rotation.css").write_text(css)
     (output / "globe-rotation-review.svg").write_text(review_svg(root, base, overlay, frames, frame_paths))
     (output / "complete-globe-rotating.svg").write_text(rotating_svg(root, base, overlay, frames, frame_paths, css))
     # The readable audit records the decorative back-map provenance and numeric

@@ -20,11 +20,13 @@ export default function JourneyMap({
   selectedId,
   locale,
   onSelect,
+  suspended = false,
 }: {
   items: JourneyStop[];
   selectedId: number;
   locale: Locale;
   onSelect: (id: number) => void;
+  suspended?: boolean;
 }) {
   const { t } = useTranslation();
   const root = useRef<SVGSVGElement>(null);
@@ -76,7 +78,7 @@ export default function JourneyMap({
     },
     [items, prioritizeLabel],
   );
-  const playback = useJourneyPlayback(items, selectedId, onSelect, paint);
+  const playback = useJourneyPlayback(items, selectedId, onSelect, paint, suspended);
   const close = useCallback(
     (restore = false) => {
       ignoreFocus.current = restore ? bubble?.id : undefined;

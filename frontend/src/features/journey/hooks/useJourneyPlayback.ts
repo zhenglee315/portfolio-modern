@@ -10,26 +10,28 @@ import {
 } from '../model/playback';
 
 /** Own one cancellable rAF clock; per-frame progress paints SVG without React rerenders.
- * Selection changes once per chapter; hidden/reduced-motion documents preserve elapsed time.
+ * Selection changes once per chapter; document or page suspension preserves elapsed time.
  */
 export function useJourneyPlayback(
   items: JourneyStop[],
   selectedId: number,
   onSelect: (id: number) => void,
   paint: (clock: PlaybackClock) => void,
+  suspended = false,
 ) {
   const reduced = useMediaQuery(reducedMotionQuery);
   const visible = useDocumentVisible();
   const [playing, setPlaying] = useState(true);
   const [phase, setPhase] = useState<PlaybackPhase>('holding');
   const clock = useRef<PlaybackClock>({ index: 0, elapsed: 0 });
-  const effective = playing && visible && !reduced && items.length > 1;
+  const effective = playing && visible && !reduced && !suspended && items.length > 1;
   useEffect(() => {
     const index = Math.max(
       0,
       items.findIndex((item) => item.id === selectedId),
     );
     if (clock.current.index !== index) clock.current = { index, elapsed: 0 };
+    if (suspended) return;
     let frame = 0,
       last = 0,
       stopped = false;
@@ -56,7 +58,7 @@ export function useJourneyPlayback(
       stopped = true;
       cancelAnimationFrame(frame);
     };
-  }, [items, selectedId, onSelect, paint, effective]);
+  }, [items, selectedId, onSelect, paint, effective, suspended]);
   const select = (id: number) => {
     const index = items.findIndex((item) => item.id === id);
     if (index < 0) return;

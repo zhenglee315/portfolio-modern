@@ -1,0 +1,11 @@
+/* Online count, sign-in entry and cow controls share one compact shell and tail. */
+.tooltip[role='tooltip'] {
+  position: fixed;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 28px));
+  z-index: 80;
+  --bubble-padding: 14px 16px;
+  --bubble-tail-step: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}

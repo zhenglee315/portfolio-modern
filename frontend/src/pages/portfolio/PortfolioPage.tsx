@@ -2,7 +2,9 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { AppearanceMenu, useAppearance } from '@/features/appearance';
+import { AuthPanel } from '@/features/auth';
 import { LanguageMenu } from '@/features/language';
+import { OnlineVisitors, useOnlineVisitors } from '@/features/online-visitors';
 import { useLocaleSwitch } from './hooks/useLocaleSwitch';
 import { SectionState } from '@/shared/ui/SectionState';
 import { SkillsSection } from '@/features/skills';
@@ -23,6 +25,8 @@ import { useSectionNavigation } from './hooks/useSectionNavigation';
 import styles from './PortfolioPage.module.css';
 import { useEntrance } from './hooks/useEntrance';
 import BackgroundField from './components/BackgroundField';
+import { useAuthTransition } from './hooks/useAuthTransition';
+import { useAuthNavigation } from './hooks/useAuthNavigation';
 
 /** Compose independent feature boundaries; the page owns cross-domain coordination. */
 export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: string }) {
@@ -32,6 +36,16 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
   const profileControls = useRef<HTMLDivElement>(null);
   const appearance = useAppearance();
   const contact = useContactDisclosure();
+  const auth = useAuthTransition(appearance.reducedMotion);
+  const authVisible = auth.phase === 'reveal' || auth.phase === 'auth';
+  const authNavigation = useAuthNavigation({
+    locale,
+    active: auth.isAuth,
+    visible: authVisible,
+    open: auth.open,
+    back: auth.back,
+    dismissContact: contact.dismiss,
+  });
   const language = useLocaleSwitch(locale);
   const localeControl = (
     <LanguageMenu
@@ -42,12 +56,14 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
     />
   );
   const site = useSite(locale);
+  const onlineVisitors = useOnlineVisitors();
   useEntrance(
     root,
     !!site.data,
     contact.reveal,
     appearance.motionPaused,
     appearance.subscribeThemeTransition,
+    !auth.isAuth,
   );
   const journey = useJourney(locale);
   const stops = journey.data;
@@ -68,9 +84,15 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
     }
   }
   const [compact, setCompact] = useState(false);
-  const navigation = useSectionNavigation(locale);
+  const navigation = useSectionNavigation(locale, !auth.isAuth);
   return (
-    <div ref={root} className={`${styles.frame} ${compact ? styles.compact : ''}`}>
+    <div
+      ref={root}
+      className={`${styles.frame} ${compact ? styles.compact : ''}`}
+      data-auth-phase={auth.phase}
+      data-auth-view={auth.isAuth}
+      style={auth.style}
+    >
       <SectionBoundary
         silent
         resetKey="background"
@@ -83,21 +105,35 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
           compact={compact}
         />
       </SectionBoundary>
-      <a className="skip" href="#overview">
+      <a
+        className="skip"
+        href="#overview"
+        inert={auth.isAuth}
+        aria-hidden={auth.isAuth || undefined}
+      >
         {t('ui.skip')}
       </a>
-      <Navigation
-        endpoints={stops?.length ? `${stops[0]?.city} → ${final?.city}` : undefined}
-        site={site.data}
-        onContact={site.data ? contact.toggle : undefined}
-        contactOpen={contact.state.open}
-        onOpen={contact.dismiss}
-        active={navigation.active}
-        compact={compact}
-        onCompact={() => setCompact((value) => !value)}
-        onNavigate={navigation.navigate}
-      />
-      <main aria-busy={language.busy} className={styles.main} id="main-content">
+      <div className={styles.navSurface} inert={auth.isAuth} aria-hidden={auth.isAuth || undefined}>
+        <Navigation
+          endpoints={stops?.length ? `${stops[0]?.city} → ${final?.city}` : undefined}
+          site={site.data}
+          onContact={site.data ? contact.toggle : undefined}
+          contactOpen={contact.state.open}
+          onOpen={contact.dismiss}
+          active={navigation.active}
+          compact={compact}
+          onCompact={() => setCompact((value) => !value)}
+          onNavigate={navigation.navigate}
+          onLogin={authNavigation.enter}
+        />
+      </div>
+      <main
+        aria-busy={language.busy}
+        className={styles.main}
+        id="main-content"
+        inert={auth.isAuth}
+        aria-hidden={auth.isAuth || undefined}
+      >
         {language.failed && <SectionState message={t('ui.languageFailed')} />}
         <section id="overview" tabIndex={-1} aria-label={t('ui.overview')}>
           <SectionBoundary
@@ -109,6 +145,9 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
               locale={locale}
               controlsRef={profileControls}
               tenure={tenure}
+              leadingControls={
+                <OnlineVisitors data={onlineVisitors.data} failed={onlineVisitors.isError} />
+              }
               controls={
                 <>
                   {localeControl}
@@ -125,7 +164,7 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
             message={t('ui.unavailable')}
             retryLabel={t('ui.retry')}
           >
-            <JourneySection locale={locale} />
+            <JourneySection locale={locale} suspended={auth.isAuth} />
           </SectionBoundary>
         </section>
         <section id="experience" className={styles.section} aria-label={t('ui.experience')}>
@@ -160,6 +199,25 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
           location={final ? { city: final.city, country: final.countryName } : undefined}
         />
       </main>
+      {auth.isAuth && (
+        <div
+          className={styles.authSurface}
+          inert={!authVisible}
+          aria-hidden={!authVisible || undefined}
+        >
+          <AuthPanel
+            initialFocus={auth.phase === 'auth'}
+            animationActive={authVisible}
+            onBack={authNavigation.leave}
+            controls={
+              <>
+                {localeControl}
+                <AppearanceMenu />
+              </>
+            }
+          />
+        </div>
+      )}
       <ContactIntroduction
         site={site.data}
         disclosure={contact}

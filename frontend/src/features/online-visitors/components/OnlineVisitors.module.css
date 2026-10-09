@@ -1,11 +1,13 @@
-/* The hover/focus trigger keeps the existing bare Person hearts/count silhouette. */
+/* Keep the hit area still; shared IconGroup owns the icon/count pulse and highlight. */
 .indicator {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: var(--control-size);
+  min-height: var(--control-size);
+  max-width: calc(var(--control-size) + 14px);
+  padding: 4px;
   border: 0;
   background: transparent;
   color: var(--accent);
@@ -16,30 +18,19 @@
   outline: 1px dashed var(--accent);
   outline-offset: 4px;
 }
-.indicator > :global(.icon) {
+.content {
+  gap: 6px;
+}
+.content > :global(.icon) {
   flex: 0 0 18px;
   width: 18px;
   height: 18px;
 }
-/* Extremely large counts stay inside the narrow rail; the full count remains in its label. */
+/* Large counts stay within the toolbar; the full count remains in its label and tooltip. */
 .count {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-}
-
-/* Share the map/contact pixel bevel and tail at tooltip scale. The body portal avoids
- * clipping in either rail state or the drawer; shared side placement clamps the viewport
- * and turns the tail toward the trigger, matching the contact introduction.
- * Narrow mobile drawers retain above placement to keep longer copy off the trigger. */
-.tooltip[data-online-tooltip] {
-  position: fixed;
-  width: max-content;
-  max-width: min(260px, calc(100vw - 28px));
-  z-index: 80;
-  --bubble-padding: 14px 16px;
-  font-size: 12px;
-  line-height: 1.5;
 }

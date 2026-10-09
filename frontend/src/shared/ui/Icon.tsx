@@ -26,7 +26,17 @@ import arrowRight from 'bootstrap-icons/icons/arrow-right.svg?raw';
 import arrowUp from 'bootstrap-icons/icons/arrow-up.svg?raw';
 import plusCircle from 'bootstrap-icons/icons/plus-circle-dotted.svg?raw';
 import personHearts from 'bootstrap-icons/icons/person-hearts.svg?raw';
-import { memo } from 'react';
+import doorOpen from 'bootstrap-icons/icons/door-open-fill.svg?raw';
+import repeat from 'bootstrap-icons/icons/repeat.svg?raw';
+import cupHot from 'bootstrap-icons/icons/cup-hot-fill.svg?raw';
+import dpad from 'bootstrap-icons/icons/dpad-fill.svg?raw';
+import balloon from 'bootstrap-icons/icons/balloon-fill.svg?raw';
+import mouse2 from 'bootstrap-icons/icons/mouse2-fill.svg?raw';
+import globeAmericas from 'bootstrap-icons/icons/globe-americas-fill.svg?raw';
+import eye from 'bootstrap-icons/icons/eye-fill.svg?raw';
+import eyeSlash from 'bootstrap-icons/icons/eye-slash-fill.svg?raw';
+import lock from 'bootstrap-icons/icons/lock-fill.svg?raw';
+import { memo, type ReactNode } from 'react';
 
 const icons = {
   airplane,
@@ -57,8 +67,52 @@ const icons = {
   arrowUp,
   plusCircle,
   personHearts,
+  doorOpen,
+  repeat,
+  cupHot,
+  dpad,
+  balloon,
+  mouse2,
+  globeAmericas,
+  eye,
+  eyeSlash,
+  lock,
 };
 export type IconName = keyof typeof icons;
+type IconPulse = 'chat' | 'disclosure';
+
+/** One decoration contract serves individual SVGs and icon/text groups. */
+function iconDecoration(pulse: IconPulse | undefined, highlight: boolean) {
+  return {
+    'data-icon-pulse': pulse,
+    'data-icon-highlight': highlight || pulse === 'chat' ? '' : undefined,
+    'data-decoration': pulse ? '' : undefined,
+  };
+}
+
+/** Animate decorative icon/copy together while the owning control stays still. */
+export function IconGroup({
+  children,
+  className = '',
+  pulse,
+  highlight = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  pulse?: IconPulse;
+  highlight?: boolean;
+}) {
+  return (
+    <span
+      className={`icon-group ${className}`}
+      aria-hidden="true"
+      data-icon-group
+      {...iconDecoration(pulse, highlight)}
+    >
+      {children}
+    </span>
+  );
+}
 
 /** Render allowlisted bundled SVG with currentColor and optional accessible copy.
  * API text is never interpreted as markup; an unknown key uses a safe fallback.
@@ -74,7 +128,7 @@ export const Icon = memo(function Icon({
   name: IconName;
   label?: string;
   className?: string;
-  pulse?: 'chat' | 'disclosure';
+  pulse?: IconPulse;
   highlight?: boolean;
 }) {
   return (
@@ -84,9 +138,7 @@ export const Icon = memo(function Icon({
       aria-label={label}
       title={label}
       aria-hidden={label ? undefined : true}
-      data-icon-pulse={pulse}
-      data-icon-highlight={highlight || pulse === 'chat' ? '' : undefined}
-      data-decoration={pulse ? '' : undefined}
+      {...iconDecoration(pulse, highlight)}
       dangerouslySetInnerHTML={{ __html: icons[name] ?? icons.braces }}
     />
   );

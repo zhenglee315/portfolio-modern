@@ -13,7 +13,9 @@ export function createBrowserConfig(runtime: 'development' | 'preview') {
     fullyParallel: true,
     forbidOnly: Boolean(process.env.CI),
     retries: process.env.CI ? 2 : 0,
-    workers: process.env.CI ? 2 : undefined,
+    // Bound cold dev-module work and give viewport matrices a larger per-test budget.
+    workers: development || process.env.CI ? 2 : undefined,
+    timeout: development ? 60_000 : 30_000,
     reporter: 'list',
     use: { baseURL: origin, trace: 'retain-on-failure' },
     projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

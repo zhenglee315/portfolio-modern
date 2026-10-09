@@ -17,6 +17,7 @@ const features = [
   'appearance',
   'language',
   'online-visitors',
+  'auth',
 ];
 const upperLayers = [
   './src/app',

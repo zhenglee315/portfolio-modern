@@ -8,6 +8,7 @@ import { createEntrance, entranceTiming } from '../model/entrance';
  * @param reveal One-shot contact callback that respects earlier manual interaction.
  * @param paused Initial motion policy; suspension immediately completes startup.
  * @param subscribe Stable appearance lifecycle subscription, independent of page DOM ownership.
+ * @param enabled Bind visual work and contact offers only while the portfolio is visible.
  * Theme preparation holds the original CSS until reveal completes; replay never offers contact.
  * Cleanup unsubscribes and releases only this page's marker and pending deadline.
  */
@@ -17,8 +18,10 @@ export function useEntrance(
   reveal: () => void,
   paused: boolean,
   subscribe: (listener: (phase: ThemeTransitionPhase) => void) => () => void,
+  enabled = true,
 ) {
   const complete = useRef(false);
+  const offered = useRef(false);
   const deadline = useRef<number | null>(null);
   const contact = useRef({ ready, reveal });
   const controller = useRef<ReturnType<typeof createEntrance> | null>(null);
@@ -27,10 +30,14 @@ export function useEntrance(
   // Contact data arriving later must not replay the frame or delay the navigation.
   useEffect(() => {
     contact.current = { ready, reveal };
-    if (complete.current && ready) reveal();
-  }, [ready, reveal]);
+    if (enabled && complete.current && ready && !offered.current) {
+      offered.current = true;
+      reveal();
+    }
+  }, [ready, reveal, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     const surface = root.current;
     if (!surface) return;
     const player = createEntrance(surface);
@@ -56,15 +63,19 @@ export function useEntrance(
       controller.current = null;
       replaying.current = false;
     };
-  }, [root, subscribe]);
+  }, [root, subscribe, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     const player = controller.current;
     if (!player || complete.current || replaying.current) return;
     /** Release finite visual preparation before offering the independent contact disclosure. */
     const finish = () => {
       complete.current = true;
-      if (contact.current.ready) contact.current.reveal();
+      if (contact.current.ready && !offered.current) {
+        offered.current = true;
+        contact.current.reveal();
+      }
     };
     if (paused) {
       player.cancel();
@@ -79,5 +90,5 @@ export function useEntrance(
     return () => {
       if (!replaying.current) player.cancel();
     };
-  }, [root, paused, subscribe]);
+  }, [root, paused, subscribe, enabled]);
 }

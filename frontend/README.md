@@ -4,9 +4,9 @@
 
 This directory implements the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
 
-**目前狀態：React 功能遷移已實作。** 七個 feature 串接現有六支公開 GET API，包含三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡及背景效果。四個公開 URL 預先渲染有效資料，瀏覽器故障由各區獨立處理。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
+**目前狀態：React 功能遷移與登入介面已實作。** 九個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數及登入介面。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入、註冊、密碼重設與驗證信仍待後端帳號服務。四個公開 URL 預先渲染有效資料，瀏覽器故障由各區獨立處理。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
 
-**Status: React feature migration implemented.** Seven features integrate six public GET endpoints with locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction and decoration. Four public URLs pre-render validated content, with independently recoverable browser requests. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
+**Status: React feature migration and account interface implemented.** Nine features cover public content, locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction, online visitors and account forms. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in, registration, password reset and verification email await a backend account service. Four public URLs pre-render validated content, with independently recoverable browser requests. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
 
 ## 網站畫面導覽 / Visual Website Tour
 
@@ -112,13 +112,14 @@ frontend/
 │   │   ├── projects/
 │   │   ├── skills/
 │   │   ├── online-visitors/
+│   │   ├── auth/
 │   │   ├── appearance/
 │   │   └── language/
 │   ├── shared/
 │   │   ├── README.md             # Shared contracts, consumers and usage examples
 │   │   ├── api/                   # HTTP transport and common errors
 │   │   ├── schemas/               # Common record, career and numbered-page contracts
-│   │   ├── ui/                    # States, collection/tag disclosure and PixelBubble
+│   │   ├── ui/                    # States, collection/tag disclosure, PixelBubble and PixelTooltip
 │   │   ├── hooks/                 # General interaction hooks
 │   │   └── lib/                   # General pure functions
 │   ├── i18n/                      # Fixed UI dictionaries and locale utilities
@@ -162,7 +163,7 @@ app / routes / pages → features → shared
 app / routes / pages / features → i18n → shared
 ```
 
-`shared` 不反向依賴功能、路由或應用組裝；功能之間由頁面協調，例如由頁面串接技能資料與專案呈現所需的 props／事件，避免 `projects` 與 `skills` 互相引用。外部使用功能的 `index.ts`，不直接引用內部實作；公開匯出保持明確，功能內部直接引用自己的檔案，避免循環依賴。`eslint.config.js` 已配置 import-x 規則，檢查 alias 與相對路徑的依賴方向、功能間引用及功能公開入口。新增功能名稱時同步更新設定中的 `features` 清單；目前預留的七個功能已登記。
+`shared` 不反向依賴功能、路由或應用組裝；功能之間由頁面協調，例如由頁面串接技能資料與專案呈現所需的 props／事件，避免 `projects` 與 `skills` 互相引用。外部使用功能的 `index.ts`，不直接引用內部實作；公開匯出保持明確，功能內部直接引用自己的檔案，避免循環依賴。`eslint.config.js` 已配置 import-x 規則，檢查 alias 與相對路徑的依賴方向、功能間引用及功能公開入口。新增功能名稱時同步更新設定中的 `features` 清單；目前九個功能均已登記，包含 `online-visitors` 與 `auth`。
 
 Keep shared code independent of features, routes, and application assembly. Pages coordinate features. The ESLint configuration enforces import direction, feature isolation, and public indexes; register new feature names in its `features` list.
 
@@ -212,13 +213,45 @@ Transport owns HTTP mechanics, resource APIs own endpoint contracts, hooks own s
 
 ### 在線人數 / Online Visitors
 
-`features/online-visitors` 擁有 `GET /system/heartbeat` 的非負整數契約、查詢與 `OnlineVisitors` 呈現元件。`Navigation` 只建立一個查詢訂閱，將結果提供給桌面側欄與手機抽屜：展開時 Person hearts 圖示與數字位於 copyright 右側，收合時保留圖示與數字。文案提供三語 aria-label 與像素提示窗，零人顯示 `0`；首次載入／不可用顯示 `—`，更新失敗保留最後有效值並標示過期。hover、鍵盤聚焦或輕觸圖示可開啟共用 PixelBubble 小提示窗，顯示目前網站語言的在線人數；滑鼠可移入提示窗，Escape／移開／失去焦點／捲動時關閉。
+`features/online-visitors` 擁有 `GET /system/heartbeat` 的非負整數契約、查詢與 `OnlineVisitors` 呈現元件。`PortfolioPage` 只建立一個查詢訂閱，透過 `ProfileOverview.leadingControls` 將 Person hearts 圖示與數字放在 social 列最左側，接續 API 社群連結、語言與外觀控制。桌面與手機共用這一個呈現實例，窄螢幕允許控制列換行；側欄底部保留 Door open fill 登入入口。文案提供三語 aria-label 與像素提示窗，零人顯示 `0`；首次載入／不可用顯示 `—`，更新失敗保留最後有效值並標示過期。hover、可見鍵盤焦點或輕觸圖示透過共用 `useHoverTooltip` 開啟 `PixelTooltip`，顯示目前網站語言的在線人數。
 
-The `online-visitors` feature owns the nonnegative integer contract, query and `OnlineVisitors` indicator for `GET /system/heartbeat`. Navigation shares one subscription across the desktop rail and mobile drawer. Person hearts and the count sit beside copyright when expanded and remain visible when collapsed. Localized accessible labels and pixel tooltips distinguish zero, loading, unavailable and stale results. Hover, keyboard focus or tap opens the shared PixelBubble shell with the online count in the active language. It remains hoverable and dismisses on Escape, pointer departure, blur or scroll.
+The `online-visitors` feature owns the nonnegative integer contract, query and `OnlineVisitors` indicator for `GET /system/heartbeat`. PortfolioPage owns one subscription and supplies the indicator through ProfileOverview's leadingControls slot. The toolbar order is online count, API social links, language and appearance, with one responsive instance and wrapping on narrow screens. The Door open fill sign-in entry remains at the sidebar footer. Localized accessible labels and pixel tooltips distinguish zero, loading, unavailable and stale results. Hover, visible keyboard focus or tap opens the shared `PixelTooltip` through `useHoverTooltip`, showing the online count in the active language.
 
-在線提示窗沿用 chat 的桌面右側定位與左側像素尾巴，並限制在視窗範圍內；手機的小提示窗改在在線圖示上方，以避免較長文案遮住圖示。Person hearts 的 hover／鍵盤聚焦高亮與光暈共用 chat 的 `Icon highlight` 效果。
+在線提示窗使用共用 `side-left` 定位，在圖示左側以縮小的像素尾巴朝右指向圖示；左側空間不足時改用共用上下定位，保持在視窗內。`PixelTooltip` 集中 `PixelBubble` 小型外殼的內距、文字、20px 尾巴與 viewport 限寬，透過 body portal 避免被側欄裁切。在線圖示與數字透過共用 `IconGroup pulse="chat"` 一起播放 heartbeat，沿用 chat 的 `icon-breathe` 與 4 秒週期；hover／鍵盤聚焦時整組高亮，Door open fill 也沿用相同高亮規則。動畫、暫停及減少動態效果由 shared 模組統一管理，feature 不另外定義 heartbeat。
 
-The online tooltip uses chat's desktop right-side placement and left pixel tail, clamped to the viewport. On mobile this small tooltip sits above its own trigger so longer copy cannot cover the icon. Person hearts shares chat's `Icon highlight` foreground and halo on hover and visible keyboard focus.
+The online tooltip uses shared side-left placement with a smaller right-facing pixel tail. When the left side lacks room, shared above/below placement keeps it within the viewport. `PixelTooltip` owns the compact `PixelBubble` padding, type, 20px tail and viewport-constrained width, with a body portal that avoids sidebar clipping. The online icon and count pulse together through shared `IconGroup pulse="chat"`, using the same icon-breathe and four-second cycle as chat. Hover and visible keyboard focus highlight the whole group; Door open fill uses the same highlight rules. Shared decoration policies own pause and reduced motion; the feature defines no separate heartbeat.
+
+page 的 `LoginEntry` 共用同一個 `useHoverTooltip`／`PixelTooltip`，以目前網站語言顯示 `ui.adminSignIn`：英文「Admin sign in」、簡體「登录管理员」、繁體「登入管理員」。按鈕保留 `ui.signIn` aria-label，移除原生 `title`；hover 與可見鍵盤焦點開啟提示。桌面使用 `side`，手機使用 `above`，由共用定位保持在 viewport 內。`Navigation.onLogin` 接到 page-owned 登入轉場；click 關閉提示與手機 drawer 後開啟登入頁。未提供 callback 時保留 click／tap 提示並以 `aria-disabled` 標示。
+
+The page-owned `LoginEntry` shares `useHoverTooltip` and `PixelTooltip` and displays `ui.adminSignIn` in the active language: “Admin sign in”, “登录管理员” or “登入管理員”. The button preserves its `ui.signIn` accessible label and removes the native `title`; hover and visible keyboard focus open the description. Desktop uses `side` and mobile uses `above`, with shared viewport placement. `Navigation.onLogin` starts the page-owned sign-in transition after dismissing the tooltip and mobile drawer. Without a callback, click/tap retains the description and the entry is marked `aria-disabled`.
+
+`auth` feature 提供橫向半透明 `AuthPanel`：左側為牛工程師場景與動畫控制，右側為信箱／密碼、註冊與忘記密碼；沿用三語及 appearance tokens，不提供 OAuth。登入／註冊使用共用的滑動式切換鈕。三種模式在同一 grid 位置以非互動、隱藏的文字與中性欄位副本預留最大自然高度，提交訊息也預留文字空間，外框與切換鈕不因模式改變而跳動；尺寸副本沒有表單控制、ID 或憑證，只有可見表單可操作。模式切換清空帳密和驗證碼；註冊加入驗證碼欄位及發送按鈕，發送只檢查目前信箱並顯示尚未寄出，SMTP 由後續伺服器端端點接入。註冊檢查密碼確認與驗證碼必填，有效送出僅顯示帳號服務尚未串接，沒有網路請求、憑證儲存或假登入成功。語言與外觀控制由 page 組合，不由 feature 互相 import。
+
+The `auth` feature presents a wide translucent `AuthPanel` with the cow workspace and animation controls on the left, and email/password, registration and password-reset modes on the right. It uses all three locales and appearance tokens without OAuth. A shared sliding control selects sign-in or registration. Hidden, inert text and neutral field copies for all three modes share one grid cell and reserve the largest natural height, including submission feedback, so the frame and switch stay in place. These copies contain no form controls, IDs or credentials; only the visible form is interactive. Changing modes clears credentials and the verification code; registration validates confirmation and requires a code. Its Send code action validates only the current email before reporting that verification email is unavailable; no code is sent or verified. SMTP delivery is reserved for a future server endpoint. Valid submission explicitly reports the unavailable account service and performs no requests, credential persistence or simulated success. The page composes language and appearance controls through the panel's slot.
+
+`AuthCowScene` 延後載入 shared `CowWorkspace` 原有 SVG 場景，首頁不下載牛的拆件。左上使用 Bootstrap repeat／cup-hot-fill／dpad-fill／balloon-fill 圖示，切換自然循環、思考、代碼及注視；右下依序提供 globe-americas-fill／mouse2-fill／播放暫停切換鈕；播放時顯示 pause-fill，暫停時顯示 play-fill，提示和無障礙名稱隨下一個動作切換；地球按鈕獨立切換旋轉，關閉時停在目前角度，再次開啟後繼續；滑鼠按鈕獨立切換視差跟動，不影響表情或動畫播放，關閉時回正。七個控制鈕共用語言與主題按鈕的 44px 外框尺寸。各按鈕共用 `useHoverTooltip`／`PixelTooltip` 顯示上方像素提示，取代原生 title；三種表情只顯示「思考／編程／你好」，其餘使用最短操作文案，滑鼠跟動依狀態顯示開啟或停止。點擊先關閉提示再執行按鈕動作，文案提供三語。預設每段 3 秒循環，播放／暫停保留表情及剩餘循環時間；切換帳戶表單不重建場景。登入框淡入時才啟動，並沿用 shared motion 的系統減少動態、全域暫停、隱藏分頁及離開畫面規則；手機版場景排列於表單上方。
+
+`AuthCowScene` lazy-loads the existing shared `CowWorkspace` SVG, keeping its rig out of the initial portfolio bundle. Top-left Bootstrap repeat/cup-hot-fill/dpad-fill/balloon-fill controls select the natural cycle or thinking/coding/watching poses; bottom-right controls place globe-americas-fill before mouse2-fill and a single playback button. The playback button shows pause-fill while playing and play-fill while paused; its tooltip and accessible name describe the next action. Globe rotation toggles independently, holding its current angle when stopped and continuing when enabled. Mouse following toggles independently of expression and playback, returning the scene to neutral when disabled. Play/pause retains the current expression and remaining cycle time. All seven controls share the language/theme buttons’ 44px frame size. Each reuses `useHoverTooltip`/`PixelTooltip` above the button, replacing native titles with brief localized copy: Thinking/Coding/Hello and short actions for loop, tracking and playback. Clicking dismisses the tooltip before performing the action. The default cycle holds each phase for three seconds. Account mode changes retain the scene. Motion starts when the auth panel reveals and follows the shared reduced-motion, global-pause, document-visibility and intersection policies; narrow screens place the scene above the form.
+
+登入沿用主頁的 760px 斷點：較寬視窗使用最大 900px 的雙欄框，手機及窄平板改為最大 520px 單欄，牛在表單上方；380px 以下工具列可換行。短視窗捲動整個登入層，保留表單自然高度，沒有表單內部捲動框。手機與粗略指標裝置的輸入文字為 16px，初始焦點落在標題。信箱／密碼共用 Bootstrap 圖示前綴，密碼使用眼睛圖示切換顯示；提交鈕的真實 SVG 斜紋在 hover 或可見鍵盤焦點時向右移動，遵守暫停與減少動態規則。
+
+Auth follows the portfolio's 760px breakpoint: wider viewports use a two-column frame up to 900px, while phones and narrow tablets use a single column up to 520px with the cow above the form. Below 380px the toolbar wraps. Short viewports scroll the entire auth surface while preserving natural form height. Mobile and coarse-pointer inputs use 16px text, and entry focus targets the heading. Email/password fields share Bootstrap icon prefixes; an eye icon toggles password visibility. A real SVG stripe pattern moves right on submit-button hover or visible keyboard focus and respects pause and reduced-motion policies.
+
+登入表單、尺寸副本、牛控制與場景拆件均有英文用途註解，特別說明互動與量測的差異、帳號模式切換時保留的場景偏好，以及事件、計時器與觀察器的清理歸屬。page-owned 登入導覽／轉場與 shared tooltip／場景 Hook 各自記錄生命週期；新增拆件仍須維持這些註解與實際行為一致。
+
+English comments cover account components, sizing copies, cow controls and scene parts, explaining interactive versus measurement rendering, scene preferences retained across account-mode changes, and ownership of event, timer and observer cleanup. Page-owned auth navigation/transitions and shared tooltip/scene hooks document their lifecycles. Keep those comments aligned with behavior when extending the components.
+
+牛的原始向量以同源外部 SVG sprite 載入，React 保留圖層組合與動畫控制，避免大型路徑資料進入 JavaScript。場景使用局部錯誤邊界，素材載入失敗仍保留表單、返回及控制鈕；素材重建與校驗指令見 shared cow workspace README。
+
+Original cow vectors load through a same-origin external SVG sprite while React owns composition and motion, keeping drawing data out of JavaScript. A local scene error boundary leaves the form, back button and controls usable if loading fails. The shared cow workspace README documents regeneration and parity checks.
+
+`useAuthTransition` 管理 exit 260ms → collide 300ms → expand 350ms → reveal 420ms → auth，重用原有左右 ruler 對撞再展開；導覽完全滑出、portfolio 淡出後隱藏，登入框最後淡入。Reduced motion 跳過轉場，文件隱藏完成有限動畫；背景 Pause 不阻擋使用者導覽。`useAuthNavigation` 使用目前語系路徑的 `?view=login`，保留其他 query、section hash 與 Router state，支援直接連結、上一頁／下一頁與 Escape 返回。隱藏的導覽／內容為 inert，section tracking、entrance replay 與 Journey playback 暫停；返回保留 compact 設定、捲動位置與入口焦點。登入可見時鎖定 body 捲動，手機 drawer 的鎖定先釋放，離開時復原原有樣式。
+
+`useAuthTransition` coordinates exit (260ms), collision (300ms), expansion (350ms) and reveal (420ms), reusing the existing rulers. The navigation slides fully out, portfolio fades and hides, and the panel fades in. Reduced motion skips the sequence; document hiding finishes finite animation, while background Pause leaves explicit navigation available. `useAuthNavigation` uses `?view=login` on the locale route and preserves other queries, section hashes and Router state, including direct links, history and Escape. Hidden portfolio/navigation surfaces are inert; section tracking, entrance replays and Journey playback suspend. Returning restores compact state, scroll and entry focus. The visible panel owns body scroll locking after the mobile drawer releases its lock, restoring original styles on exit.
+
+共用 tooltip 只在開啟時掛載並加上 `aria-describedby`。滑鼠離開延遲 150ms 關閉，允許移入提示窗；可見鍵盤焦點保留提示，touch 不套用 hover 離開。焦點移出且 trigger／提示窗皆未 hover、外部點擊、Escape、scroll、resize、window blur 或文件隱藏時關閉，timer／listener 隨關閉與卸載清理。文案與按鈕動作由各 owner 提供，共用層不讀取 i18n 或登入狀態。
+
+The shared tooltip mounts and adds `aria-describedby` only while open. A 150ms pointer-departure delay allows movement into it; visible keyboard focus retains it and touch skips hover dismissal. Blur outside both hovered surfaces, outside pointerdown, Escape, scroll, resize, window blur or document hiding closes it, with timer/listener cleanup on closing and unmount. Owners supply copy and button actions; the shared layer reads neither i18n nor login state.
 
 查詢只在瀏覽器執行，不加入靜態預先渲染資料；可見頁面每 45 秒更新，不啟用後端 30 秒回應快取，背景頁籤暫停，恢復可見時重新取得過期資料。沿用共用 HTTP 驗證、取消與短暫錯誤重試。後端依最近 60 秒的 IP 活動估算人數，並非登入帳號或分頁數；建置端仍不因這項可選查詢而失敗。
 
@@ -228,11 +261,11 @@ This browser-only query is excluded from static snapshots. It polls every 45 sec
 
 ### 元件放置 / Component Placement
 
-| 元件範圍 / Scope                                 | 位置與例子 / Location and example                                                                           |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| 不依賴業務的通用 UI / Business-independent UI    | `shared/ui`：SectionState、PixelBubble、ExpandableTagList；資料透過 props 傳入 / Receive data through props |
-| 理解特定功能資料與規則 / Feature-specific UI     | `features/<feature>/components`：ProjectCard、ProjectDetail、JourneyMap                                     |
-| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：Navigation、BackgroundField                                                      |
+| 元件範圍 / Scope                                 | 位置與例子 / Location and example                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 不依賴業務的通用 UI / Business-independent UI    | `shared/ui`：SectionState、PixelBubble、PixelTooltip、ExpandableTagList；資料透過 props 傳入 / Receive data through props |
+| 理解特定功能資料與規則 / Feature-specific UI     | `features/<feature>/components`：ProjectCard、ProjectDetail、JourneyMap                                                   |
+| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：Navigation、BackgroundField                                                                    |
 
 `ProjectDetail` 使用 React-Bootstrap Modal 管理焦點與鍵盤，專案內容保留在 feature。業務元件被多個頁面使用，仍留在所屬功能；只有語意與依賴都通用時才移入 `shared`。共用 `ExpandableTagList` 不自行呼叫技能 API，取得更多資料的責任交給功能並透過事件連接。
 
@@ -273,6 +306,7 @@ Clean up listeners, timers, observers, animations, and connections. Isolate impe
 | HTTP、契約與分頁 / Transport, contracts and pagination | `requestJson`、`numberedPageSchema`、`numberedQuery`、`usePagedCollection` 統一讀取／驗證／續頁／狀態；feature API 提供 endpoint 與 item schema。 / Feature APIs inject endpoints and item contracts into one read/validation/continuation policy. |
 | 展開與標籤預覽 / Collection and tag disclosure         | 經歷／專案使用 `ExpandableCollection`；卡片／分類使用 `ExpandableTagList` 與 `tagPreviewCount`。集合第一頁引用 `pageSize`，標籤另依 75% 實際寬度量測。 / First-page collections and measured-width labels reuse shared presentation.               |
 | 浮框與包邊 / Floating surfaces                         | Contact／City 共用 `PixelBubble`、`useAnchoredPanel`、`floatingPosition`；feature 傳入內容、關閉流程與保護邊界。 / Owners inject content, lifecycle and protected bounds into one shell/placement system.                                          |
+| 小型提示窗 / Compact tooltips                          | OnlineVisitors／page LoginEntry 共用 `useHoverTooltip` 的揭露／關閉生命週期及 `PixelTooltip` 小型外殼與定位；文案與按鈕動作由 owner 提供。 / Shared disclosure/dismissal and compact anchored presentation with owner-supplied copy and actions.   |
 | 選單與 modal 焦點 / Menu and modal focus               | Appearance／Language 共用 `useDisclosureFocus`；Drawer／ProjectDetail 共用 `cycleDialogTab`。初始目標與關閉後還原留在 owner／Bootstrap。 / Shared focus mechanics retain owner-specific activation and restoration.                                |
 | 持續 heartbeat / Continuous breathing                  | Timeline 點引用共用 size／duration／keyframe tokens；chat／disclosure 使用 `Icon` 的同一 breathing 動畫。 / Timeline points and icon roles reuse their shared keyframes and tokens.                                                                |
 | 螢幕與動態政策 / Responsive and motion policy          | 共用 `mobileQuery`、`reducedMotionQuery`、`useMediaQuery`、`useDocumentVisible`。 / Components share media/visibility subscriptions and JS breakpoint conditions.                                                                                  |
@@ -432,9 +466,9 @@ SSG 是建置時的公開快照；後端內容變更後需重建／重新發布 
 
 SSG changes require rebuilding and publishing. Browser queries are fresh for one minute and retained for thirty minutes, avoiding immediate duplicate reads. Locale navigation consults cache. Normal sections have no persistent refresh control; failed reads expose retry while retaining validated content. Owner previews seed skill page one; measured capacity or disclosure requests continuation as needed. Identity/count/page checks detect common changes without claiming transaction-level snapshot consistency.
 
-Vitest 涵蓋六契約、日期、HTTP timeout／取消、頁碼與 label 一致性、locale staging、地圖、播放及偏好；Playwright 使用合成公開 fixtures 驗證四 URL、分頁、對話框、切語言／取消、fault、RWD／四色、鍵盤、無 JavaScript 和建置故障保留。 `*-parity.spec.ts` 對照實際版型、paint 與互動：四邊／導覽進場時序、光暈與慢 chunk、短 viewport、三語／四色、手機／平板／桌面至 4K、選單內距／焦點、對話框技能與流程、聯絡漸層及 Journey 鍵盤／overflow。開發 runtime 與正式 preview 分開執行；宣告的測試範圍不等同當次執行結果。CI 執行 npm ci、type／lint／format／unit、Chromium 與 audit；測試建置產物是 synthetic snapshot，不能發布為正式網站。CI workflow 使用固定 action commit，僅有 contents:read 權限。[Checkout](https://github.com/actions/checkout)及[setup-node](https://github.com/actions/setup-node)為官方來源。
+Vitest 涵蓋六契約、日期、HTTP timeout／取消、頁碼與 label 一致性、locale staging、地圖、播放及偏好，並驗證登入導覽／轉場、表單、驗證碼占位、牛控制與 tooltip 生命週期；Playwright 使用合成公開 fixtures 驗證四 URL、分頁、對話框、切語言／取消、fault、RWD／四色、鍵盤、無 JavaScript 和建置故障保留。 `*-parity.spec.ts` 對照實際版型、paint 與互動：四邊／導覽進場時序、光暈與慢 chunk、短 viewport、三語／四色、手機／平板／桌面至 4K、選單內距／焦點、對話框技能與流程、聯絡漸層及 Journey 鍵盤／overflow。開發 runtime 與正式 preview 分開執行；宣告的測試範圍不等同當次執行結果。目前儲存庫未配置 CI workflow，使用下列本機指令執行檢查；瀏覽器測試建置的合成快照不能發布為正式網站。
 
-Vitest covers contracts, dates, bounded HTTP failures/cancellation, pagination consistency, locale staging, map/playback and preferences. Chromium verifies static delivery, interactions, faults, responsive layouts, keyboard behavior, JavaScript-disabled content and artifact preservation. Parity tests inspect visible geometry, paint and behavior: entrance timing, halo/slow chunks, short viewports, three languages/four themes, mobile/tablet/desktop through 4K, menu padding/focus, detail skills/flow, contact surfaces and Journey keyboard/overflow boundaries. Development runtime and production preview are exercised separately; declared coverage does not claim that a particular run passed. CI also runs the independent development-runtime suite, using reproducible synthetic data, pinned action commits and read-only repository permissions; its snapshot is not a production website.
+Vitest covers contracts, dates, bounded HTTP failures/cancellation, pagination consistency, locale staging, map/playback and preferences, plus auth navigation/transitions, forms, verification-code placeholders, cow controls and tooltip lifecycles. Chromium verifies static delivery, interactions, faults, responsive layouts, keyboard behavior, JavaScript-disabled content and artifact preservation. Parity tests inspect visible geometry, paint and behavior: entrance timing, halo/slow chunks, short viewports, three languages/four themes, mobile/tablet/desktop through 4K, menu padding/focus, detail skills/flow, contact surfaces and Journey keyboard/overflow boundaries. Development runtime and production preview are exercised separately; declared coverage does not claim that a particular run passed. The repository currently has no CI workflow; run the local checks below. Browser-test synthetic snapshots are not production websites.
 
 真 API 驗證是額外的只讀模式：在 shell 設定 `PORTFOLIO_API_SMOKE_TARGET` 為你的公開 API origin 後，執行 `npm run test`（六 endpoint／所有續頁）及 `npm run test:e2e -- live.spec.ts`（三語靜態交付及實際分頁）。未設定時跳過 live checks；一般測試不需要你的後端，也不停止服務。`npm run verify:public` 可重跑公開產物檢查。
 
@@ -443,6 +477,10 @@ For optional read-only live verification, set `PORTFOLIO_API_SMOKE_TARGET` in th
 從乾淨 checkout 驗證時，先執行 `npm run typecheck`（重新產生 `.react-router` 型別）、`npm run lint`、`npm run format:check`、`npm run test`；再**依序**執行 `npm run test:dev` 與 `npm run test:e2e`。兩者共用自動管理的 fixture API 4181，開發驗證使用 5174，正式 preview 使用 4173，不能同時啟動。瀏覽器測試會以合成資料重建 `build/`；要交付正式網站，測試結束後以有效公開 API 執行 `npm run build`，再 `npm run verify:public` 與 `npm run preview`。
 
 For a fresh checkout, generate route types, then run lint, formatting and unit checks. Run development and production browser suites sequentially: both own fixture port 4181, with frontend ports 5174 and 4173 respectively. Browser verification replaces `build/` with a synthetic snapshot. Rebuild against valid public API content before delivering a site, verify the output, then preview it.
+
+開發瀏覽器測試固定使用兩個 worker，每項測試上限 60 秒，為冷載入模組與多尺寸畫面矩陣保留時間。操作伺服器先渲染的按鈕前，測試以預設 fixture 的 client-only 在線數更新確認 hydration，避免把尚未掛上事件的靜態畫面當成可互動頁面；覆寫 heartbeat 的測試使用自己的就緒條件。
+
+Development browser checks use two workers and a 60-second per-test budget for cold module loading and viewport matrices. Before interacting with server-rendered controls, tests confirm hydration through the default fixture's client-only online-count update. Tests that override heartbeat use their own readiness condition.
 
 原始碼、CSS、字典、字型／地圖／圖片及授權、測試 fixtures、scripts、deploy 範例與工具設定必須隨功能提交。`.gitignore` 僅排除依賴、本機環境及可重建產物；`.react-router` 由 typecheck／dev／build 產生，`build/client` 由正式 build 產生，測試瀏覽器由 Playwright 安裝。使用者不需要取得其他開發者的 `node_modules` 或環境檔；重建所需輸入與安裝指令在本儲存庫中。
 

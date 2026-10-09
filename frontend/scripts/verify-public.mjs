@@ -43,16 +43,19 @@ export async function verifyPublic(directory) {
     }
   }
   await inspect(directory);
-  if (
-    totals.js > 1_050_000 ||
-    totals.jsGzip > 350_000 ||
-    totals.css > 330_000 ||
-    totals.cssGzip > 60_000 ||
-    totals.fonts > 250_000 ||
-    totals.mascot > 1_250_000 ||
-    totals.map > 250_000
-  )
-    throw new Error('Public asset budget exceeded.');
+  const ceilings = {
+    js: 1_050_000,
+    jsGzip: 350_000,
+    css: 330_000,
+    cssGzip: 60_000,
+    fonts: 250_000,
+    mascot: 1_250_000,
+    map: 250_000,
+  };
+  const exceeded = Object.entries(ceilings)
+    .filter(([metric, ceiling]) => totals[metric] > ceiling)
+    .map(([metric, ceiling]) => `${metric} ${totals[metric]} bytes > ${ceiling} bytes`);
+  if (exceeded.length) throw new Error(`Public asset budget exceeded: ${exceeded.join('; ')}.`);
   return totals;
 }
 

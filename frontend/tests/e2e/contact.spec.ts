@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { runtimeTest as parityTest } from '../fixtures/browser';
+import { runtimeTest as parityTest, waitForFixtureHydration } from '../fixtures/browser';
 import { endpointFixture, siteFixture } from '../fixtures/portfolio';
 
 /** Open the explicit contact surface after hydration without depending on its one-shot offer.
@@ -7,6 +7,7 @@ import { endpointFixture, siteFixture } from '../fixtures/portfolio';
  * @returns The visible rail/header trigger and its shared pixel bubble.
  */
 async function openContact(page: Page) {
+  await waitForFixtureHydration(page);
   await expect(page.locator('[data-entering]')).toHaveCount(0);
   // Prioritize an explicit control before clicking contact; startup may settle just after entrance.
   await page.getByRole('button', { name: 'Background settings' }).click();

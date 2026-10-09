@@ -11,6 +11,7 @@ import styles from './Site.module.css';
 type Props = {
   locale: Locale;
   tenure?: string;
+  leadingControls?: ReactNode;
   controls?: ReactNode;
   controlsRef?: Ref<HTMLDivElement>;
   onExplore: () => void;
@@ -20,7 +21,14 @@ type Props = {
  * @param props URL locale, optional work tenure and page-coordinated control slot.
  * Independent query failures leave navigation and sibling sections available.
  */
-export function ProfileOverview({ locale, tenure, controls, controlsRef, onExplore }: Props) {
+export function ProfileOverview({
+  locale,
+  tenure,
+  leadingControls,
+  controls,
+  controlsRef,
+  onExplore,
+}: Props) {
   const { t } = useTranslation();
   const query = useSite(locale);
   const site = query.data;
@@ -46,6 +54,7 @@ export function ProfileOverview({ locale, tenure, controls, controlsRef, onExplo
         data-profile-controls
         aria-label={t('ui.contacts')}
       >
+        {leadingControls}
         {links
           .filter((link) => link.href)
           .map((link) => (

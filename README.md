@@ -118,17 +118,33 @@ Tablet keeps the rail while content and controls adapt to the width. At 760px an
 
 See the [frontend README](frontend/README.md) for component contracts, fault handling, shared modules and responsive specifications, and the [installation guide](#從乾淨-checkout-安裝--install-from-a-fresh-checkout) below for setup.
 
+### 9. 登入介面與草地牛 / Account Forms and Cow Workspace
+
+導航列的開門圖示進入目前語系的 `?view=login`：導覽收合、作品集淡出，左右邊框對撞再展開登入框。介面提供信箱與密碼登入、註冊及忘記密碼；註冊包含驗證碼欄位與發送入口，密碼使用圖示切換顯示。各模式共用相同框體尺寸，手機與窄平板將牛場景放到表單上方；語言、主題、返回作品集及瀏覽器上一頁／下一頁保持可用。
+
+The door icon opens `?view=login` on the current locale route. Navigation retracts, the portfolio fades, and the side rails collide before revealing the account card. Email/password sign-in, registration and password recovery share one card size. Registration includes a verification-code field and send action; an icon toggles password visibility. Narrow layouts place the cow above the form. Language, appearance, portfolio return and browser history remain available.
+
+草地牛沿用分層 SVG 與 2.5D 視差，預設以「思考 → 敲代碼 → 看你 → 敲代碼」循環，每個表情停留三秒。場景按鈕可選表情、暫停地球、停止滑鼠跟動，以及以單一按鈕切換播放／暫停；按鈕共用三語像素提示氣泡。滑鼠在整個頁面依輸入區中心控制視差，動態遵守減少動態效果、全域暫停與可見性設定。原本準備素材的獨立預覽頁已移除，向量原稿與重建、比對工具保留；詳見[牛場景文件](frontend/src/shared/ui/cow-workspace/README.md)。
+
+The layered SVG cow uses 2.5D parallax and cycles through thinking, typing, watching and typing, holding each expression for three seconds. Controls select expressions, pause globe rotation, disable mouse tracking and toggle playback with one button. They share localized pixel tooltips. Tracking covers the page around the input region, and motion respects accessibility, global pause and visibility preferences. The preparation preview page has been removed; vector sources and rebuild/parity tools remain in the [cow workspace guide](frontend/src/shared/ui/cow-workspace/README.md).
+
+目前帳號操作僅為前端介面：密碼與驗證碼留在當前表單，尚未送出或儲存。登入驗證、SMTP 發送驗證碼、註冊與密碼復原 API 待後端實作；按鈕顯示服務尚未提供的提示。
+
+Account actions currently provide UI only: passwords and verification codes remain in the current form without transmission or storage. Authentication, SMTP code delivery, registration and password recovery await backend endpoints; actions report that the service is unavailable.
+
 ## 目前進度 / Current status
 
 - 已完成 FastAPI 啟動入口、六支公開 Portfolio GET API、線上人數診斷 API，以及本機 Swagger／ReDoc。
 - 後端使用單一非同步 SQLite 或 PostgreSQL 連線管理器；Redis 用於 session、心跳與可選的 HTTP 快取。
 - 已建立作品集與帳號 ORM 模型、初版 Alembic migration 及三語 mock 匯入腳本；migration 須手動執行，登入與寫入 API 尚未實作。
 - React Router、React、TypeScript、Bootstrap 樣式與图示已完成版型及六 API 整合，包含三語、經歷／專案／技能分頁、地圖播放、詳情、外觀與聯絡互動；四 URL 靜態內容、區段容錯與正式檢查工具可使用。
+- 登入／註冊／忘記密碼前端、登入轉場及草地牛場景已整合，支援三語、RWD、共用提示與獨立動畫控制；帳號及 SMTP API 尚未串接。
 
 - The backend has a FastAPI entry point, six public Portfolio GET APIs, an online-count diagnostic endpoint, and local Swagger/ReDoc.
 - One async connection manager supports SQLite or PostgreSQL; Redis supplies sessions, heartbeats, and optional HTTP response caching.
 - Portfolio and account ORM models, an initial Alembic migration, and a three-language mock importer are present. Migrations run manually; login and write APIs are not implemented.
 - The React frontend integrates six APIs with three languages, numbered collections, maps/playback, detail dialogs, appearance and contact interactions. Four static URLs, independent fault recovery and verification tooling are available.
+- Sign-in, registration and password-recovery UI, the entrance transition and cow workspace are integrated with three languages, responsive layouts, shared tooltips and independent animation controls. Account and SMTP endpoints are not yet connected.
 
 ## 技術選擇 / Technology choices
 
@@ -194,7 +210,7 @@ portfolio-modern/
 │   │   ├── routes/               # URL entry, loaders, pre-render data and SEO
 │   │   ├── pages/portfolio/      # Page composition, navigation and entrance
 │   │   ├── features/            # Site, journey, experiences, projects, skills,
-│   │   │                        # appearance and language feature modules
+│   │   │                        # appearance, language, online visitors and auth
 │   │   ├── shared/              # Reusable API infrastructure, UI and utilities
 │   │   ├── i18n/                # Locale setup, dictionaries and copy helpers
 │   │   ├── styles/              # Design tokens and global styles
@@ -311,7 +327,7 @@ The backend exposes six public read APIs and one system diagnostic API:
 | `GET /portfolio/skills`           | 指定分類下的技能頁碼分頁                                  | Numbered skills in one category                     |
 | `GET /system/heartbeat`           | 依近期心跳估算目前在線人數                                | Estimated online count from recent heartbeats       |
 
-Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。目前只有單份 Portfolio，未建立多作者資料隔離；登入、管理後台、寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
+Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。目前只有單份 Portfolio，未建立多作者資料隔離；後端登入驗證、管理後台、寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
 
 Portfolio APIs default to `locale=en` and also support `zh-Hans` and `zh-Hant`. All six GETs can opt into short-lived response caching with `is_caching=true`. The backend currently serves one Portfolio; multi-author isolation, login, administration, write operations, and uploads are not implemented. See the [backend README](backend/README.md) for parameters and response shapes.
 

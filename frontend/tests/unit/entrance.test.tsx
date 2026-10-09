@@ -166,4 +166,80 @@ describe('reusable page entrance lifecycle', () => {
     }
     expect(reveal).toHaveBeenCalledOnce();
   });
+
+  it('defers direct-auth startup and contact until the portfolio is enabled', () => {
+    vi.useFakeTimers();
+    const events = themeEvents();
+    const reveal = vi.fn();
+    function Page({ enabled }: { enabled: boolean }) {
+      const root = useRef<HTMLDivElement>(null);
+      useEntrance(root, true, reveal, false, events.subscribe, enabled);
+      return <div ref={root} data-testid="frame" />;
+    }
+    const view = render(<Page enabled={false} />);
+    const surface = view.getByTestId('frame');
+    expect(events.count()).toBe(0);
+    act(() => events.emit('prepare'));
+    act(() => events.emit('replay'));
+    act(() => vi.advanceTimersByTime(entranceTiming.durationMs * 2));
+    expect(surface).not.toHaveAttribute('data-entering');
+    expect(reveal).not.toHaveBeenCalled();
+
+    view.rerender(<Page enabled />);
+    expect(events.count()).toBe(1);
+    expect(surface).toHaveAttribute('data-entering', 'true');
+    act(() => vi.advanceTimersByTime(entranceTiming.durationMs - 1));
+    expect(reveal).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(reveal).toHaveBeenCalledOnce();
+    expect(surface).not.toHaveAttribute('data-entering');
+  });
+
+  it('cancels a theme replay during auth and retains completed startup after return', () => {
+    vi.useFakeTimers();
+    const events = themeEvents();
+    const reveal = vi.fn();
+    function Page({ enabled }: { enabled: boolean }) {
+      const root = useRef<HTMLDivElement>(null);
+      useEntrance(root, true, reveal, false, events.subscribe, enabled);
+      return <div ref={root} data-testid="frame" />;
+    }
+    const view = render(<Page enabled />);
+    const surface = view.getByTestId('frame');
+    act(() => vi.advanceTimersByTime(entranceTiming.durationMs));
+    act(() => events.emit('prepare'));
+    act(() => events.emit('replay'));
+    expect(surface).toHaveAttribute('data-entering', 'true');
+
+    view.rerender(<Page enabled={false} />);
+    expect(events.count()).toBe(0);
+    expect(surface).not.toHaveAttribute('data-entering');
+    expect(vi.getTimerCount()).toBe(0);
+    act(() => events.emit('prepare'));
+    act(() => events.emit('replay'));
+    act(() => vi.advanceTimersByTime(entranceTiming.durationMs));
+    expect(surface).not.toHaveAttribute('data-entering');
+
+    view.rerender(<Page enabled />);
+    expect(events.count()).toBe(1);
+    expect(surface).not.toHaveAttribute('data-entering');
+    expect(vi.getTimerCount()).toBe(0);
+    expect(reveal).toHaveBeenCalledOnce();
+  });
+
+  it('holds late contact readiness during auth without replaying the completed frame', () => {
+    const events = themeEvents();
+    const reveal = vi.fn();
+    function Page({ ready, enabled }: { ready: boolean; enabled: boolean }) {
+      const root = useRef<HTMLDivElement>(null);
+      useEntrance(root, ready, reveal, true, events.subscribe, enabled);
+      return <div ref={root} data-testid="frame" />;
+    }
+    const view = render(<Page ready={false} enabled />);
+    view.rerender(<Page ready enabled={false} />);
+    expect(reveal).not.toHaveBeenCalled();
+    view.rerender(<Page ready enabled />);
+    expect(reveal).toHaveBeenCalledOnce();
+    expect(view.getByTestId('frame')).not.toHaveAttribute('data-entering');
+  });
 });

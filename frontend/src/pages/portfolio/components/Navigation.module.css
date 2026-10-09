@@ -100,7 +100,7 @@
   color: var(--muted);
   font-size: 14px;
 }
-/* Collapse descriptive copy separately so the live indicator stays at the rail's bottom. */
+/* Collapse descriptive copy while retaining the sign-in entry. */
 .footCopy {
   max-height: 400px;
   overflow: hidden;
@@ -121,9 +121,33 @@
 .footerRow {
   display: flex;
   align-items: center;
+  min-height: var(--control-size);
+}
+.footerRow {
   justify-content: space-between;
   gap: 8px;
   margin-top: 25px;
+}
+.login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--control-size);
+  width: var(--control-size);
+  height: var(--control-size);
+  padding: 0;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+}
+.login > :global(.icon) {
+  width: 18px;
+  height: 18px;
+}
+.login:focus-visible {
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
 }
 .copyright {
   min-width: 0;
@@ -196,14 +220,20 @@
   visibility: hidden;
 }
 .compact .copyright {
+  /* Keep fading copy out of the flex row so it cannot shift the centered entry. */
+  position: absolute;
   max-width: 0;
   opacity: 0;
   visibility: hidden;
 }
 .compact .footerRow {
+  position: relative;
   justify-content: center;
   gap: 0;
   margin-top: 0;
+}
+.compact .login {
+  margin-inline: auto;
 }
 .compact .links a {
   justify-content: center;

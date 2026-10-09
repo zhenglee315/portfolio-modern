@@ -147,6 +147,12 @@ select:focus-visible {
   height: 100%;
   fill: currentColor;
 }
+.icon-group {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
 .eyebrow {
   font: 500 12px/1.6 var(--mono);
   letter-spacing: 1.8px;
@@ -226,7 +232,7 @@ html[data-motion-paused='true'] [data-decoration] *::after {
   }
 }
 
-/* One SVG silhouette pulse serves contact triggers and disclosure/detail controls.
+/* One silhouette pulse serves SVGs and icon/text groups, including contact and online count.
  * Animation stays inside the stable control hit target and obeys shared pause policy.
  */
 @keyframes icon-breathe {
@@ -244,10 +250,12 @@ html[data-motion-paused='true'] [data-decoration] *::after {
     filter: var(--icon-pulse-peak-glow, drop-shadow(0 0 7px var(--glow-bright)));
   }
 }
-[data-icon-pulse] > svg {
+[data-icon-pulse] > svg,
+[data-icon-group][data-icon-pulse] {
   animation: icon-breathe var(--duration-icon-pulse) ease-in-out infinite;
 }
-[data-icon-pulse='chat'] > svg {
+[data-icon-pulse='chat'] > svg,
+[data-icon-group][data-icon-pulse='chat'] {
   animation-duration: var(--duration-chat-pulse);
 }
 [data-icon-pulse='disclosure'] {
@@ -258,13 +266,15 @@ html[data-motion-paused='true'] [data-decoration] *::after {
   --icon-pulse-peak-glow: var(--disclosure-icon-pulse-glow);
 }
 /* Bare interactive silhouettes share chat's highlight independently of idle breathing. */
-button:is(:hover, :focus-visible, :active) [data-icon-highlight] > svg {
+button:is(:hover, :focus-visible, :active) [data-icon-highlight] > svg,
+button:is(:hover, :focus-visible, :active) [data-icon-group][data-icon-highlight] {
   animation: none;
   color: var(--text);
   filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--glow-bright));
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-icon-pulse] > svg {
+  [data-icon-pulse] > svg,
+  [data-icon-group][data-icon-pulse] {
     animation: none;
     filter: drop-shadow(0 0 3px var(--glow-medium));
   }

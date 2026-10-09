@@ -10,13 +10,13 @@ import { createPortal } from 'react-dom';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import { useTranslation } from 'react-i18next';
 import { Brand, fullName, type Site } from '@/features/site';
-import { OnlineVisitors, useOnlineVisitors } from '@/features/online-visitors';
 import { Icon } from '@/shared/ui/Icon';
 import { mobileQuery, useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
 import { cycleDialogTab } from '@/shared/lib/focus';
 import { sections } from '../model/navigation';
 import styles from './Navigation.module.css';
+import { LoginEntry } from './LoginEntry';
 
 type Props = {
   site?: Site;
@@ -28,6 +28,8 @@ type Props = {
   onContact?: (event: MouseEvent<HTMLButtonElement>) => void;
   contactOpen?: boolean;
   onOpen?: () => void;
+  /** Open the page-owned sign-in surface after closing the mobile drawer. */
+  onLogin?: () => void;
 };
 
 /** Share configured links and one viewport-clamped tooltip across rail states.
@@ -127,7 +129,6 @@ function NavLinks({
 
 /** Supply responsive navigation with focus-managed Bootstrap drawer and desktop collapse.
  * The single 760px media contract matches CSS; the drawer restores its trigger focus.
- * One browser query supplies both live-count indicators; compact mode hides only descriptive copy.
  */
 export function Navigation({
   site,
@@ -139,10 +140,10 @@ export function Navigation({
   onContact,
   contactOpen,
   onOpen,
+  onLogin,
 }: Props) {
   const { t } = useTranslation();
   const mobile = useMediaQuery(mobileQuery);
-  const onlineVisitors = useOnlineVisitors();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!mobile) {
@@ -186,7 +187,16 @@ export function Navigation({
             © {site.brand.copyrightYear} {fullName(site.profile)}
           </small>
         )}
-        <OnlineVisitors data={onlineVisitors.data} failed={onlineVisitors.isError} />
+        <LoginEntry
+          onLogin={
+            onLogin
+              ? () => {
+                  setOpen(false);
+                  onLogin();
+                }
+              : undefined
+          }
+        />
       </div>
     </div>
   );

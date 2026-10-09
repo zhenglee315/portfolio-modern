@@ -51,3 +51,70 @@
     padding-block: 48px;
   }
 }
+
+/* Authentication is a finite page state; the compact rail remains an independent preference. */
+.navSurface {
+  display: contents;
+}
+.navSurface :global([data-entrance-navigation]) {
+  transition:
+    width var(--duration-drawer) var(--ease-drawer),
+    padding var(--duration-drawer) var(--ease-drawer),
+    transform var(--auth-exit-duration, 260ms) var(--ease-drawer),
+    visibility 0s;
+}
+.main {
+  opacity: 1;
+  transition:
+    margin-left var(--duration-drawer) var(--ease-drawer),
+    opacity var(--auth-exit-duration, 260ms) ease-out;
+}
+.frame[data-auth-view='true'] .navSurface :global([data-entrance-navigation]) {
+  animation: none;
+  transform: translateX(-100%);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--auth-exit-duration, 260ms) var(--ease-drawer),
+    visibility 0s var(--auth-exit-duration, 260ms);
+}
+.frame[data-auth-view='true'] .main {
+  opacity: 0;
+  pointer-events: none;
+}
+.frame[data-auth-view='true'] .main > * {
+  animation: none;
+}
+.frame[data-auth-view='true']:not([data-auth-phase='exit']) .main {
+  display: none;
+}
+.frame[data-auth-view='true'] > :global(.skip) {
+  display: none;
+}
+.authSurface {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: safe center;
+  justify-content: center;
+  padding: 36px clamp(24px, 5vw, 72px);
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--auth-reveal-duration, 420ms) ease-out;
+}
+.frame:is([data-auth-phase='reveal'], [data-auth-phase='auth']) .authSurface {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .navSurface :global([data-entrance-navigation]),
+  .frame[data-auth-view='true'] .navSurface :global([data-entrance-navigation]),
+  .main,
+  .authSurface {
+    transition: none;
+  }
+}

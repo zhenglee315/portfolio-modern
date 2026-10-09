@@ -1,48 +1,46 @@
-import { useCallback, useEffect, useRef, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, type PointerEvent, type RefObject } from 'react';
 
 export type CowWorkspacePhase = 'thinking' | 'typing' | 'glance';
 
 export interface CowWorkspaceMotionOptions {
+  /** Enable ambient phases and scene animation, subject to visibility and motion preferences. */
   motion?: boolean;
+  /** Enable eased tracking for a fine pointer without capturing touch gestures. */
   parallax?: boolean;
-  /** Hold a pose for previews; omitted values run the ambient sequence. */
+  /** Track the local scene by default, or the entire page around an optional origin. */
+  pointerScope?: 'scene' | 'page';
+  /** Measure the current element's center for tracking; absent it, use the scene bounds. */
+  pointerOrigin?: RefObject<HTMLElement | null>;
+  /** Hold the selected expression; omitted values run the ambient sequence. */
   phase?: CowWorkspacePhase;
 }
 
 interface MotionController {
-  move: (event: PointerEvent<HTMLDivElement>) => void;
+  move: (event: Pick<globalThis.PointerEvent, 'clientX' | 'clientY' | 'pointerType'>) => void;
   leave: () => void;
-  glance: () => void;
 }
 
 interface PhaseClock {
   phase: CowWorkspacePhase;
+  sequenceIndex: number;
   remaining: number;
   forcedPhase: CowWorkspacePhase | undefined;
 }
 
-const phaseOrder: Record<CowWorkspacePhase, CowWorkspacePhase> = {
-  thinking: 'typing',
-  typing: 'glance',
-  glance: 'thinking',
-};
+const phaseSequence = ['thinking', 'typing', 'glance', 'typing'] as const;
+const phaseDuration = 3000;
 
-function phaseDuration(phase: CowWorkspacePhase) {
-  const ranges: Record<CowWorkspacePhase, [number, number]> = {
-    thinking: [4200, 7800],
-    typing: [3200, 6200],
-    glance: [1500, 2600],
-  };
-  const [minimum, maximum] = ranges[phase];
-  return minimum + Math.random() * (maximum - minimum);
-}
-
-/** Paint a local SVG scene without rerendering React on pointer movement.
+/**
+ * Return a scene ref and local pointer handlers, painting motion without React frame updates.
+ * Page tracking uses window events and normalizes each axis from pointerOrigin to the viewport edge.
  * Ambient timers and easing stop outside the viewport or when motion is paused.
+ * Effects release observers, listeners, timers and frames while retaining the remaining phase time.
  */
 export function useCowWorkspaceMotion({
   motion = true,
   parallax = true,
+  pointerScope = 'scene',
+  pointerOrigin,
   phase,
 }: CowWorkspaceMotionOptions = {}) {
   const ref = useRef<HTMLDivElement>(null);
@@ -63,13 +61,12 @@ export function useCowWorkspaceMotion({
       initialBounds.left < window.innerWidth;
     let active = false;
     let stopped = false;
-    let pointerInside = false;
-    let nextGlanceAt = 0;
     // Preference toggles rebuild subscriptions, but keep the ongoing performance.
     // Choosing or releasing an explicit pose intentionally starts a new phase.
     const saved = clock.current?.forcedPhase === phase ? clock.current : null;
+    let sequenceIndex = saved?.sequenceIndex ?? 0;
     let currentPhase = saved?.phase ?? phase ?? 'thinking';
-    let remaining = saved?.remaining ?? phaseDuration(currentPhase);
+    let remaining = saved?.remaining ?? phaseDuration;
     let deadline = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let frame = 0;
@@ -101,7 +98,6 @@ export function useCowWorkspaceMotion({
       frame = 0;
       previousFrame = 0;
       targetX = targetY = x = y = 0;
-      pointerInside = false;
       paintPointer();
     };
 
@@ -133,22 +129,12 @@ export function useCowWorkspaceMotion({
       timer = setTimeout(() => {
         timer = undefined;
         if (!active || stopped) return;
-        currentPhase = phaseOrder[currentPhase];
+        sequenceIndex = (sequenceIndex + 1) % phaseSequence.length;
+        currentPhase = phaseSequence[sequenceIndex] ?? 'thinking';
         element.dataset.cowPhase = currentPhase;
-        remaining = phaseDuration(currentPhase);
+        remaining = phaseDuration;
         schedulePhase();
       }, remaining);
-    };
-
-    const glance = () => {
-      const now = performance.now();
-      if (!active || phase || now < nextGlanceAt || currentPhase === 'glance') return;
-      nextGlanceAt = now + 6000;
-      clearTimeout(timer);
-      currentPhase = 'glance';
-      element.dataset.cowPhase = currentPhase;
-      remaining = phaseDuration(currentPhase);
-      schedulePhase();
     };
 
     const reconcile = () => {
@@ -175,26 +161,35 @@ export function useCowWorkspaceMotion({
       if (!parallax || !finePointer.matches) stopPointer();
     };
 
-    controller.current = {
+    const pointer: MotionController = {
       move: (event) => {
         if (!active || event.pointerType === 'touch' || !finePointer.matches) return;
-        if (!pointerInside) glance();
-        pointerInside = true;
         if (!parallax) return;
-        const bounds = element.getBoundingClientRect();
+        const bounds = (pointerOrigin?.current ?? element).getBoundingClientRect();
         if (!bounds.width || !bounds.height) return;
-        targetX = Math.max(-1, Math.min(1, ((event.clientX - bounds.left) / bounds.width) * 2 - 1));
-        targetY = Math.max(-1, Math.min(1, ((event.clientY - bounds.top) / bounds.height) * 2 - 1));
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        // Page tracking stays gradual throughout the viewport instead of saturating
+        // as soon as the pointer leaves the smaller input region.
+        const reachX =
+          pointerScope === 'page'
+            ? Math.max(1, event.clientX < centerX ? centerX : window.innerWidth - centerX)
+            : bounds.width / 2;
+        const reachY =
+          pointerScope === 'page'
+            ? Math.max(1, event.clientY < centerY ? centerY : window.innerHeight - centerY)
+            : bounds.height / 2;
+        targetX = Math.max(-1, Math.min(1, (event.clientX - centerX) / reachX));
+        targetY = Math.max(-1, Math.min(1, (event.clientY - centerY) / reachY));
         startPointer();
       },
       leave: () => {
-        pointerInside = false;
         if (!active || !parallax || !finePointer.matches) return;
         targetX = targetY = 0;
         startPointer();
       },
-      glance,
     };
+    controller.current = pointer;
 
     element.dataset.cowPhase = currentPhase;
     element.dataset.cowMotion = 'paused';
@@ -218,13 +213,18 @@ export function useCowWorkspaceMotion({
     document.addEventListener('visibilitychange', reconcile);
     reducedMotion.addEventListener('change', reconcile);
     finePointer.addEventListener('change', reconcile);
+    if (pointerScope === 'page') {
+      window.addEventListener('pointermove', pointer.move, { passive: true });
+      document.addEventListener('pointerleave', pointer.leave);
+      window.addEventListener('blur', stopPointer);
+    }
     reconcile();
 
     return () => {
       stopped = true;
       controller.current = null;
       if (timer !== undefined) remaining = Math.max(0, deadline - performance.now());
-      clock.current = { phase: currentPhase, remaining, forcedPhase: phase };
+      clock.current = { phase: currentPhase, sequenceIndex, remaining, forcedPhase: phase };
       clearTimeout(timer);
       stopPointer();
       intersection?.disconnect();
@@ -232,15 +232,22 @@ export function useCowWorkspaceMotion({
       document.removeEventListener('visibilitychange', reconcile);
       reducedMotion.removeEventListener('change', reconcile);
       finePointer.removeEventListener('change', reconcile);
+      if (pointerScope === 'page') {
+        window.removeEventListener('pointermove', pointer.move);
+        document.removeEventListener('pointerleave', pointer.leave);
+        window.removeEventListener('blur', stopPointer);
+      }
       element.dataset.cowMotion = 'paused';
     };
-  }, [motion, parallax, phase]);
+  }, [motion, parallax, phase, pointerScope, pointerOrigin]);
 
   const onPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     controller.current?.move(event);
   }, []);
   const onPointerLeave = useCallback(() => controller.current?.leave(), []);
-  const onPointerDown = useCallback(() => controller.current?.glance(), []);
-
-  return { ref, onPointerMove, onPointerLeave, onPointerDown };
+  return {
+    ref,
+    onPointerMove: pointerScope === 'scene' ? onPointerMove : undefined,
+    onPointerLeave: pointerScope === 'scene' ? onPointerLeave : undefined,
+  };
 }

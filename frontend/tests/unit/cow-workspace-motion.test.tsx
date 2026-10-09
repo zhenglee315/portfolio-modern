@@ -139,6 +139,94 @@ describe('cow workspace motion lifecycle', () => {
     expect(onRender).toHaveBeenCalledTimes(initialRenderCount);
   });
 
+  it('tracks page background around the input region without resetting when the cow is left', () => {
+    const pointerOrigin = { current: document.createElement('div') };
+    vi.spyOn(pointerOrigin.current, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(600, 300, 300, 140),
+    );
+    const onRender = vi.fn();
+    const view = render(
+      <Harness pointerScope="page" pointerOrigin={pointerOrigin} onRender={onRender} />,
+    );
+    const surface = view.getByRole('img');
+    const initialRenderCount = onRender.mock.calls.length;
+    fireEvent.pointerMove(document.body, { clientX: 50, clientY: 50 });
+    advanceFrames();
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBeCloseTo(-700 / 750, 3);
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-y'))).toBeCloseTo(-320 / 370, 3);
+    fireEvent.pointerLeave(surface);
+    advanceFrames();
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBeCloseTo(-700 / 750, 3);
+
+    fireEvent.pointerMove(window, { clientX: 750, clientY: 370 });
+    advanceFrames();
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBe(0);
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-y'))).toBe(0);
+    fireEvent.pointerMove(window, { clientX: 750, clientY: 185 });
+    advanceFrames();
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-y'))).toBe(-0.5);
+    fireEvent.pointerMove(window, { clientX: window.innerWidth, clientY: window.innerHeight });
+    advanceFrames();
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBe(1);
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-y'))).toBe(1);
+    expect(onRender).toHaveBeenCalledTimes(initialRenderCount);
+  });
+
+  it('returns page tracking to neutral on document leave or window blur and cleans up listeners', () => {
+    const added = vi.spyOn(window, 'addEventListener');
+    const removed = vi.spyOn(window, 'removeEventListener');
+    const view = render(<Harness pointerScope="page" phase="typing" />);
+    const surface = view.getByRole('img');
+    const moveListener = added.mock.calls.find(([type]) => type === 'pointermove')?.[1];
+    expect(moveListener).toBeDefined();
+    fireEvent.pointerMove(window, { clientX: 0, clientY: 0 });
+    advanceFrames();
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBe(-1);
+    fireEvent.pointerLeave(document);
+    advanceFrames();
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBe(0);
+    fireEvent.pointerMove(window, { clientX: 0, clientY: 0 });
+    advanceFrames(8);
+    fireEvent(window, new Event('blur'));
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBe(0);
+    expect(frames.size).toBe(0);
+    view.unmount();
+    expect(removed).toHaveBeenCalledWith('pointermove', moveListener);
+    fireEvent.pointerMove(window, { clientX: 0, clientY: 0 });
+    expect(frames.size).toBe(0);
+  });
+
+  it('keeps page tracking gated by touch, the tracking toggle and motion preferences', () => {
+    const view = render(<Harness pointerScope="page" />);
+    const surface = view.getByRole('img');
+    expect(
+      fireEvent.pointerMove(document.body, {
+        clientX: 0,
+        clientY: 0,
+        pointerType: 'touch',
+        cancelable: true,
+      }),
+    ).toBe(true);
+    expect(frames.size).toBe(0);
+    fireEvent.pointerMove(window, { clientX: 0, clientY: 0 });
+    advanceFrames(8);
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBeLessThan(0);
+    view.rerender(<Harness pointerScope="page" parallax={false} />);
+    fireEvent.pointerMove(window, { clientX: 0, clientY: 0 });
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBe(0);
+    expect(frames.size).toBe(0);
+    act(() => vi.advanceTimersByTime(3000));
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
+    view.rerender(<Harness pointerScope="page" />);
+    fireEvent.pointerMove(window, { clientX: 0, clientY: 0 });
+    advanceFrames(8);
+    act(() => preference('(prefers-reduced-motion: reduce)').change(true));
+    fireEvent.pointerMove(window, { clientX: 0, clientY: 0 });
+    expect(Number(surface.style.getPropertyValue('--cow-pointer-x'))).toBe(0);
+    expect(frames.size).toBe(0);
+    expect(surface).toHaveAttribute('data-cow-motion', 'paused');
+  });
+
   it('neutralizes active pointer motion immediately when reduced motion is requested', () => {
     const view = render(<Harness />);
     const surface = view.getByRole('img');
@@ -172,13 +260,43 @@ describe('cow workspace motion lifecycle', () => {
     expect(surface).toHaveAttribute('data-cow-phase', 'thinking');
   });
 
-  it('offers brief eye contact on interaction and then returns to thinking', () => {
+  it('repeats thinking, typing, glance, typing with exactly three seconds per state', () => {
     const view = render(<Harness />);
     const surface = view.getByRole('img');
+    const phases = [
+      'thinking',
+      'typing',
+      'glance',
+      'typing',
+      'thinking',
+      'typing',
+      'glance',
+      'typing',
+    ];
+    for (const [index, expected] of phases.entries()) {
+      expect(surface).toHaveAttribute('data-cow-phase', expected);
+      act(() => vi.advanceTimersByTime(2999));
+      expect(surface).toHaveAttribute('data-cow-phase', expected);
+      act(() => vi.advanceTimersByTime(1));
+      expect(surface).toHaveAttribute('data-cow-phase', phases[(index + 1) % phases.length]);
+    }
+  });
+
+  it('keeps the natural sequence and its timing during mouse interaction', () => {
+    const view = render(<Harness />);
+    const surface = view.getByRole('img');
+    act(() => vi.advanceTimersByTime(4000));
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
+    fireEvent.pointerMove(surface, { clientX: 350, clientY: 300 });
     fireEvent.pointerDown(surface);
+    fireEvent.pointerLeave(surface);
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
+    act(() => vi.advanceTimersByTime(1999));
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
+    act(() => vi.advanceTimersByTime(1));
     expect(surface).toHaveAttribute('data-cow-phase', 'glance');
     act(() => vi.advanceTimersByTime(3000));
-    expect(surface).toHaveAttribute('data-cow-phase', 'thinking');
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
   });
 
   it('honors the page motion toggle and resumes its held phase after the pause', async () => {
@@ -202,10 +320,9 @@ describe('cow workspace motion lifecycle', () => {
   });
 
   it('preserves ambient typing and its remaining time across the motion prop pause', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const view = render(<Harness />);
     const surface = view.getByRole('img');
-    act(() => vi.advanceTimersByTime(9000));
+    act(() => vi.advanceTimersByTime(4000));
     expect(surface).toHaveAttribute('data-cow-phase', 'typing');
     view.rerender(<Harness motion={false} />);
     expect(surface).toHaveAttribute('data-cow-motion', 'paused');
@@ -222,10 +339,9 @@ describe('cow workspace motion lifecycle', () => {
   });
 
   it('preserves ambient pose and progress when the parallax preference changes', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const view = render(<Harness />);
     const surface = view.getByRole('img');
-    act(() => vi.advanceTimersByTime(9000));
+    act(() => vi.advanceTimersByTime(4000));
     expect(surface).toHaveAttribute('data-cow-phase', 'typing');
     view.rerender(<Harness parallax={false} />);
     expect(surface).toHaveAttribute('data-cow-motion', 'active');
@@ -234,6 +350,27 @@ describe('cow workspace motion lifecycle', () => {
     expect(surface).toHaveAttribute('data-cow-phase', 'glance');
     view.rerender(<Harness parallax />);
     expect(surface).toHaveAttribute('data-cow-phase', 'glance');
+    act(() => vi.advanceTimersByTime(3000));
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
+    view.rerender(<Harness parallax={false} />);
+    act(() => vi.advanceTimersByTime(3000));
+    expect(surface).toHaveAttribute('data-cow-phase', 'thinking');
+  });
+
+  it('resumes the second typing state before restarting the natural cycle', () => {
+    const view = render(<Harness />);
+    const surface = view.getByRole('img');
+    act(() => vi.advanceTimersByTime(10000));
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
+    view.rerender(<Harness motion={false} />);
+    view.rerender(<Harness motion={false} parallax={false} />);
+    expect(surface).toHaveAttribute('data-cow-motion', 'paused');
+    act(() => vi.advanceTimersByTime(30000));
+    view.rerender(<Harness motion parallax={false} />);
+    act(() => vi.advanceTimersByTime(1999));
+    expect(surface).toHaveAttribute('data-cow-phase', 'typing');
+    act(() => vi.advanceTimersByTime(1));
+    expect(surface).toHaveAttribute('data-cow-phase', 'thinking');
   });
 
   it('leaves touch gestures usable and suspends ambient work when outside the viewport', () => {

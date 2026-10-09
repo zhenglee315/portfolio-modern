@@ -25,6 +25,28 @@ from sqlalchemy import func, select
 from fastapi import HTTPException
 
 # ◆—< Pack >—————————————————————————————————◆ Python
+from collections.abc import Mapping
+from typing import Any
+
+
+def _career_detail_response(row: Mapping[str, Any]) -> dict[str, Any] | None:
+    """
+    Map shared career detail columns to the Journey and Experiences response shape.
+
+    :param row: ORM mapping or dictionary with localized detail content and date columns.
+    :return: None when content is None; otherwise month strings and an optional endDay.
+    """
+    if row["detail_content"] is None:
+        return None
+
+    detail = {
+        "startMonth": row["detail_start_month"].strftime("%Y-%m"),
+        "endMonth": row["detail_end_month"].strftime("%Y-%m") if row["detail_end_month"] else None,
+        "content": row["detail_content"],
+    }
+    if row["detail_end_day"] is not None:
+        detail["endDay"] = row["detail_end_day"]
+    return detail
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Portfolio - Site
@@ -157,15 +179,7 @@ class PortfolioJourneyModule(SqlAlchemyExecAsync):
         rows = (await self.execute_orm(stmt)).mappings().all()
         journey = []
         for row in rows:
-            detail = None
-            if row["detail_content"] is not None:
-                detail = {
-                    "startMonth": row["detail_start_month"].strftime("%Y-%m"),
-                    "endMonth": row["detail_end_month"].strftime("%Y-%m") if row["detail_end_month"] else None,
-                    "content": row["detail_content"],
-                }
-                if row["detail_end_day"] is not None:
-                    detail["endDay"] = row["detail_end_day"]
+            detail = _career_detail_response(row)
 
             item = {
                 "id": row["id"],
@@ -253,15 +267,7 @@ class PortfolioExperiencesModule(SqlAlchemyExecAsync):
         result = await self.paginate_orm(stmt, page=self.page, size=self.size, unique=False)
         items = []
         for row in result.items:
-            detail = None
-            if row["detail_content"] is not None:
-                detail = {
-                    "startMonth": row["detail_start_month"].strftime("%Y-%m"),
-                    "endMonth": row["detail_end_month"].strftime("%Y-%m") if row["detail_end_month"] else None,
-                    "content": row["detail_content"],
-                }
-                if row["detail_end_day"] is not None:
-                    detail["endDay"] = row["detail_end_day"]
+            detail = _career_detail_response(row)
 
             order = row["experience_order"]
             item = {

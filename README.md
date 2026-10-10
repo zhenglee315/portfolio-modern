@@ -120,17 +120,33 @@ See the [frontend README](frontend/README.md) for component contracts, fault han
 
 ### 9. 登入介面與草地牛 / Account Forms and Cow Workspace
 
+| 登入 / Sign In                                                                                                                                                                                                                  | 註冊 / Registration                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [![桌面登入：左側草地牛與表情控制、右側信箱密碼表單及登入切換列 / Desktop sign-in with the cow workspace, expression controls and email/password form](docs/images/auth-login-desktop.png)](docs/images/auth-login-desktop.png) | [![桌面註冊：Confirm 確認欄、內嵌發送圖示的驗證碼欄與 Register 按鈕 / Desktop registration with Confirm, an embedded code-send icon and Register action](docs/images/auth-register-desktop.png)](docs/images/auth-register-desktop.png) |
+
 導航列的開門圖示進入目前語系的 `?view=login`：導覽收合、作品集淡出，左右邊框對撞再展開登入框。介面提供信箱與密碼登入、註冊及忘記密碼；註冊包含驗證碼欄位與發送入口，密碼使用圖示切換顯示。各模式共用相同框體尺寸，手機與窄平板將牛場景放到表單上方；語言、主題、返回作品集及瀏覽器上一頁／下一頁保持可用。
 
 The door icon opens `?view=login` on the current locale route. Navigation retracts, the portfolio fades, and the side rails collide before revealing the account card. Email/password sign-in, registration and password recovery share one card size. Registration includes a verification-code field and send action; an icon toggles password visibility. Narrow layouts place the cow above the form. Language, appearance, portfolio return and browser history remain available.
+
+登入／註冊切換列支援點擊、鍵盤及滑鼠／觸控水平拖曳，放開後依中點吸附；未跨中點或取消時保留目前表單內容。切換採動態島式收合與展開：舊內容縮小、模糊並淡出，新內容短距離滑入、展開及輕微回彈。卡片上下各留 16px，牛控制鈕與切換列均為 44px 高，上下邊緣對齊。註冊的確認欄精簡為 Confirm，密碼不一致時以紅色 Mismatch 提醒。
+
+The sign-in/registration switch supports clicks, keyboard activation and horizontal mouse/touch dragging, snapping at the midpoint on release. Short or cancelled drags retain the current form values. Dynamic Island-style switching shrinks, blurs and fades the old content, then brings the new content a short distance into view with expansion and a gentle rebound. The card has equal 16px top/bottom insets; 44px cow controls align with the switch edges. Registration uses a concise Confirm label and a red Mismatch warning for differing passwords.
+
+[![草地牛場景局部裁切：四個表情控制、分層牛工作桌與地球、跟動、播放暫停控制 / Cow workspace crop with four expression controls, the layered desk scene and globe, tracking and playback controls](docs/images/auth-cow-workspace.png)](docs/images/auth-cow-workspace.png)
 
 草地牛沿用分層 SVG 與 2.5D 視差，預設以「思考 → 敲代碼 → 看你 → 敲代碼」循環，每個表情停留三秒。場景按鈕可選表情、暫停地球、停止滑鼠跟動，以及以單一按鈕切換播放／暫停；按鈕共用三語像素提示氣泡。滑鼠在整個頁面依輸入區中心控制視差，動態遵守減少動態效果、全域暫停與可見性設定。原本準備素材的獨立預覽頁已移除，向量原稿與重建、比對工具保留；詳見[牛場景文件](frontend/src/shared/ui/cow-workspace/README.md)。
 
 The layered SVG cow uses 2.5D parallax and cycles through thinking, typing, watching and typing, holding each expression for three seconds. Controls select expressions, pause globe rotation, disable mouse tracking and toggle playback with one button. They share localized pixel tooltips. Tracking covers the page around the input region, and motion respects accessibility, global pause and visibility preferences. The preparation preview page has been removed; vector sources and rebuild/parity tools remain in the [cow workspace guide](frontend/src/shared/ui/cow-workspace/README.md).
 
-目前帳號操作僅為前端介面：密碼與驗證碼留在當前表單，尚未送出或儲存。登入驗證、SMTP 發送驗證碼、註冊與密碼復原 API 待後端實作；按鈕顯示服務尚未提供的提示。
+[![390px 手機註冊介面：草地牛與七個場景控制位於確認密碼及驗證碼表單上方 / Complete registration interface at 390px with the cow and seven controls above the confirmation and code fields](docs/images/auth-mobile.png)](docs/images/auth-mobile.png)
 
-Account actions currently provide UI only: passwords and verification codes remain in the current form without transmission or storage. Authentication, SMTP code delivery, registration and password recovery await backend endpoints; actions report that the service is unavailable.
+390px 手機版將牛場景、控制列及表單改為上下排列，保留全部七個場景按鈕；短視窗可捲動整張卡片，水平拖曳切換不影響垂直捲動。
+
+At 390px, the cow, controls and form stack vertically while retaining all seven scene buttons. Short viewports scroll the whole card, and horizontal switching preserves vertical touch scrolling.
+
+目前帳號操作僅為前端介面：密碼與驗證碼留在當前表單，尚未送出或儲存。發送入口以綠色提示搭配 send-fill 顯示「驗證碼已送出」、有效 5 分鐘，並啟動 5 分鐘冷卻倒數；這是送出狀態的展示預覽，沒有實際寄信或伺服器驗證。登入驗證、SMTP、註冊與密碼復原 API 尚未串接，其他有效送出仍顯示服務尚未提供的提示。
+
+Account actions currently provide UI only: passwords and verification codes remain in the current form without transmission or storage. The send action shows a green send-fill notification stating that a code was sent and is valid for five minutes, then starts a five-minute cooldown. This is a sent-state presentation preview without email delivery or server verification. Authentication, SMTP, registration and password recovery endpoints remain unconnected; other valid submissions report that the service is unavailable.
 
 ## 目前進度 / Current status
 

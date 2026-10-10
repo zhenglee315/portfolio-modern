@@ -10,9 +10,9 @@ This directory implements the React migration of `portfolio-web`, preserving its
 
 ## 網站畫面導覽 / Visual Website Tour
 
-網站的[完整截圖圖解](../README.md#網站圖解--website-tour)位於專案 README，涵蓋首頁、旅程地圖、學經歷、專案時間軸／詳情、技能、主題、語言、聯絡與平板／手機版型。所有正式文件圖片集中在 [`../docs/images/`](../docs/images/README.md)，兩份 README 共用圖片，維持單一來源。
+網站的[完整截圖圖解](../README.md#網站圖解--website-tour)位於專案 README，涵蓋首頁、旅程地圖、學經歷、專案時間軸／詳情、技能、主題、語言、聯絡、登入／註冊、草地牛與平板／手機版型。所有正式文件圖片集中在 [`../docs/images/`](../docs/images/README.md)，兩份 README 共用圖片，維持單一來源。
 
-The project README contains the [complete screenshot tour](../README.md#網站圖解--website-tour), covering the overview, map, experience, project timeline/detail, skills, appearance, language, contact, tablet and mobile layouts. Both guides share the documentation assets in [`../docs/images/`](../docs/images/README.md).
+The project README contains the [complete screenshot tour](../README.md#網站圖解--website-tour), covering the overview, map, experience, project timeline/detail, skills, appearance, language, contact, sign-in/registration, the cow workspace, tablet and mobile layouts. Both guides share the documentation assets in [`../docs/images/`](../docs/images/README.md).
 
 [![專案時間軸局部裁切：月份、目前節點、摘要與詳情入口 / Project timeline crop with month groups, active node, summaries and detail controls](../docs/images/project-timeline.png)](../README.md#4-專案時間軸與詳情--project-timeline-and-detail)
 
@@ -244,6 +244,12 @@ The page-owned `LoginEntry` shares `useHoverTooltip` and `PixelTooltip` and disp
 `NotificationEvents` listens only in the browser to terminal failures in the application Query cache, offline/recovery events and uncaught bugs. Each query failure is announced once until recovery; cancellation, intermediate retries and manual cache writes are excluded. Ordinary GET success stays quiet; real recovery and completed explicit language changes announce success. `i18n/notification-copy.ts` owns shared safe classification. Local request/pagination retry controls remain available. `SectionBoundary` announces caught render/chunk bugs while retaining local recovery. SSR, builds and isolated locale-preparation caches emit no browser notifications.
 
 ### 帳號介面 / Account Forms
+
+[![桌面登入介面：草地牛、七個場景控制與緊湊的登入表單 / Desktop account interface with the cow workspace, seven scene controls and compact sign-in form](../docs/images/auth-login-desktop.png)](../docs/images/auth-login-desktop.png)
+
+上圖呈現目前桌面登入及草地牛配置；另見[註冊畫面](../docs/images/auth-register-desktop.png)、[牛場景與控制局部裁切](../docs/images/auth-cow-workspace.png)、[390px 手機註冊畫面](../docs/images/auth-mobile.png)。操作圖解見[專案 README 的登入與草地牛章節](../README.md#9-登入介面與草地牛--account-forms-and-cow-workspace)；下列規格補充介面及生命週期。
+
+The screenshot shows the current desktop sign-in and cow layout. See also [registration](../docs/images/auth-register-desktop.png), the [cow scene/control crop](../docs/images/auth-cow-workspace.png) and the [390px mobile registration view](../docs/images/auth-mobile.png). The [project README's account and cow tour](../README.md#9-登入介面與草地牛--account-forms-and-cow-workspace) explains visible interactions; the specifications below cover interfaces and lifecycle.
 
 `auth` feature 提供最大 720px 的半透明雙欄卡片，左側牛場景、右側登入／註冊／忘記密碼。`PortfolioPage` 在進入帳號畫面時才動態載入 `AuthPanel`，牛拆件再獨立按需載入。只有當前模式的一份表單，已移除重複的隱藏尺寸副本及 API 訊息空位。登入與註冊切換保持相同桌面外框尺寸。模式切換清空帳密、驗證碼及欄位結果，保留牛的播放、表情和跟動偏好。英文信箱標籤為 Email；密碼與確認密碼各占半列，至少 8 字元提示放在 placeholder。信箱、密碼和確認密碼於輸入框 mouseleave 或 input blur 時檢查，未互動空值不顯示錯誤；精簡錯誤或可讀屏的通過勾號顯示在標籤右側，修改時清除舊結果及原生 custom validity。
 

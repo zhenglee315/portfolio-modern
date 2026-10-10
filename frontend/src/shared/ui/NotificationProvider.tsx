@@ -12,7 +12,12 @@ import { Icon, type IconName } from './Icon';
 import styles from './NotificationProvider.module.css';
 
 export type NotificationKind = 'success' | 'warning' | 'error' | 'bug';
-export type NotificationInput = { kind: NotificationKind; message?: string; id?: string };
+export type NotificationInput = {
+  kind: NotificationKind;
+  message?: string;
+  id?: string;
+  icon?: IconName;
+};
 export type NotificationCopy = {
   close: string;
   labels: Record<NotificationKind, string>;
@@ -50,6 +55,7 @@ export function NotificationProvider({
       input.id &&
       previous?.id === input.id &&
       previous.kind === input.kind &&
+      previous.icon === input.icon &&
       previous.message === input.message
         ? previous
         : next,
@@ -71,7 +77,7 @@ export function NotificationProvider({
       <div className={styles.viewport} role="status" aria-live="polite" aria-atomic="true">
         {active && (
           <div key={active.sequence} className={styles.toast} data-notification-kind={active.kind}>
-            <Icon name={icons[active.kind]} className={styles.statusIcon} />
+            <Icon name={active.icon ?? icons[active.kind]} className={styles.statusIcon} />
             <div className={styles.copy}>
               <strong>{copy.labels[active.kind]}</strong>
               <p>{active.message ?? copy.defaults[active.kind]}</p>

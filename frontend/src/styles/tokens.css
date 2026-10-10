@@ -33,6 +33,7 @@
   --panel2: #152126;
   --border: #263438;
   --muted: #96a8af;
+  --field-error: #ef8585;
   --text: #ecf2f1;
   --accent: #81d8d0;
   --on-accent: var(--bubble-text);
@@ -181,6 +182,7 @@ html:lang(zh-Hans) {
   --border: #ccd9d4;
   --text: #233c38;
   --muted: #536d66;
+  --field-error: #b93232;
   --accent: #176b61;
   --on-accent: #ffffff;
   --link-border: #789c92;

@@ -39,9 +39,15 @@
   flex-shrink: 0;
 }
 .card {
+  --auth-card-inset: 16px;
+  --auth-row-gap: 16px;
+  --auth-control-height: var(--control-size);
   display: grid;
   grid-template-columns: 36% minmax(0, 1fr);
-  min-height: 440px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  row-gap: var(--auth-row-gap);
+  min-height: 0;
+  padding-block: var(--auth-card-inset);
   border: 1px solid color-mix(in srgb, var(--control-border) 68%, transparent);
   border-radius: calc(var(--radius-card) + 12px);
   background: color-mix(in srgb, var(--panel) 54%, transparent);
@@ -51,18 +57,66 @@
 }
 /* Keep the interactive scene outside the mode-keyed form so its playback state persists. */
 .reserved {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
   min-width: 0;
-  border-right: 1px solid color-mix(in srgb, var(--control-border) 42%, transparent);
+}
+/* Extend the divider through the card's shared padding without shifting either column. */
+.reserved::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--auth-card-inset));
+  right: 0;
+  bottom: calc(-1 * var(--auth-card-inset));
+  width: 1px;
+  background: color-mix(in srgb, var(--control-border) 42%, transparent);
+  pointer-events: none;
 }
 .content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  --auth-content-inset: 24px;
+  position: relative;
+  overflow: clip;
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
   min-width: 0;
-  padding: 24px;
+  padding-inline: var(--auth-content-inset);
 }
 .body {
+  display: grid;
+  grid-row: 2 / -1;
+  grid-column: 1;
+  grid-template-rows: subgrid;
+  min-width: 0;
+  transform-origin: 50% 0;
+}
+.body[data-slide-phase] {
+  will-change: transform, opacity, filter;
+}
+.body[data-slide-phase='animate'] {
+  transition:
+    transform 400ms cubic-bezier(0.2, 0.85, 0.24, 1.12) 80ms,
+    opacity 240ms ease-out 60ms,
+    filter 320ms ease-out;
+}
+.body[data-slide-phase='animate'][data-form-entering='false'] {
+  transition:
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 160ms ease-in,
+    filter 160ms ease-in;
+}
+.body[data-auth-preview] {
+  position: absolute;
+  inset: 0;
+  inset-inline-end: var(--auth-content-inset);
+  grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: var(--auth-row-gap);
+  pointer-events: none;
+}
+.formBody {
   min-width: 0;
 }
 .modes {
@@ -73,10 +127,14 @@
   align-items: center;
   width: min(260px, 100%);
   padding: 4px;
-  margin-bottom: 18px;
+  margin-bottom: 0;
   border: 1px solid color-mix(in srgb, var(--control-border) 45%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--bg) 34%, transparent);
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
 }
 .modes::before {
   content: '';
@@ -88,17 +146,21 @@
   border-radius: inherit;
   background: color-mix(in srgb, var(--control-hover) 82%, transparent);
   pointer-events: none;
+  transform: translateX(var(--auth-mode-offset, 0%));
   transition: transform var(--duration-drawer) var(--ease-drawer);
 }
-.modes[data-mode='register']::before {
-  transform: translateX(100%);
+.modes[data-dragging] {
+  cursor: grabbing;
+}
+.modes[data-dragging]::before {
+  transition: none;
 }
 .modes button {
   position: relative;
   z-index: 1;
   min-width: 0;
-  min-height: 44px;
-  padding: 9px 10px;
+  min-height: calc(var(--auth-control-height) - 10px);
+  padding: 8px 10px;
   border: 0;
   border-radius: inherit;
   background: transparent;
@@ -106,7 +168,14 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
+  cursor: inherit;
   transition: color var(--duration-hover);
+}
+/* The compact visual still offers the entire 44px switch height as a tap target. */
+.modes button::before {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
 }
 .modes button:hover {
   color: var(--text);
@@ -158,7 +227,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-.field label {
+.field :is(label, [data-field-label]) {
   color: var(--text);
   font-size: 12px;
   font-weight: 500;
@@ -200,7 +269,7 @@
   gap: 10px;
   min-height: 20px;
 }
-.labelRow label {
+.labelRow :is(label, [data-field-label]) {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -309,6 +378,9 @@
   line-height: 1.5;
   white-space: nowrap;
 }
+.hint[data-field-status='passwordMismatchShort'] {
+  color: var(--field-error);
+}
 .submit {
   position: relative;
   isolation: isolate;
@@ -370,7 +442,10 @@
   height: 17px;
 }
 .switchPrompt {
-  margin: 14px 0 0;
+  display: flex;
+  align-items: center;
+  min-height: var(--auth-control-height);
+  margin: 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.7;
@@ -395,19 +470,12 @@
 }
 /* Browser chrome and the Dock leave less room on laptop screens; keep controls readable. */
 @media (min-width: 761px) and (max-height: 740px) {
-  .content {
-    padding-block: 16px;
-  }
-  .modes,
   .heading {
     margin-bottom: 12px;
   }
   .form,
   .fields {
     gap: 10px;
-  }
-  .switchPrompt {
-    margin-top: 8px;
   }
 }
 @media (max-width: 760px) {
@@ -416,15 +484,36 @@
   }
   .card {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 0;
     min-height: 0;
+    padding-block: 0;
     border-radius: calc(var(--radius-card) + 8px);
   }
   .reserved {
+    display: flex;
+    grid-row: auto;
     border-right: 0;
     border-bottom: 1px solid color-mix(in srgb, var(--control-border) 42%, transparent);
   }
+  .reserved::before {
+    display: none;
+  }
   .content {
-    padding: 24px clamp(22px, 5vw, 32px) 26px;
+    --auth-content-inset: clamp(22px, 5vw, 32px);
+    grid-column: 1;
+    grid-row: auto;
+    grid-template-rows: auto auto;
+    row-gap: var(--auth-row-gap);
+    padding: var(--auth-card-inset) var(--auth-content-inset);
+  }
+  .body {
+    grid-row: 2;
+    grid-template-rows: auto auto;
+    row-gap: var(--auth-row-gap);
+  }
+  .formBody {
+    padding-bottom: 0;
   }
 }
 @media (max-width: 380px) {
@@ -435,7 +524,7 @@
     margin-left: auto;
   }
   .content {
-    padding-inline: 20px;
+    --auth-content-inset: 20px;
   }
   .verificationRow {
     grid-template-columns: minmax(0, 1fr);

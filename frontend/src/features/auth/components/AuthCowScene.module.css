@@ -1,19 +1,23 @@
 .root {
   position: relative;
   display: grid;
-  place-items: center;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  align-items: center;
+  justify-items: center;
   width: 100%;
-  height: 100%;
-  min-height: 400px;
-  padding: 76px 18px 72px;
+  min-height: 0;
+  padding-inline: 18px;
 }
 /* Anchor a passive greeting above the scene without covering expression or playback controls. */
 .root[data-welcome='true'] {
-  padding-top: 120px;
+  --auth-cow-welcome-space: 52px;
 }
 .stage {
+  grid-row: 2;
   position: relative;
   width: min(100%, 300px, max(200px, calc(100dvh - 260px)));
+  margin-top: var(--auth-cow-welcome-space, 0px);
 }
 /* Keep the auth size above the shared scene's width, regardless of lazy CSS arrival order. */
 .root .scene {
@@ -36,19 +40,27 @@
 }
 .modes,
 .playback {
-  position: absolute;
+  position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .modes {
-  top: 18px;
-  left: 18px;
+  grid-row: 1;
+  justify-self: start;
+  justify-content: space-between;
+  gap: 0;
+  width: min(100%, 200px);
 }
 .playback {
-  right: 18px;
-  bottom: 18px;
+  grid-row: 3;
+  justify-self: end;
+  height: var(--control-size);
+}
+.root .control {
+  width: var(--control-size);
+  height: var(--control-size);
 }
 .control {
   border-color: color-mix(in srgb, var(--control-border) 68%, transparent);
@@ -63,10 +75,38 @@
 }
 @media (max-width: 760px) {
   .root {
+    display: grid;
+    grid-template-rows: auto;
+    place-items: center;
     min-height: 0;
-    padding: 74px 18px 70px;
+    padding: calc(var(--auth-card-inset, 16px) + var(--control-size) + 14px) 18px;
+  }
+  .root[data-welcome='true'] {
+    padding-top: calc(var(--auth-card-inset, 16px) + var(--control-size) + 52px);
+  }
+  .modes,
+  .playback {
+    position: absolute;
+    grid-row: auto;
+    gap: 8px;
+  }
+  .modes {
+    top: var(--auth-card-inset, 16px);
+    left: 18px;
+    width: auto;
+  }
+  .playback {
+    right: 18px;
+    bottom: var(--auth-card-inset, 16px);
+    height: auto;
+  }
+  .root .control {
+    width: var(--control-size);
+    height: var(--control-size);
   }
   .stage {
+    grid-row: auto;
     width: min(100%, 220px);
+    margin-top: 0;
   }
 }

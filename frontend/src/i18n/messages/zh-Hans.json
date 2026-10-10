@@ -47,7 +47,7 @@
     "verificationCodeAccepted": "验证码已通过（暂时模拟）。",
     "sendVerificationCode": "发送验证码",
     "sendCodeCooldown": "{{time}} 后可再次发送验证码",
-    "verificationUnavailable": "验证码发送服务尚未开放，尚未发送验证码。",
+    "verificationCodeSent": "验证码已发送。",
     "password": "密码",
     "confirmPassword": "确认密码",
     "passwordHint": "至少 8 字符",

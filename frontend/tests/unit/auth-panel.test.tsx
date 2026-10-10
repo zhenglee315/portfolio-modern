@@ -128,7 +128,7 @@ describe('account form presentation', () => {
     expect(view.getByRole('heading', { name: 'Create your account' })).toHaveFocus();
     expect(view.getByLabelText('Password', { exact: true })).toHaveValue('');
     expect(view.getByLabelText('Password', { exact: true })).toHaveAttribute('type', 'password');
-    expect(view.getByLabelText('Confirm password')).toHaveValue('');
+    expect(view.getByLabelText('Confirm')).toHaveValue('');
     expect(view.getByLabelText('Verification code')).toHaveValue('');
     expect(view.getByRole('status')).toHaveTextContent('Account services are not open yet.');
     expect(view.container.querySelector('[data-notification-kind]')).toHaveAttribute(
@@ -138,10 +138,10 @@ describe('account form presentation', () => {
 
     await user.type(view.getByLabelText('Verification code'), '123456');
     await user.type(view.getByLabelText('Password', { exact: true }), 'another-password');
-    await user.type(view.getByLabelText('Confirm password'), 'another-password');
+    await user.type(view.getByLabelText('Confirm'), 'another-password');
     await user.click(modes.getByRole('button', { name: 'Sign in' }));
     expect(view.getByLabelText('Password', { exact: true })).toHaveValue('');
-    expect(view.queryByLabelText('Confirm password')).toBeNull();
+    expect(view.queryByLabelText('Confirm')).toBeNull();
     expect(view.queryByLabelText('Verification code')).toBeNull();
 
     await user.click(modes.getByRole('button', { name: 'Create account' }));
@@ -461,7 +461,7 @@ describe('account form presentation', () => {
     await user.type(view.getByLabelText('Email'), 'person@example.com');
     await user.type(view.getByLabelText('Verification code'), '123456');
     await user.type(view.getByLabelText('Password', { exact: true }), 'first-password');
-    const confirmation = view.getByLabelText('Confirm password') as HTMLInputElement;
+    const confirmation = view.getByLabelText('Confirm') as HTMLInputElement;
     await user.type(confirmation, 'different-password');
     await user.click(within(form()).getByRole('button', { name: 'Register' }));
 
@@ -483,7 +483,7 @@ describe('account form presentation', () => {
     await user.click(modes.getByRole('button', { name: 'Create account' }));
     await user.type(view.getByLabelText('Email'), 'person@example.com');
     await user.type(view.getByLabelText('Password', { exact: true }), 'private-password');
-    await user.type(view.getByLabelText('Confirm password'), 'private-password');
+    await user.type(view.getByLabelText('Confirm'), 'private-password');
 
     const code = view.getByLabelText('Verification code') as HTMLInputElement;
     expect(code).toHaveAttribute('name', 'verificationCode');
@@ -547,7 +547,7 @@ describe('account form presentation', () => {
   );
 
   it.each(['en', 'zh-Hans', 'zh-Hant'] as const)(
-    'validates only email before showing unsent verification feedback in %s',
+    'validates only email before showing the green sent-state preview with a send icon in %s',
     async (locale) => {
       const fetch = vi.fn();
       vi.stubGlobal('fetch', fetch);
@@ -579,10 +579,13 @@ describe('account form presentation', () => {
       await user.type(email, 'person@example.com');
       await user.click(send);
       expect(reportEmail).toHaveBeenCalledTimes(3);
-      const message = i18n.t('auth.verificationUnavailable');
-      expect(message).not.toBe('auth.verificationUnavailable');
+      const message = i18n.t('auth.verificationCodeSent');
+      expect(message).not.toBe('auth.verificationCodeSent');
       expect(view.getByRole('status')).toHaveTextContent(message);
       expect(view.getByRole('status')).toHaveTextContent(i18n.t('auth.verificationCodeValidity'));
+      const notification = view.container.querySelector('[data-notification-kind]');
+      expect(notification).toHaveAttribute('data-notification-kind', 'success');
+      expect(notification?.querySelector('svg.bi-send-fill')).not.toBeNull();
       expect(send).toBeDisabled();
       expect(send).toHaveAccessibleName(i18n.t('auth.sendCodeCooldown', { time: '5:00' }));
       expect(code).toHaveValue('');
@@ -642,6 +645,9 @@ describe('account form presentation', () => {
     fireEvent.click(first.modes.getByRole('button', { name: 'Sign in' }));
     fireEvent.click(first.modes.getByRole('button', { name: 'Create account' }));
     expect(first.view.getByRole('button', { name: 'Send code available in 4:59' })).toBeDisabled();
+    // Flush jsdom's selectionchange tasks after refocusing replaced headings.
+    // The future cooldown interval and notification timeout remain owned until unmount.
+    act(() => vi.advanceTimersByTime(0));
     first.view.unmount();
     expect(vi.getTimerCount()).toBe(0);
 
@@ -736,7 +742,7 @@ describe('account form presentation', () => {
     expect(form().querySelectorAll('input')).toHaveLength(1);
     expect(view.getByLabelText('Email')).toHaveValue('');
     expect(view.queryByLabelText('Password', { exact: true })).toBeNull();
-    expect(view.queryByLabelText('Confirm password')).toBeNull();
+    expect(view.queryByLabelText('Confirm')).toBeNull();
     expect(view.queryByRole('button', { name: 'Show password' })).toBeNull();
     await user.type(view.getByLabelText('Email'), 'person@example.com');
     await user.click(within(form()).getByRole('button', { name: 'Send reset link' }));

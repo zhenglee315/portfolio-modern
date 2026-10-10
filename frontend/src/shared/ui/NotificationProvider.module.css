@@ -1,0 +1,80 @@
+/* A viewport sibling stays above page surfaces without a backdrop or focus trap. */
+.viewport {
+  position: fixed;
+  inset: max(20px, env(safe-area-inset-top)) 16px auto;
+  z-index: 1200;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.toast {
+  --notice: #ef8585;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: 10px 8px 10px 16px;
+  border: 1px solid color-mix(in srgb, var(--notice) 50%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 96%, var(--notice));
+  color: var(--text);
+  box-shadow: 0 12px 36px var(--shadow-medium);
+  animation: arrive 180ms ease-out;
+}
+.toast[data-notification-kind='success'] {
+  --notice: #65d79b;
+}
+.toast[data-notification-kind='warning'] {
+  --notice: #efc56a;
+}
+.statusIcon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  color: var(--notice);
+}
+.copy {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.copy strong {
+  font-size: 12px;
+}
+.copy p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+/* The message allows click-through; only explicit dismissal is interactive. */
+.close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  pointer-events: auto;
+}
+.close:hover {
+  background: var(--control-hover);
+  color: var(--text);
+}
+.close :global(.icon) {
+  width: 12px;
+  height: 12px;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

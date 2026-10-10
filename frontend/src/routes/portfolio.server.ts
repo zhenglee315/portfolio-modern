@@ -16,14 +16,14 @@ export async function loadPortfolio(locale: Locale) {
   const client = getQueryClient();
   const origin = process.env.API_BUILD_TARGET;
   if (!origin) throw new Error('A public API build target must be configured.');
-  let site;
-  try {
-    site = await client.fetchQuery(siteQuery(locale, origin));
-  } catch {
+  // Independent sections start with Site; publication still requires its validated result.
+  const siteRead = client.fetchQuery(siteQuery(locale, origin)).catch(() => {
     if (process.env.PORTFOLIO_PRERENDER === '1')
       throw new Error('Profile content is unavailable for static publication.');
-  }
-  await Promise.all([
+    return undefined;
+  });
+  const [site] = await Promise.all([
+    siteRead,
     client.prefetchQuery(journeyQuery(locale, origin)),
     client.prefetchInfiniteQuery(experiencesQuery(locale, origin)),
     client.prefetchInfiniteQuery(projectsQuery(locale, origin)),

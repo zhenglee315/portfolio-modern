@@ -39,24 +39,33 @@
     "forgotDescription": "輸入與你的帳戶關聯的電子郵件。",
     "email": "電子郵件",
     "emailPlaceholder": "you@example.com",
+    "emailInvalid": "格式不正確",
+    "fieldRequired": "必填",
+    "fieldValid": "格式正確",
     "verificationCode": "驗證碼",
-    "verificationCodePlaceholder": "輸入驗證碼",
+    "verificationCodePlaceholder": "驗證碼",
+    "verificationCodeAccepted": "驗證碼已通過（暫時模擬）。",
     "sendVerificationCode": "發送驗證碼",
+    "sendCodeCooldown": "{{time}} 後可再次發送驗證碼",
     "verificationUnavailable": "驗證碼寄送服務尚未開放，尚未寄出驗證碼。",
     "password": "密碼",
     "confirmPassword": "確認密碼",
-    "passwordHint": "請使用至少 8 個字元。",
+    "passwordHint": "至少 8 字元",
+    "passwordTooShort": "至少 8 字元",
     "passwordMismatch": "兩次輸入的密碼不一致。",
+    "passwordMismatchShort": "不一致",
     "forgotPassword": "忘記密碼？",
     "showPassword": "顯示密碼",
     "hidePassword": "隱藏密碼",
     "loginSubmit": "登入",
-    "registerSubmit": "註冊帳戶",
+    "registerSubmit": "註冊",
     "forgotSubmit": "傳送重設連結",
     "noAccount": "還沒有帳戶？",
     "hasAccount": "已有帳戶？",
     "rememberPassword": "想起密碼了？",
-    "serviceUnavailable": "帳戶服務尚未開放，你填寫的資料未傳送。"
+    "serviceUnavailable": "帳戶服務尚未開放，你填寫的資料未傳送。",
+    "welcome": "歡迎！",
+    "verificationCodeValidity": "驗證碼有效時間為 5 分鐘。"
   },
   "ui": {
     "skip": "跳至主要內容",
@@ -186,5 +195,28 @@
     "onlineVisitorsNow": "目前在線人數：{{count}}",
     "signIn": "登入",
     "adminSignIn": "登入管理員"
+  },
+  "notifications": {
+    "close": "關閉提示",
+    "labels": {
+      "success": "成功",
+      "warning": "異常",
+      "error": "錯誤",
+      "bug": "程式異常"
+    },
+    "defaults": {
+      "success": "操作已成功完成。",
+      "warning": "有狀況需要留意。",
+      "error": "操作失敗，請再試一次。",
+      "bug": "發生非預期問題，請稍後再試。"
+    },
+    "connectionFailed": "連線出現問題，請稍後再試。",
+    "requestFailed": "請求失敗，請再試一次。",
+    "invalidResponse": "服務回傳的資料異常，請稍後再試。",
+    "unexpectedError": "發生非預期問題，請稍後再試。",
+    "connectionRestored": "連線已恢復。",
+    "offline": "目前已離線，請檢查網路連線。",
+    "languageChanged": "語言已切換。",
+    "languageFailed": "語言切換失敗，請稍後再試。"
   }
 }

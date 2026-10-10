@@ -37,26 +37,35 @@
     "registerDescription": "Get started with an email and password.",
     "forgotTitle": "Reset your password",
     "forgotDescription": "Enter the email associated with your account.",
-    "email": "Email address",
+    "email": "Email",
     "emailPlaceholder": "you@example.com",
+    "emailInvalid": "Invalid email",
+    "fieldRequired": "Required",
+    "fieldValid": "Looks good",
     "verificationCode": "Verification code",
     "verificationCodePlaceholder": "Code",
+    "verificationCodeAccepted": "Verification code accepted (preview).",
     "sendVerificationCode": "Send code",
+    "sendCodeCooldown": "Send code available in {{time}}",
     "verificationUnavailable": "Verification email is not available yet. No code has been sent.",
     "password": "Password",
     "confirmPassword": "Confirm password",
-    "passwordHint": "Use at least 8 characters.",
+    "passwordHint": "8+ chars",
+    "passwordTooShort": "Too short",
     "passwordMismatch": "Passwords do not match.",
+    "passwordMismatchShort": "Mismatch",
     "forgotPassword": "Forgot password?",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "loginSubmit": "Sign in",
-    "registerSubmit": "Create account",
+    "registerSubmit": "Register",
     "forgotSubmit": "Send reset link",
     "noAccount": "New here?",
     "hasAccount": "Already have an account?",
     "rememberPassword": "Remember your password?",
-    "serviceUnavailable": "Account services are not open yet. Your details have not been sent."
+    "serviceUnavailable": "Account services are not open yet. Your details have not been sent.",
+    "welcome": "Welcome!",
+    "verificationCodeValidity": "The code is valid for 5 minutes."
   },
   "ui": {
     "skip": "Skip to content",
@@ -186,5 +195,28 @@
     "onlineVisitorsNow": "People online now: {{count}}",
     "signIn": "Sign in",
     "adminSignIn": "Admin sign in"
+  },
+  "notifications": {
+    "close": "Dismiss notification",
+    "labels": {
+      "success": "Success",
+      "warning": "Warning",
+      "error": "Error",
+      "bug": "Unexpected problem"
+    },
+    "defaults": {
+      "success": "Your action completed successfully.",
+      "warning": "Something needs your attention.",
+      "error": "The action could not be completed. Please try again.",
+      "bug": "An unexpected problem occurred. Please try again."
+    },
+    "connectionFailed": "Connection problem. Please try again shortly.",
+    "requestFailed": "The request failed. Please try again.",
+    "invalidResponse": "The service returned an unexpected response. Please try again.",
+    "unexpectedError": "An unexpected problem occurred. Please try again.",
+    "connectionRestored": "Connection restored.",
+    "offline": "You are offline. Please check your connection.",
+    "languageChanged": "Language changed.",
+    "languageFailed": "The language could not be changed. Please try again."
   }
 }

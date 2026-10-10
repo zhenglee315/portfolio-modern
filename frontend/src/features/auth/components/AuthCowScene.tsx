@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '@/shared/ui/Icon';
 import { PixelTooltip } from '@/shared/ui/PixelTooltip';
+import { PixelBubble } from '@/shared/ui/PixelBubble';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
 import { useHoverTooltip } from '@/shared/hooks/useHoverTooltip';
 import type { CowWorkspacePhase } from '@/shared/hooks/useCowWorkspaceMotion';
@@ -67,12 +68,15 @@ function CowControl({
  * Own expression, playback, mouse and globe preferences while reusing the shared scene clock.
  * active gates motion without replacing preferences; pointerOrigin anchors full-page tracking.
  * Keep this outside mode-keyed forms so account-mode changes retain these preferences.
+ * welcome temporarily shows the watching pose without changing stored controls or motion policy.
  */
 export function AuthCowScene({
   active = true,
+  welcome = false,
   pointerOrigin,
 }: {
   active?: boolean;
+  welcome?: boolean;
   pointerOrigin?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useTranslation();
@@ -81,10 +85,11 @@ export function AuthCowScene({
   const [mouseFollowing, setMouseFollowing] = useState(true);
   const [globeRotating, setGlobeRotating] = useState(true);
   const motion = active && playing;
+  const phase = welcome ? 'glance' : mode === 'cycle' ? undefined : mode;
   const placeholder = <div className={styles.scene} aria-hidden="true" />;
 
   return (
-    <div className={styles.root} data-auth-cow>
+    <div className={styles.root} data-auth-cow data-welcome={welcome || undefined}>
       <div className={styles.modes} role="group" aria-label={t('auth.cowModes')}>
         {modes.map((item) => (
           <CowControl
@@ -92,32 +97,44 @@ export function AuthCowScene({
             icon={item.icon}
             label={t(`auth.${item.label}`)}
             text={t(`auth.cowTips.${item.tip}`)}
-            pressed={mode === item.mode}
+            pressed={welcome ? item.mode === 'glance' : mode === item.mode}
             onClick={() => setMode(item.mode)}
           />
         ))}
       </div>
 
-      <SectionBoundary
-        resetKey="auth-cow"
-        message={t('ui.unavailable')}
-        retryLabel={t('ui.retry')}
-        fallback={placeholder}
-        silent
-      >
-        <Suspense fallback={placeholder}>
-          <CowWorkspace
-            label={t('auth.cowLabel')}
-            className={styles.scene}
-            phase={mode === 'cycle' ? undefined : mode}
-            motion={motion}
-            parallax={motion && mouseFollowing}
-            pointerScope="page"
-            pointerOrigin={pointerOrigin}
-            globeRotation={globeRotating}
-          />
-        </Suspense>
-      </SectionBoundary>
+      <div className={styles.stage}>
+        <SectionBoundary
+          resetKey="auth-cow"
+          message={t('ui.unavailable')}
+          retryLabel={t('ui.retry')}
+          fallback={placeholder}
+          silent
+        >
+          <Suspense fallback={placeholder}>
+            <CowWorkspace
+              label={t('auth.cowLabel')}
+              className={styles.scene}
+              phase={phase}
+              motion={motion}
+              parallax={motion && mouseFollowing}
+              pointerScope="page"
+              pointerOrigin={pointerOrigin}
+              globeRotation={globeRotating}
+            />
+            {welcome && (
+              <PixelBubble
+                className={styles.welcome}
+                data-auth-cow-welcome
+                role="status"
+                aria-atomic="true"
+              >
+                {t('auth.welcome')}
+              </PixelBubble>
+            )}
+          </Suspense>
+        </SectionBoundary>
+      </div>
 
       <div className={styles.playback} role="group" aria-label={t('auth.cowPlayback')}>
         <CowControl

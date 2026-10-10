@@ -36,6 +36,12 @@ import globeAmericas from 'bootstrap-icons/icons/globe-americas-fill.svg?raw';
 import eye from 'bootstrap-icons/icons/eye-fill.svg?raw';
 import eyeSlash from 'bootstrap-icons/icons/eye-slash-fill.svg?raw';
 import lock from 'bootstrap-icons/icons/lock-fill.svg?raw';
+import send from 'bootstrap-icons/icons/send-fill.svg?raw';
+import sendCheck from 'bootstrap-icons/icons/send-check-fill.svg?raw';
+import success from 'bootstrap-icons/icons/check-circle-fill.svg?raw';
+import warning from 'bootstrap-icons/icons/exclamation-triangle-fill.svg?raw';
+import error from 'bootstrap-icons/icons/x-circle-fill.svg?raw';
+import bug from 'bootstrap-icons/icons/bug-fill.svg?raw';
 import { memo, type ReactNode } from 'react';
 
 const icons = {
@@ -77,6 +83,12 @@ const icons = {
   eye,
   eyeSlash,
   lock,
+  send,
+  sendCheck,
+  success,
+  warning,
+  error,
+  bug,
 };
 export type IconName = keyof typeof icons;
 type IconPulse = 'chat' | 'disclosure';

@@ -1,12 +1,10 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { AppearanceMenu, useAppearance } from '@/features/appearance';
-import { AuthPanel } from '@/features/auth';
 import { LanguageMenu } from '@/features/language';
 import { OnlineVisitors, useOnlineVisitors } from '@/features/online-visitors';
 import { useLocaleSwitch } from './hooks/useLocaleSwitch';
-import { SectionState } from '@/shared/ui/SectionState';
 import { SkillsSection } from '@/features/skills';
 import { ProjectsSection } from '@/features/projects';
 import { ExperiencesSection } from '@/features/experiences';
@@ -20,6 +18,7 @@ import {
   useSite,
 } from '@/features/site';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
+import { SectionState } from '@/shared/ui/SectionState';
 import { Navigation } from './components/Navigation';
 import { useSectionNavigation } from './hooks/useSectionNavigation';
 import styles from './PortfolioPage.module.css';
@@ -27,6 +26,11 @@ import { useEntrance } from './hooks/useEntrance';
 import BackgroundField from './components/BackgroundField';
 import { useAuthTransition } from './hooks/useAuthTransition';
 import { useAuthNavigation } from './hooks/useAuthNavigation';
+
+// Public browsing does not download the account form or its cow controls until requested.
+const AuthPanel = lazy(() =>
+  import('@/features/auth').then((module) => ({ default: module.AuthPanel })),
+);
 
 /** Compose independent feature boundaries; the page owns cross-domain coordination. */
 export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: string }) {
@@ -134,7 +138,6 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
         inert={auth.isAuth}
         aria-hidden={auth.isAuth || undefined}
       >
-        {language.failed && <SectionState message={t('ui.languageFailed')} />}
         <section id="overview" tabIndex={-1} aria-label={t('ui.overview')}>
           <SectionBoundary
             resetKey={locale}
@@ -205,17 +208,26 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
           inert={!authVisible}
           aria-hidden={!authVisible || undefined}
         >
-          <AuthPanel
-            initialFocus={auth.phase === 'auth'}
-            animationActive={authVisible}
-            onBack={authNavigation.leave}
-            controls={
-              <>
-                {localeControl}
-                <AppearanceMenu />
-              </>
-            }
-          />
+          <SectionBoundary
+            resetKey={`auth:${locale}`}
+            message={t('ui.unavailable')}
+            retryLabel={t('ui.reloadPage')}
+            reloadOnRetry
+          >
+            <Suspense fallback={<SectionState busy message={t('ui.loading')} />}>
+              <AuthPanel
+                initialFocus={auth.phase === 'auth'}
+                animationActive={authVisible}
+                onBack={authNavigation.leave}
+                controls={
+                  <>
+                    {localeControl}
+                    <AppearanceMenu />
+                  </>
+                }
+              />
+            </Suspense>
+          </SectionBoundary>
         </div>
       )}
       <ContactIntroduction

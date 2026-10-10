@@ -7,6 +7,7 @@ import pauseIcon from 'bootstrap-icons/icons/pause-fill.svg?raw';
 import { AuthCowScene } from '@/features/auth/components/AuthCowScene';
 import { AuthPanel } from '@/features/auth';
 import { createI18n, supportedLocales } from '@/i18n/config';
+import { NotificationProvider } from '@/shared/ui/NotificationProvider';
 import type { CowWorkspaceProps } from '@/shared/ui/cow-workspace/CowWorkspace';
 
 const workspaceFailure = vi.hoisted(() => ({ failed: false }));
@@ -58,20 +59,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderScene(active = true) {
+function renderScene(active = true, welcome = false) {
   const i18n = createI18n('en');
   const view = render(
     <I18nextProvider i18n={i18n}>
-      <AuthCowScene active={active} />
+      <AuthCowScene active={active} welcome={welcome} />
     </I18nextProvider>,
   );
   return {
     view,
     i18n,
-    rerender: (nextActive: boolean) =>
+    rerender: (nextActive: boolean, nextWelcome = false) =>
       view.rerender(
         <I18nextProvider i18n={i18n}>
-          <AuthCowScene active={nextActive} />
+          <AuthCowScene active={nextActive} welcome={nextWelcome} />
         </I18nextProvider>,
       ),
   };
@@ -83,12 +84,55 @@ function expectPlaybackIcon(button: HTMLElement, icon: string) {
   expect(button.querySelector('svg')?.outerHTML).toBe(markup.querySelector('svg')?.outerHTML);
 }
 
+function notificationCopy(i18n: ReturnType<typeof createI18n>) {
+  return {
+    close: i18n.t('notifications.close'),
+    labels: {
+      success: i18n.t('notifications.labels.success'),
+      warning: i18n.t('notifications.labels.warning'),
+      error: i18n.t('notifications.labels.error'),
+      bug: i18n.t('notifications.labels.bug'),
+    },
+    defaults: {
+      success: i18n.t('notifications.defaults.success'),
+      warning: i18n.t('notifications.defaults.warning'),
+      error: i18n.t('notifications.defaults.error'),
+      bug: i18n.t('notifications.defaults.bug'),
+    },
+  };
+}
+
 describe('login cow scene controls', () => {
+  it('shows the welcome greeting and watching pose while preserving the motion policy and chosen controls', async () => {
+    const { view, i18n, rerender } = renderScene(false, true);
+    const scene = await view.findByRole('img');
+    expect(scene).toHaveAttribute('data-phase', 'glance');
+    expect(scene).toHaveAttribute('data-motion', 'false');
+    expect(scene).toHaveAttribute('data-parallax', 'false');
+    expect(view.getByRole('status')).toHaveTextContent(i18n.t('auth.welcome'));
+    expect(view.getByRole('button', { name: i18n.t('auth.cowWatching') })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    fireEvent.click(view.getByRole('button', { name: i18n.t('auth.cowThinking') }));
+    expect(scene).toHaveAttribute('data-phase', 'glance');
+    rerender(true, false);
+    expect(view.queryByRole('status')).toBeNull();
+    expect(scene).toHaveAttribute('data-phase', 'thinking');
+    expect(scene).toHaveAttribute('data-motion', 'true');
+    expect(view.getByRole('button', { name: i18n.t('auth.cowThinking') })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
   it('tracks the live input fields and preserves a user pause across keyed account form replacements', async () => {
     const i18n = createI18n('en');
     const view = render(
       <I18nextProvider i18n={i18n}>
-        <AuthPanel onBack={vi.fn()} />
+        <NotificationProvider copy={notificationCopy(i18n)}>
+          <AuthPanel onBack={vi.fn()} />
+        </NotificationProvider>
       </I18nextProvider>,
     );
     const scene = await view.findByRole('img');
@@ -365,7 +409,9 @@ describe('login cow scene controls', () => {
     const onBack = vi.fn();
     const view = render(
       <I18nextProvider i18n={i18n}>
-        <AuthPanel onBack={onBack} />
+        <NotificationProvider copy={notificationCopy(i18n)}>
+          <AuthPanel onBack={onBack} />
+        </NotificationProvider>
       </I18nextProvider>,
     );
     await view.findByRole('img');

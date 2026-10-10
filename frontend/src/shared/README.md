@@ -166,17 +166,38 @@ export function AnchoredNotice({
 
 ## 共用 UI / Shared UI
 
-| 模組 / Module                                                                            | 使用方式與邊界 / Usage and boundary                                                                                                                                                                                                                                                                                                               |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`ui/SectionHeader.tsx`](ui/SectionHeader.tsx)                                           | 傳入 `eyebrow`、`title`、可選 `note`，共用標題與右對齊備註版型。 / Inject heading text and an optional right-aligned note.                                                                                                                                                                                                                        |
-| [`ui/SectionState.tsx`](ui/SectionState.tsx)、[`ui/QueryStatus.tsx`](ui/QueryStatus.tsx) | 共用 loading、empty、failed 與局部重試文案；QueryStatus 接收查詢 flags，資料仍由呼叫端呈現。 / Inject safe request feedback; consumers retain data rendering.                                                                                                                                                                                     |
-| [`ui/SectionBoundary.tsx`](ui/SectionBoundary.tsx)                                       | 包住獨立區塊或 lazy 元件；提供安全訊息與 `resetKey`，`fallback`、`silent`、`reloadOnRetry` 按真實恢復需求設定。 / Isolate render/chunk failures with explicit reset identity and recovery policy.                                                                                                                                                 |
-| [`ui/LoadMoreControl.tsx`](ui/LoadMoreControl.tsx)                                       | 傳入 `busy`、文字、可選錯誤與 `onLoad`；忙碌時停用按鈕，API 責任留在 feature。 / Shared continuation feedback and disabled in-flight controls.                                                                                                                                                                                                    |
-| [`ui/ExpandableCollection.tsx`](ui/ExpandableCollection.tsx)                             | 傳入 records、真實 `total`、續頁狀態、文案、`onLoadMore` 與 `renderItems`。預覽第一頁、展開後渲染額外記錄，收起移除額外 DOM 並還原焦點，保留 query cache。 / First-page preview and cache-preserving collection disclosure with feature-owned item rendering.                                                                                     |
-| [`ui/ExpandableTagList.tsx`](ui/ExpandableTagList.tsx)                                   | 完整陣列只需 `items`／`copy`；分頁 owner 再傳 `total`、`hasMore`、`busy`、`error`、`onLoadMore`。`onPreviewMore` 可補讀尚未填滿的 75% 預覽；元件本身不決定 endpoint。 / Measured local or paginated label disclosure with optional preview continuation.                                                                                          |
-| [`ui/PixelBubble.tsx`](ui/PixelBubble.tsx)                                               | 共用包邊、bevel、tail 與可選關閉按鈕；傳入 `ref`、內容及 HTML attributes，需關閉按鈕時成對提供 `closeLabel`／`onClose`。定位、內容語意與自動關閉留在呼叫端。 / Reusable stepped shell; callers own placement, semantics, content, and closing policy.                                                                                             |
-| [`ui/PixelTooltip.tsx`](ui/PixelTooltip.tsx)                                             | 接收 `anchor`、`panel`、`text`、可選 `placement` 與 HTML attributes；以 portal 掛載 `role="tooltip"` 的 PixelBubble 並重用 useAnchoredPanel。OnlineVisitors／LoginEntry／牛控制按鈕共用小型外殼，文案與開關由呼叫端注入。 / Compact portaled PixelBubble with shared anchored placement; consumers inject text, orientation and disclosure props. |
-| [`ui/Icon.tsx`](ui/Icon.tsx)                                                             | `name: IconName` 對應本地 Bootstrap SVG allowlist；`label` 提供無障礙文字，裝飾圖示預設隱藏；`pulse="chat"`／`"disclosure"` 引用共同圖示呼吸效果。 / Allowlisted local SVGs with accessible labels and shared optional breathing decoration.                                                                                                      |
+下表逐項涵蓋 `shared/ui` 的 14 個公開元件／Hook 匯出；型別、context 與時間常數另見各介面說明。場景內部拆件不是公開 UI，使用完整 `CowWorkspace`。
+
+This inventory covers all 14 public component/hook exports in `shared/ui`. Types, context and timing constants are documented with their associated interfaces. Cow scene parts remain internal; consumers use `CowWorkspace`.
+
+| 匯出與模組 / Export and module                        | 用途、使用方式與邊界 / Purpose, usage and boundary                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`SectionHeader`](ui/SectionHeader.tsx)               | 傳入 `eyebrow`、`title`、可選 `note`，共用標題與右對齊備註版型。 / Inject heading text and an optional right-aligned note.                                                                                                                                                                                                                                                       |
+| [`SectionState`](ui/SectionState.tsx)                 | 接收 `message`、可選 `retryLabel`／`onRetry`、`busy` 與 children；一般回饋使用 status，具重試動作的失敗使用 alert，忙碌時停用重試。 / Present injected section feedback and optional recovery content; disable retry while busy.                                                                                                                                                 |
+| [`QueryStatus`](ui/QueryStatus.tsx)                   | 傳入 `pending`、`failed`、`empty`、`hasData`、`fetching`、loading／empty／error／retry 文案及 `onRetry`；使用 SectionState 呈現查詢狀態，資料仍由呼叫端渲染。 / Translate query flags into section feedback while consumers retain data rendering, including valid cached data.                                                                                                  |
+| [`SectionBoundary`](ui/SectionBoundary.tsx)           | 包住獨立區塊或 lazy 元件；提供安全訊息、`retryLabel` 與 `resetKey`，按恢復需求設定 `fallback`、`silent`、`reloadOnRetry`。有通知 provider 時另回報 bug，保留局部恢復。 / Isolate render/chunk failures with explicit reset identity and recovery policy; optionally publish a bug notification.                                                                                  |
+| [`LoadMoreControl`](ui/LoadMoreControl.tsx)           | 傳入 `busy`、`label`、`busyLabel`、可選 `error` 與 `onLoad`；忙碌時停用按鈕，API 責任留在 feature。 / Reuse continuation feedback and disabled in-flight controls without owning requests.                                                                                                                                                                                       |
+| [`ExpandableCollection`](ui/ExpandableCollection.tsx) | 必填 `items: T[]`、真實 `total`、`hasMore`、`busy`、`copy`、`onLoadMore()` 與 `renderItems(items)`；可傳 `error`／`className`。預覽第一頁、展開後渲染額外記錄；收起移除額外 DOM 並還原焦點，保留 query cache。 / Supply records, total, continuation flags, copy and callbacks; optional error/className customize feedback and styling. Disclosure preserves the feature cache. |
+| [`ExpandableTagList`](ui/ExpandableTagList.tsx)       | 完整陣列只需 `items: { id: string \| number; label: string }[]`／`copy: TagCopy`；分頁 owner 再傳 `total`、`hasMore`、`busy`、`error`、`onLoadMore()`。`onPreviewMore()` 可補讀尚未填滿的 75% 預覽，元件不決定 endpoint。 / Supply identified labels and TagCopy, plus optional pagination state/callbacks; measured preview continuation remains feature-owned.                 |
+| [`PixelBubble`](ui/PixelBubble.tsx)                   | 共用階梯包邊、bevel、tail 與可選關閉按鈕；傳入 `ref`、內容及 HTML attributes，需關閉按鈕時成對提供 `closeLabel`／`onClose`。定位、內容語意與自動關閉留在呼叫端。 / Reusable stepped shell; callers own placement, semantics, content and closing policy.                                                                                                                         |
+| [`PixelTooltip`](ui/PixelTooltip.tsx)                 | 接收 `anchor`、`panel`、`text`、可選 `placement` 與 HTML attributes；以 portal 掛載 `role="tooltip"` 的 PixelBubble 並重用 useAnchoredPanel。搭配 useHoverTooltip，由呼叫端提供文案與開關。 / Compact portaled tooltip with shared placement; consumers supply localized copy and disclosure.                                                                                    |
+| [`Icon`](ui/Icon.tsx)                                 | `name: IconName` 對應本地 Bootstrap SVG allowlist；`label` 提供無障礙文字，裝飾圖示預設隱藏。`pulse="chat"`／`"disclosure"` 與 `highlight` 引用共同呼吸／互動效果。 / Allowlisted local SVGs with accessible labels and shared optional decoration.                                                                                                                              |
+| [`IconGroup`](ui/Icon.tsx)                            | 以 `children` 包住圖示及文字，傳入 `pulse`／`highlight`／`className`，讓內容一起播放效果、外層控制維持固定。整組為裝飾且 `aria-hidden`，可操作父元素需提供完整無障礙名稱，子 Icon 不另加 pulse。 / Animate decorative icon/text as one group; the stable owning control supplies accessible meaning.                                                                             |
+| [`CowWorkspace`](ui/cow-workspace/CowWorkspace.tsx)   | 必填 `label`，可傳 `phase`、`motion`、`parallax`、`globeRotation`、`pointerScope`、`pointerOrigin` 與 `className`；共用場景與動態清理，不讀取帳號或語系。完整 props、素材與重建見 [cow workspace guide](ui/cow-workspace/README.md)。 / Reusable vector scene with injected copy and motion preferences; the guide defines its complete contract.                                |
+| [`NotificationProvider`](ui/NotificationProvider.tsx) | 在 app 外層掛載一次，傳入 `children` 與已翻譯的 `copy: NotificationCopy`；集中一個 viewport 上方通知、計時、關閉與常駐 live region。 / Own the single application notification host and timer with injected localized copy.                                                                                                                                                      |
+| [`useNotifications`](ui/NotificationProvider.tsx)     | 於 provider 子樹中取得 `notify({ kind, message?, id? })`／`dismiss()`；業務事件與文案由呼叫端決定，缺少 provider 時拋錯。 / Publish or dismiss a notification from the provider subtree; callers own event meaning and message text.                                                                                                                                             |
+
+`SectionBoundary.componentDidCatch()` 透過可選 `NotificationContext` 回報 `{ kind: 'bug', id: 'render:' + resetKey }`，使用 provider 的安全預設文案。有無 provider 都保留原本的局部 SectionState、fallback 與重試；`silent` 只影響局部呈現，重設 `resetKey` 可恢復區塊。通知不包含原始 exception／stack，也不取代重試控制。
+
+`SectionBoundary.componentDidCatch()` optionally publishes a bug through `NotificationContext`, using the provider's safe default copy and a render ID derived from `resetKey`. Local feedback, fallback and retry policies continue to work without a provider; `silent` affects local presentation, and a changed reset key recovers the section. The notification neither exposes exception details nor replaces recovery controls.
+
+`ExpandableCollection.copy` 的四個必填欄位均為字串：`more` 是展開文案（剩餘筆數由元件附加）、`less` 是收合文案、`load` 是續頁按鈕、`loading` 是續頁等待文案。`renderItems(items)` 接收目前應呈現的子集合；資料取得由 `onLoadMore()` 的 feature 呼叫端負責。可選 `className` 套用在 disclosure 容器，能透過 `--collection-inset` 調整對齊。
+
+`ExpandableCollection.copy` requires four strings: `more` for disclosure (the component appends the remaining count), `less` for collapse, `load` for continuation and `loading` for its busy state. `renderItems(items)` renders the supplied subset; the feature's `onLoadMore()` owns fetching. Optional `className` styles the disclosure container, including alignment through `--collection-inset`.
+
+`ExpandableTagList.copy` 使用公開型別 `TagCopy`：`more(count)` 回傳展開控制的完整無障礙名稱；`compact(count)` 回傳畫面上的短文案，兩者的 `count` 都是尚未顯示的數量。`less`／`lessLabel` 分別為收合控制的可見文案／無障礙名稱；`load`／`loading` 為續頁文案。六項皆必填。Feature 可重用 `i18n/tag-copy.ts` 的 `tagCopy(t)` 注入翻譯，shared 不直接引用它。省略分頁 props 時，`total` 預設 `items.length`、`hasMore`／`busy` 預設 `false`。
+
+`ExpandableTagList.copy` uses the exported `TagCopy` type. `more(count)` returns the full accessible disclosure name; `compact(count)` returns its short visible copy. Both receive the hidden count. `less`/`lessLabel` supply visible/accessible collapse copy, and `load`/`loading` supply continuation copy; all six fields are required. Features can inject the existing `tagCopy(t)` locale adapter rather than rebuilding the vocabulary. With pagination props omitted, `total` defaults to `items.length`, and `hasMore`/`busy` default to `false`.
 
 `PixelBubble` 的可調整樣式採 CSS custom properties：`--bubble-background`、`--bubble-padding`、`--bubble-backdrop-filter`、`--bubble-tail-step`，以及 `--bubble-close-size`、`--bubble-close-icon-size`、`--bubble-close-top`、`--bubble-close-right`、`--bubble-close-text`、hover／focus 對應 tokens。尾巴預設為 6px 階梯／30px 高；小型 tooltip 可設 `--bubble-tail-step: 4px`，得到 20px 高的尾巴。水平尾巴旋轉原有包邊三角輪廓，反向時鏡射整個形狀；內層縮進一格保留深色階梯邊，根部固定接入 6px 外框，避免小尺寸尾巴留下接縫。Feature CSS 將差異設定在自己的根 class，不複製 shared markup，也不依賴 shared CSS Modules 產生的 class 名稱。
 
@@ -185,6 +206,69 @@ Customize `PixelBubble` through its background, padding, backdrop, tail-step, an
 `PixelTooltip` 集中小型提示窗的樣式：14px／16px 內距、12px 文字、4px tail step、最多 260px 且不超出 viewport 的寬度及 layer 80。外殼透過 `document.body` portal 避免受側欄裁切，`useAnchoredPanel` 處理定位與清理；呼叫端指定 `text`／`placement`，搭配 `useHoverTooltip`，不複製共用 markup、幾何或關閉 listener。
 
 `PixelTooltip` owns compact styling: 14px/16px padding, 12px type, 4px tail steps, a viewport-constrained maximum width of 260px and layer 80. Its `document.body` portal avoids sidebar clipping, while `useAnchoredPanel` owns placement and cleanup. Consumers supply `text` and `placement` and compose `useHoverTooltip` without duplicating shell markup, geometry or dismissal listeners.
+
+## 浮動通知 / Floating Notifications
+
+`NotificationProvider` 是共用、非阻擋的提示外殼。通知固定於 viewport 上方中央，寬度最多 420px，保留安全區與兩側空間。Provider 只接收 `NotificationCopy`：`close`、四種 `labels` 與四種 `defaults`。`message` 省略時使用該種類的預設文案；實際翻譯在 app／feature 組合後注入，shared 不引用 `i18n`，不發送 API 或自行判定操作成功。
+
+`NotificationProvider` supplies a reusable, nonblocking host at the upper center of the viewport, constrained to 420px with safe-area and side spacing. Its `NotificationCopy` contains `close`, four `labels` and four `defaults`; an omitted message uses the kind's default. App or feature callers inject localized text. Shared code imports no i18n, sends no requests and does not infer operation success.
+
+| `kind`    | 色彩 / Color            | 使用時機 / Meaning                                                                                                       |
+| --------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `success` | 綠 / Green (`#65d79b`)  | 已確認操作成功或已發生的連線恢復。 / Confirmed operation success or connection recovery.                                 |
+| `warning` | 黃 / Yellow (`#efc56a`) | 連線中斷、逾時、暫時例外或功能尚未接上服務。 / Offline/timeout conditions, temporary exceptions or unavailable services. |
+| `error`   | 紅 / Red (`#ef8585`)    | 請求或操作失敗，例如 HTTP 錯誤。 / Failed requests or operations, including HTTP failures.                               |
+| `bug`     | 紅 / Red (`#ef8585`)    | 程式／渲染錯誤或回應無法通過解析、契約驗證。 / Unexpected runtime/render defects or invalid response parsing/contracts.  |
+
+`notify({ kind, message?, id? })` 永遠只呈現最新一則，不建立 queue。新內容取代舊內容並重新倒數 `notificationDurationMs = 3000`；當目前通知的非空 `id`、`kind` 與 `message` 全部相同時，重複呼叫不延長時間。同一 ID 的種類或文案改變仍會取代並重設倒數；通知消失後可再使用同一 ID。`dismiss()` 或右側關閉鈕立即清除通知。取代／卸載時取消舊 timer，舊 callback 不得關閉新通知。
+
+`notify({ kind, message?, id? })` presents only the latest message, without a queue. Replacement receives a new three-second timer (`notificationDurationMs = 3000`). Repeating the active notification's nonempty ID with identical kind and message does not extend it; changed content or kind replaces it, and an expired ID can be reused. `dismiss()` and the close button clear it immediately. Timer cleanup prevents an older callback from dismissing newer content or surviving unmount.
+
+Live host 常駐並使用 `role="status"`、`aria-live="polite"`、`aria-atomic="true"`；顯示文字及圖示共同表達種類。訊息本身允許點擊穿透，只有 44×44px 的關閉按鈕接收 pointer 操作。通知不 autofocus、不鎖住焦點、不加 backdrop；既有表單、導覽與局部重試保持可操作。短暫進場動畫遵守全域 reduced-motion 規則；自動消失時間不依賴動畫。
+
+The persistent host uses `role="status"`, `aria-live="polite"` and `aria-atomic="true"`; text and an icon accompany the semantic color. The message permits click-through, with only its 44×44px close control receiving pointer input. No autofocus, focus trap or backdrop is added, so forms, navigation and inline retry remain usable. Reduced motion disables the brief entrance animation without changing dismissal timing.
+
+Provider 在應用程式外層接收已完成翻譯的文案；以下示例屬於 app 組合層。實際實作見 [`AppProviders`](../app/providers/AppProviders.tsx)。
+
+The application layer mounts the provider with already localized copy. The concrete app assembly is [`AppProviders`](../app/providers/AppProviders.tsx).
+
+```tsx
+import type { ReactNode } from 'react';
+import { NotificationProvider, type NotificationCopy } from '@/shared/ui/NotificationProvider';
+
+export function FeedbackRoot({ children, copy }: { children: ReactNode; copy: NotificationCopy }) {
+  return <NotificationProvider copy={copy}>{children}</NotificationProvider>;
+}
+```
+
+Feature 透過 hook 發布有意義的結果；`copy` 由呼叫端用目前語系取得。以下四個 callback 示範各種類，應在對應結果發生時呼叫，成功 callback 應等真正的操作成功後才執行。
+
+Features publish meaningful outcomes through the hook. The caller supplies `copy` in the active locale and invokes the appropriate callback when the corresponding event occurs; success follows a confirmed operation.
+
+```ts
+import { useNotifications } from '@/shared/ui/NotificationProvider';
+
+type OperationCopy = { success: string; warning: string; error: string; bug: string };
+
+export function useOperationFeedback(copy: OperationCopy) {
+  const { notify, dismiss } = useNotifications();
+  return {
+    succeeded: () => notify({ kind: 'success', message: copy.success, id: 'profile-save' }),
+    unavailable: () => notify({ kind: 'warning', message: copy.warning, id: 'profile-save' }),
+    failed: () => notify({ kind: 'error', message: copy.error, id: 'profile-save' }),
+    unexpected: () => notify({ kind: 'bug', message: copy.bug, id: 'profile-save' }),
+    dismiss,
+  };
+}
+```
+
+[`NotificationEvents`](../app/providers/NotificationEvents.tsx) 負責瀏覽器整合：監聽未捕捉的 `error`／`unhandledrejection`、offline／online，以及 query cache 的最終失敗。連線／timeout 顯示 warning、HTTP 顯示 error、parse／contract 或未知程式錯誤顯示 bug；分類與安全文案 key 由 [`i18n/notification-copy.ts`](../i18n/notification-copy.ts) 提供。取消不通知，同一 query 失敗直到恢復或移除前只回報一次；離線與後續 query 回饋避免重複報告同一中斷。已回報失敗的真實 query 恢復，或離線後重新連線，才顯示恢復 success。初次 GET、一般成功 polling 與手動 `setQueryData` 不顯示成功通知。事件 listener 與 cache 訂閱於卸載時清理。
+
+[`NotificationEvents`](../app/providers/NotificationEvents.tsx) integrates uncaught browser errors/rejections, connection changes and terminal query-cache failures. Its locale-layer classifier maps connection/timeout to warning, HTTP to error, and parsing/contract or unexpected defects to bug. Cancellations are silent; each query failure is reported once until recovery/removal, and outage reporting avoids duplicate connection messages. Recovery success follows a previously reported failed query's real recovery or an offline-to-online transition. Initial GETs, ordinary successful polling and manual `setQueryData` do not produce success toasts. Unmount removes listeners and cache subscriptions.
+
+通知補充局部回饋：`QueryStatus`、`LoadMoreControl` 與 `SectionBoundary` 保留可用的重試按鈕，欄位驗證仍在欄位標題右側。登入 feature 的 send-code／未接 API 的帳號操作顯示 warning；只有注入的 `onAuthenticate` 真正 resolve 後才顯示 success 並觸發 welcome 牛姿勢。共用層不把前端驗證碼模擬視為登入成功，也不顯示密碼、原始回應或 stack。
+
+Toasts supplement local feedback: query, continuation and boundary controls retain inline retry, while field validation stays beside its label. Auth send-code and account actions without an API emit warnings; only a genuinely resolved injected `onAuthenticate` emits success and enables the welcome pose. Frontend verification-code mocks do not imply authentication success, and messages never expose credentials, raw responses or stacks.
 
 ## 視覺效果的共用來源 / Shared Visual Sources
 
@@ -213,6 +297,10 @@ Palette transitions, contact disclosure timing, journey playback, and portfolio 
 登入所用的 `PixelTooltip`、`CowWorkspace` 與場景拆件已有英文用途註解；tooltip、定位與牛動態 Hooks 說明各自的訂閱、計時與清理責任。牛的表情／播放／滑鼠／地球偏好由 `AuthCowScene` 擁有；共用層只接受 props，不讀取帳號模式或語系。完整介面與素材重建見 [cow workspace 文件](ui/cow-workspace/README.md)。
 
 The auth consumers `PixelTooltip`, `CowWorkspace` and its scene parts have English purpose comments, while tooltip, positioning and cow-motion hooks document subscriptions, timing and cleanup. `AuthCowScene` owns expression, playback, mouse and globe preferences; shared code accepts props without reading account modes or locale. See the [cow workspace guide](ui/cow-workspace/README.md) for its interface and asset rebuild process.
+
+登入成功的 welcome 行為由 [`AuthCowScene`](../features/auth/components/AuthCowScene.tsx) 組合既有能力：feature 接收真實成功狀態，暫時傳入 `CowWorkspace phase="glance"`，在場景中以 `PixelBubble` 呈現已翻譯的 welcome 文案及指向牛的尾巴。Feature 擁有氣泡定位、語意及顯示時機；stored 表情／播放／滑鼠／地球偏好保留，motion 仍遵守暫停與 reduced-motion。這不新增 shared 帳號成功元件，也不為 CowWorkspace 加入帳號或 welcome 業務狀態。
+
+For a successful-authentication welcome, `AuthCowScene` composes existing primitives: the feature supplies real success state, temporarily selects `CowWorkspace phase="glance"` and places a localized `PixelBubble` with its tail pointing toward the cow. The feature owns greeting placement, semantics and timing. Stored expression, playback, pointer and globe preferences remain intact, and motion still honors pause and reduced motion. Shared code gains no account-success component or account-specific welcome state.
 
 1. 先搜尋既有能力與使用者，再決定放在 feature、page 或 shared；共用的語意與變更原因要一致。 / Search existing modules and consumers before extracting; shared meaning and change reasons must align.
 2. 每個方法／Hook／元件說明用途、輸入、輸出、副作用與清理責任；styles 註解說明樣式責任及差異來源。 / Document purpose, interfaces, effects, cleanup, and style responsibilities.

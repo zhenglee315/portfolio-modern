@@ -39,24 +39,33 @@
     "forgotDescription": "输入与你的账户关联的电子邮件。",
     "email": "电子邮件",
     "emailPlaceholder": "you@example.com",
+    "emailInvalid": "格式不正确",
+    "fieldRequired": "必填",
+    "fieldValid": "格式正确",
     "verificationCode": "验证码",
-    "verificationCodePlaceholder": "输入验证码",
+    "verificationCodePlaceholder": "验证码",
+    "verificationCodeAccepted": "验证码已通过（暂时模拟）。",
     "sendVerificationCode": "发送验证码",
+    "sendCodeCooldown": "{{time}} 后可再次发送验证码",
     "verificationUnavailable": "验证码发送服务尚未开放，尚未发送验证码。",
     "password": "密码",
     "confirmPassword": "确认密码",
-    "passwordHint": "请使用至少 8 个字符。",
+    "passwordHint": "至少 8 字符",
+    "passwordTooShort": "至少 8 个字符",
     "passwordMismatch": "两次输入的密码不一致。",
+    "passwordMismatchShort": "不一致",
     "forgotPassword": "忘记密码？",
     "showPassword": "显示密码",
     "hidePassword": "隐藏密码",
     "loginSubmit": "登录",
-    "registerSubmit": "注册账户",
+    "registerSubmit": "注册",
     "forgotSubmit": "发送重设链接",
     "noAccount": "还没有账户？",
     "hasAccount": "已有账户？",
     "rememberPassword": "想起密码了？",
-    "serviceUnavailable": "账户服务尚未开放，你填写的资料未发送。"
+    "serviceUnavailable": "账户服务尚未开放，你填写的资料未发送。",
+    "welcome": "欢迎！",
+    "verificationCodeValidity": "验证码有效时间为 5 分钟。"
   },
   "ui": {
     "skip": "跳至主要内容",
@@ -186,5 +195,28 @@
     "onlineVisitorsNow": "当前在线人数：{{count}}",
     "signIn": "登录",
     "adminSignIn": "登录管理员"
+  },
+  "notifications": {
+    "close": "关闭提示",
+    "labels": {
+      "success": "成功",
+      "warning": "异常",
+      "error": "错误",
+      "bug": "程序异常"
+    },
+    "defaults": {
+      "success": "操作已成功完成。",
+      "warning": "有情况需要留意。",
+      "error": "操作失败，请再试一次。",
+      "bug": "发生非预期问题，请稍后再试。"
+    },
+    "connectionFailed": "连接出现问题，请稍后再试。",
+    "requestFailed": "请求失败，请再试一次。",
+    "invalidResponse": "服务返回的数据异常，请稍后再试。",
+    "unexpectedError": "发生非预期问题，请稍后再试。",
+    "connectionRestored": "连接已恢复。",
+    "offline": "目前已离线，请检查网络连接。",
+    "languageChanged": "语言已切换。",
+    "languageFailed": "语言切换失败，请稍后再试。"
   }
 }

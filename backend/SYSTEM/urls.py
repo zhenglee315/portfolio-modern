@@ -11,7 +11,8 @@ class PreFix(EnumUtils):
     PORTFOLIO = "portfolio"
     # -< Url >----------------------------------------------------------【 System Diagnostics 】
     SYS = "system"
-
+    # -< Url >----------------------------------------------------------【 Authority 】
+    AUTH = "authority"
 
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Tags
 class Tags(Enum):
@@ -22,6 +23,8 @@ class Tags(Enum):
     }
     # -< Tags >---------------------------------------------------------【 System Diagnostics 】
     SYS = {"name": "System", "description": "System health, diagnostics, and monitoring endpoints."}
+    # -< Tags >---------------------------------------------------------【 Authority 】
+    AUTH = {"name": "Authority", "description": "Authentication and authorization endpoints."}
 
 
 # ■—< Route >—————————————————————————————————————————————————————————————————————————■ Portfolio
@@ -51,3 +54,12 @@ class RoutePortfolio(EnumUtils):
 # ■—< Route >—————————————————————————————————————————————————————————————————————————■ System
 class RouteSys(EnumUtils):
     HEARTBEAT = "/heartbeat"
+
+# ■—< Route >—————————————————————————————————————————————————————————————————————————■ Auth
+class RouteAuth(EnumUtils):
+    SESSION = "/session"
+    SIGN_IN = "/sign-in"
+    SIGN_OUT = "/sign-out"
+    REGISTER = "/register"
+    CONFIRM_EMAIL = "/confirm-email"
+    VERIFY_EMAIL = "/verify-email"

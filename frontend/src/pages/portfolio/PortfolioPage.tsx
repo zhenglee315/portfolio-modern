@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { AppearanceMenu, useAppearance } from '@/features/appearance';
 import { LanguageMenu } from '@/features/language';
+import { authFailure, useAuthSession, useAuthSignOut } from '@/features/auth/session';
 import { OnlineVisitors, useOnlineVisitors } from '@/features/online-visitors';
 import { useLocaleSwitch } from './hooks/useLocaleSwitch';
 import { SkillsSection } from '@/features/skills';
@@ -19,6 +20,7 @@ import {
 } from '@/features/site';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
 import { SectionState } from '@/shared/ui/SectionState';
+import { useNotifications } from '@/shared/ui/NotificationProvider';
 import { Navigation } from './components/Navigation';
 import { useSectionNavigation } from './hooks/useSectionNavigation';
 import styles from './PortfolioPage.module.css';
@@ -29,12 +31,25 @@ import { useAuthNavigation } from './hooks/useAuthNavigation';
 
 // Public browsing does not download the account form or its cow controls until requested.
 const AuthPanel = lazy(() =>
-  import('@/features/auth').then((module) => ({ default: module.AuthPanel })),
+  import('@/features/auth').then((module) => ({ default: module.ConnectedAuthPanel })),
 );
 
 /** Compose independent feature boundaries; the page owns cross-domain coordination. */
 export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: string }) {
   const { t } = useTranslation();
+  const { notify } = useNotifications();
+  const signOut = useAuthSignOut();
+  const session = useAuthSession({ enabled: !signOut.isPending });
+  const logout = () => {
+    if (signOut.isPending) return;
+    signOut.mutate(undefined, {
+      onSuccess: () => notify({ kind: 'success', message: t('auth.signedOut') }),
+      onError: (error) => {
+        const failure = authFailure(error);
+        notify({ kind: failure.kind, message: t(failure.message) });
+      },
+    });
+  };
   const root = useRef<HTMLDivElement>(null);
   // Both site surfaces share the actual controls bounds instead of guessing responsive row heights.
   const profileControls = useRef<HTMLDivElement>(null);
@@ -129,6 +144,9 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
           onCompact={() => setCompact((value) => !value)}
           onNavigate={navigation.navigate}
           onLogin={authNavigation.enter}
+          signedIn={!!session.data}
+          accountBusy={signOut.isPending || (session.data === undefined && session.isFetching)}
+          onLogout={logout}
         />
       </div>
       <main
@@ -219,6 +237,7 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
                 initialFocus={auth.phase === 'auth'}
                 animationActive={authVisible}
                 onBack={authNavigation.leave}
+                onSuccess={authNavigation.leave}
                 controls={
                   <>
                     {localeControl}

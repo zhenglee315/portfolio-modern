@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { defaultShouldDehydrateQuery, QueryClient } from '@tanstack/react-query';
 import { retryRead } from '@/shared/api/http';
 
 let browserClient: QueryClient | undefined;
@@ -14,6 +14,11 @@ export function getQueryClient() {
 export function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
+      // Browser session identity stays out of server and locale-preparation snapshots.
+      dehydrate: {
+        shouldDehydrateQuery: (query) =>
+          query.meta?.private !== true && defaultShouldDehydrateQuery(query),
+      },
       queries: {
         staleTime: 60_000,
         gcTime: 30 * 60_000,

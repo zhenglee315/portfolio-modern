@@ -1,6 +1,8 @@
-# ◆—< Models >———————————————————————————————◆ Portfolio
+# ◆—< Models >———————————————————————————————◆ ＳYSTEM
 from SYSTEM.database.orm import BASE
-from .models_portfolio import *
-
 # ◆—< Models >———————————————————————————————◆ Auth
-from .model_auth import *
+from .models_auth import *
+# ◆—< Models >———————————————————————————————◆ Portfolio
+from .models_portfolio import *
+# ◆—< Models >———————————————————————————————◆ Record
+from .models_record import *

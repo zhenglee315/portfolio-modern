@@ -44,7 +44,7 @@
     "fieldValid": "格式正確",
     "verificationCode": "驗證碼",
     "verificationCodePlaceholder": "驗證碼",
-    "verificationCodeAccepted": "驗證碼已通過（暫時模擬）。",
+    "verificationCodeAccepted": "驗證碼已通過。",
     "sendVerificationCode": "發送驗證碼",
     "sendCodeCooldown": "{{time}} 後可再次發送驗證碼",
     "verificationCodeSent": "驗證碼已送出。",
@@ -64,8 +64,25 @@
     "hasAccount": "已有帳戶？",
     "rememberPassword": "想起密碼了？",
     "serviceUnavailable": "帳戶服務尚未開放，你填寫的資料未傳送。",
+    "invalidCredentials": "無法登入，請確認電子郵件與密碼；若帳號已停用，請聯絡管理員。",
+    "tooManyAttempts": "登入嘗試次數過多，請稍候一分鐘再試。",
+    "temporarilyUnavailable": "帳戶服務暫時無法使用，請稍後再試。",
+    "invalidInput": "請確認電子郵件與密碼格式後再試。",
     "welcome": "歡迎！",
-    "verificationCodeValidity": "驗證碼有效時間為 5 分鐘。"
+    "signedOut": "已登出。",
+    "verificationCodeValidity": "驗證碼有效時間為 5 分鐘。",
+    "emailExists": "email已存在無法使用",
+    "emailChecking": "正在檢查電子郵件…",
+    "emailCheckFailed": "無法檢查電子郵件",
+    "emailCheckRequired": "請先離開電子郵件欄位，完成是否可用的檢查。",
+    "warningTitle": "無法繼續",
+    "closeWarning": "關閉",
+    "verificationCodeInvalid": "驗證碼不正確或已過期。",
+    "verificationRequired": "請先取得驗證碼並完成電子郵件驗證，再註冊。",
+    "verificationExpired": "驗證碼已過期，請重新取得驗證碼。",
+    "verificationChecking": "正在驗證…",
+    "codeRequestTooFrequent": "請稍候再取得新的驗證碼。",
+    "registrationUnavailable": "註冊服務暫時無法使用，請稍後再試。"
   },
   "ui": {
     "skip": "跳至主要內容",
@@ -194,6 +211,7 @@
     "onlineVisitorsUnavailable": "暫時無法讀取在線人數。",
     "onlineVisitorsNow": "目前在線人數：{{count}}",
     "signIn": "登入",
+    "signOut": "登出",
     "adminSignIn": "登入管理員"
   },
   "notifications": {

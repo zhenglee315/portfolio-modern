@@ -30,6 +30,10 @@ type Props = {
   onOpen?: () => void;
   /** Open the page-owned sign-in surface after closing the mobile drawer. */
   onLogin?: () => void;
+  /** Session-aware account action is shared by the desktop rail and mobile drawer. */
+  signedIn?: boolean;
+  accountBusy?: boolean;
+  onLogout?: () => void;
 };
 
 /** Share configured links and one viewport-clamped tooltip across rail states.
@@ -141,6 +145,9 @@ export function Navigation({
   contactOpen,
   onOpen,
   onLogin,
+  signedIn,
+  accountBusy,
+  onLogout,
 }: Props) {
   const { t } = useTranslation();
   const mobile = useMediaQuery(mobileQuery);
@@ -188,6 +195,16 @@ export function Navigation({
           </small>
         )}
         <LoginEntry
+          signedIn={signedIn}
+          busy={accountBusy}
+          onLogout={
+            onLogout
+              ? () => {
+                  setOpen(false);
+                  onLogout();
+                }
+              : undefined
+          }
           onLogin={
             onLogin
               ? () => {

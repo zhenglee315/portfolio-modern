@@ -149,6 +149,10 @@
   outline: 1px dashed var(--accent);
   outline-offset: 2px;
 }
+.login:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
 .copyright {
   min-width: 0;
   max-width: 200px;

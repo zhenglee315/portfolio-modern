@@ -3,14 +3,50 @@ from SYSTEM.database import CONN_MANAGER
 from SYSTEM.settings import TIME_ZONE
 
 # ◆—< Pack >—————————————————————————————————◆ Redis
-from redis.exceptions import RedisError, ResponseError
+from redis.exceptions import RedisError, ResponseError, WatchError
 from redis.asyncio import Redis
 
 # ◆—< Pack >—————————————————————————————————◆ Standard
 from typing import Any, Optional, Callable, Awaitable, List
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from inspect import iscoroutinefunction
 from zoneinfo import ZoneInfo
 import pickle
+
+
+# ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Redis value
+@dataclass
+class RedisValue:
+    """
+    Describe one transaction write and its expiry policy.
+
+    ex assigns a new positive expiry; keepttl preserves the existing deadline.
+    Leaving both unset replaces the value without an expiry, like ordinary SET.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
+
+    value: Any
+    ex: int | None = None
+    keepttl: bool = False
+
+
+# ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Redis update
+@dataclass
+class RedisUpdate:
+    """
+    Return a business result and the writes/deletes based on a watched snapshot.
+
+    Only keys included in transaction() may be changed. A key cannot be written
+    and deleted in the same plan; result is returned only after EXEC succeeds.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
+
+    result: Any = None
+    writes: dict[str, RedisValue] = field(default_factory=dict)
+    deletes: tuple[str, ...] = ()
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Redis execution
@@ -95,7 +131,17 @@ class RedisAsync:
         return await func(*args, **kwargs)
 
     # —< Command >—————————————————————————————————————————● SET
-    async def set(self, key: str, value: Any, ex: Optional[int] = None, serialize: bool = True) -> bool:
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        ex: Optional[int] = None,
+        serialize: bool = True,
+        *,
+        nx: bool = False,
+        xx: bool = False,
+        keepttl: bool = False,
+    ) -> bool | None:
         """
         Set a Redis string value, optionally pickled, with an expiry in seconds.
 
@@ -107,12 +153,23 @@ class RedisAsync:
         :param value: Python value to pickle, or a Redis-compatible raw value.
         :param ex: Positive expiry seconds; None writes without an expiry.
         :param serialize: Whether to pickle value before storing it.
-        :return: True on successful SET. Replacing a key also replaces its previous TTL.
+        :param nx: Write only when the key does not already exist.
+        :param xx: Write only when the key already exists; mutually exclusive with nx.
+        :param keepttl: Preserve the previous expiry; mutually exclusive with ex.
+        :return: True on success, or None when an NX/XX condition prevents the write.
+                 Replacement resets its TTL unless keepttl=True.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
         to_store = self._serialize(value, serialize=serialize)
-        return await self._execute(self.redis.set, key, to_store, ex=ex)
+        options = {"ex": ex}
+        if nx:
+            options["nx"] = nx
+        if xx:
+            options["xx"] = xx
+        if keepttl:
+            options["keepttl"] = keepttl
+        return await self._execute(self.redis.set, key, to_store, **options)
 
     # —< Command >—————————————————————————————————————————● GET
     async def get(self, key: str, deserialize: bool = True) -> Any:
@@ -131,6 +188,26 @@ class RedisAsync:
         """
         data = await self._execute(self.redis.get, key)
         return self._deserialize(data, deserialize=deserialize)
+
+    # —< Command >—————————————————————————————————————————● Multi-GET
+    async def mget(self, keys: list[str] | tuple[str, ...], deserialize: bool = True) -> list:
+        """
+        Read multiple Redis strings in the requested order.
+
+        ● Guide:
+            values = await cache.mget(["user:1", "user:2"])
+            raw_values = await cache.mget(["external:a", "external:b"], deserialize=False)
+
+        :param keys: Redis keys; empty input performs no command.
+        :param deserialize: Whether to decode trusted pickle values individually.
+        :return: Ordered values, with None for missing keys; empty input returns [].
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        if not keys:
+            return []
+        values = await self._execute(self.redis.mget, keys)
+        return [self._deserialize(value, deserialize=deserialize) for value in values]
 
     # —< Command >—————————————————————————————————————————● GET by key
     async def get_by_key(self, key: str, method: str, deserialize: bool = True) -> Any:
@@ -344,6 +421,38 @@ class RedisAsync:
         """
         return await self._execute(self.redis.incrby, key, amount)
 
+    # —< Command >—————————————————————————————————————————● INCR with initial expiry
+    async def incr_with_expiry(self, key: str, ex: int, amount: int = 1) -> tuple[int, int]:
+        """
+        Increment a raw integer and ensure its first expiry in one transaction.
+
+        ● Guide:
+            count, remaining = await cache.incr_with_expiry("requests:peer", ex=60)
+
+        EXPIRE NX requires Redis 7.0+ and adds a deadline only when none exists.
+        Later increments preserve the original window; existing persistent counters
+        gain an expiry. Redis runtime errors do not roll back other EXEC commands.
+
+        :param key: Key containing an unpickled integer string; missing keys start at zero.
+        :param ex: Positive expiry seconds applied only if the key has no expiry.
+        :param amount: Signed integer increment, including zero.
+        :return: Updated integer and remaining TTL seconds from the same transaction.
+        :raises ValueError: ex is not a positive integer, or amount is not an integer.
+        :raises RedisError: Unsupported Redis version, wrong value/type, or integer overflow.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        if isinstance(ex, bool) or not isinstance(ex, int) or ex <= 0:
+            raise ValueError("ex must be a positive integer.")
+        if isinstance(amount, bool) or not isinstance(amount, int):
+            raise ValueError("amount must be an integer.")
+        async with self.redis.pipeline(transaction=True) as pipe:
+            pipe.incrby(key, amount)
+            pipe.expire(key, ex, nx=True)
+            pipe.ttl(key)
+            count, _, remaining = await pipe.execute()
+        return count, remaining
+
     # —< Command >—————————————————————————————————————————● TYPE
     async def type(self, key: str) -> str:
         """
@@ -449,6 +558,106 @@ class RedisAsync:
                                                                                                ♂ ZhengLee 2026.10.03
         """
         return await self._execute(self.redis.flushdb)
+
+    # —< Command >—————————————————————————————————————————● Watched transaction
+    async def transaction(
+        self,
+        keys: list[str] | tuple[str, ...],
+        updater: Callable[[dict[str, Any]], RedisUpdate],
+        *,
+        serialize: bool = True,
+        deserialize: bool = True,
+        max_attempts: int = 16,
+    ) -> Any:
+        """
+        Apply a synchronous update plan to a watched snapshot of Redis strings.
+
+        ● Guide:
+            def reserve(values):
+                if values["job:claim"] is not None:
+                    return RedisUpdate(result=False)
+                return RedisUpdate(result=True, writes={"job:claim": RedisValue("worker", ex=60)})
+
+            reserved = await cache.transaction(["job:claim"], reserve)
+
+        The updater receives only values and may run again after a WATCH conflict.
+        It must not perform I/O, mutate SESSION, or produce external side effects.
+        Every write/delete must target a watched key. All values are encoded before
+        MULTI; even an empty plan runs EXEC to validate its read snapshot. Redis
+        runtime errors do not roll back other commands already executed by EXEC.
+
+        :param keys: Nonempty list/tuple of string keys; duplicate keys are watched once.
+        :param updater: Synchronous, repeatable function returning RedisUpdate.
+        :param serialize: Whether to pickle transaction writes.
+        :param deserialize: Whether to decode trusted pickle values in the snapshot.
+        :param max_attempts: Positive maximum attempts, including the initial attempt.
+        :return: The update plan's result after successful EXEC.
+        :raises TypeError: Invalid updater, plan, write value, or collection type.
+        :raises ValueError: Invalid keys, expiry, retry limit, or overlapping writes/deletes.
+        :raises WatchError: Watched keys keep changing until the retry limit is exhausted.
+        :raises RedisError: Other Redis failures propagate without retrying the updater.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        if not isinstance(keys, (list, tuple)):
+            raise TypeError("keys must be a list or tuple of Redis keys.")
+        if not keys or any(not isinstance(key, str) or not key for key in keys):
+            raise ValueError("keys must contain at least one nonempty string key.")
+        if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts <= 0:
+            raise ValueError("max_attempts must be a positive integer.")
+        if (
+            not callable(updater)
+            or iscoroutinefunction(updater)
+            or iscoroutinefunction(getattr(updater, "__call__", None))
+        ):
+            raise TypeError("updater must be a synchronous callable.")
+        watched = tuple(dict.fromkeys(keys))
+        encoder = self.redis.get_encoder()
+        for attempt in range(max_attempts):
+            async with self.redis.pipeline(transaction=True) as pipe:
+                try:
+                    await pipe.watch(*watched)
+                    values = await pipe.mget(watched)
+                    snapshot = {
+                        key: self._deserialize(value, deserialize=deserialize) for key, value in zip(watched, values)
+                    }
+                    plan = updater(snapshot)
+                    if not isinstance(plan, RedisUpdate):
+                        raise TypeError("updater must return RedisUpdate.")
+                    if not isinstance(plan.writes, dict) or not isinstance(plan.deletes, tuple):
+                        raise TypeError("RedisUpdate requires a writes dict and a deletes tuple.")
+                    targets = (*plan.writes, *plan.deletes)
+                    if any(not isinstance(key, str) or key not in watched for key in targets):
+                        raise ValueError("All writes and deletes must target watched keys.")
+                    if set(plan.writes).intersection(plan.deletes):
+                        raise ValueError("A key cannot be written and deleted in the same update.")
+                    prepared = []
+                    for key, value in plan.writes.items():
+                        if not isinstance(value, RedisValue):
+                            raise TypeError("Transaction writes must contain RedisValue instances.")
+                        if not isinstance(value.keepttl, bool):
+                            raise TypeError("keepttl must be a boolean.")
+                        if value.ex is not None and (
+                            isinstance(value.ex, bool) or not isinstance(value.ex, int) or value.ex <= 0
+                        ):
+                            raise ValueError("ex must be a positive integer or None.")
+                        if value.ex is not None and value.keepttl:
+                            raise ValueError("ex and keepttl are mutually exclusive.")
+                        encoded = encoder.encode(self._serialize(value.value, serialize=serialize))
+                        options = {"ex": value.ex} if value.ex is not None else {}
+                        if value.keepttl:
+                            options["keepttl"] = True
+                        prepared.append((key, encoded, options))
+                    pipe.multi()
+                    for key, encoded, options in prepared:
+                        pipe.set(key, encoded, **options)
+                    if plan.deletes:
+                        pipe.delete(*plan.deletes)
+                    await pipe.execute()
+                    return plan.result
+                except WatchError:
+                    if attempt + 1 == max_attempts:
+                        raise
 
     # —< Command >—————————————————————————————————————————● Pipeline/Transaction (multi)
     async def pipeline(self):

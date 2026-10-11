@@ -22,8 +22,8 @@ const server = createServer((incoming, outgoing) => {
       outgoing.end();
     });
   if (!/^\/api(?:\/|\?|$)/.test(path)) return serve(incoming, outgoing);
-  if (!['GET', 'HEAD'].includes(incoming.method)) {
-    outgoing.writeHead(405);
+  if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(incoming.method)) {
+    outgoing.writeHead(405, { 'cache-control': 'no-store' });
     return outgoing.end();
   }
   const suffix = path.replace(/^\/api(?=\/|\?|$)/, '').replace(/^\/+/, '');
@@ -31,24 +31,49 @@ const server = createServer((incoming, outgoing) => {
   const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
   const proxy = send(
     target,
-    { method: incoming.method, headers: { accept: 'application/json' } },
+    {
+      method: incoming.method,
+      headers: {
+        accept: incoming.headers.accept || 'application/json',
+        ...(incoming.headers['content-type'] && {
+          'content-type': incoming.headers['content-type'],
+        }),
+        ...(incoming.headers['content-length'] && {
+          'content-length': incoming.headers['content-length'],
+        }),
+        ...(!incoming.headers['content-length'] &&
+          incoming.headers['transfer-encoding'] && { 'transfer-encoding': 'chunked' }),
+        ...(incoming.headers.cookie && { cookie: incoming.headers.cookie }),
+      },
+    },
     (response) => {
       outgoing.writeHead(response.statusCode || 502, {
         'content-type': response.headers['content-type'] || 'application/json',
         'cache-control': 'no-store',
+        // Keep each cookie separate so session rotation reaches the browser intact.
+        ...(response.headers['set-cookie'] && { 'set-cookie': response.headers['set-cookie'] }),
+        ...(response.headers['retry-after'] && { 'retry-after': response.headers['retry-after'] }),
       });
+      response.on('error', () => outgoing.destroy());
       response.pipe(outgoing);
     },
   );
   proxy.setTimeout(10_000, () => proxy.destroy());
   proxy.on('error', () => {
-    if (!outgoing.headersSent) outgoing.writeHead(502, { 'content-type': 'application/json' });
+    if (outgoing.destroyed) return;
+    if (outgoing.headersSent) return outgoing.destroy();
+    outgoing.writeHead(502, {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+    });
     outgoing.end('{"detail":"UPSTREAM_UNAVAILABLE"}');
   });
+  incoming.on('aborted', () => proxy.destroy());
+  incoming.on('error', () => proxy.destroy());
   outgoing.on('close', () => {
     if (!outgoing.writableEnded) proxy.destroy();
   });
-  proxy.end();
+  incoming.pipe(proxy);
 });
 server.listen(4173, '127.0.0.1', () => console.log('Static preview ready on local port 4173.'));
 /** Allow test runners and development shells to release the preview port cleanly. */

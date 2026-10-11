@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-const duration = 5 * 60 * 1000;
+const maximumDuration = 5 * 60 * 1000;
 const storageKey = 'portfolio-verification-cooldown';
 type Cooldown = { expiresAt: number; remaining: number };
 
@@ -10,7 +10,7 @@ function readCooldown(): Cooldown {
     try {
       const expiresAt = Number(window.sessionStorage.getItem(storageKey));
       const remaining = expiresAt - Date.now();
-      if (Number.isFinite(expiresAt) && remaining > 0 && remaining <= duration) {
+      if (Number.isFinite(expiresAt) && remaining > 0 && remaining <= maximumDuration) {
         return { expiresAt, remaining: Math.ceil(remaining / 1000) };
       }
     } catch {
@@ -22,8 +22,8 @@ function readCooldown(): Cooldown {
 
 /**
  * Rate-limit the UI action across mode changes and reloads in this tab.
- * Use a deadline so background timer throttling never extends the five-minute wait.
- * A future delivery endpoint must enforce its own limit before sending real email.
+ * Use the server-provided deadline so background timer throttling does not extend the wait.
+ * The delivery endpoint enforces its own rate limit.
  */
 export function useVerificationCooldown() {
   const [cooldown, setCooldown] = useState(readCooldown);
@@ -53,9 +53,11 @@ export function useVerificationCooldown() {
     };
   }, [cooldown.expiresAt]);
 
-  const start = () => {
+  const start = (seconds = 60) => {
     const now = Date.now();
     if (Math.max(deadline.current, readCooldown().expiresAt) > now) return false;
+    const duration = Math.min(maximumDuration, Math.max(0, seconds) * 1000);
+    if (!Number.isFinite(duration) || !duration) return false;
     const expiresAt = now + duration;
     deadline.current = expiresAt;
     try {

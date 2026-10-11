@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useId,
   useRef,
@@ -8,19 +10,32 @@ import {
   type Ref,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isNotificationCancellation, notificationFailure } from '@/i18n/notification-copy';
+import { isNotificationCancellation } from '@/i18n/notification-copy';
 import { Icon } from '@/shared/ui/Icon';
 import { useNotifications } from '@/shared/ui/NotificationProvider';
-import { useVerificationCooldown } from '../hooks/useVerificationCooldown';
+import { useAuthRegistration, type AuthRegistrationActions } from '../hooks/useAuthRegistration';
+import { AuthVerificationField } from './AuthVerificationField';
 import { useAuthFormSlide, type AuthFormSnapshot, type AuthMode } from '../hooks/useAuthFormSlide';
 import styles from './AuthPanel.module.css';
 import { AuthCowScene } from './AuthCowScene';
 import { AuthModeSwitch } from './AuthModeSwitch';
+import { authFailure } from '../lib/auth-failure';
+
+const WarningModal = lazy(() => import('@/shared/ui/WarningModal'));
 
 export type AuthRequest = { mode: 'login' | 'register'; fields: FormData; signal: AbortSignal };
+export type { AuthEmailRequest, AuthVerifyRequest } from '../hooks/useAuthRegistration';
 type AuthField = 'email' | 'password' | 'confirmation';
 type FieldCheck =
-  'valid' | 'fieldRequired' | 'emailInvalid' | 'passwordTooShort' | 'passwordMismatchShort' | null;
+  | 'valid'
+  | 'fieldRequired'
+  | 'emailInvalid'
+  | 'emailExists'
+  | 'emailChecking'
+  | 'emailCheckFailed'
+  | 'passwordTooShort'
+  | 'passwordMismatchShort'
+  | null;
 
 /** Keep exactly one live form; the inert slide preview only reproduces its visual layout. */
 function AuthFormFrame({
@@ -71,85 +86,6 @@ function AuthFieldCheck({ id, check }: { id: string; check: FieldCheck }) {
     <span id={id} className={styles.hint} data-field-status={check}>
       {check === 'valid' ? <Icon name="check" label={t('auth.fieldValid')} /> : t(`auth.${check}`)}
     </span>
-  );
-}
-
-/**
- * Render the verification input and its rate-limited send action.
- * Countdown digits share the icon's hit target; nonempty codes preview acceptance until the API exists.
- */
-function AuthVerificationField({
-  inputId,
-  onSendCode,
-  remaining = 0,
-  preview = false,
-  children,
-}: {
-  inputId: string;
-  onSendCode: () => void;
-  remaining?: number;
-  preview?: boolean;
-  children: ReactNode;
-}) {
-  const { t } = useTranslation();
-  const [code, setCode] = useState('');
-  // Temporary presentation state, replaced by server verification when the API is ready.
-  const verified = code.trim().length > 0;
-  const waiting = remaining > 0;
-  const time = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
-  const sendLabel = waiting ? t('auth.sendCodeCooldown', { time }) : t('auth.sendVerificationCode');
-  // Only the available send action pulses; waiting and accepted icons stay still.
-  const sendIcon = (
-    <Icon
-      name={verified ? 'sendCheck' : 'send'}
-      className={styles.sendIcon}
-      pulse={!waiting && !verified ? 'disclosure' : undefined}
-    />
-  );
-  return (
-    <div className={styles.field}>
-      {!preview && (
-        <label className="visually-hidden" htmlFor={inputId}>
-          {t('auth.verificationCode')}
-        </label>
-      )}
-      <div className={styles.verificationRow}>
-        <div className={styles.codeFrame}>
-          <input
-            id={inputId}
-            name="verificationCode"
-            type="text"
-            inputMode="numeric"
-            disabled={preview}
-            autoComplete={preview ? 'off' : 'one-time-code'}
-            autoCapitalize="none"
-            spellCheck={false}
-            placeholder={t('auth.verificationCodePlaceholder')}
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            aria-description={verified ? t('auth.verificationCodeAccepted') : undefined}
-            required
-          />
-          <button
-            type="button"
-            className={`${styles.visibility} ${styles.sendCode}`}
-            onClick={onSendCode}
-            disabled={waiting || preview}
-            aria-label={sendLabel}
-            title={sendLabel}
-            data-code-verified={verified}
-          >
-            {waiting && (
-              <span className={styles.sendCountdown} data-send-countdown aria-hidden="true">
-                {remaining}
-              </span>
-            )}
-            {sendIcon}
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
   );
 }
 
@@ -217,7 +153,7 @@ function AuthSwitchPrompt({
  * initialFocus targets the current heading, and animationActive gates the cow scene.
  * The page supplies an optional real account action; a resolved action enables the welcome pose.
  * Pending actions abort on mode changes or unmount; credentials remain in the form/request only.
- * Account services await an action; verification sending remains a presentation preview.
+ * Registration availability and verification are confirmed by injected server actions.
  */
 export function AuthPanel({
   initialFocus = false,
@@ -225,13 +161,18 @@ export function AuthPanel({
   onBack,
   controls,
   onAuthenticate,
+  onSuccess,
+  onCheckEmail,
+  onSendCode,
+  onVerifyEmail,
 }: {
   initialFocus?: boolean;
   animationActive?: boolean;
   onBack: () => void;
   controls?: ReactNode;
   onAuthenticate?: (request: AuthRequest) => Promise<void>;
-}) {
+  onSuccess?: () => void;
+} & AuthRegistrationActions) {
   const { t } = useTranslation();
   const { notify } = useNotifications();
   const id = useId();
@@ -246,13 +187,41 @@ export function AuthPanel({
   const [welcome, setWelcome] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const pending = useRef<AbortController | undefined>(undefined);
-  const cooldown = useVerificationCooldown();
   const heading = useRef<HTMLHeadingElement>(null);
   const email = useRef<HTMLInputElement>(null);
   const password = useRef<HTMLInputElement>(null);
   const confirmation = useRef<HTMLInputElement>(null);
   const interacted = useRef(new Set<AuthField>());
   const fields = useRef<HTMLDivElement>(null);
+  const {
+    availability,
+    emailFeedback,
+    sendingCode,
+    verifyingCode,
+    code,
+    verified,
+    codeError,
+    remaining,
+    warning,
+    setWarning,
+    abortRegistration,
+    markDuplicateEmail,
+    registrationWarning,
+    checkEmailAvailability: checkRegistrationEmail,
+    sendVerificationCode,
+    verifyCode,
+    editCode,
+    completeVerification,
+    rejectVerification,
+    isSendingCode,
+    verifyOnBlur,
+  } = useAuthRegistration({
+    getEmail: () => email.current?.value,
+    isSubmitting: () => Boolean(pending.current),
+    onCheckEmail,
+    onSendCode,
+    onVerifyEmail,
+  });
   const titleId = `${id}-title`;
 
   useEffect(() => {
@@ -277,6 +246,7 @@ export function AuthPanel({
   const changeMode = (nextMode: AuthMode) => {
     if (nextMode === mode) return;
     slide.start(nextMode, readFormSnapshot());
+    abortRegistration();
     pending.current?.abort();
     pending.current = undefined;
     setSubmitting(false);
@@ -285,6 +255,15 @@ export function AuthPanel({
     setShowPassword(false);
     setChecks({ email: null, password: null, confirmation: null });
     interacted.current.clear();
+  };
+
+  const leave = () => {
+    abortRegistration();
+    pending.current?.abort();
+    pending.current = undefined;
+    setSubmitting(false);
+    setWelcome(false);
+    onBack();
   };
 
   const inputRefs = { email, password, confirmation };
@@ -312,13 +291,21 @@ export function AuthPanel({
     return check === 'valid';
   };
 
-  const validationAttributes = (field: AuthField) => ({
-    'aria-describedby': checks[field] ? `${id}-${field}-status` : undefined,
-    'aria-invalid': checks[field] && checks[field] !== 'valid' ? true : undefined,
-  });
+  const currentCheck = (field: AuthField) =>
+    field === 'email' && mode === 'register' ? (emailFeedback ?? checks.email) : checks[field];
+
+  const validationAttributes = (field: AuthField) => {
+    const check = currentCheck(field);
+    return {
+      'aria-describedby': check ? `${id}-${field}-status` : undefined,
+      'aria-invalid': check && check !== 'valid' && check !== 'emailChecking' ? true : undefined,
+    };
+  };
 
   const editField = (field: AuthField) => {
+    setWelcome(false);
     interacted.current.add(field);
+    if (field === 'email') abortRegistration();
     inputRefs[field].current?.setCustomValidity('');
     if (field === 'password') confirmation.current?.setCustomValidity('');
     setChecks((previous) => ({
@@ -328,21 +315,22 @@ export function AuthPanel({
     }));
   };
 
-  const sendVerificationCode = () => {
-    checkField('email', true);
-    if (!email.current?.reportValidity()) return;
-    if (!cooldown.start()) return;
-    // Requested sent-state preview; delivery still awaits a server endpoint.
-    notify({
-      kind: 'success',
-      icon: 'send',
-      message: `${t('auth.verificationCodeSent')} ${t('auth.verificationCodeValidity')}`,
-    });
+  const checkEmailAvailability = () => {
+    if (!checkField('email') || mode !== 'register') return;
+    return checkRegistrationEmail();
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (pending.current) return;
+    if (mode === 'register') {
+      const blocked = registrationWarning();
+      if (blocked) {
+        setWarning(blocked);
+        return;
+      }
+      if (isSendingCode()) return;
+    }
     const activeFields: AuthField[] =
       mode === 'register'
         ? ['email', 'password', 'confirmation']
@@ -355,21 +343,31 @@ export function AuthPanel({
       return;
     }
     if (!onAuthenticate || mode === 'forgot') {
-      notify({ kind: 'warning', message: t('auth.serviceUnavailable') });
+      if (mode === 'register') setWarning('auth.serviceUnavailable');
+      else notify({ kind: 'warning', message: t('auth.serviceUnavailable') });
       return;
     }
+    const submittedFields = new FormData(event.currentTarget);
     const controller = new AbortController();
     pending.current = controller;
     setSubmitting(true);
     try {
+      if (mode === 'register' && !(await verifyCode(controller.signal))) return;
+      if (pending.current !== controller || controller.signal.aborted) return;
       await onAuthenticate({
         mode,
-        fields: new FormData(event.currentTarget),
+        fields: submittedFields,
         signal: controller.signal,
       });
       if (pending.current !== controller || controller.signal.aborted) return;
+      if (password.current) password.current.value = '';
+      if (confirmation.current) confirmation.current.value = '';
+      setShowPassword(false);
+      setChecks((previous) => ({ ...previous, password: null, confirmation: null }));
+      if (mode === 'register') completeVerification();
       setWelcome(true);
       notify({ kind: 'success', message: t('auth.welcome') });
+      onSuccess?.();
     } catch (error) {
       if (
         pending.current !== controller ||
@@ -377,8 +375,13 @@ export function AuthPanel({
         isNotificationCancellation(error)
       )
         return;
-      const failure = notificationFailure(error);
-      notify({ kind: failure.kind, message: t(failure.message) });
+      const failure = authFailure(error);
+      if (failure.message === 'auth.emailExists') {
+        markDuplicateEmail(String(submittedFields.get('email') ?? ''));
+        setWarning(failure.message);
+      } else if (failure.message === 'auth.verificationRequired') {
+        rejectVerification(failure.message);
+      } else notify({ kind: failure.kind, message: t(failure.message) });
     } finally {
       if (pending.current === controller) {
         pending.current = undefined;
@@ -404,6 +407,17 @@ export function AuthPanel({
         className={styles.submit}
         disabled={preview || submitting}
         aria-busy={submitting}
+        aria-disabled={
+          mode === 'register' && (availability !== 'available' || sendingCode || submitting)
+        }
+        onClick={(event) => {
+          if (mode !== 'register' || preview) return;
+          const blocked = registrationWarning();
+          if (blocked) {
+            event.preventDefault();
+            setWarning(blocked);
+          }
+        }}
       >
         <svg
           className={styles.submitStripes}
@@ -468,15 +482,24 @@ export function AuthPanel({
                   <FieldLabel data-field-label htmlFor={emailId}>
                     {t('auth.email')}
                   </FieldLabel>
-                  <AuthFieldCheck id={`${id}-email-status`} check={preview ? null : checks.email} />
+                  <AuthFieldCheck
+                    id={`${id}-email-status`}
+                    check={preview ? null : currentCheck('email')}
+                  />
                 </div>
-                <AuthInputFrame icon="envelope" onMouseLeave={() => checkField('email')}>
+                <AuthInputFrame icon="envelope" onMouseLeave={() => void checkEmailAvailability()}>
                   <input
                     disabled={preview}
+                    readOnly={submitting}
                     {...viewValidation('email')}
+                    aria-description={
+                      mode === 'register' && availability === 'checking'
+                        ? t('auth.emailChecking')
+                        : undefined
+                    }
                     onFocus={() => interacted.current.add('email')}
                     onChange={() => editField('email')}
-                    onBlur={() => checkField('email')}
+                    onBlur={() => void checkEmailAvailability()}
                     onInvalid={() => checkField('email', true)}
                     ref={preview ? null : email}
                     id={emailId}
@@ -487,6 +510,7 @@ export function AuthPanel({
                     autoCapitalize="none"
                     spellCheck={false}
                     placeholder={t('auth.emailPlaceholder')}
+                    maxLength={254}
                     required
                   />
                 </AuthInputFrame>
@@ -523,6 +547,7 @@ export function AuthPanel({
                       >
                         <input
                           disabled={preview}
+                          readOnly={submitting}
                           {...viewValidation('password')}
                           onFocus={() => interacted.current.add('password')}
                           onChange={() => editField('password')}
@@ -538,11 +563,13 @@ export function AuthPanel({
                           }
                           placeholder={mode === 'register' ? t('auth.passwordHint') : undefined}
                           minLength={mode === 'register' ? 8 : undefined}
+                          maxLength={1024}
                           required
                         />
                         <button
                           type="button"
                           className={styles.visibility}
+                          disabled={preview || submitting}
                           aria-label={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
                           aria-controls={
                             mode === 'register' ? `${passwordId} ${confirmationId}` : passwordId
@@ -567,6 +594,7 @@ export function AuthPanel({
                         <AuthInputFrame icon="lock" onMouseLeave={() => checkField('confirmation')}>
                           <input
                             disabled={preview}
+                            readOnly={submitting}
                             {...viewValidation('confirmation')}
                             onFocus={() => interacted.current.add('confirmation')}
                             onChange={() => editField('confirmation')}
@@ -579,6 +607,7 @@ export function AuthPanel({
                             autoComplete="new-password"
                             aria-description={t('auth.passwordHint')}
                             minLength={8}
+                            maxLength={1024}
                             required
                           />
                         </AuthInputFrame>
@@ -591,8 +620,16 @@ export function AuthPanel({
               {mode === 'register' && (
                 <AuthVerificationField
                   inputId={verificationId}
-                  onSendCode={sendVerificationCode}
-                  remaining={cooldown.remaining}
+                  code={code}
+                  verified={verified}
+                  checking={verifyingCode}
+                  error={codeError}
+                  onCodeChange={editCode}
+                  onVerify={verifyOnBlur}
+                  onSendCode={() => void sendVerificationCode()}
+                  locked={availability !== 'available'}
+                  busy={sendingCode || submitting}
+                  remaining={remaining}
                   preview={preview}
                 >
                   {submitButton}
@@ -611,8 +648,18 @@ export function AuthPanel({
 
   return (
     <section className={styles.panel} aria-labelledby={titleId} data-auth-panel>
+      {warning && (
+        <Suspense fallback={null}>
+          <WarningModal
+            title={t('auth.warningTitle')}
+            message={t(warning)}
+            closeLabel={t('auth.closeWarning')}
+            onClose={() => setWarning(null)}
+          />
+        </Suspense>
+      )}
       <div className={styles.toolbar}>
-        <button type="button" className={styles.back} onClick={onBack}>
+        <button type="button" className={styles.back} onClick={leave}>
           <Icon name="doorOpenOutline" className={styles.backIcon} pulse="chat" />
           {t('auth.backToPortfolio')}
         </button>

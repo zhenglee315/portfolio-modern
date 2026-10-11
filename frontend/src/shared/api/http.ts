@@ -38,12 +38,20 @@ export function retryRead(failureCount: number, error: unknown) {
   );
 }
 
-type RequestOptions = { signal?: AbortSignal; baseUrl?: string; timeoutMs?: number };
+type RequestOptions = {
+  signal?: AbortSignal;
+  baseUrl?: string;
+  timeoutMs?: number;
+  method?: 'GET' | 'POST';
+  json?: unknown;
+  credentials?: RequestCredentials;
+  cache?: RequestCache;
+};
 
-/** Read and validate unknown JSON before returning cacheable domain data.
- * @param path Public endpoint path with its query string.
+/** Send one request and validate unknown JSON before returning domain data.
+ * @param path Endpoint path with its query string.
  * @param schema Domain contract; optional fields retain backend null semantics.
- * @param options Query cancellation, server-only build base URL and timeout policy.
+ * @param options Cancellation, origin, timeout and optional JSON/session transport.
  * @throws ApiError for classified failures; caller cancellation remains AbortError.
  */
 export async function requestJson<T>(
@@ -60,7 +68,14 @@ export async function requestJson<T>(
   try {
     const response = await fetch(`${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
       signal,
-      headers: { Accept: 'application/json' },
+      method: options.method ?? 'GET',
+      headers: {
+        Accept: 'application/json',
+        ...(options.json !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: options.json !== undefined ? JSON.stringify(options.json) : undefined,
+      credentials: options.credentials,
+      cache: options.cache,
     });
     const body = await response.text();
     let parsed: unknown;

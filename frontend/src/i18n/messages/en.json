@@ -44,7 +44,7 @@
     "fieldValid": "Looks good",
     "verificationCode": "Verification code",
     "verificationCodePlaceholder": "Code",
-    "verificationCodeAccepted": "Verification code accepted (preview).",
+    "verificationCodeAccepted": "Verification code accepted.",
     "sendVerificationCode": "Send code",
     "sendCodeCooldown": "Send code available in {{time}}",
     "verificationCodeSent": "Verification code sent.",
@@ -64,8 +64,25 @@
     "hasAccount": "Already have an account?",
     "rememberPassword": "Remember your password?",
     "serviceUnavailable": "Account services are not open yet. Your details have not been sent.",
+    "invalidCredentials": "Unable to sign in. Check your email and password, or contact the administrator if your account is disabled.",
+    "tooManyAttempts": "Too many sign-in attempts. Please wait a minute before trying again.",
+    "temporarilyUnavailable": "Account services are temporarily unavailable. Please try again later.",
+    "invalidInput": "Check your email and password format before trying again.",
     "welcome": "Welcome!",
-    "verificationCodeValidity": "The code is valid for 5 minutes."
+    "signedOut": "You have signed out.",
+    "verificationCodeValidity": "The code is valid for 5 minutes.",
+    "emailExists": "Email already exists and cannot be used",
+    "emailChecking": "Checking email…",
+    "emailCheckFailed": "Unable to check email",
+    "emailCheckRequired": "Leave the email field to check availability first.",
+    "warningTitle": "Unable to continue",
+    "closeWarning": "Close",
+    "verificationCodeInvalid": "The verification code is incorrect or has expired.",
+    "verificationRequired": "Request a code and verify your email before registering.",
+    "verificationExpired": "The verification code has expired. Request a new code.",
+    "verificationChecking": "Checking code…",
+    "codeRequestTooFrequent": "Please wait before requesting another verification code.",
+    "registrationUnavailable": "Registration is temporarily unavailable. Please try again later."
   },
   "ui": {
     "skip": "Skip to content",
@@ -194,6 +211,7 @@
     "onlineVisitorsUnavailable": "Online count unavailable.",
     "onlineVisitorsNow": "People online now: {{count}}",
     "signIn": "Sign in",
+    "signOut": "Sign out",
     "adminSignIn": "Admin sign in"
   },
   "notifications": {

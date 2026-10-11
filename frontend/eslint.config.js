@@ -53,8 +53,8 @@ const zones = [
     {
       target: upperLayers,
       from: `./src/features/${feature}`,
-      except: ['./index.ts'],
-      message: 'Import the feature public index instead of its internal implementation.',
+      except: feature === 'auth' ? ['./index.ts', './session.ts'] : ['./index.ts'],
+      message: 'Import a feature public entry instead of its internal implementation.',
     },
   ]),
 ];

@@ -44,7 +44,7 @@
     "fieldValid": "格式正确",
     "verificationCode": "验证码",
     "verificationCodePlaceholder": "验证码",
-    "verificationCodeAccepted": "验证码已通过（暂时模拟）。",
+    "verificationCodeAccepted": "验证码已通过。",
     "sendVerificationCode": "发送验证码",
     "sendCodeCooldown": "{{time}} 后可再次发送验证码",
     "verificationCodeSent": "验证码已发送。",
@@ -64,8 +64,25 @@
     "hasAccount": "已有账户？",
     "rememberPassword": "想起密码了？",
     "serviceUnavailable": "账户服务尚未开放，你填写的资料未发送。",
+    "invalidCredentials": "无法登录，请确认电子邮件与密码；若账户已停用，请联系管理员。",
+    "tooManyAttempts": "登录尝试次数过多，请稍候一分钟再试。",
+    "temporarilyUnavailable": "账户服务暂时无法使用，请稍后再试。",
+    "invalidInput": "请确认电子邮件与密码格式后再试。",
     "welcome": "欢迎！",
-    "verificationCodeValidity": "验证码有效时间为 5 分钟。"
+    "signedOut": "已登出。",
+    "verificationCodeValidity": "验证码有效时间为 5 分钟。",
+    "emailExists": "email已存在无法使用",
+    "emailChecking": "正在检查电子邮件…",
+    "emailCheckFailed": "无法检查电子邮件",
+    "emailCheckRequired": "请先离开电子邮件字段，完成是否可用的检查。",
+    "warningTitle": "无法继续",
+    "closeWarning": "关闭",
+    "verificationCodeInvalid": "验证码不正确或已过期。",
+    "verificationRequired": "请先获取验证码并完成电子邮件验证，再注册。",
+    "verificationExpired": "验证码已过期，请重新获取验证码。",
+    "verificationChecking": "正在验证…",
+    "codeRequestTooFrequent": "请稍后再获取新的验证码。",
+    "registrationUnavailable": "注册服务暂时无法使用，请稍后再试。"
   },
   "ui": {
     "skip": "跳至主要内容",
@@ -194,6 +211,7 @@
     "onlineVisitorsUnavailable": "暂时无法读取在线人数。",
     "onlineVisitorsNow": "当前在线人数：{{count}}",
     "signIn": "登录",
+    "signOut": "退出登录",
     "adminSignIn": "登录管理员"
   },
   "notifications": {

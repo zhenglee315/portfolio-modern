@@ -355,13 +355,13 @@
   filter: drop-shadow(0 0 3px var(--glow-medium));
 }
 /* The seconds sit above a full-size muted icon while the same hit target is disabled. */
-.sendCode:disabled {
+.sendCode:is(:disabled, [aria-disabled='true']) {
   flex-direction: column;
   gap: 2px;
   color: var(--muted);
   cursor: default;
 }
-.sendCode:disabled .sendIcon {
+.sendCode:is(:disabled, [aria-disabled='true']) .sendIcon {
   opacity: 0.45;
 }
 .sendCountdown {
@@ -377,7 +377,11 @@
   line-height: 1.5;
   white-space: nowrap;
 }
-.hint[data-field-status='passwordMismatchShort'] {
+.hint:is(
+  [data-field-status='passwordMismatchShort'],
+  [data-field-status='emailExists'],
+  [data-field-status='emailCheckFailed']
+) {
   color: var(--field-error);
 }
 .submit {
@@ -534,4 +538,15 @@
   .field input {
     font-size: 16px;
   }
+}
+
+/* Guarded actions keep their hit target available for the warning dialog. */
+.submit[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.hint[data-field-status='emailExists'] {
+  flex-shrink: 1;
+  text-align: right;
+  white-space: normal;
 }

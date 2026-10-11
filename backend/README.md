@@ -4,9 +4,9 @@
 
 This directory contains the FastAPI backend for the personal profile system. `APPs` holds business APIs, `COMMON` holds shared tools, and `SYSTEM` owns configuration, models, the database, middleware, and the application lifecycle. See the [project README](../README.md) for the product overview.
 
-目前已完成六支 Portfolio 讀取 API、線上人數診斷 API、SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及初版 Alembic migration。登入、管理後台與寫入 API 尚未實作。
+目前已完成六支 Portfolio 讀取 API、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。管理後台與 Portfolio 寫入 API 尚未實作。
 
-Six Portfolio read APIs and an online-count diagnostic API are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and an initial Alembic migration. Login, administration, and write APIs are not implemented yet.
+Six Portfolio read APIs, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Administration and Portfolio write APIs are not implemented yet.
 
 ## 目錄結構 / Directory Layout
 
@@ -17,6 +17,10 @@ The tree shows the main files and directories currently present; package markers
 ```text
 backend/
 ├── APPs/
+│   ├── Auth/
+│   │   ├── views_auth.py         # Auth CBV routes and private responses
+│   │   ├── module/              # Sign-in, sign-out, registration and session logic
+│   │   └── schema/              # Request validation and account responses
 │   ├── Portfolio/
 │   │   ├── views_portfolio.py    # Six public CBV GET routes
 │   │   ├── module/               # ORM-backed business queries
@@ -67,11 +71,31 @@ Public content follows the flow below. The Portfolio CBV routes share one `FastA
 ```text
 HTTP request
   → SYSTEM/middleware
-  → APPs/{Portfolio,Sys}/views
+  → APPs/{Auth,Portfolio,Sys}/views
   → schema/parser → module → ORM or Redis helper
   → SYSTEM/database/ConnectionManager → SQLite/PostgreSQL or Redis
   → schema/resp → JSON response
 ```
+
+`GET /authority/session` 以伺服器 SESSION 的帳號 ID 查詢啟用中的帳號與角色，回傳 `id`、`email`、`role` 及六個 CRUD／管理權限；訪客或失效帳號回傳 `null`，儲存服務錯誤回傳 `503`。查詢會更新 SESSION 中的身份與權限，保留原 SID 及尚未完成的註冊驗證。Auth 回應使用 `Cache-Control: no-store`；前端可在重新整理後恢復身份，無須儲存密碼。
+
+`GET /authority/session` resolves the server session's account ID against an active account and role, returning `id`, `email`, `role`, and six CRUD/management permissions. Guests and invalid accounts receive `null`; storage failures return `503`. Lookup refreshes session identity and permissions while retaining the SID and pending registration proof. Auth responses use `Cache-Control: no-store`, allowing the frontend to restore identity after reload without storing passwords.
+
+`POST /authority/sign-out` 不需要 body，使用目前的 session cookie，先刪除 System Redis 中的 SESSION，再清除所有欄位並使 cookie 過期。成功回傳 `200 {"signed_out": true}`，訪客或重複登出也回成功。後續 SESSION 查詢回傳 `null`；同一帳號的其他瀏覽器 session 不受影響。
+
+`POST /authority/sign-out` requires no body and uses the current session cookie. It removes the session from System Redis, clears all session fields, and expires the incoming cookie. Success returns `200 {"signed_out": true}`, including guests and repeated sign-out requests. Subsequent session lookup returns `null`; other browser sessions for the account remain active.
+
+Auth 的查詢與寫入統一使用 `SqlAlchemyExecAsync.execute_orm(stmt)`，由共用工具管理資料庫 session、提交與回滾。註冊使用單一 `INSERT … SELECT … RETURNING`，在同一 statement 鎖定並套用啟用中的預設角色，同時取得新帳號 ID 與角色權限。外部注入 `manage_transaction=False` 時仍由呼叫端管理交易。
+
+Auth queries and writes use `SqlAlchemyExecAsync.execute_orm(stmt)` for shared database-session, commit, and rollback handling. Registration uses one `INSERT … SELECT … RETURNING` statement to lock and apply the active default role while returning the new account ID and role permissions. Injected `manage_transaction=False` sessions retain caller-owned transactions.
+
+`AuthUser.set_password()` 與 `get_password()` 是 async 方法，module 直接使用 `await account.set_password(password)` 與 `await account.get_password(password)`。Model 將 Argon2 計算交給工作執行緒，共用最多四個同時執行的限制；ORM 欄位仍在事件迴圈讀寫。密碼至少八個字元，`get_password()` 回傳驗證結果，不會回傳密碼。
+
+`AuthUser.set_password()` and `get_password()` are async methods, called directly with `await account.set_password(password)` and `await account.get_password(password)`. The model runs Argon2 calculations on workers with a shared limit of four concurrent operations, while ORM attributes remain on the event loop. Passwords require at least eight characters; `get_password()` returns a verification result, never a password.
+
+Auth 快取操作統一透過 `RedisAsync`。發碼、驗證、註冊憑證的占用／釋放／清理使用共用 `transaction()`，業務判斷留在 Python callback，由工具管理 WATCH／MULTI／EXEC 與有限重試。驗證資料保留原 JSON 及 raw `verify_<email>` 格式，更新憑證使用 KEEPTTL；登入限流使用 `incr_with_expiry()`，原子遞增並補上首次期限。詳見 [Redis 工具](COMMON/tools/storage/redis/README.md)。
+
+Auth cache operations use `RedisAsync`. Code delivery, verification, and registration-proof ownership use the shared `transaction()` method: Python callbacks retain business decisions while the tool manages WATCH/MULTI/EXEC and bounded retries. Proofs keep their existing JSON and raw `verify_<email>` formats; updates preserve their deadline with KEEPTTL. Sign-in limiting uses `incr_with_expiry()` for atomic increments and initial expiry. See the [Redis tool guide](COMMON/tools/storage/redis/README.md).
 
 Portfolio 的 `site`、`journey` 直接回傳物件或陣列；四種集合 `experiences`、`projects`、`skill-categories`、`skills` 共用五欄位頁碼分頁。沒有統一的外層 `data/meta/revision` 包裝。`is_caching=true` 才會使用 `EnumCache.WEB` 的回應快取；session 與心跳使用 `EnumCache.SYS`。目前所有內容屬於單份 Portfolio，多作者歸屬與隔離尚待資料模型擴充。
 

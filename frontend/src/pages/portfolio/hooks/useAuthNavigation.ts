@@ -112,6 +112,8 @@ export function useAuthNavigation({
     if (!active) return;
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
+      // An open modal owns Escape, including when its outer dialog has initial focus.
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       // Existing menus dismiss themselves first and keep the page available.
       if (document.querySelector('[data-auth-panel] [aria-expanded="true"]')) return;
       event.preventDefault();

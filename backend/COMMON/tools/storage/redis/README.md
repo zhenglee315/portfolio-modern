@@ -1,8 +1,8 @@
 # Redis tools / Redis 工具
 
-`RedisAsync` wraps asynchronous `redis-py` commands for the application's configured Redis clients. It lives in `tools_redis_async.py` and is exported by `__init__.py`. Use it after FastAPI's `lifespan` has called `CONN_MANAGER.init_cache()`. Registration creates clients and pools; it does not check whether the Redis server is reachable.
+`RedisAsync` wraps asynchronous `redis-py` commands for the application's configured Redis clients. It lives in `tools_redis_async.py` and is exported with `RedisUpdate` and `RedisValue` by `__init__.py`. Use it after FastAPI's `lifespan` has called `CONN_MANAGER.init_cache()`. Registration creates clients and pools; it does not check whether the Redis server is reachable.
 
-`RedisAsync` 封裝專案 Redis client 的非同步指令，實作位於 `tools_redis_async.py`，並由 `__init__.py` 匯出。請在 FastAPI 的 `lifespan` 呼叫 `CONN_MANAGER.init_cache()` 後使用。註冊 client 與連線池不代表已確認 Redis 伺服器可連線。
+`RedisAsync` 封裝專案 Redis client 的非同步指令，實作位於 `tools_redis_async.py`，並與 `RedisUpdate`、`RedisValue` 一起由 `__init__.py` 匯出。請在 FastAPI 的 `lifespan` 呼叫 `CONN_MANAGER.init_cache()` 後使用。註冊 client 與連線池不代表已確認 Redis 伺服器可連線。
 
 ## Clients and ownership / Client 與生命週期
 
@@ -26,8 +26,9 @@ All commands below are asynchronous. / 以下方法均為非同步。
 
 | Method / 方法 | 繁體中文 | English |
 | --- | --- | --- |
-| `set(key, value, ex=None, serialize=True)` | 寫入字串 key；`ex` 是有效秒數，預設無期限；成功回傳 `True`。覆蓋 key 也會重設原有 TTL。 | Write a string key with optional expiry seconds; return `True` on success. Replacement resets its TTL. |
+| `set(key, value, ex=None, serialize=True, *, nx=False, xx=False, keepttl=False)` | 寫入字串 key；`ex` 是有效秒數；`nx` 僅新增、`xx` 僅覆蓋，條件未成立回傳 `None`。`keepttl` 保留期限，與 `ex` 互斥。 | Write a string key; NX requires absence and XX requires presence, returning `None` if unmet. KEEPTTL preserves expiry and cannot be combined with `ex`. |
 | `get(key, deserialize=True)` | 讀取字串；不存在回傳 `None`。 | Read a string value; return `None` if missing. |
+| `mget(keys, deserialize=True)` | 依 key 順序讀取字串清單，缺少值為 `None`；空清單回傳 `[]`。 | Read strings in key order, using `None` for missing values; return `[]` for no keys. |
 | `get_by_key(key, method, deserialize=True)` | 讀取 `<key>:<method>` 組合 key；`method` 是後綴，不是 Redis 指令。 | Read the composite `<key>:<method>` key; `method` is a suffix, not a Redis command. |
 | `delete(*keys)` | 刪除多個 key；回傳實際刪除數，沒有傳 key 時回傳 `0`。 | Delete keys and return the number removed; return `0` for no keys. |
 | `hash_set(name, key, value, serialize=True)` | 寫入一個 hash 欄位；新增回傳 `1`，覆蓋回傳 `0`。 | Write one hash field; return `1` if new or `0` if replaced. |
@@ -39,6 +40,7 @@ All commands below are asynchronous. / 以下方法均為非同步。
 | `list_range(key, start=0, end=-1, deserialize=True)` | 讀取串列範圍，不移除元素；`end` 為含尾索引，`-1` 表示最後一項。 | Read a list range without removal; `end` is inclusive and `-1` means the final item. |
 | `list_first(key, deserialize=True)` | 讀取串列第一項，不移除；不存在回傳 `None`。 | Read the first item without removal; return `None` if absent. |
 | `incr(key, amount=1)` | 對原始整數字串做原子遞增；回傳更新後整數。 | Atomically increment a raw integer string; return the updated integer. |
+| `incr_with_expiry(key, ex, amount=1)` | 單一交易中遞增並以 EXPIRE NX 設定首次期限，回傳 `(count, remaining_ttl)`；後續不延長期限，舊無期限 counter 會補上期限；須 Redis 7.0+。 | Increment and assign the first expiry with EXPIRE NX atomically; return `(count, remaining_ttl)`. Preserve existing windows and repair persistent counters; require Redis 7.0+. |
 | `type(key)` | 回傳 `string`、`list`、`none` 等 Redis 類型名稱。 | Return a Redis type name such as `string`, `list`, or `none`. |
 | `ttl(key)` | 回傳剩餘秒數；`-1` 表示無期限，`-2` 表示不存在。 | Return remaining seconds; `-1` means no expiry and `-2` means missing. |
 | `expire(key, ex)` | 設定有效秒數；key 不存在回傳 `False`，`ex <= 0` 會刪除既有 key。 | Set expiry seconds; return `False` if missing. Nonpositive `ex` deletes an existing key. |
@@ -48,9 +50,46 @@ All commands below are asynchronous. / 以下方法均為非同步。
 | `keys(pattern="*")` | 透過 Redis `KEYS` 一次取回所有符合的 key。 | Fetch all matching keys using Redis `KEYS`. |
 | `flush()` | 執行 `FLUSHDB`，清除該 client 所選邏輯資料庫的**所有 key**，回傳 Redis 結果。 | Run `FLUSHDB` and remove **every key** in the client's selected logical database; return the Redis result. |
 | `pipeline()` | 取得 Redis 交易式 pipeline；須自行呼叫 `execute()`。 | Get a transactional Redis pipeline; the caller must call `execute()`. |
+| `transaction(keys, updater, *, serialize=True, deserialize=True, max_attempts=16)` | 傳入監看 key 與同步更新函數；工具封裝快照、驗證、原子寫入及有限次數衝突重試。 | Apply a synchronous update plan to watched strings; handle snapshots, atomic writes, and bounded conflict retries. |
 | `expire_stat(match="*")` | 掃描 key、逐一讀取 TTL；回傳 `avg`、`max`、`min` 及 `overview`。沒有具期限的 key 時統計值為 `None`。 | Scan keys and query each TTL; return `avg`, `max`, `min`, and `overview`. Aggregate values are `None` if no timed keys exist. |
 | `heartbeat_client(identifier, expire=60, set_key="online_clients", key_prefix="online")` | 將識別值加入 roster set，並更新 `<key_prefix>:<identifier>` 的 TTL；回傳 `employee_id` 與預估 `expiry`。識別值不可空，`expire` 須為正數。 | Add an identifier to a roster set and refresh its TTL key; return `employee_id` and estimated `expiry`. Identifier must be nonempty and expiry positive. |
 | `heartbeat_total(set_key="online_clients", key_prefix="online")` | 檢查 roster 中仍有心跳 key 的識別值數量，並清理已過期項目。 | Count roster identifiers whose heartbeat keys still exist, and prune expired entries. |
+
+## Watched updates / 原子更新
+
+`transaction()` watches every declared key, reads their values with MGET, and gives a `dict[key, value]` snapshot to a synchronous `updater`. Return `RedisUpdate(result=..., writes={key: RedisValue(...)}, deletes=(...))`; the tool owns WATCH/MULTI/EXEC and returns `result` only after successful execution. A plan with no writes or deletes still validates the snapshot before returning. Other requests changing or expiring watched keys cause a fresh snapshot and another updater call, up to `max_attempts`; exhaustion raises `WatchError`. Other exceptions propagate without retry.
+
+`transaction()` 監看全部宣告的 key，以 MGET 讀值並傳入 `dict[key, value]` 快照給同步 `updater`。回傳 `RedisUpdate(result=..., writes={key: RedisValue(...)}, deletes=(...))`；工具統一處理 WATCH/MULTI/EXEC，成功後才回傳 `result`。沒有寫入或刪除的計畫也會驗證快照。監看的 key 被其他請求修改或到期時，重新讀取並呼叫 updater，最多 `max_attempts` 次；耗盡次數會拋出 `WatchError`，其他例外不重試。
+
+- An updater must be repeatable and perform no I/O or external side effects. Keep database operations, mail delivery, and SESSION changes outside it. / updater 必須可重跑，不可執行 I/O 或產生外部副作用；資料庫操作、寄信與 SESSION 變更應寫在交易之外。
+- Only declared string keys may be changed, and a key cannot be both written and deleted. All write values are serialized and encoded before commands are queued. Each `RedisValue` accepts a positive `ex` or `keepttl=True`, never both. KEEPTTL updates the value without extending its existing deadline; a new key has no existing expiry to preserve. / 只能變更已宣告的字串 key，同一 key 不可同時寫入與刪除。工具在指令入隊前完成所有值的序列化與編碼。`RedisValue` 可設定正數 `ex` 或 `keepttl=True`，兩者互斥；KEEPTTL 不會延長既有期限，新 key 沒有期限可保留。
+- This API handles string-value updates and deletes. Use `serialize=False, deserialize=False` for plain Redis values or JSON; defaults use the wrapper's pickle format. Every key used to decide the update must be declared, including ownership markers. / 此介面處理字串值更新與刪除。一般 Redis 值或 JSON 請設定 `serialize=False, deserialize=False`，預設使用工具的 pickle 格式；決定更新的全部 key 都必須宣告，包含歸屬標記。
+- The tool releases its operation's pipeline but never closes the configured or injected client. WATCH is optimistic concurrency control, and retries under contention add Redis round trips. Redis runtime errors do not roll back successful commands in the same EXEC. / 工具釋放該次操作的 pipeline，不關閉共用或注入的 client。WATCH 使用樂觀併發控制，競爭重試會增加 Redis 往返次數；同一 EXEC 中的執行期錯誤不會回滾其他已成功指令。
+
+```python
+from COMMON.tools.storage.redis import RedisAsync, RedisUpdate, RedisValue
+from SYSTEM.constants import EnumCache
+
+cache = RedisAsync(key=EnumCache.SYS)
+
+
+def reserve_job(values):
+    if values["job:claim"] is not None:
+        return RedisUpdate(result=False)
+    return RedisUpdate(result=True, writes={"job:claim": RedisValue("worker:1", ex=60)})
+
+
+reserved = await cache.transaction(["job:claim"], reserve_job)
+
+
+def release_job(values):
+    if values["job:claim"] != "worker:1":
+        return RedisUpdate(result=False)
+    return RedisUpdate(result=True, deletes=("job:claim",))
+
+
+released = await cache.transaction(["job:claim"], release_job)
+```
 
 ## Usage / 使用方式
 
@@ -78,6 +117,9 @@ recent = await cache.list_range("recent:visits")
 await cache.set("visits", 0, serialize=False)
 visits = await cache.incr("visits")
 
+# Fixed-window counter; later increments retain the first deadline / 固定期限計數
+requests, remaining_seconds = await cache.incr_with_expiry("requests:peer", ex=60)
+
 # Pipeline uses redis-py commands directly / Pipeline 直接使用 redis-py 指令
 async with (await cache.pipeline()) as pipe:
     pipe.set("status", "ready")
@@ -91,6 +133,7 @@ active_ips = await cache.heartbeat_total()
 
 ## Operational limits / 使用限制
 
+- `incr_with_expiry()` requires Redis 7.0+ for EXPIRE NX. Its INCRBY, EXPIRE NX, and TTL execute in one transaction, avoiding a counter without an expiry when another request arrives. An increment-time error such as WRONGTYPE does not roll back the queued expiry command. / `incr_with_expiry()` 的 EXPIRE NX 須 Redis 7.0+；INCRBY、EXPIRE NX 與 TTL 在同一交易執行，其他請求不會看到新 counter 尚未設定期限的中間狀態。若遞增指令發生 WRONGTYPE 等執行期錯誤，已排入的期限設定不會因此回滾。
 - `HeartbeatMiddleware` refreshes a heartbeat when an HTTP request arrives, using the observed client IP (`0.0.0.0` if no valid address is available). `heartbeat_total()` is an approximate count of **active IP identifiers**, not people or open sessions. NAT can combine visitors and one visitor can use several IPs. The roster set itself has no TTL; `heartbeat_total()` removes stale entries when called. Its read/check/remove steps are not an atomic snapshot, so a concurrent renewal can affect the result. The return field remains named `employee_id` for compatibility even when the identifier is an IP. / `HeartbeatMiddleware` 在收到 HTTP 請求時，以觀察到的訪客 IP 更新心跳；無有效位址時會使用 `0.0.0.0`。`heartbeat_total()` 估計的是**活躍 IP 識別值**，不是人數或開啟的 session 數。共用 IP 會合併訪客，一人也可能使用多個 IP。roster set 本身沒有 TTL；呼叫 `heartbeat_total()` 才清除過期項目。讀取、檢查與刪除不是同一個原子快照，並行更新可能影響結果。即使識別值是 IP，回傳欄位仍為相容舊介面的 `employee_id`。
 - `scan_iter()` and `expire_stat()` accumulate all matches in memory; SCAN may return duplicates and is not a consistent snapshot. `expire_stat()` also performs TTL reads one by one. `keys()` uses one server-side `KEYS` command that can block Redis on a large database. / `scan_iter()` 與 `expire_stat()` 會將符合的 key 收集至記憶體；SCAN 可能重複回傳 key，也不是一致性快照。`expire_stat()` 還會逐一查 TTL。`keys()` 使用單次 `KEYS` 指令，資料量大時可能阻塞 Redis。
 - `flush()` clears the **entire selected logical database**, including session or cache keys belonging to other components. Redis transactions group commands, but execution-time errors do not undo earlier commands in the same transaction. `list_left_pop()` removes items before Python deserialization; a decoding error cannot restore them. / `flush()` 會清除**整個所選邏輯資料庫**，包含其他元件的 session 或快取 key。Redis 交易會集中執行指令，但執行期間的錯誤不會回滾先前成功的指令。`list_left_pop()` 先移除元素再做 Python 解碼；解碼失敗時不會還原元素。

@@ -79,11 +79,11 @@ class FastApiServer:
 if __name__ == "__main__":
     """
     [ORM Command]
-        ●　Initial structure:        alembic init -t async SYSTEM/models/migrations
+        ●　Initial structure:        uv run alembic init -t async SYSTEM/models/migrations
 
-        ●　Initial migration:        alembic revision --autogenerate -m "Initial migration"
+        ●　Initial migration:        uv run alembic revision --autogenerate -m "Initial migration"
 
-        ●　Migrate:                  alembic upgrade head
+        ●　Migrate:                  uv run alembic upgrade head
 
         ●　DuplicateObjectError:     DROP TYPE IF EXISTS "type_name" CASCADE;
     """

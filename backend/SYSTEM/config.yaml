@@ -101,7 +101,7 @@ DATABASE:
   # ----------------------------------( Primary application database )
   META:
     # Database backend; the loader must select its matching async driver.
-    type: sqlite # sqlite, postgresql
+    type: postgresql # sqlite, postgresql
     # Database server address for PostgreSQL; not used by SQLite.
     host: 127.0.0.1
     # Database server port for PostgreSQL; not used by SQLite.
@@ -109,7 +109,7 @@ DATABASE:
     # Select asynchronous database access and a compatible driver.
     is_async: true
     # Database name; SQLite file-path mapping must be defined by the loader.
-    name: porfolio_modern
+    name: portfolio_modern
     # PostgreSQL login name; not used by SQLite.
     user: portfolio
     # PostgreSQL login password; not used by SQLite and must remain private.

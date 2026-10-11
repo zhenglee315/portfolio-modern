@@ -1,4 +1,5 @@
 import { HydrationBoundary } from '@tanstack/react-query';
+import { data } from 'react-router';
 import type { Route } from './+types/home';
 import { defaultLocale, localeSchema, messages } from '@/i18n/config';
 import { PortfolioPage } from '@/pages/portfolio/PortfolioPage';
@@ -16,7 +17,11 @@ export async function loader({ params }: Route.LoaderArgs) {
 
 /** Browser route navigation uses the existing cache and independently recoverable queries. */
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const locale = localeSchema.parse(params.locale ?? defaultLocale);
+  // A static SPA fallback may only carry the root's default-language snapshot.
+  // Validate this URL before public reads so unsupported locales remain a 404.
+  const parsed = localeSchema.safeParse(params.locale ?? defaultLocale);
+  if (!parsed.success) throw data('Page not found.', { status: 404 });
+  const locale = parsed.data;
   const client = getQueryClient();
   await client.prefetchQuery(siteQuery(locale));
   return {

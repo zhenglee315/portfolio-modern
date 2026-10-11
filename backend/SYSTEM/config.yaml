@@ -111,8 +111,8 @@ DATABASE:
     # Database name; SQLite file-path mapping must be defined by the loader.
     name: portfolio_modern
     # PostgreSQL login name; not used by SQLite.
-    user: portfolio
+    user: admin
     # PostgreSQL login password; not used by SQLite and must remain private.
     # SQLite 不使用下列帳密；切換 PostgreSQL 時由私有部署設定替換。
     # SQLite ignores these credentials; replace them in private deployment configuration for PostgreSQL.
-    password: development-only-change-before-production
+    password: Password.123

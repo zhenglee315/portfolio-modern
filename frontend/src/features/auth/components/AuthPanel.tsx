@@ -613,7 +613,7 @@ export function AuthPanel({
     <section className={styles.panel} aria-labelledby={titleId} data-auth-panel>
       <div className={styles.toolbar}>
         <button type="button" className={styles.back} onClick={onBack}>
-          <Icon name="arrowRight" className={styles.backIcon} />
+          <Icon name="doorOpenOutline" className={styles.backIcon} pulse="chat" />
           {t('auth.backToPortfolio')}
         </button>
         {controls && <div className={styles.controls}>{controls}</div>}

@@ -27,7 +27,6 @@
 .backIcon {
   width: 16px;
   height: 16px;
-  transform: rotate(180deg);
 }
 .controls {
   position: relative;

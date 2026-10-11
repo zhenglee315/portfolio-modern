@@ -27,6 +27,7 @@ import arrowUp from 'bootstrap-icons/icons/arrow-up.svg?raw';
 import plusCircle from 'bootstrap-icons/icons/plus-circle-dotted.svg?raw';
 import personHearts from 'bootstrap-icons/icons/person-hearts.svg?raw';
 import doorOpen from 'bootstrap-icons/icons/door-open-fill.svg?raw';
+import doorOpenOutline from 'bootstrap-icons/icons/door-open.svg?raw';
 import repeat from 'bootstrap-icons/icons/repeat.svg?raw';
 import cupHot from 'bootstrap-icons/icons/cup-hot-fill.svg?raw';
 import dpad from 'bootstrap-icons/icons/dpad-fill.svg?raw';
@@ -74,6 +75,7 @@ const icons = {
   plusCircle,
   personHearts,
   doorOpen,
+  doorOpenOutline,
   repeat,
   cupHot,
   dpad,

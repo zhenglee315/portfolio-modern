@@ -1,0 +1,529 @@
+/* Bootstrap owns table/control geometry; semantic tokens adapt every surface to the active palette. */
+.root {
+  container: data-table / inline-size;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  color: var(--text);
+  --table-control-size: 36px;
+  --bs-border-color: var(--border);
+  --bs-body-color: var(--text);
+  --bs-body-bg: var(--panel);
+  --bs-secondary-color: var(--muted);
+  --bs-tertiary-bg: var(--panel2);
+}
+.toolbar,
+.sortOptions,
+.sorting,
+.footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.toolbar {
+  justify-content: space-between;
+  padding-bottom: 12px;
+}
+.toolbarSlot {
+  display: flex;
+  flex: 1 1 300px;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
+}
+.toolbarSlot > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.hint,
+.range {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.hint {
+  flex: 1 1 220px;
+}
+.sortOptions {
+  padding-bottom: 12px;
+}
+.multiSort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--table-control-size);
+  margin: 0;
+  font-size: 12px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.multiSort :global(.form-check-input) {
+  flex-shrink: 0;
+  margin: 0;
+}
+.root :global(.btn),
+.root :global(.form-control),
+.root :global(.form-select) {
+  min-height: var(--table-control-size);
+}
+.root :global(.btn) {
+  min-width: var(--table-control-size);
+}
+.columnPicker {
+  margin-left: 0;
+}
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.exportPicker :global(.dropdown-toggle) {
+  white-space: normal;
+}
+.exportStatus {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.printFrame {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1000px;
+  height: 1000px;
+  border: 0;
+}
+.root :global(.btn-outline-secondary) {
+  --bs-btn-color: var(--text);
+  --bs-btn-border-color: var(--control-border);
+  --bs-btn-hover-color: var(--text);
+  --bs-btn-hover-bg: var(--control-hover);
+  --bs-btn-hover-border-color: var(--accent);
+  --bs-btn-active-color: var(--text);
+  --bs-btn-active-bg: var(--control-hover);
+  --bs-btn-active-border-color: var(--accent);
+  --bs-btn-disabled-color: var(--muted);
+  --bs-btn-disabled-border-color: var(--border);
+}
+.columnPicker :global(.dropdown-toggle) {
+  white-space: normal;
+}
+.columnMenu:global(.dropdown-menu) {
+  --bs-dropdown-bg: var(--panel2);
+  --bs-dropdown-color: var(--text);
+  --bs-dropdown-border-color: var(--border);
+  width: min(280px, 100cqw, calc(100vw - 32px));
+  max-height: min(320px, calc(100dvh - 120px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 16px;
+  box-shadow: 0 10px 30px var(--shadow-medium);
+}
+.columnChoice:global(.form-check) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 0;
+  overflow-wrap: anywhere;
+}
+.columnChoice:global(.form-check) :global(.form-check-input) {
+  float: none;
+  flex-shrink: 0;
+  margin: 0;
+}
+.root :global(.form-check-input) {
+  background-color: var(--panel);
+  border-color: var(--control-border);
+}
+.root :global(.form-check-input:checked) {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+.root :global(.form-select) {
+  color: var(--text);
+  background-color: var(--panel);
+  border-color: var(--control-border);
+}
+.root :global(.form-select:disabled) {
+  color: var(--muted);
+  background-color: var(--panel2);
+}
+.root :global(.form-select:focus),
+.root :global(.form-check-input:focus) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow-low);
+}
+.root :global(.btn:focus-visible),
+.root :global(.page-link:focus-visible),
+.sortButton:focus-visible,
+.scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sorting {
+  padding-bottom: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sortBadge:global(.badge),
+.rank:global(.badge) {
+  background: var(--control-hover);
+  color: var(--accent);
+  border: 1px solid var(--control-border);
+  font-weight: 500;
+}
+.clearSort {
+  margin-left: auto;
+}
+.sortBadge:global(.badge) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  text-align: start;
+}
+/* Horizontal overflow belongs to the table viewport, never to the management page or document. */
+.scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overscroll-behavior-x: contain;
+}
+.table:global(.table) {
+  --bs-table-bg: var(--panel);
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
+  --bs-table-hover-bg: var(--control-hover);
+  --bs-table-hover-color: var(--text);
+  --bs-table-striped-bg: var(--panel2);
+  --bs-table-striped-color: var(--text);
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+  font-size: 13px;
+}
+.table > thead {
+  --bs-table-bg: var(--panel2);
+}
+.table > :global(:not(caption)) > * > * {
+  padding: 14px 16px;
+  text-align: center;
+}
+.table th {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.cell {
+  max-width: 34ch;
+  overflow-wrap: anywhere;
+}
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--table-control-size);
+  min-width: var(--table-control-size);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.sortButton:hover {
+  color: var(--accent);
+}
+.sortButton[aria-disabled='true'] {
+  color: var(--muted);
+  cursor: wait;
+}
+.sortIcon {
+  display: inline-flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 0;
+  color: var(--muted);
+}
+.sortIcon > :global(.icon) {
+  width: 12px;
+  height: 10px;
+  font-size: 12px;
+  line-height: 1;
+}
+.sortIcon .sortSelected {
+  color: var(--accent);
+  filter: drop-shadow(0 0 3px var(--glow-medium));
+}
+.headerContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.columnFilter {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.filterToggle:global(.btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--muted);
+  border: 0;
+  border-radius: 4px;
+}
+.filterToggle:global(.btn)::after {
+  display: none;
+}
+.filterToggle:global(.btn):hover,
+.filterToggle:global(.btn):focus-visible,
+.filterToggle.filterActive {
+  color: var(--accent);
+  background: var(--control-hover);
+}
+/* Portalled Bootstrap menus inherit the palette from document tokens and copy native form theme. */
+.filterMenu:global(.dropdown-menu),
+.exportMenu:global(.dropdown-menu) {
+  --bs-dropdown-bg: var(--panel2);
+  --bs-dropdown-color: var(--text);
+  --bs-dropdown-border-color: var(--border);
+  --bs-dropdown-link-color: var(--text);
+  --bs-dropdown-link-hover-color: var(--text);
+  --bs-dropdown-link-hover-bg: var(--control-hover);
+  --bs-dropdown-link-active-color: var(--text);
+  --bs-dropdown-link-active-bg: var(--control-hover);
+  --bs-dropdown-link-disabled-color: var(--muted);
+  --bs-dropdown-divider-bg: var(--border);
+  width: min(288px, calc(100vw - 16px));
+  max-height: min(400px, calc(100dvh - 16px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  box-shadow: 0 10px 30px var(--shadow-medium);
+}
+.filterMenu :global(.dropdown-item),
+.exportMenu :global(.dropdown-item) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.filterMenu :global(.dropdown-item[aria-disabled='true']) {
+  color: var(--muted);
+  cursor: wait;
+}
+.filterMenu :global(.dropdown-item:focus-visible),
+.exportMenu :global(.dropdown-item:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.exportMenu :global(.dropdown-header) {
+  color: var(--muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.filterChoices {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.filterChoice:global(.form-check) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.filterChoice:global(.form-check):hover,
+.filterChoice:global(.form-check):focus-within {
+  background: var(--control-hover);
+}
+.filterChoice:global(.form-check) :global(.form-check-input) {
+  float: none;
+  flex-shrink: 0;
+  margin: 0;
+  background-color: var(--panel);
+  border-color: var(--control-border);
+}
+.filterChoice:global(.form-check) :global(.form-check-input:checked) {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+.filterChoice:global(.form-check) :global(.form-check-input:focus) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow-low);
+}
+.rank {
+  min-width: 18px;
+  padding: 3px 5px;
+}
+.switch:global(.form-check) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  margin: 0;
+  padding: 0;
+}
+.switch :global(.form-check-input) {
+  float: none;
+  margin: 0;
+  /* CSS gradients keep the Bootstrap knob readable through every semantic palette. */
+  --bs-form-switch-bg: radial-gradient(circle, var(--muted) 0 52%, transparent 54%);
+  background-size: 50% 100%;
+}
+.switch :global(.form-check-input:checked) {
+  --bs-form-switch-bg: radial-gradient(circle, var(--on-accent) 0 52%, transparent 54%);
+}
+.switch :global(.form-check-input:disabled) {
+  opacity: 0.85;
+  cursor: default;
+}
+.actions {
+  white-space: nowrap;
+}
+.actions :global(button),
+.actions :global(a) {
+  min-width: var(--table-control-size);
+  min-height: var(--table-control-size);
+}
+.actions :global(a) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.feedback:empty {
+  display: none;
+}
+.feedback {
+  padding: 20px 16px;
+  color: var(--muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.feedback p {
+  margin: 0;
+}
+.failure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer {
+  justify-content: flex-end;
+  padding-top: 16px;
+}
+.range {
+  margin-right: auto;
+}
+.footer nav {
+  max-width: 100%;
+  min-width: 0;
+}
+.size {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.size select {
+  width: 76px;
+  flex-shrink: 0;
+}
+.pagination:global(.pagination) {
+  --bs-pagination-color: var(--text);
+  --bs-pagination-bg: var(--panel);
+  --bs-pagination-border-color: var(--control-border);
+  --bs-pagination-hover-color: var(--text);
+  --bs-pagination-hover-bg: var(--control-hover);
+  --bs-pagination-hover-border-color: var(--accent);
+  --bs-pagination-focus-color: var(--text);
+  --bs-pagination-focus-bg: var(--control-hover);
+  --bs-pagination-active-color: var(--on-accent);
+  --bs-pagination-active-bg: var(--accent);
+  --bs-pagination-active-border-color: var(--accent);
+  --bs-pagination-disabled-color: var(--muted);
+  --bs-pagination-disabled-bg: var(--panel2);
+  --bs-pagination-disabled-border-color: var(--border);
+  margin: 0;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.pagination :global(.page-link) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--table-control-size);
+  min-height: var(--table-control-size);
+}
+/* Compact presentation follows the allocated panel width, including narrow desktop embeds. */
+@container data-table (max-width: 640px) {
+  .toolbar,
+  .sortOptions,
+  .sorting,
+  .footer,
+  .scroll,
+  .feedback {
+    --table-control-size: 44px;
+  }
+  .toolbarSlot {
+    flex-basis: 100%;
+  }
+  .multiSort {
+    flex-basis: 100%;
+  }
+  .footer {
+    justify-content: space-between;
+  }
+  .range {
+    flex-basis: 100%;
+  }
+  .footer nav {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  .pagination {
+    gap: 6px;
+  }
+  .pagination :global(.page-link) {
+    border-radius: 4px;
+  }
+  .table > :global(:not(caption)) > * > * {
+    padding: 10px 12px;
+  }
+}
+@media (any-pointer: coarse) {
+  .root {
+    --table-control-size: 44px;
+  }
+}

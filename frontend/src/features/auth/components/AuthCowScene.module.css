@@ -58,21 +58,6 @@
   justify-self: end;
   height: var(--control-size);
 }
-.root .control {
-  width: var(--control-size);
-  height: var(--control-size);
-}
-.control {
-  border-color: color-mix(in srgb, var(--control-border) 68%, transparent);
-  background: color-mix(in srgb, var(--control-surface) 30%, transparent);
-  color: var(--muted);
-}
-.control[aria-pressed='true'],
-.control:not([aria-pressed]) {
-  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  background: color-mix(in srgb, var(--control-hover) 72%, transparent);
-  color: var(--accent);
-}
 @media (max-width: 760px) {
   .root {
     display: grid;
@@ -99,10 +84,6 @@
     right: 18px;
     bottom: var(--auth-card-inset, 16px);
     height: auto;
-  }
-  .root .control {
-    width: var(--control-size);
-    height: var(--control-size);
   }
   .stage {
     grid-row: auto;

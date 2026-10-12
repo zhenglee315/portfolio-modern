@@ -1,4 +1,4 @@
-/* Online count, sign-in entry and cow controls share one compact shell and tail. */
+/* Online count and cow controls share one compact shell and tail. */
 .tooltip[role='tooltip'] {
   position: fixed;
   width: max-content;

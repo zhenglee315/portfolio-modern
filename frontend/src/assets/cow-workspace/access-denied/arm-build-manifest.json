@@ -1,0 +1,13 @@
+{
+  "sceneSize": [1254, 1254],
+  "entries": [
+    {
+      "name": "cowArmLeftNoEntry",
+      "source": "rig-source/cowArmLeftNoEntry.png",
+      "placement": [750, 300, 480, 591.0516252390057]
+    }
+  ],
+  "promptsSource": "arm-prompts.json",
+  "grid": 6,
+  "palette": 64
+}

@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { runtimeTest as parityTest, waitForFixtureHydration } from '../fixtures/browser';
+import {
+  dismissStartupThroughAccountMenu,
+  openProjectLanguage,
+  runtimeTest as parityTest,
+  setPublicMotionPreference,
+  waitForFixtureHydration,
+} from '../fixtures/browser';
 import { endpointFixture, siteFixture } from '../fixtures/portfolio';
 
 /** Open the explicit contact surface after hydration without depending on its one-shot offer.
@@ -10,9 +16,7 @@ async function openContact(page: Page) {
   await waitForFixtureHydration(page);
   await expect(page.locator('[data-entering]')).toHaveCount(0);
   // Prioritize an explicit control before clicking contact; startup may settle just after entrance.
-  await page.getByRole('button', { name: 'Background settings' }).click();
-  await expect(page.getByRole('slider', { name: 'Blink frequency' })).toBeFocused();
-  await page.keyboard.press('Escape');
+  await dismissStartupThroughAccountMenu(page);
   const trigger = page.locator('[data-contact-trigger]:visible');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await trigger.click();
@@ -72,20 +76,14 @@ async function expectBareContactTrigger(trigger: Locator) {
 
 /** Establish an exact idle deadline after the controls and lazy contact surface have hydrated.
  * @param page Public page with Playwright's JavaScript clock installed before navigation.
- * @param paused Whether to suspend decoration through its real appearance control.
+ * @param paused Whether to suspend decoration through the retained account-form appearance control.
  * @param keyboard Whether to activate the trigger with keyboard rather than pointer modality.
  * @returns The idle disclosure and its trigger while timeout time remains frozen.
  */
 async function openTimedContact(page: Page, paused = false, keyboard = false) {
   await expect(page.locator('[data-entering]')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Background settings' }).click();
-  await expect(page.getByRole('slider', { name: 'Blink frequency' })).toBeFocused();
-  if (paused) await page.getByRole('button', { name: 'Pause', exact: true }).click();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Background settings' })).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  );
+  if (paused) await setPublicMotionPreference(page, true);
+  await dismissStartupThroughAccountMenu(page);
   const trigger = page.locator('[data-contact-trigger]:visible');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   if (keyboard) {
@@ -162,9 +160,12 @@ parityTest(
         },
       ]);
       await page.goto('/zh-Hant');
-      await page.getByRole('button', { name: '切換語言', exact: true }).click();
+      const language = await openProjectLanguage(page, '切換語言');
+      await language.trigger.click();
       await page.getByRole('button', { name: 'English', exact: true }).click();
       await expect(page).toHaveURL(/\/en(?:#overview)?$/);
+      await language.close.click();
+      await expect(language.dialog).not.toBeVisible();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       const { trigger, bubble } = await openContact(page);
       await expectBareContactTrigger(trigger);
@@ -275,13 +276,12 @@ parityTest(
   },
 );
 
-test('startup contact does not steal appearance-menu focus or dismissal', async ({ page }) => {
+test('startup contact does not steal account-menu focus or dismissal', async ({ page }) => {
   await page.goto('/en');
   await expect(page.locator('[data-contact-bubble]')).toBeVisible();
-  const trigger = page.getByRole('button', { name: 'Background settings' });
+  const trigger = page.getByRole('button', { name: 'Account settings' });
   await trigger.click();
-  await expect(page.getByRole('slider', { name: 'Blink frequency' })).toBeFocused();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Theme', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
 });
@@ -291,9 +291,8 @@ test('contact stays usable when decoration pauses or its optional mascot fails',
 }) => {
   await page.route('**/cow-engineer*.svg', (route) => route.abort());
   await page.goto('/en');
-  await page.getByRole('button', { name: 'Background settings' }).click();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
-  await page.keyboard.press('Escape');
+  await setPublicMotionPreference(page, true);
+  await dismissStartupThroughAccountMenu(page);
   const trigger = page.locator('[data-contact-trigger]:visible');
   // Suspending entrance can finish its automatic offer before the manual interaction.
   if ((await trigger.getAttribute('aria-expanded')) === 'true') {

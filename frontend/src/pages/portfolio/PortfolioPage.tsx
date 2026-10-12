@@ -1,11 +1,13 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { trimPortfolioCache } from '@/app/query-client';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { AppearanceMenu, useAppearance } from '@/features/appearance';
+import { AccountMenu } from '@/features/account-menu';
 import { LanguageMenu } from '@/features/language';
-import { authFailure, useAuthSession, useAuthSignOut } from '@/features/auth/session';
+import { useAccountSession } from '@/features/auth/actions';
 import { OnlineVisitors, useOnlineVisitors } from '@/features/online-visitors';
 import { useLocaleSwitch } from './hooks/useLocaleSwitch';
 import { SkillsSection } from '@/features/skills';
@@ -31,12 +33,12 @@ import {
 import { useSectionDemand } from '@/shared/hooks/useSectionDemand';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
 import { SectionState } from '@/shared/ui/SectionState';
-import { useNotifications } from '@/shared/ui/NotificationProvider';
+import { Breadcrumb } from '@/shared/ui/Breadcrumb';
 import { Navigation } from './components/Navigation';
 import { useSectionNavigation } from './hooks/useSectionNavigation';
 import styles from './PortfolioPage.module.css';
 import { useEntrance } from './hooks/useEntrance';
-import BackgroundField from './components/BackgroundField';
+import BackgroundField from '@/shared/ui/background-field/BackgroundField';
 import { useAuthTransition } from './hooks/useAuthTransition';
 import { useAuthNavigation } from './hooks/useAuthNavigation';
 
@@ -85,20 +87,9 @@ export function PortfolioPage({
 
 /** Compose independent feature boundaries; the page owns cross-domain coordination. */
 function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: string }) {
+  const navigate = useNavigate();
   const { t } = useTranslation();
-  const { notify } = useNotifications();
-  const signOut = useAuthSignOut();
-  const session = useAuthSession({ enabled: !signOut.isPending });
-  const logout = () => {
-    if (signOut.isPending) return;
-    signOut.mutate(undefined, {
-      onSuccess: () => notify({ kind: 'success', message: t('auth.signedOut') }),
-      onError: (error) => {
-        const failure = authFailure(error);
-        notify({ kind: failure.kind, message: t(failure.message) });
-      },
-    });
-  };
+  const { session, signOut, logout } = useAccountSession();
   const root = useRef<HTMLDivElement>(null);
   // Both site surfaces share the actual controls bounds instead of guessing responsive row heights.
   const profileControls = useRef<HTMLDivElement>(null);
@@ -196,6 +187,7 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
         retryLabel={t('ui.retry')}
       >
         <BackgroundField
+          copy={{ unavailable: t('ui.unavailable'), retry: t('ui.retry') }}
           paused={appearance.motionPaused}
           speed={appearance.settings.speed}
           compact={compact}
@@ -220,10 +212,6 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
           compact={compact}
           onCompact={() => setCompact((value) => !value)}
           onNavigate={navigation.navigate}
-          onLogin={authNavigation.enter}
-          signedIn={!!session.data}
-          accountBusy={signOut.isPending || (session.data === undefined && session.isFetching)}
-          onLogout={logout}
         />
       </div>
       <main
@@ -241,6 +229,18 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
           >
             <ProfileOverview
               locale={locale}
+              breadcrumb={
+                site.data && (
+                  <Breadcrumb
+                    label={t('breadcrumb.label')}
+                    items={[
+                      { label: t('breadcrumb.home'), href: `/${locale}#overview`, icon: 'home' },
+                      { label: site.data.user, href: '#overview' },
+                      { label: t('breadcrumb.overview') },
+                    ]}
+                  />
+                )
+              }
               controlsRef={profileControls}
               tenure={tenure}
               summaryPending={journey.data === undefined}
@@ -248,10 +248,14 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
                 <OnlineVisitors data={onlineVisitors.data} failed={onlineVisitors.isError} />
               }
               controls={
-                <>
-                  {localeControl}
-                  <AppearanceMenu onOpen={contact.dismiss} />
-                </>
+                <AccountMenu
+                  account={session.data ?? null}
+                  onOpen={contact.dismiss}
+                  busy={signOut.isPending || (session.data === undefined && session.isFetching)}
+                  onLogin={authNavigation.enter}
+                  onLogout={logout}
+                  onNavigate={(resource) => void navigate(`/${locale}/management/${resource}`)}
+                />
               }
               onExplore={() => navigation.navigate('projects')}
             />

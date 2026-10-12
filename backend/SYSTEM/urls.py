@@ -13,6 +13,8 @@ class PreFix(EnumUtils):
     SYS = "system"
     # -< Url >----------------------------------------------------------【 Authority 】
     AUTH = "authority"
+    # -< Url >----------------------------------------------------------【 Management 】
+    MGR = "management"
 
 
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Tags
@@ -20,12 +22,49 @@ class Tags(Enum):
     # -< Tags >---------------------------------------------------------【 Portfolio 】
     PORTFOLIO = {
         "name": "Portfolio",
-        "description": "Public portfolio content queries for site, journey, experiences, projects, and skills.",
+        "description": (
+            "Deliver published portfolio content to website visitors. Resolve the requested owner's portfolio "
+            "or the default published site, then return content in the selected language.\n\n"
+            "Covers branding, personal introductions, social and contact links, career journeys, "
+            "education and work experience, projects, skill categories, and skills. "
+            "Collection endpoints provide numbered pages for progressive browsing."
+        ),
     }
     # -< Tags >---------------------------------------------------------【 System Diagnostics 】
-    SYS = {"name": "System", "description": "System health, diagnostics, and monitoring endpoints."}
+    SYS = {
+        "name": "System",
+        "description": (
+            "Provide website activity indicators for visitor displays and operational monitoring.\n\n"
+            "Currently exposes an estimated online visitor count based on recent request heartbeats. "
+            "Returns an aggregate count without visitor identities; the estimate represents recent activity "
+            "rather than the number of authenticated accounts or open browser tabs."
+        ),
+    }
     # -< Tags >---------------------------------------------------------【 Authority 】
-    AUTH = {"name": "Authority", "description": "Authentication and authorization endpoints."}
+    AUTH = {
+        "name": "Authority",
+        "description": (
+            "Manage account registration and the browser's authenticated session. Registration checks email "
+            "availability, sends and verifies an email code, and assigns the active default role to the new account.\n\n"
+            "Sign-in verifies account and role availability, authenticates the password, records the successful "
+            "login, and initializes the session. Session lookup restores the current identity and role permissions; "
+            "sign-out clears the current browser session."
+        ),
+    }
+    # -< Tags >---------------------------------------------------------【 Management 】
+    MGR = {
+        "name": "Management",
+        "description": (
+            "Support administration of portfolio publication, account status and role assignments, "
+            "and shared role permissions. Website management concerns each owner's portfolio; "
+            "user management concerns each account; role management concerns each permission set.\n\n"
+            "Provides three administrative lists: portfolios and accounts each use one row per person, while "
+            "roles use one row per permission set. Portfolio rows include the selected-language content and site "
+            "publication settings; account rows include assigned roles and summarized successful sign-ins; "
+            "role rows include permissions and assigned-account counts. Search, state filters, ordered multi-column "
+            "sorting, and numbered pagination support administrative review. Write operations are planned."
+        ),
+    }
 
 
 # ■—< Route >—————————————————————————————————————————————————————————————————————————■ Portfolio
@@ -50,6 +89,14 @@ class RoutePortfolio(EnumUtils):
     # Numbered category skills in one portfolio; locale, ownerType=category, ownerId, page, size=6.
     # Optional site_id selects the portfolio; ownerId selects a category inside that portfolio.
     SKILLS = "/skills"
+
+
+class RouteManagement(EnumUtils):
+    """Management resource paths shared by views and documentation."""
+
+    ROLES = "/roles"
+    USERS = "/users"
+    SITES = "/sites"
 
 
 # ■—< Route >—————————————————————————————————————————————————————————————————————————■ System

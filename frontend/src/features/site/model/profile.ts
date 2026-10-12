@@ -1,7 +1,7 @@
 import type { Site } from '../schemas/site';
 
 /** Keep the original family-first rule only when both name parts are entirely Han. */
-export function fullName(profile: Site['profile']) {
+export function fullName(profile: Pick<Site['profile'], 'firstName' | 'familyName'>) {
   const han = /^\p{Script=Han}+$/u;
   return han.test(profile.firstName) && han.test(profile.familyName)
     ? `${profile.familyName}${profile.firstName}`

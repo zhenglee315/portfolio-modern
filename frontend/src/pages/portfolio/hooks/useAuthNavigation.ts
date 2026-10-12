@@ -132,12 +132,11 @@ export function useAuthNavigation({
       const target =
         saved?.isConnected && saved.getClientRects().length
           ? saved
-          : Array.from(
-              document.querySelectorAll<HTMLElement>(
-                '[data-login-trigger], [aria-controls="mobile-navigation"]',
-              ),
-            ).find((element) => element.getClientRects().length && !element.closest('[inert]'));
-      // Mobile drawer entries disappear; return to the visible menu trigger instead.
+          : [
+              document.querySelector<HTMLElement>('[data-account-menu-trigger]'),
+              document.querySelector<HTMLElement>('[aria-controls="mobile-navigation"]'),
+            ].find((element) => element?.getClientRects().length && !element.closest('[inert]'));
+      // A closed account row returns focus to the visible settings trigger.
       const visible = target?.getClientRects().length
         ? target
         : document.querySelector<HTMLElement>('[aria-controls="mobile-navigation"]');

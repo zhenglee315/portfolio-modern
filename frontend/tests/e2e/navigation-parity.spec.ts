@@ -96,7 +96,7 @@ test('mobile drawer retains the 64px header and 250px panel while trapping and r
       .toBe(true);
   }
   const firstControl = drawer.getByRole('button', { name: 'Close navigation' });
-  const lastControl = drawer.locator('[data-login-trigger]');
+  const lastControl = drawer.getByRole('link', { name: 'Skills', exact: true });
   await drawer.getByRole('link', { name: 'Overview', exact: true }).focus();
   await expect(drawer.getByRole('link', { name: 'Overview', exact: true })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
@@ -150,7 +150,7 @@ test('scrolled socials and startup contact cannot cover mobile navigation hit ta
     await page.setViewportSize({ width, height: 844 });
     await openPortfolio(page);
     const trigger = page.getByRole('button', { name: 'Open navigation' });
-    const settings = page.getByRole('button', { name: 'Background settings' });
+    const settings = page.getByRole('button', { name: 'Account settings' });
     await expect(page.locator('[data-contact-bubble]')).toBeVisible();
     const position = await settings.evaluate((node) => {
       const box = node.getBoundingClientRect();

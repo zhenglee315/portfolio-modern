@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { readdirSync } from 'node:fs';
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier';
@@ -8,17 +9,10 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 const directory = fileURLToPath(new URL('.', import.meta.url));
-const features = [
-  'site',
-  'journey',
-  'experiences',
-  'projects',
-  'skills',
-  'appearance',
-  'language',
-  'online-visitors',
-  'auth',
-];
+// New features participate automatically, rather than silently bypassing an outdated allowlist.
+const features = readdirSync(new URL('./src/features/', import.meta.url), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 const upperLayers = [
   './src/app',
   './src/routes',
@@ -47,13 +41,19 @@ const zones = [
     {
       target: `./src/features/${feature}`,
       from: './src/features',
-      except: [`./${feature}`],
+      except:
+        feature === 'account-menu'
+          ? ['./account-menu', './auth/session.ts', './auth/permissions.ts']
+          : [`./${feature}`],
       message: 'Compose different features in pages instead of importing between features.',
     },
     {
       target: upperLayers,
       from: `./src/features/${feature}`,
-      except: feature === 'auth' ? ['./index.ts', './session.ts'] : ['./index.ts'],
+      except:
+        feature === 'auth'
+          ? ['./index.ts', './session.ts', './permissions.ts', './actions.ts']
+          : ['./index.ts'],
       message: 'Import a feature public entry instead of its internal implementation.',
     },
   ]),
@@ -92,6 +92,8 @@ export default defineConfig(
     },
     rules: {
       'import-x/no-restricted-paths': ['error', { basePath: directory, zones }],
+      'import-x/no-cycle': ['error', { ignoreExternal: true }],
+      'import-x/no-self-import': 'error',
     },
   },
   {

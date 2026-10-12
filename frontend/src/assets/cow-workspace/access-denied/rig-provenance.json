@@ -1,0 +1,28 @@
+{
+  "sceneSize": [1254, 1254],
+  "method": "Independent transparent drawings, alpha-weighted sampling, per-part palette and merged closed rectangles.",
+  "promptsSource": "arm-prompts.json",
+  "prompt": null,
+  "entries": [
+    {
+      "name": "cowArmLeftNoEntry",
+      "source": "rig-source/cowArmLeftNoEntry.png",
+      "placement": [750, 300, 480, 591.0516252390057],
+      "sourceSize": [1122, 1402],
+      "selectedPixels": [56, 71, 1102, 1359],
+      "transparentPixels": 940532,
+      "grid": 6,
+      "paletteColors": 64,
+      "paths": 731,
+      "rectangles": 7592,
+      "sampleColorRmse": 3.4176,
+      "sourceSha256": "1fdcc445eb5e4b6ebbd8982c76f5543f2875b56a534ed556c1ea14fdac3414f1",
+      "drawingBounds": {
+        "x": 750.0,
+        "y": 300.0,
+        "width": 480.0,
+        "height": 591.0517
+      }
+    }
+  ]
+}

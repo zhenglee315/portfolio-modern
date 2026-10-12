@@ -244,7 +244,7 @@ describe('page-owned auth navigation', () => {
     vi.useFakeTimers();
     const targets = render(
       <>
-        <button data-login-trigger>Sign in</button>
+        <button data-account-menu-trigger>Sign in</button>
         <section data-auth-panel>
           <input aria-label="Email" />
         </section>
@@ -275,20 +275,22 @@ describe('page-owned auth navigation', () => {
     expect(focus).not.toHaveBeenCalled();
   });
 
-  it('falls back to the visible mobile menu when a drawer login trigger disappears', () => {
+  it('falls back to the gear when a selected login row becomes hidden', () => {
     vi.useFakeTimers();
     const targets = render(
       <>
-        <button key="drawer" data-login-trigger>
-          Drawer sign in
-        </button>
+        <button key="row">Sign in row</button>
         <button key="mobile" aria-controls="mobile-navigation">
-          Menu
+          Navigation
+        </button>
+        <button key="gear" data-account-menu-trigger>
+          Account settings
         </button>
       </>,
     );
-    const trigger = targets.getByRole('button', { name: 'Drawer sign in' });
-    const menu = targets.getByRole('button', { name: 'Menu' });
+    const trigger = targets.getByRole('button', { name: 'Sign in row' });
+    const menu = targets.getByRole('button', { name: 'Account settings' });
+    visible(targets.getByRole('button', { name: 'Navigation' }));
     visible(trigger);
     visible(menu);
     const transition = callbacks();
@@ -300,11 +302,17 @@ describe('page-owned auth navigation', () => {
     act(view.result.current.enter);
     view.rerender({ active: true });
     targets.rerender(
-      <button key="mobile" aria-controls="mobile-navigation">
-        Menu
-      </button>,
+      <>
+        <button key="mobile" aria-controls="mobile-navigation">
+          Navigation
+        </button>
+        <button key="gear" data-account-menu-trigger>
+          Account settings
+        </button>
+      </>,
     );
-    const remainingMenu = targets.getByRole('button', { name: 'Menu' });
+    const remainingMenu = targets.getByRole('button', { name: 'Account settings' });
+    visible(targets.getByRole('button', { name: 'Navigation' }));
     visible(remainingMenu);
     view.rerender({ active: false });
     act(() => vi.advanceTimersByTime(20));

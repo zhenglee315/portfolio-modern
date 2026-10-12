@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { endpointFixture } from '../fixtures/portfolio';
-import { openClientShell } from '../fixtures/browser';
+import { openClientShell, openProjectLanguage } from '../fixtures/browser';
 
 /** Intercept only public reads; the user's running backend is never stopped or modified. */
 test.beforeEach(async ({ page }) => {
@@ -84,11 +84,14 @@ for (const selection of [
     await expect(projects).toContainText('sam en Project 1');
     await projects.getByRole('button', { name: /Show more projects/ }).click();
     await expect(projects.locator('[data-project-id]')).toHaveCount(12);
-    await page.getByRole('button', { name: 'Change language', exact: true }).click();
+    const { dialog, trigger, close } = await openProjectLanguage(page);
+    await trigger.click();
     await page.getByRole('button', { name: '繁體中文', exact: true }).click();
     await expect(page).toHaveURL(selection.translated);
     await expect(projects.locator('[data-project-id]')).toHaveCount(12);
     await expect(projects).toContainText('sam zh-Hant Project 8');
+    await close.click();
+    await expect(dialog).not.toBeVisible();
     await page.locator('#skills').scrollIntoViewIfNeeded();
     const row = page.locator('[data-category-id="category-0"]');
     await expect(row).toContainText('sam zh-Hant Category 1');

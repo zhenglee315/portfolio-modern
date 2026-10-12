@@ -1,0 +1,44 @@
+/* Keep path navigation quieter than headings and let long public handles wrap on phones. */
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 12px/1.6 var(--mono);
+  color: var(--muted);
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+.link,
+.copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--control-size);
+  overflow-wrap: anywhere;
+}
+.link {
+  color: var(--muted);
+  text-decoration: none;
+}
+.link:is(:hover, :focus-visible) {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.copy[aria-current='page'] {
+  color: var(--text);
+}
+.separator {
+  flex-shrink: 0;
+  color: var(--muted);
+}

@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { runtimeTest as test } from '../fixtures/browser';
+import { openAuthControls, runtimeTest as test } from '../fixtures/browser';
 
 /** Wait for hydrated decoration and the finite entrance before comparing pixels or geometry.
  * @param page Managed fixture page; motion remains enabled so its settled state is real.
@@ -17,21 +17,22 @@ async function openSettledPage(page: Page, path = '/en') {
 
 /** Verify the visible legacy geometry, rather than treating an unclipped page as visual parity. */
 for (const theme of ['mint', 'mist']) {
-  test(`${theme} appearance and language menus preserve legacy controls at every layout breakpoint`, async ({
+  test(`${theme} retained Auth appearance and language menus preserve controls at every layout breakpoint`, async ({
     page,
     context,
+    baseURL,
   }, testInfo) => {
     test.setTimeout(60_000);
     await context.addCookies([
       {
         name: 'portfolio-appearance',
         value: encodeURIComponent(JSON.stringify({ theme })),
-        url: 'http://127.0.0.1:4173',
+        url: baseURL!,
       },
     ]);
     for (const width of [320, 360, 390, 760, 761, 1024, 1150, 1440, 1700, 3840]) {
       await page.setViewportSize({ width, height: width > 2000 ? 2160 : 900 });
-      await openSettledPage(page);
+      await openAuthControls(page);
       const appearance = page.getByRole('button', { name: 'Background settings' });
       await appearance.click();
       const settings = page
@@ -132,7 +133,7 @@ test('a short landscape viewport scrolls appearance controls and still reaches r
   page,
 }) => {
   await page.setViewportSize({ width: 760, height: 390 });
-  await openSettledPage(page);
+  await openAuthControls(page);
   await page.getByRole('button', { name: 'Background settings' }).click();
   const settings = page.locator('.dropdown-menu.show').filter({ has: page.getByRole('slider') });
   await expect(settings).toHaveCSS('overflow-y', 'auto');
@@ -237,40 +238,32 @@ for (const paused of [false, true]) {
   });
 }
 
-/** Explicit controls win over the one-shot introduction, including a pause that finishes entrance. */
-test('opening menus suppresses a later startup offer without disabling manual contact', async ({
+/** Explicit account disclosure wins over the one-shot introduction without adding row actions. */
+test('opening the account menu suppresses a later startup offer without disabling manual contact', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto('/en');
-  const appearance = page.getByRole('button', { name: 'Background settings' });
-  await appearance.click();
-  await expect(page.getByRole('slider').first()).toBeFocused();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-motion-paused', 'true');
+  const account = page.getByRole('button', { name: 'Account settings' });
+  await account.click();
+  await expect(page.getByRole('menuitem', { name: 'Theme', exact: true })).toBeFocused();
   await expect(page.locator('[data-entering]')).toHaveCount(0);
   await expect(page.locator('[data-contact-bubble]')).toHaveCount(0);
-  // Cross the original startup deadline so an already-open control cannot receive a delayed offer.
+  // Cross the original startup deadline so the explicit disclosure receives no delayed offer.
   await page.waitForTimeout(1500);
   await expect(page.locator('[data-contact-bubble]')).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(appearance).toBeFocused();
-  const language = page.getByRole('button', { name: 'Change language' });
-  await language.click();
-  await expect(page.getByRole('button', { name: 'English', exact: true })).toBeFocused();
-  await expect(page.locator('[data-contact-bubble]')).toHaveCount(0);
-  await page.keyboard.press('Escape');
-  await expect(language).toBeFocused();
+  await expect(account).toBeFocused();
   await page.locator('[data-contact-trigger]:visible').click();
   await expect(page.locator('[data-contact-bubble]')).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await appearance.click();
+  await account.click();
   await expect(page.locator('[data-contact-bubble]')).toHaveCount(0);
-  await expect(page.getByRole('slider').first()).toBeFocused();
+  await expect(page.getByRole('menuitem', { name: 'Theme', exact: true })).toBeFocused();
 });
 
-/** Portaled introduction paint must never intercept the fixed-size profile controls underneath it. */
-test('startup contact leaves profile controls on the pointer layer across mobile, tablet and desktop', async ({
+/** Portaled introduction paint must never intercept the surviving profile controls underneath it. */
+test('startup contact leaves the Gear and social links on the pointer layer across layouts', async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -278,9 +271,9 @@ test('startup contact leaves profile controls on the pointer layer across mobile
     await page.setViewportSize({ width, height: 900 });
     await openSettledPage(page);
     await expect(page.locator('[data-contact-bubble]')).toBeVisible();
-    const appearance = page.getByRole('button', { name: 'Background settings' });
-    const language = page.getByRole('button', { name: 'Change language' });
-    for (const control of [appearance, language]) {
+    const account = page.getByRole('button', { name: 'Account settings' });
+    const social = page.locator('[data-profile-controls] a.icon-button').first();
+    for (const control of [account, social]) {
       expect(
         await control.evaluate((button) => {
           const bounds = button.getBoundingClientRect();
@@ -292,14 +285,11 @@ test('startup contact leaves profile controls on the pointer layer across mobile
         }),
       ).toBe(true);
     }
-    await appearance.click();
-    await expect(appearance).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByRole('slider').first()).toBeFocused();
+    await account.click();
+    await expect(account).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('menuitem', { name: 'Theme', exact: true })).toBeFocused();
     await expect(page.locator('[data-contact-bubble]')).toHaveCount(0);
     await page.keyboard.press('Escape');
-    await language.click();
-    await expect(language).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByRole('button', { name: 'English', exact: true })).toBeFocused();
-    await page.keyboard.press('Escape');
+    await expect(account).toBeFocused();
   }
 });

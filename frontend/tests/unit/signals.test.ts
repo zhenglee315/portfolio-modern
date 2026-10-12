@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { signalGeometry } from '@/pages/portfolio/model/signals';
+import { signalGeometry } from '@/shared/lib/background-signals';
 
 it('bounds field allocation independently of a large viewport or invalid dimensions', () => {
   expect(signalGeometry(390, 844).crosses.length).toBeGreaterThan(0);

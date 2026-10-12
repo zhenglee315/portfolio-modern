@@ -16,7 +16,6 @@ import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
 import { cycleDialogTab } from '@/shared/lib/focus';
 import { sections } from '../model/navigation';
 import styles from './Navigation.module.css';
-import { LoginEntry } from './LoginEntry';
 
 type Props = {
   site?: Site;
@@ -28,12 +27,6 @@ type Props = {
   onContact?: (event: MouseEvent<HTMLButtonElement>) => void;
   contactOpen?: boolean;
   onOpen?: () => void;
-  /** Open the page-owned sign-in surface after closing the mobile drawer. */
-  onLogin?: () => void;
-  /** Session-aware account action is shared by the desktop rail and mobile drawer. */
-  signedIn?: boolean;
-  accountBusy?: boolean;
-  onLogout?: () => void;
 };
 
 /** Share configured links and one viewport-clamped tooltip across rail states.
@@ -144,10 +137,6 @@ export function Navigation({
   onContact,
   contactOpen,
   onOpen,
-  onLogin,
-  signedIn,
-  accountBusy,
-  onLogout,
 }: Props) {
   const { t } = useTranslation();
   const mobile = useMediaQuery(mobileQuery);
@@ -194,26 +183,6 @@ export function Navigation({
             © {site.brand.copyrightYear} {fullName(site.profile)}
           </small>
         )}
-        <LoginEntry
-          signedIn={signedIn}
-          busy={accountBusy}
-          onLogout={
-            onLogout
-              ? () => {
-                  setOpen(false);
-                  onLogout();
-                }
-              : undefined
-          }
-          onLogin={
-            onLogin
-              ? () => {
-                  setOpen(false);
-                  onLogin();
-                }
-              : undefined
-          }
-        />
       </div>
     </div>
   );

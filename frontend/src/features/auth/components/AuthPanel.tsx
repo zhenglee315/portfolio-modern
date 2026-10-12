@@ -185,6 +185,7 @@ export function AuthPanel({
     confirmation: null,
   });
   const [welcome, setWelcome] = useState(false);
+  const [denied, setDenied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const pending = useRef<AbortController | undefined>(undefined);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -251,6 +252,7 @@ export function AuthPanel({
     pending.current = undefined;
     setSubmitting(false);
     setWelcome(false);
+    setDenied(false);
     setMode(nextMode);
     setShowPassword(false);
     setChecks({ email: null, password: null, confirmation: null });
@@ -263,6 +265,7 @@ export function AuthPanel({
     pending.current = undefined;
     setSubmitting(false);
     setWelcome(false);
+    setDenied(false);
     onBack();
   };
 
@@ -304,6 +307,15 @@ export function AuthPanel({
 
   const editField = (field: AuthField) => {
     setWelcome(false);
+    if (field === 'email' || field === 'password') {
+      setDenied(false);
+      // A credential edit invalidates a pending login, including adapters that settle after abort.
+      if (mode === 'login' && pending.current) {
+        pending.current.abort();
+        pending.current = undefined;
+        setSubmitting(false);
+      }
+    }
     interacted.current.add(field);
     if (field === 'email') abortRegistration();
     inputRefs[field].current?.setCustomValidity('');
@@ -350,6 +362,7 @@ export function AuthPanel({
     const submittedFields = new FormData(event.currentTarget);
     const controller = new AbortController();
     pending.current = controller;
+    setDenied(false);
     setSubmitting(true);
     try {
       if (mode === 'register' && !(await verifyCode(controller.signal))) return;
@@ -365,6 +378,7 @@ export function AuthPanel({
       setShowPassword(false);
       setChecks((previous) => ({ ...previous, password: null, confirmation: null }));
       if (mode === 'register') completeVerification();
+      setDenied(false);
       setWelcome(true);
       notify({ kind: 'success', message: t('auth.welcome') });
       onSuccess?.();
@@ -376,6 +390,7 @@ export function AuthPanel({
       )
         return;
       const failure = authFailure(error);
+      if (mode === 'login' && failure.message === 'auth.invalidCredentials') setDenied(true);
       if (failure.message === 'auth.emailExists') {
         markDuplicateEmail(String(submittedFields.get('email') ?? ''));
         setWarning(failure.message);
@@ -668,7 +683,12 @@ export function AuthPanel({
 
       <div className={styles.card}>
         <div className={styles.reserved}>
-          <AuthCowScene active={animationActive} pointerOrigin={fields} welcome={welcome} />
+          <AuthCowScene
+            active={animationActive}
+            pointerOrigin={fields}
+            welcome={welcome}
+            denied={denied}
+          />
         </div>
         <div className={styles.content}>
           <AuthModeSwitch

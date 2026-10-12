@@ -1,5 +1,5 @@
 # ◆—< Pack >—————————————————————————————————◆ System
-# from .urls import Tags, PreFix, RouteAuth
+from .urls import Tags
 from .constants import *
 
 # ◆—< Pack >—————————————————————————————————◆ Extension
@@ -142,7 +142,7 @@ FASTAPI_CONF = {
     "redoc_url": None,
     "openapi_url": URL_OPENAPI,
     "openapi_version": "3.1.0",
-    # 'openapi_tags': [i for i in Tags.values() if i['schema'].value],
+    "openapi_tags": [tag.value for tag in Tags],
     # -< Server >------------------------------● Development
     "debug": SVR_DEBUG,
     # "default_response_class": FastApiJSONResponse,  # Custom JSON response

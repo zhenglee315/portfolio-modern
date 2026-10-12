@@ -15,7 +15,7 @@ import {
   useAuthSession,
   useAuthSignOut,
 } from '@/features/auth/session';
-import { LoginEntry } from '@/pages/portfolio/components/LoginEntry';
+import { AccountMenu } from '@/features/account-menu';
 import { siteFixture } from '../fixtures/portfolio';
 
 const clients = new Set<QueryClient>();
@@ -53,18 +53,12 @@ function SessionOverview() {
 }
 
 /** Exercise the real entry, query and mutation together without public-page network requests. */
-function SessionEntry({
-  onLogin,
-  multipleEntries = false,
-}: {
-  onLogin?: () => void;
-  multipleEntries?: boolean;
-}) {
+function SessionEntry({ onLogin }: { onLogin?: () => void }) {
   const signOut = useAuthSignOut();
   const session = useAuthSession({ enabled: !signOut.isPending });
   const entry = (
-    <LoginEntry
-      signedIn={Boolean(session.data)}
+    <AccountMenu
+      account={session.data ?? null}
       busy={signOut.isPending || session.isPending}
       onLogin={onLogin}
       onLogout={() => signOut.mutate()}
@@ -73,11 +67,17 @@ function SessionEntry({
   return (
     <>
       {entry}
-      {multipleEntries && entry}
       <output aria-label="Entry account">{session.data?.email ?? 'Guest'}</output>
       {signOut.isError && <p role="alert">Unable to sign out</p>}
     </>
   );
+}
+
+/** Open the real gear before inspecting or activating its account row. */
+function authEntry(view: ReturnType<typeof render>, name: string) {
+  const trigger = view.getByRole('button', { name: 'Account settings' });
+  if (trigger.getAttribute('aria-expanded') !== 'true') fireEvent.click(trigger);
+  return view.getByRole('menuitem', { name });
 }
 
 /** Render only the localized provider boundary, independently of API features. */
@@ -253,7 +253,7 @@ describe('private account identity boundaries', () => {
     );
     expect(html).toContain(siteFixture.profile.introContent);
     expect(html).toContain('Guest');
-    expect(html).toContain('aria-label="Sign in"');
+    expect(html).toContain('aria-label="Account settings"');
     expect(html).not.toContain('aria-label="Sign out"');
     expect(html).not.toContain('Case.Owner+Portfolio');
     expect(html).not.toContain(account.email);
@@ -301,12 +301,12 @@ describe('private account identity boundaries', () => {
         <SessionEntry onLogin={onLogin} />
       </SessionBoundary>,
     );
-    const entry = view.getByRole('button', { name: 'Sign in' });
-    await waitFor(() => expect(entry).toBeEnabled());
+    const entry = authEntry(view, 'Sign in');
+    await waitFor(() => expect(entry).not.toHaveAttribute('aria-disabled', 'true'));
     expect(entry).toHaveAttribute('data-auth-action', 'sign-in');
     fireEvent.click(entry);
     expect(onLogin).toHaveBeenCalledOnce();
-    expect(view.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    expect(view.queryByRole('menuitem', { name: 'Sign out', hidden: true })).toBeNull();
     expect(fetch).toHaveBeenCalledOnce();
     expect(fetch.mock.calls[0]![0]).toBe('/api/authority/session');
   });
@@ -321,13 +321,14 @@ describe('private account identity boundaries', () => {
         <SessionOverview />
       </SessionBoundary>,
     );
-    await waitFor(() => expect(view.getByRole('button', { name: 'Sign in' })).toBeEnabled());
-    await act(async () => rememberAuthSession(client, account, new AbortController().signal));
-    await waitFor(() => expect(view.getByRole('button', { name: 'Sign out' })).toBeEnabled());
-    expect(view.getByRole('button', { name: 'Sign out' })).toHaveAttribute(
-      'data-auth-action',
-      'sign-out',
+    await waitFor(() =>
+      expect(authEntry(view, 'Sign in')).not.toHaveAttribute('aria-disabled', 'true'),
     );
+    await act(async () => rememberAuthSession(client, account, new AbortController().signal));
+    await waitFor(() =>
+      expect(authEntry(view, 'Sign out')).not.toHaveAttribute('aria-disabled', 'true'),
+    );
+    expect(authEntry(view, 'Sign out')).toHaveAttribute('data-auth-action', 'sign-out');
     expect(view.getByLabelText('Entry account')).toHaveTextContent(account.email);
     expect(view.container.querySelector('.eyebrow')).toHaveTextContent(
       siteFixture.profile.introContent,
@@ -352,9 +353,13 @@ describe('private account identity boundaries', () => {
         <SessionEntry onLogin={vi.fn()} />
       </SessionBoundary>,
     );
-    await waitFor(() => expect(view.getByRole('button', { name: 'Sign out' })).toBeEnabled());
-    fireEvent.click(view.getByRole('button', { name: 'Sign out' }));
-    await waitFor(() => expect(view.getByRole('button', { name: 'Sign in' })).toBeEnabled());
+    await waitFor(() =>
+      expect(authEntry(view, 'Sign out')).not.toHaveAttribute('aria-disabled', 'true'),
+    );
+    fireEvent.click(authEntry(view, 'Sign out'));
+    await waitFor(() =>
+      expect(authEntry(view, 'Sign in')).not.toHaveAttribute('aria-disabled', 'true'),
+    );
     expect(client.getQueryData(authSessionKey)).toBeNull();
     expect(view.getByLabelText('Entry account')).toHaveTextContent('Guest');
     expect(client.getQueryData(siteQuery('en').queryKey)).toEqual(siteFixture);
@@ -370,8 +375,10 @@ describe('private account identity boundaries', () => {
         <SessionEntry onLogin={vi.fn()} />
       </SessionBoundary>,
     );
-    await waitFor(() => expect(refreshed.getByRole('button', { name: 'Sign in' })).toBeEnabled());
-    expect(refreshed.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    await waitFor(() =>
+      expect(authEntry(refreshed, 'Sign in')).not.toHaveAttribute('aria-disabled', 'true'),
+    );
+    expect(refreshed.queryByRole('menuitem', { name: 'Sign out', hidden: true })).toBeNull();
     expect(refreshedClient.getQueryData(authSessionKey)).toBeNull();
     expect(fetch.mock.calls.map(([url]) => url)).toEqual([
       '/api/authority/session',
@@ -380,7 +387,7 @@ describe('private account identity boundaries', () => {
     ]);
   });
 
-  it('shares one pending sign-out request across responsive entries and blocks repeated taps', async () => {
+  it('blocks repeated sign-out taps from the shared gear while the request is pending', async () => {
     let resolveSignOut: (response: Response) => void = () => {};
     const fetch = vi.fn(() => new Promise<Response>((resolve) => (resolveSignOut = resolve)));
     vi.stubGlobal('fetch', fetch);
@@ -389,26 +396,26 @@ describe('private account identity boundaries', () => {
     const onLogin = vi.fn();
     const view = render(
       <SessionBoundary client={client}>
-        <SessionEntry onLogin={onLogin} multipleEntries />
+        <SessionEntry onLogin={onLogin} />
       </SessionBoundary>,
     );
-    const entries = view.getAllByRole('button', { name: 'Sign out' });
+    const entry = authEntry(view, 'Sign out');
     act(() => {
-      fireEvent.click(entries[0]!);
-      fireEvent.click(entries[1]!);
+      fireEvent.click(entry);
+      fireEvent.click(entry);
     });
-    await waitFor(() => entries.forEach((entry) => expect(entry).toBeDisabled()));
+    await waitFor(() =>
+      expect(authEntry(view, 'Sign out')).toHaveAttribute('aria-disabled', 'true'),
+    );
     await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
     expect(view.getByLabelText('Entry account')).toHaveTextContent(account.email);
     expect(client.getQueryData(authSessionKey)).toEqual(account);
-    entries.forEach((entry) => fireEvent.click(entry));
+    fireEvent.click(authEntry(view, 'Sign out'));
     expect(fetch).toHaveBeenCalledOnce();
     expect(onLogin).not.toHaveBeenCalled();
     await act(async () => resolveSignOut(new Response(JSON.stringify({ signed_out: true }))));
     await waitFor(() =>
-      view
-        .getAllByRole('button', { name: 'Sign in' })
-        .forEach((entry) => expect(entry).toBeEnabled()),
+      expect(authEntry(view, 'Sign in')).not.toHaveAttribute('aria-disabled', 'true'),
     );
     expect(client.getQueryData(authSessionKey)).toBeNull();
   });
@@ -428,14 +435,16 @@ describe('private account identity boundaries', () => {
         <SessionEntry onLogin={vi.fn()} />
       </SessionBoundary>,
     );
-    fireEvent.click(view.getByRole('button', { name: 'Sign out' }));
+    fireEvent.click(authEntry(view, 'Sign out'));
     await waitFor(() => expect(view.getByRole('alert')).toHaveTextContent('Unable to sign out'));
-    expect(view.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+    expect(authEntry(view, 'Sign out')).not.toHaveAttribute('aria-disabled', 'true');
     expect(view.getByLabelText('Entry account')).toHaveTextContent(account.email);
     expect(client.getQueryData(authSessionKey)).toEqual(account);
     expect(fetch).toHaveBeenCalledOnce();
-    fireEvent.click(view.getByRole('button', { name: 'Sign out' }));
-    await waitFor(() => expect(view.getByRole('button', { name: 'Sign in' })).toBeEnabled());
+    fireEvent.click(authEntry(view, 'Sign out'));
+    await waitFor(() =>
+      expect(authEntry(view, 'Sign in')).not.toHaveAttribute('aria-disabled', 'true'),
+    );
     expect(view.queryByRole('alert')).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(client.getQueryData(authSessionKey)).toBeNull();
@@ -463,8 +472,10 @@ describe('private account identity boundaries', () => {
     });
     await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
     const restoreSignal = fetch.mock.calls[0]![1].signal;
-    fireEvent.click(view.getByRole('button', { name: 'Sign out' }));
-    await waitFor(() => expect(view.getByRole('button', { name: 'Sign in' })).toBeEnabled());
+    fireEvent.click(authEntry(view, 'Sign out'));
+    await waitFor(() =>
+      expect(authEntry(view, 'Sign in')).not.toHaveAttribute('aria-disabled', 'true'),
+    );
     expect(restoreSignal?.aborted).toBe(true);
     await act(async () => {
       resolveRestore(new Response(JSON.stringify(account)));
@@ -472,7 +483,7 @@ describe('private account identity boundaries', () => {
     });
     expect(client.getQueryData(authSessionKey)).toBeNull();
     expect(view.getByLabelText('Entry account')).toHaveTextContent('Guest');
-    expect(view.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    expect(view.queryByRole('menuitem', { name: 'Sign out', hidden: true })).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

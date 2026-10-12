@@ -392,6 +392,12 @@ export interface CowWorkspaceProps extends CowWorkspaceMotionOptions {
   className?: string;
   /** Independently hold the globe's current rotation frame. */
   globeRotation?: boolean;
+  /** Independently pause the approved plant leaves without stopping other props. */
+  leafMotion?: boolean;
+  /** Reuse the approved desk and motion with another independently assembled character pose. */
+  character?: ReactNode;
+  /** Reuse the existing coding sweat and laptop rays with a custom character pose. */
+  codingEffects?: boolean;
 }
 
 /**
@@ -405,6 +411,9 @@ export const CowWorkspace = memo(function CowWorkspace({
   motion = true,
   parallax = true,
   globeRotation = true,
+  leafMotion = true,
+  character,
+  codingEffects = false,
   pointerScope,
   pointerOrigin,
   phase,
@@ -426,20 +435,33 @@ export const CowWorkspace = memo(function CowWorkspace({
       data-cow-phase={phase ?? 'thinking'}
       data-cow-motion="paused"
       data-cow-globe-motion={globeRotation ? 'active' : 'paused'}
+      data-cow-leaf-motion={leafMotion ? 'active' : 'paused'}
+      data-cow-coding-effects={codingEffects || undefined}
     >
       <div className={styles.sceneCanvas} aria-hidden="true">
         <Depth name="cow" depth={1.5}>
-          <CowThinkingOrbit side="back" />
-          <CowBody />
-          <CowThinkingOrbit side="front" />
-          <CowTypingSweat />
+          {character ? (
+            <>
+              {character}
+              {codingEffects && <CowTypingSweat />}
+            </>
+          ) : (
+            <>
+              <CowThinkingOrbit side="back" />
+              <CowBody />
+              <CowThinkingOrbit side="front" />
+              <CowTypingSweat />
+            </>
+          )}
         </Depth>
         <Depth name="desk" depth={0.5}>
           <Desk />
         </Depth>
-        <Depth name="laptop-light" depth={3}>
-          <LaptopTypingLight />
-        </Depth>
+        {(!character || codingEffects) && (
+          <Depth name="laptop-light" depth={3}>
+            <LaptopTypingLight />
+          </Depth>
+        )}
         <Depth name="plant-pot" depth={2}>
           <PlantPot />
         </Depth>

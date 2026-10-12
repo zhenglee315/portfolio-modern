@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openAuthControls } from '../fixtures/browser';
 
 test('all four palettes survive reload and blocked storage retains usable defaults', async ({
   page,
@@ -26,6 +27,7 @@ test('all four palettes survive reload and blocked storage retains usable defaul
   });
   await page.reload();
   await expect(page.locator('h1')).toBeVisible();
+  await openAuthControls(page, '/zh-Hant');
   await page.getByRole('button', { name: '背景設定' }).click();
   await expect(page.getByRole('slider').first()).toBeVisible();
 });
@@ -33,7 +35,7 @@ test('all four palettes survive reload and blocked storage retains usable defaul
 test('palette, ranges, pause and reset persist without losing keyboard controls', async ({
   page,
 }) => {
-  await page.goto('/en');
+  await openAuthControls(page);
   const trigger = page.getByRole('button', { name: 'Background settings' });
   await trigger.click();
   await page.getByRole('button', { name: 'Amber', exact: true }).click();

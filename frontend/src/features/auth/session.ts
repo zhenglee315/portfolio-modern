@@ -4,8 +4,10 @@ import {
   useQuery,
   useQueryClient,
   type QueryClient,
+  type QueryFilters,
 } from '@tanstack/react-query';
-import { useRef, useSyncExternalStore } from 'react';
+import { useRef } from 'react';
+import { useHydrated } from '@/shared/hooks/useHydrated';
 import { requestJson } from '@/shared/api/http';
 import { sessionSchema, type AuthSession, type AuthUser } from './schemas/auth';
 import { signOut } from './api/auth';
@@ -38,18 +40,50 @@ export function authSessionQuery() {
   });
 }
 
-// React owns the server-to-browser snapshot transition; no private identity enters SSR.
-const subscribeToHydration = () => () => {};
-
 /** Restore only after mount so SSR and its first hydration render contain public identity only. */
 export function useAuthSession({ enabled = true }: { enabled?: boolean } = {}) {
-  const mounted = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false,
-  );
+  const mounted = useHydrated();
   const query = useQuery({ ...authSessionQuery(), enabled: mounted && enabled });
   return { ...query, data: mounted ? query.data : undefined };
+}
+
+/** Recheck entry permission with the current cookie, bypassing the ordinary identity cache.
+ * The shared query owns cancellation during sign-in/out; route cancellation also stops this read.
+ * A changed identity or permission set discards private records before the caller can mount them.
+ */
+export async function refreshAuthSession(client: QueryClient, signal: AbortSignal) {
+  signal.throwIfAborted();
+  await client.cancelQueries({ queryKey: authSessionKey, exact: true });
+  signal.throwIfAborted();
+  const previous = client.getQueryData<AuthSession>(authSessionKey);
+  let lookupSignal: AbortSignal | undefined;
+  const identity = await client.fetchQuery({
+    ...authSessionQuery(),
+    staleTime: 0,
+    networkMode: 'always',
+    queryFn: async ({ signal: querySignal }) => {
+      const currentSignal = AbortSignal.any([signal, querySignal]);
+      lookupSignal = currentSignal;
+      const current = await getSession(currentSignal);
+      currentSignal.throwIfAborted();
+      return current;
+    },
+  });
+  // Silent query cancellation may resolve to cached data; it must never authorize this entry.
+  lookupSignal?.throwIfAborted();
+  signal.throwIfAborted();
+  if (
+    !identity ||
+    previous?.id !== identity.id ||
+    previous?.role !== identity.role ||
+    previous?.is_manage_sites !== identity.is_manage_sites ||
+    previous?.is_manage_users !== identity.is_manage_users ||
+    previous?.is_manage_roles !== identity.is_manage_roles
+  ) {
+    await forgetPrivateResources(client);
+  }
+  signal.throwIfAborted();
+  return identity;
 }
 
 /** Mark all account snapshots private, including identities established before a reader mounts. */
@@ -68,13 +102,24 @@ export async function rememberAuthSession(
 ): Promise<void> {
   signal.throwIfAborted();
   await client.cancelQueries({ queryKey: authSessionKey, exact: true });
+  await forgetPrivateResources(client);
   signal.throwIfAborted();
   storeAuthSession(client, user);
 }
 
-/** Forget only account identity after server logout; public content remains available. */
+/** Cancel and discard private resource snapshots before replacing browser identity. */
+async function forgetPrivateResources(client: QueryClient): Promise<void> {
+  const filters: QueryFilters = {
+    predicate: (query) => query.meta?.private === true && query.queryKey[0] !== 'auth',
+  };
+  await client.cancelQueries(filters);
+  client.removeQueries(filters);
+}
+
+/** Forget account identity and private reads after server logout; public content remains available. */
 export async function forgetAuthSession(client: QueryClient): Promise<void> {
   await client.cancelQueries({ queryKey: authSessionKey, exact: true });
+  await forgetPrivateResources(client);
   storeAuthSession(client, null);
 }
 

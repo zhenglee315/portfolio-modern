@@ -1,0 +1,19 @@
+.waiting {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.error {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.error p {
+  margin: 0;
+}

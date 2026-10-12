@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { setPublicMotionPreference } from '../fixtures/browser';
 
 test('bounded decoration pauses and startup contact yields to manual interaction', async ({
   page,
@@ -13,8 +14,7 @@ test('bounded decoration pauses and startup contact yields to manual interaction
   await expect(page.locator('[data-pointer-glow]')).toHaveAttribute('data-visible', 'true');
   await expect(page.locator('[data-contact-bubble]')).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Background settings' }).click();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await setPublicMotionPreference(page, true);
   await expect(page.locator('[data-pointer-glow]')).not.toHaveAttribute('data-visible', 'true');
   await expect
     .poll(() => field.evaluate((node) => node.getAnimations({ subtree: true }).length))

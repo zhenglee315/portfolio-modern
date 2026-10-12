@@ -4,7 +4,7 @@
 
 This directory implements the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
 
-**目前狀態：React 功能遷移與登入介面已實作。** 九個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數及登入介面。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。公開首頁與個人網址由 Node 動態 SSR，先解析已發布的 Site，再載入有界首批內容；後續資料與互動按需取得。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
+**目前狀態：React 功能遷移與登入介面已實作。** 十一個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數及登入介面。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。公開首頁與個人網址由 Node 動態 SSR，先解析已發布的 Site，再載入有界首批內容；後續資料與互動按需取得。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
 
 **Status: React feature migration and account interface implemented.** Nine features cover public content, locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction, online visitors and account forms. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in and registration use the backend session API. Registration temporarily uses code 123 while SMTP delivery and password reset await integration. The default homepage and owner URLs use dynamic Node SSR, resolving a published Site before reading bounded initial content. Subsequent data and interactions load on demand. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
 
@@ -122,6 +122,8 @@ frontend/
 │   │   ├── skills/
 │   │   ├── online-visitors/
 │   │   ├── auth/
+│   │   ├── account-menu/
+│   │   ├── management/
 │   │   ├── appearance/
 │   │   └── language/
 │   ├── shared/
@@ -172,13 +174,13 @@ app / routes / pages → features → shared
 app / routes / pages / features → i18n → shared
 ```
 
-`shared` 不反向依賴功能、路由或應用組裝；功能之間由頁面協調，例如由頁面串接技能資料與專案呈現所需的 props／事件，避免 `projects` 與 `skills` 互相引用。外部使用功能的 `index.ts`，不直接引用內部實作；公開匯出保持明確，功能內部直接引用自己的檔案，避免循環依賴。`eslint.config.js` 已配置 import-x 規則，檢查 alias 與相對路徑的依賴方向、功能間引用及功能公開入口。新增功能名稱時同步更新設定中的 `features` 清單；目前九個功能均已登記，包含 `online-visitors` 與 `auth`。
+`shared` 不反向依賴功能、路由或應用組裝；功能之間由頁面協調，例如由頁面串接技能資料與專案呈現所需的 props／事件，避免 `projects` 與 `skills` 互相引用。外部使用功能的 `index.ts`，不直接引用內部實作；公開匯出保持明確，功能內部直接引用自己的檔案，避免循環依賴。`eslint.config.js` 已配置 import-x 規則，檢查 alias 與相對路徑的依賴方向、功能間引用及功能公開入口。`auth` 另公開輕量 `session.ts`、`permissions.ts` 與 `actions.ts` 入口。ESLint 從實際 `features/` 目錄自動建立規則，新功能不會漏檢，並阻擋循環及自我匯入。唯一跨 feature 例外是 `account-menu` 使用 auth 的公開身份型別及權限政策；它不能引用 auth 內部元件／schema，其他 feature 仍由頁面組合。
 
-Keep shared code independent of features, routes, and application assembly. Pages coordinate features. The ESLint configuration enforces import direction, feature isolation, and public indexes; register new feature names in its `features` list.
+Keep shared code independent of features, routes, and application assembly. Pages coordinate features. ESLint discovers feature directories automatically and enforces import direction, isolation and public entries. Auth also exposes lightweight `session.ts`, `permissions.ts` and `actions.ts`. The single documented cross-feature exception lets account-menu consume auth’s public identity types and permission policy, never its internal schemas or components.
 
-React Router Framework Mode 以 `:locale?` 與 `:locale/:user` route 管理公開 URL、loader、client navigation 與錯誤邊界；帳號畫面使用 URL query state，頁內章節使用 hash，並非每個 section 都是一條 route。路由 chunk 分割與元件 lazy 分割各自負責不同層級：帳號表單於進入時載入、ProjectDetail 於選取專案時載入、JourneyMap 於接近 viewport 時載入、ContactBubble 於開啟時載入、牛場景於需要時載入。BackgroundSignals 有獨立 chunk 但首頁立即掛載；Bootstrap 以 Sass 只編譯網站使用的基礎、button、dropdown、modal、offcanvas、helpers 及 utilities；三語 UI 文案仍共同載入。SSR 先解析 Site，再平行準備有界首批正文；後續 section 依 viewport 或導覽需求載入。
+React Router Framework Mode 以 `:locale?` 與 `:locale/:user` route 管理公開 URL，另以 `:locale/management/:resource` 提供網站／帳號／角色管理列表；帳號畫面使用 URL query state，頁內章節使用 hash，並非每個 section 都是一條 route。路由 chunk 分割與元件 lazy 分割各自負責不同層級：管理頁於進入 route 後才載入、帳號表單於進入時載入、ProjectDetail 於選取專案時載入、JourneyMap 於接近 viewport 時載入、ContactBubble 於開啟時載入、牛場景於需要時載入。BackgroundSignals 有獨立 chunk 但首頁立即掛載；Bootstrap 使用官方預編譯 CSS，再依來源映射選取基礎、button、dropdown、modal、offcanvas、table、form、pagination、badge、spinner、helpers 及 utilities；三語 UI 文案仍共同載入。公開 SSR 先解析 Site，再平行準備有界首批正文；管理列表只在瀏覽器按需查詢。
 
-React Router Framework Mode manages locale URLs, loaders, client navigation and route error boundaries through `:locale?` and `:locale/:user`; account access uses query state and in-page sections use hashes. Route splitting and component lazy loading cover different boundaries: account entry, selected project detail, near-viewport map, open contact bubble and the needed cow scene. BackgroundSignals is a separate chunk mounted immediately. Bootstrap Sass compiles only the used foundations, buttons, dropdowns, modals, offcanvas, helpers and utilities. All three UI dictionaries remain shared upfront. SSR resolves Site before parallel bounded page-one reads; later section requests follow viewport or navigation demand.
+React Router Framework Mode manages public locale/owner URLs plus `:locale/management/:resource` administrative lists. Account access uses query state and sections use hashes. Route splitting and component lazy loading cover management entry, account entry, selected project detail, near-viewport map, open contact bubble and the needed cow scene. Bootstrap uses official precompiled CSS with source-map selection retaining the used foundations, buttons, dropdowns, modals, offcanvas, tables, forms, pagination, badges, spinners, helpers and utilities. All three UI dictionaries remain shared upfront. Public SSR resolves Site before bounded page-one reads; management lists are requested on browser demand.
 
 帳號入口目前是 `?view=login`，由頁面管理 history 與切換效果，沒有獨立的登入 route。直接開啟這個 URL 仍載入個人檔案 route，底層導覽、各 section 與其 query 訂閱保持掛載；`inert`／`aria-hidden` 禁止互動及隱藏無障礙內容，並不卸載元件或停止資料訂閱。現有 lazy 主要延後帳號表單、詳情與大型場景，尚未完全隔離登入入口的個人檔案載入成本。
 
@@ -187,6 +189,18 @@ Account access currently uses `?view=login`, with page-owned history and transit
 共用方法、Hooks、元件的完整介面與引用範例見 [`src/shared/README.md`](src/shared/README.md)。共用檔案依責任直接 import，不建立把所有工具混在一起的大型匯出入口；功能模組對外仍使用自己的 `index.ts`。
 
 See [`src/shared/README.md`](src/shared/README.md) for shared contracts, consumers and import examples. Import shared modules by responsibility; feature consumers retain each feature's public index.
+
+### 架構檢查與整合 / Architecture Review and Consolidation
+
+共用流程有單一實作：`shared/hooks/useHydrated` 保持 SSR 與首次 hydration 一致；`auth/actions.useAccountSession` 統一身份訂閱、登出期間暫停與成功／失敗回饋，頁面只提供成功後的動作；`useAccessDeniedRedirect` 統一警示及 replace 轉址。 `useAccountSession(onSignedOut?)` 回傳原查詢 `session`、mutation `signOut` 與 `logout()`，不另存身份；`useAccessDeniedRedirect({ denied, destination, enabled? })` 由 owner 提供已確認的拒絕狀態與目的地。管理頁分為 `ManagementPage` 版面／權限組裝、`components/ManagementTable` 查詢／互動與 `model/management-view` 欄位／URL 正規化。
+
+`shared/ui/background-field` 擁有首頁與 Access denied 共用背景，幾何計算在 `shared/lib/background-signals`，有限進場控制器在 `shared/lib/auth-transition`。共用視覺元件接收已翻譯的 copy；牛控制列透過 `i18n/cow-copy` 注入 `CowMotionCopy`，不在 shared 寫帳號文案 key。DataTable loading 使用既有 `LoadingIndicator`，不另製一套 spinner。
+
+各 feature 的薄 API wrapper 仍保留 endpoint 與 schema 責任，transport／分頁已由共用層處理。相似但擁有不同 scroll／動畫生命週期的 page Hook 保留各自 owner；不為少量形似程式新增通用狀態框架。QueryClient 是遠端資料唯一來源，URL 是表格操作狀態來源，React state 只保留輸入草稿及局部互動。
+
+`npm run check:docs` 以 TypeScript AST 檢查 shared 匯出契約是否列入共用 README，並納入 `npm run check`。`i18n-contract.test.ts` 檢查三語 leaf key 一致、固定 `t('key')` 均有定義，以及牛／匯出組合文案不顯示原始 key。新增動態翻譯 key 時應另測組合結果。
+
+Shared implementations now own hydration, account/session logout feedback, permission warning/replace routing, viewport backgrounds and finite entrance timing. Management composition, table interaction and URL/column metadata have separate modules. Reusable UI receives translated copy, and DataTable uses the shared loader. Domain API wrappers retain endpoint/schema ownership; independent interaction lifecycles retain their own owners. QueryClient remains the server-data source, URL state controls the table and local state holds drafts/disclosure. `check:docs` indexes shared exports against the guide; translation contract tests verify locale parity, literal keys and composed vocabulary.
 
 ### 功能內部分工 / Feature Structure
 
@@ -230,17 +244,17 @@ Transport owns HTTP mechanics, resource APIs own endpoint contracts, hooks own s
 
 ### 在線人數 / Online Visitors
 
-`features/online-visitors` 擁有 `GET /system/heartbeat` 的非負整數契約、查詢與 `OnlineVisitors` 呈現元件。`PortfolioPage` 只建立一個查詢訂閱，透過 `ProfileOverview.leadingControls` 將 Person hearts 圖示與數字放在 social 列最左側，接續 API 社群連結、語言與外觀控制。桌面與手機共用這一個呈現實例，窄螢幕允許控制列換行；側欄底部保留 Door open fill 登入入口。文案提供三語 aria-label 與像素提示窗，零人顯示 `0`；首次載入／不可用顯示 `—`，更新失敗保留最後有效值並標示過期。hover、可見鍵盤焦點或輕觸圖示透過共用 `useHoverTooltip` 開啟 `PixelTooltip`，顯示目前網站語言的在線人數。
+`features/online-visitors` 擁有 `GET /system/heartbeat` 的非負整數契約、查詢與 `OnlineVisitors` 呈現元件。`PortfolioPage` 只建立一個查詢訂閱，透過 `ProfileOverview.leadingControls` 將 Person hearts 圖示與數字放在 social 列最左側，接續 API 社群連結與齒輪選單。桌面與手機共用這一個呈現實例，窄螢幕允許控制列換行；登入／登出統一由右上角齒輪選單操作。文案提供三語 aria-label 與像素提示窗，零人顯示 `0`；首次載入／不可用顯示 `—`，更新失敗保留最後有效值並標示過期。hover、可見鍵盤焦點或輕觸圖示透過共用 `useHoverTooltip` 開啟 `PixelTooltip`，顯示目前網站語言的在線人數。
 
-The `online-visitors` feature owns the nonnegative integer contract, query and `OnlineVisitors` indicator for `GET /system/heartbeat`. PortfolioPage owns one subscription and supplies the indicator through ProfileOverview's leadingControls slot. The toolbar order is online count, API social links, language and appearance, with one responsive instance and wrapping on narrow screens. The Door open fill sign-in entry remains at the sidebar footer. Localized accessible labels and pixel tooltips distinguish zero, loading, unavailable and stale results. Hover, visible keyboard focus or tap opens the shared `PixelTooltip` through `useHoverTooltip`, showing the online count in the active language.
+The `online-visitors` feature owns the nonnegative integer contract, query and `OnlineVisitors` indicator for `GET /system/heartbeat`. PortfolioPage owns one subscription and supplies the indicator through ProfileOverview's leadingControls slot. The toolbar order is online count, API social links and the gear menu, with one responsive instance and wrapping on narrow screens. Sign in and sign out are available in the gear menu. Localized accessible labels and pixel tooltips distinguish zero, loading, unavailable and stale results. Hover, visible keyboard focus or tap opens the shared `PixelTooltip` through `useHoverTooltip`, showing the online count in the active language.
 
 在線提示窗使用共用 `side-left` 定位，在圖示左側以縮小的像素尾巴朝右指向圖示；左側空間不足時改用共用上下定位，保持在視窗內。`PixelTooltip` 集中 `PixelBubble` 小型外殼的內距、文字、20px 尾巴與 viewport 限寬，透過 body portal 避免被側欄裁切。在線圖示與數字透過共用 `IconGroup pulse="chat"` 一起播放 heartbeat，沿用 chat 的 `icon-breathe` 與 4 秒週期；hover／鍵盤聚焦時整組高亮，Door open fill 也沿用相同高亮規則。動畫、暫停及減少動態效果由 shared 模組統一管理，feature 不另外定義 heartbeat。
 
 The online tooltip uses shared side-left placement with a smaller right-facing pixel tail. When the left side lacks room, shared above/below placement keeps it within the viewport. `PixelTooltip` owns the compact `PixelBubble` padding, type, 20px tail and viewport-constrained width, with a body portal that avoids sidebar clipping. The online icon and count pulse together through shared `IconGroup pulse="chat"`, using the same icon-breathe and four-second cycle as chat. Hover and visible keyboard focus highlight the whole group; Door open fill uses the same highlight rules. Shared decoration policies own pause and reduced motion; the feature defines no separate heartbeat.
 
-page 的 `LoginEntry` 共用同一個 `useHoverTooltip`／`PixelTooltip`。訪客使用 Door open fill 圖示、`ui.signIn` aria-label 與三語 `ui.adminSignIn` 提示；登入後原位置切換成 Bootstrap `box-arrow-right` 登出圖示，aria-label 與提示均使用 `ui.signOut`。按鈕不使用原生 `title`；hover 與可見鍵盤焦點開啟提示。桌面使用 `side`，手機使用 `above`，由共用定位保持在 viewport 內。click 關閉提示與手機 drawer 後執行 `Navigation.onLogin` 登入轉場或 `onLogout` 登出操作。首次恢復身份及登出期間停用入口；桌面與手機共用頁面的一份 pending 狀態，避免重複登出。未提供 callback 時保留 click／tap 提示並以 `aria-disabled` 標示。
+登入／登出入口統一放在右上角 `AccountMenu`。訪客點選登入後，由頁面開啟目前語系的 `?view=login`；登入後顯示登出並使用既有 SESSION API。首次恢復身份及登出期間只停用帳號動作，避免重複操作。桌面側欄與手機 drawer 不再顯示登入／登出；返回作品集時將焦點還原至齒輪觸發器。
 
-The page-owned `LoginEntry` shares `useHoverTooltip` and `PixelTooltip`. Guests see the Door open fill icon, `ui.signIn` accessible label and localized `ui.adminSignIn` tooltip. After authentication, the same position switches to Bootstrap's `box-arrow-right` sign-out icon, with `ui.signOut` for both its accessible label and tooltip. The button has no native `title`; hover and visible keyboard focus open the description. Desktop uses `side` and mobile uses `above`, with shared viewport placement. Clicking dismisses the tooltip and mobile drawer before invoking `Navigation.onLogin` or `onLogout`. Initial identity restoration and pending logout disable the entry; desktop and mobile share one page-owned pending state to prevent duplicate logout. Without a callback, click/tap retains the description and the entry is marked `aria-disabled`.
+Sign in and sign out share the upper-right AccountMenu. Sign in delegates to the page-owned locale-preserving `?view=login` transition; sign out uses the existing SESSION API. Only account actions are disabled during initial session restoration and pending logout. Desktop rail and mobile drawer no longer include account entries. Returning from the account form restores focus to the gear trigger.
 
 ### 全站訊息 / Global Notifications
 
@@ -254,7 +268,7 @@ The page-owned `LoginEntry` shares `useHoverTooltip` and `PixelTooltip`. Guests 
 
 ### 帳號介面 / Account Forms
 
-[![桌面登入介面：草地牛、七個場景控制與緊湊的登入表單 / Desktop account interface with the cow workspace, seven scene controls and compact sign-in form](../docs/images/auth-login-desktop.png)](../docs/images/auth-login-desktop.png)
+[![桌面登入介面：草地牛、場景控制與緊湊的登入表單 / Desktop account interface with the cow workspace, scene controls and compact sign-in form](../docs/images/auth-login-desktop.png)](../docs/images/auth-login-desktop.png)
 
 上圖呈現目前桌面登入及草地牛配置；另見[註冊畫面](../docs/images/auth-register-desktop.png)、[牛場景與控制局部裁切](../docs/images/auth-cow-workspace.png)、[390px 手機註冊畫面](../docs/images/auth-mobile.png)。操作圖解見[專案 README 的登入與草地牛章節](../README.md#9-登入介面與草地牛--account-forms-and-cow-workspace)；下列規格補充介面及生命週期。
 
@@ -288,13 +302,25 @@ Sending and verification use the real APIs. While SMTP is being prepared, the ba
 
 `AuthPanel.onAuthenticate({mode,fields,signal})` is the page-injected real sign-in/registration service boundary. Credentials remain in the form and one FormData call, never React state, storage or notifications. Only successful resolution produces a green notice and the watching cow with a translated Welcome speech bubble using shared PixelBubble/tail. Mode changes and unmount abort pending work and ignore late results; failures reuse shared classification. The page lazily loads ConnectedAuthPanel. Sign-in posts JSON to /api/authority/sign-in with credentials: include and no-store, validates identity/role/six permissions, and displays success only after the response passes. The browser manages the session cookie; success clears and hides passwords, and editing clears the welcome state. Known 401/429/422/service failures have safe localized copy. Registration uses the availability/code/verification flow above; password reset remains unavailable. Field validation stays local, with password mismatch shown in red; operation messages use the global host.
 
-登入或註冊成功後，頁面會先保存 API 回傳的帳號身份，再返回主頁；Overview 介紹標籤始終顯示公開 Site 的 `profile.introContent`。首頁使用輕量 `auth/session` 訂閱身份，只控制導覽的登入／登出操作；`GET /api/authority/session` 在瀏覽器掛載後恢復身份，支援重新整理及跨語系導覽。身份只保留在 QueryClient 記憶體，排除 SSR／dehydration；成功登入先取消舊恢復查詢，避免晚到的訪客回應覆蓋新身份。登出使用不帶 body 的 `POST /api/authority/sign-out`，透過 `credentials: include` 傳送目前 cookie 並使用 `no-store`；驗證回應 `signed_out: true` 後才清除瀏覽器身份並顯示成功提示。登出期間暫停身份恢復，清除身份前再取消舊查詢；失敗保留原身份並沿用全站安全錯誤提示，公開作品集資料不受影響。
+登入或註冊成功後，頁面會先保存 API 回傳的帳號身份，再返回主頁；Overview 介紹標籤始終顯示公開 Site 的 `profile.introContent`。首頁使用輕量 `auth/session` 訂閱身份，控制齒輪選單的身份與登入／登出操作；`GET /api/authority/session` 在瀏覽器掛載後恢復身份，支援重新整理及跨語系導覽。身份只保留在 QueryClient 記憶體，排除 SSR／dehydration；成功登入先取消舊恢復查詢，避免晚到的訪客回應覆蓋新身份。登出使用不帶 body 的 `POST /api/authority/sign-out`，透過 `credentials: include` 傳送目前 cookie 並使用 `no-store`；驗證回應 `signed_out: true` 後才清除瀏覽器身份並顯示成功提示。登出期間暫停身份恢復，清除身份前再取消舊查詢；失敗保留原身份並沿用全站安全錯誤提示，公開作品集資料不受影響。
 
 After successful sign-in or registration, the page stores the returned account identity before returning home. The Overview eyebrow always displays the public Site's `profile.introContent`. The home page subscribes to the lightweight `auth/session` identity only to select the navigation's sign-in or sign-out action. `GET /api/authority/session` restores identity after browser mount, including reloads and locale navigation. Identity stays in QueryClient memory and is excluded from SSR/dehydration. Successful authentication cancels older restoration queries before updating identity, preventing late guest responses from replacing it. Sign-out sends a bodyless `POST /api/authority/sign-out` with the current cookie through `credentials: include` and `no-store`. Only a validated `signed_out: true` response clears browser identity and produces a success notice. Restoration pauses during logout, and older queries are canceled again before identity is cleared. Failure preserves the existing identity and uses the shared safe error notifications; public portfolio data stays available.
 
-`AuthCowScene` 延後載入 shared `CowWorkspace` 原有 SVG 場景，首頁不下載牛的拆件。左上使用 Bootstrap repeat／cup-hot-fill／dpad-fill／balloon-fill 圖示，切換自然循環、思考、代碼及注視；右下依序提供 globe-americas-fill／mouse2-fill／播放暫停切換鈕；播放時顯示 pause-fill，暫停時顯示 play-fill，提示和無障礙名稱隨下一個動作切換；地球按鈕獨立切換旋轉，關閉時停在目前角度，再次開啟後繼續；滑鼠按鈕獨立切換視差跟動，不影響表情或動畫播放，關閉時回正。七個控制鈕在桌面與手機均共用語言及主題按鈕的 44px 外框。各按鈕共用 `useHoverTooltip`／`PixelTooltip` 顯示上方像素提示，取代原生 title；三種表情只顯示「思考／編程／你好」，其餘使用最短操作文案，滑鼠跟動依狀態顯示開啟或停止。點擊先關閉提示再執行按鈕動作，文案提供三語。預設每段 3 秒循環，播放／暫停保留表情及剩餘循環時間；切換帳戶表單不重建場景。登入框淡入時才啟動，並沿用 shared motion 的系統減少動態、全域暫停、隱藏分頁及離開畫面規則；手機版場景排列於表單上方。
+管理入口另外使用 `auth/session.refreshAuthSession(client, signal)`，每次以目前 cookie 重新查詢 SESSION，不沿用普通身份查詢的 60 秒新鮮期限。route 與 query 的取消訊號共同停止讀取，取消後即使 query 回傳 cache 也不能授權。帳號、角色或管理旗標改變時，先取消並清除 private records，再掛載管理頁；公開作品集 cache 保留。
 
-`AuthCowScene` lazy-loads the existing shared `CowWorkspace` SVG, keeping its rig out of the initial portfolio bundle. Top-left Bootstrap repeat/cup-hot-fill/dpad-fill/balloon-fill controls select the natural cycle or thinking/coding/watching poses; bottom-right controls place globe-americas-fill before mouse2-fill and a single playback button. The playback button shows pause-fill while playing and play-fill while paused; its tooltip and accessible name describe the next action. Globe rotation toggles independently, holding its current angle when stopped and continuing when enabled. Mouse following toggles independently of expression and playback, returning the scene to neutral when disabled. Play/pause retains the current expression and remaining cycle time. All seven controls share the language/theme buttons’ 44px frames on desktop and mobile. Each reuses `useHoverTooltip`/`PixelTooltip` above the button, replacing native titles with brief localized copy: Thinking/Coding/Hello and short actions for loop, tracking and playback. Clicking dismisses the tooltip before performing the action. The default cycle holds each phase for three seconds. Account mode changes retain the scene. Motion starts when the auth panel reveals and follows the shared reduced-motion, global-pause, document-visibility and intersection policies; narrow screens place the scene above the form.
+Management entry calls `auth/session.refreshAuthSession(client, signal)` to recheck the current cookie, bypassing the ordinary identity query's 60-second freshness window. Combined route/query signals cancel reads; canceled work cannot authorize entry even if a query returns cached data. Account, role or management-flag changes cancel and clear private records before the page mounts, preserving public portfolio caches.
+
+`AuthCowScene` 延後載入 shared `CowWorkspace` 原有 SVG 場景，首頁不下載牛的拆件。左上使用 Bootstrap repeat／cup-hot-fill／dpad-fill／balloon-fill 圖示，切換自然循環、思考、代碼及注視；右下依序提供 globe-americas-fill／mouse2-fill／leaf-fill／播放暫停切換鈕；播放時顯示 pause-fill，暫停時顯示 play-fill，提示和無障礙名稱隨下一個動作切換；地球按鈕獨立切換旋轉，關閉時停在目前角度，再次開啟後繼續；滑鼠按鈕獨立切換視差跟動，不影響表情或動畫播放，關閉時回正。八個控制鈕在桌面與手機均共用語言及主題按鈕的 44px 外框。各按鈕共用 `useHoverTooltip`／`PixelTooltip` 顯示上方像素提示，取代原生 title；三種表情只顯示「思考／編程／你好」，其餘使用最短操作文案，滑鼠跟動依狀態顯示開啟或停止。點擊先關閉提示再執行按鈕動作，文案提供三語。預設每段 3 秒循環，播放／暫停保留表情及剩餘循環時間；切換帳戶表單不重建場景。登入框淡入時才啟動，並沿用 shared motion 的系統減少動態、全域暫停、隱藏分頁及離開畫面規則；手機版場景排列於表單上方。
+
+`AuthCowScene` lazy-loads the existing shared `CowWorkspace` SVG, keeping its rig out of the initial portfolio bundle. Top-left Bootstrap repeat/cup-hot-fill/dpad-fill/balloon-fill controls select the natural cycle or thinking/coding/watching poses; bottom-right controls place globe-americas-fill, mouse2-fill, leaf-fill and a single playback button. The playback button shows pause-fill while playing and play-fill while paused; its tooltip and accessible name describe the next action. Globe rotation toggles independently, holding its current angle when stopped and continuing when enabled. Mouse following toggles independently of expression and playback, returning the scene to neutral when disabled. Play/pause retains the current expression and remaining cycle time. All eight controls share the language/theme buttons’ 44px frames on desktop and mobile. Each reuses `useHoverTooltip`/`PixelTooltip` above the button, replacing native titles with brief localized copy: Thinking/Coding/Hello and short actions for loop, tracking and playback. Clicking dismisses the tooltip before performing the action. The default cycle holds each phase for three seconds. Account mode changes retain the scene. Motion starts when the auth panel reveals and follows the shared reduced-motion, global-pause, document-visibility and intersection policies; narrow screens place the scene above the form.
+
+登入與 Access denied 共用 `CowMotionControls`／`useCowMotionControls`，不重複控制列或偏好邏輯。`CowWorkspace` 的草葉以 −5° 到 +6° 擺動，Leaf fill 僅停止草葉並保留目前角度；Access denied 額外顯示獨立瞳孔追蹤按鈕，並沿用主頁背景、登入進場時序及 coding 汗滴／筆電電光，不顯示登入卡片。
+
+Login and Access denied reuse the same motion-control component and preferences hook. Shared leaves sway from −5° to +6°; Leaf fill pauses only the leaves at their current angle. Access denied adds independent pupil tracking and reuses the portfolio background, login entrance and coding sweat/laptop rays without an account card.
+
+登入收到 `INVALID_CREDENTIALS` 時，`AuthCowScene` 延後載入共用 `DeniedCowCharacter`，暫時換上禁止牛並啟用原有汗滴與筆電電光。修改或刪除信箱、密碼後恢復原角色，保留所選模式、播放、滑鼠、地球及草葉偏好與同一場景時鐘；僅聚焦欄位不會恢復。過期請求不會再次覆蓋角色，網路與服務錯誤沿用原本提示。
+
+An `INVALID_CREDENTIALS` sign-in response makes `AuthCowScene` lazy-load the shared `DeniedCowCharacter`, temporarily showing the denied cow with existing sweat and laptop rays. Editing or deleting email/password restores the original character, preserving the selected mode, playback, pointer, globe and leaf preferences and the same scene clock; focus alone does not restore it. Stale requests cannot overwrite the character, and network/service failures retain their existing feedback.
 
 登入沿用主頁的 760px 斷點：較寬視窗使用最大 720px 的雙欄框，牛場景最大 300px 並依可視高度縮小，卡片內距與區段間距收緊。手機及窄平板改為最大 520px 單欄，上方牛場景最大 220px 並保留全部控制；380px 以下工具列可換行，內嵌發送圖示的驗證碼框與註冊按鈕各占完整一列。短視窗捲動整個登入層，保留表單自然高度，沒有表單內部捲動框。手機與粗略指標裝置的輸入文字為 16px，初始焦點落在標題。信箱／密碼共用 Bootstrap 圖示前綴，密碼使用眼睛圖示切換顯示；提交鈕的真實 SVG 斜紋在 hover 或可見鍵盤焦點時向右移動，遵守暫停與減少動態規則。
 
@@ -328,7 +354,7 @@ This browser-only query is excluded from public SSR snapshots. It polls every 45
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | 不依賴業務的通用 UI / Business-independent UI    | `shared/ui`：SectionState、PixelBubble、PixelTooltip、ExpandableTagList；資料透過 props 傳入 / Receive data through props |
 | 理解特定功能資料與規則 / Feature-specific UI     | `features/<feature>/components`：ProjectCard、ProjectDetail、JourneyMap                                                   |
-| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：Navigation、BackgroundField                                                                    |
+| 僅組織單一頁面的版面 / Page-specific composition | `pages/<page>/components`：Navigation                                                                                     |
 
 `ProjectDetail` 使用 React-Bootstrap Modal 管理焦點與鍵盤，專案內容保留在 feature。業務元件被多個頁面使用，仍留在所屬功能；只有語意與依賴都通用時才移入 `shared`。共用 `ExpandableTagList` 不自行呼叫技能 API，取得更多資料的責任交給功能並透過事件連接。
 
@@ -369,7 +395,7 @@ Clean up listeners, timers, observers, animations, and connections. Isolate impe
 | HTTP、契約與分頁 / Transport, contracts and pagination | `requestJson`、`numberedPageSchema`、`numberedQuery`、`usePagedCollection` 統一讀取／驗證／續頁／狀態；feature API 提供 endpoint 與 item schema。 / Feature APIs inject endpoints and item contracts into one read/validation/continuation policy. |
 | 展開與標籤預覽 / Collection and tag disclosure         | 經歷／專案使用 `ExpandableCollection`；卡片／分類使用 `ExpandableTagList` 與 `tagPreviewCount`。集合第一頁引用 `pageSize`，標籤另依 75% 實際寬度量測。 / First-page collections and measured-width labels reuse shared presentation.               |
 | 浮框與包邊 / Floating surfaces                         | Contact／City 共用 `PixelBubble`、`useAnchoredPanel`、`floatingPosition`；feature 傳入內容、關閉流程與保護邊界。 / Owners inject content, lifecycle and protected bounds into one shell/placement system.                                          |
-| 小型提示窗 / Compact tooltips                          | OnlineVisitors／page LoginEntry 共用 `useHoverTooltip` 的揭露／關閉生命週期及 `PixelTooltip` 小型外殼與定位；文案與按鈕動作由 owner 提供。 / Shared disclosure/dismissal and compact anchored presentation with owner-supplied copy and actions.   |
+| 小型提示窗 / Compact tooltips                          | OnlineVisitors／AuthCowScene 共用 `useHoverTooltip` 的揭露／關閉生命週期及 `PixelTooltip` 小型外殼與定位；文案與按鈕動作由 owner 提供。 / Shared disclosure/dismissal and compact anchored presentation with owner-supplied copy and actions.      |
 | 選單與 modal 焦點 / Menu and modal focus               | Appearance／Language 共用 `useDisclosureFocus`；Drawer／ProjectDetail 共用 `cycleDialogTab`。初始目標與關閉後還原留在 owner／Bootstrap。 / Shared focus mechanics retain owner-specific activation and restoration.                                |
 | 持續 heartbeat / Continuous breathing                  | Timeline 點引用共用 size／duration／keyframe tokens；chat／disclosure 使用 `Icon` 的同一 breathing 動畫。 / Timeline points and icon roles reuse their shared keyframes and tokens.                                                                |
 | 螢幕與動態政策 / Responsive and motion policy          | 共用 `mobileQuery`、`reducedMotionQuery`、`useMediaQuery`、`useDocumentVisible`。 / Components share media/visibility subscriptions and JS breakpoint conditions.                                                                                  |
@@ -513,9 +539,9 @@ The browser uses a public API prefix. Browser proxy and request SSR origins are 
 
 ### 樣式與圖示 / Styles and Icons
 
-`root.tsx` 依序引入選擇性的 Bootstrap Sass、`styles/tokens.css`、`styles/global.css`。需要覆寫的全域設計值集中在 tokens；元件專屬樣式使用 CSS Modules。本地字型／圖示的授權聲明放 public/licenses，隨正式 artifact 發布。互動元件以 React-Bootstrap 管理 React 狀態，不另外引入 Bootstrap 的 DOM 操作 bundle。Bootstrap Icons 以 `bootstrap-icons/icons/<name>.svg` 單獨 import，避免為少數圖示載入整套 icon font。Bootstrap 由 `styles/bootstrap.scss` 以官方 Sass 模組選擇性編譯，保留使用中的基礎、互動元件、helpers 與 utilities；新增 Bootstrap 元件時必須同步這個入口及瀏覽器驗證，避免回頭引入整份 CSS。
+`root.tsx` 依序引入官方 Bootstrap CSS、`styles/tokens.css`、`styles/global.css`。需要覆寫的全域設計值集中在 tokens；元件專屬樣式使用 CSS Modules。本地字型／圖示的授權聲明放 public/licenses，隨正式 artifact 發布。互動元件以 React-Bootstrap 管理 React 狀態，不另外引入 Bootstrap 的 DOM 操作 bundle。Bootstrap Icons 以 `bootstrap-icons/icons/<name>.svg` 單獨 import，避免為少數圖示載入整套 icon font。Bootstrap 從套件的 `dist/css/bootstrap.css` 載入，由 `bootstrap-css.ts` 的 PostCSS plugin 透過官方 source map 保留使用中的基礎、互動元件、helpers 與 utilities，維持 media query 及 reduced-motion 外層。這個專案不覆寫 Sass 變數，因此不再編譯 Bootstrap Sass，也移除直接的 `sass` 依賴；沒有關閉任何棄用警告。新增 Bootstrap 元件時同步選取清單與瀏覽器驗證；輸入路徑先正規化以支援 Windows 與 UNC；source map 檢查涵蓋 38 個必要來源，缺少／改名來源或新增未知 helper 時停止編譯並提示審查。升級套件後需確認 source map 及選取測試。官方授權隨 `public/licenses/Bootstrap-MIT.txt` 發布。
 
-Compile the selected official Bootstrap Sass modules before tokens and global overrides. Local font/icon license notices ship in public/licenses and remain in the client artifact. Use React-Bootstrap for interactive components and individual SVG imports for icons. Component-specific styles belong in CSS Modules; The shared Sass entry owns the selection; adding a Bootstrap component requires updating that entry and verifying its browser behavior.
+Load official precompiled Bootstrap CSS before tokens and global overrides. Local font/icon license notices ship in public/licenses and remain in the client artifact. Use React-Bootstrap for interactive components and individual SVG imports for icons. Component-specific styles belong in CSS Modules; The `bootstrap-css.ts` PostCSS plugin selects modules using the upstream source map while preserving responsive and reduced-motion wrappers. No Sass variables are customized, so Bootstrap Sass compilation and the direct `sass` dependency are removed without suppressing warnings. Input paths are normalized for Windows and UNC. The source-map guard checks all 38 required sources and stops compilation for missing/renamed sources or an unreviewed helper. Adding a component or upgrading Bootstrap requires checking the module selection and browser behavior; the upstream MIT license ships in `public/licenses/Bootstrap-MIT.txt`.
 
 ### 建置與檢查範圍 / Build and Verification Scope
 
@@ -539,6 +565,15 @@ Vitest covers contracts, dates, bounded HTTP failures/cancellation, pagination c
 
 For optional read-only live verification, set `PORTFOLIO_API_SMOKE_TARGET` in the shell, then run the unit suite for all endpoint/pages and `npm run test:e2e -- live.spec.ts` for three-language browser integration. Live checks are skipped when unset; normal tests do not depend on or stop a personal backend. `npm run verify:public` reruns public-output inspection.
 
+管理列表的真 API 測試使用同一個 origin，透過正式 query／Zod 驗證三支 GET，並比對瀏覽器表格與 `/api/management/*` 的實際回應。測試涵蓋搜尋、布林篩選、多欄排序、頁碼／size 與網站語系；不新增或修改資料，也不攔截管理 API 回應。先啟動後端，再從 `frontend/` 執行：
+
+Management live tests use the same origin to validate the three GETs through production query options/schemas and compare rendered rows with real proxy responses. They cover search, boolean filters, priority sorting, pagination/page size and site languages without writes or mocked management responses. Start the backend, then run from `frontend/`:
+
+```bash
+PORTFOLIO_API_SMOKE_TARGET=http://127.0.0.1:8080 npm run test -- tests/unit/management-live-api.test.ts
+PORTFOLIO_API_SMOKE_TARGET=http://127.0.0.1:8080 npm run test:e2e -- management-live.spec.ts
+```
+
 從乾淨 checkout 執行 typecheck、lint、format:check、unit checks，再依序執行 test:dev 與 test:e2e。兩套瀏覽器測試共用管理的 fixture API 4181，暫用開發 5174／SSR preview 4173，結束後自動關閉；日常服務維持 5173。build 不含固定 fixture 內容，正式部署用私有 API_SERVER_TARGET 連接真實後端。
 
 Generate route types and run lint, formatting and unit checks, then run development and production browser suites sequentially. Tests temporarily own fixture API 4181, development 5174 and SSR preview 4173 and close them afterward. Normal operation remains on port 5173. Builds contain no frozen fixture content; production resolves the configured private API origin.
@@ -553,9 +588,9 @@ Commit every source, style, locale, asset/license, fixture, script, deployment e
 
 ### 載入與資產預算 / Loading and Asset Budgets
 
-Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場景再由帳號 feature 按需載入。JourneyMap 在鄰近 viewport 載入，ProjectDetail 在開啟詳情時載入，ContactBubble／吉祥物在聯絡介紹揭露時載入（包含首次進場後的自動揭露）。`BackgroundField` 外殼與 pointer glow 隨頁面載入，只有可選 `BackgroundSignals` 格線／脈衝 controller 分開 lazy import，避免裝飾 chunk 延遲阻擋四邊進場與光暈。第一次載入可包含已進入 viewport 的地圖，不能把 lazy 當成一定不會首屏下載。Bootstrap 樣式由 `styles/bootstrap.scss` 選取網站使用的基礎、utilities、Dropdown、Offcanvas、Modal 與其樣式相依；React-Bootstrap 不載入 Bootstrap DOM bundle。
+Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場景再由帳號 feature 按需載入。JourneyMap 在鄰近 viewport 載入，ProjectDetail 在開啟詳情時載入，ContactBubble／吉祥物在聯絡介紹揭露時載入（包含首次進場後的自動揭露）。`BackgroundField` 外殼與 pointer glow 隨頁面載入，只有可選 `BackgroundSignals` 格線／脈衝 controller 分開 lazy import，避免裝飾 chunk 延遲阻擋四邊進場與光暈。第一次載入可包含已進入 viewport 的地圖，不能把 lazy 當成一定不會首屏下載。Bootstrap 樣式由 `bootstrap-css.ts` 從官方預編譯 CSS 選取網站使用的基礎、utilities、Dropdown、Offcanvas、Modal 與其樣式相依；React-Bootstrap 不載入 Bootstrap DOM bundle。
 
-Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `styles/bootstrap.scss` selects the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
+Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
 每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.05 MB raw／350 KB gzip、CSS 330 KB raw／60 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。超限會停止接受新產物。
 
@@ -597,6 +632,61 @@ The account cow uses a separate large `scene-sprite.svg`, requested only by the 
 | `Layout` / `App`                 | document lang 與驗證後的 locale 一致；可信外觀 bootstrap 在 CSS 前恢復偏好，本地 `favicon.svg` 沿用固定 dark／mint 品牌，不發外部請求。App 把 Outlet 放入 Providers。Own document language, trusted first-paint preferences and the local fixed-brand favicon; App provides the route outlet without external branding requests. |
 | `ErrorBoundary`                  | root 僅呈現安全的路由錯誤（未知語言／地址等），不揭露 exception／stack；業務請求錯誤由 feature 區段處理。Presents safe routing errors without exception detail; domain request failures stay in their own sections.                                                                                                              |
 
+## 管理列表與通用 DataTable / Management Lists and Shared DataTable
+
+管理入口由右上角 `AccountMenu` 的 Platform／User／Role management 開啟 `/:locale/management/sites|users|roles`；page 擁有跨 feature 協作，使用同一個 [`shared/ui/DataTable.tsx`](src/shared/ui/DataTable.tsx)。完整 props、型別與範例集中於[共用組件 README](src/shared/README.md#資料表--data-tables)。DataTable 在專案內自行開發，使用現有 React／Bootstrap，沒有新增表格套件或依賴。
+
+The gear's management actions open dedicated locale routes, composed by the page with one project-owned DataTable. Its props, types and usage example live in the shared guide. The component uses existing React/Bootstrap dependencies without adding a table package.
+
+`routes/management.clientLoader` 在每次瀏覽器進入及 hydration 先重新確認 SESSION，通過後才載入 `ManagementPage` 與讀取列表；SSR／首次 hydration 只顯示中性 LoadingIndicator，不包含身份、管理外框或表格。`auth/permissions.canManage` 要求明確 `true`，供齒輪選單、sidebar 與表格 gate 共用：Platform／User management 保留既有 `is_manage_sites` 規則，Role management 使用 `is_manage_roles`。Platform monitoring 仍只有選單項目，沒有實際 route。
+
+The management route's hydrating `clientLoader` freshly checks browser SESSION before loading `ManagementPage` or reading lists. SSR and initial hydration contain only a neutral LoadingIndicator, with no identity, management shell or table. The account menu, sidebar and table gate share strict-true `auth/permissions.canManage`: platform/user management retain `is_manage_sites`, while roles use `is_manage_roles`. Monitoring remains a menu item without a route.
+
+已確認無 SESSION、權限為 false 或 SESSION 回 401／403 時，先顯示共用 warning，再以 replace 轉到目前語系的 Access denied。SESSION 的網路、服務或契約錯誤保持管理內容隱藏，提供明確重試，不用舊權限繼續讀取。已開啟的頁面也在身份未知、查詢錯誤、權限撤銷或登出時同步隱藏外框、列資料及詳情；導覽進行中暫停舊表格 query，避免私有 cache 清理後重讀，由 loader 決定目的地，舊頁面不搶先轉址。
+
+A confirmed missing SESSION, false permission or SESSION HTTP 401/403 publishes a warning before replacing the URL with localized Access denied. Network, service or schema failures withhold management and offer explicit retry rather than using old rights. A mounted page also synchronously hides its shell, rows and details when identity is unknown, errored, revoked or signing out. Pending navigation pauses the old table query so private-cache cleanup cannot trigger another read; the loader owns the destination decision and the old page does not redirect an allowed destination.
+
+| 介面 / Surface                   | 規格 / Specification                                                                                                                                                                                                                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ManagementPage`                 | 桌面使用可收合 sidebar；1024px 以下手機／平板改用 Offcanvas。頁首長帳號截斷並保留 title，480px 以下詳情欄位上下排列；水平捲動由 table viewport 擁有。 / Desktop sidebar, tablet/mobile drawer, bounded account labels, stacked phone details and table-owned horizontal scrolling.       |
+| `DataTable`                      | 用 props 接收欄位、rowKey、資料、copy、排序、分頁與 callbacks；不 fetch、不引用業務 feature/i18n，不在前端重排當頁資料。可注入 toolbar 與 rowActions。 / Controlled reusable presentation with injected toolbar/actions; no domain reads, localization dependency or client row sorting. |
+| `features/management`            | Zod 驗證角色 15／帳號 13／網站 28 欄位；共用 HTTP transport 與 TanStack Query，契約維持 items/total/pages/page/size，size 支援 1–100。 / Domain-specific validated DTOs with adjustable numbered pages.                                                                                  |
+| 查詢控制 / Query controls        | 搜尋 300ms debounce；搜尋、篩選、size 或排序變更回第 1 頁。普通點擊切換單欄排序，Shift 或勾選多欄排序依序最多三欄；URL 保留狀態，Back／Forward 同步搜尋輸入。 / Debounced search, filter/page reset, touch/keyboard ordered sorting and history-aware URL state.                         |
+| 欄位及詳情 / Columns and details | 常用欄位預設顯示，其餘可從 Columns 開啟；詳情 Modal 呈現所有欄位，API 字串保持純文字。布林欄位使用唯讀 switch，缺資料 null 顯示破折號。 / Column chooser and a complete plain-text detail dialog; read-only switches and explicit missing values.                                        |
+| 主題 / Themes                    | Bootstrap table/forms/pagination 保留官方樣式；背景、表頭、列 hover、switch 與控制色透過既有語意 tokens 適應 mint／blue／amber／mist。 / Existing palette tokens adapt Bootstrap surfaces and hover states.                                                                              |
+
+目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
+
+Only the three GETs are integrated. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
+
+預設欄位以可辨識的名稱及管理狀態為主，`id`／`site_id`／`role_id` 留在欄位選單與詳情，不預設顯示。使用者表不提供數字角色 ID 輸入框，角色名稱可透過全域搜尋查找；API 與 URL 的 `role_id` 條件仍支援。初次進入不顯示隱含的 ID 排序摘要，實際 API 預設順序維持不變。
+
+| 頁面     | 預設欄位                                                                       |
+| -------- | ------------------------------------------------------------------------------ |
+| Platform | 帳號、個人名稱、品牌、已有作品集、已發布、預設首頁、擁有者啟用、已有此語言內容 |
+| User     | 帳號、登入信箱、角色名稱、啟用、角色啟用、已有作品集、登入次數、最近登入       |
+| Role     | 角色名稱、說明、啟用、預設註冊角色、帳號數                                     |
+
+「個人名稱」是 presentation 欄位，組合當前語言的 `first_name`／`family_name`，缺姓名時使用 `nick_name`，沿用公開頁漢字姓名的姓在前規則。沒有作品集、沒有當前語言內容、沒有設定名稱時分別顯示明確文字，不回退其他語言。此欄不可排序，不增加 API 欄位或資料表；品牌保留 `brand_title` 的既有語意。
+
+Default columns identify rows by account/profile/role names and management state. Technical IDs remain available through the column chooser/details. Profile name is a non-sortable presentation value derived only from the selected language's name/nickname fields, reusing public name ordering and explicit missing-content labels. It adds no API/database field. Row identity remains the server ID via `rowKey` and `data-row-key`; default database ordering is unchanged, with no implicit ID badge on first entry.
+
+若三支管理 GET 都回 `404`，先確認後端目前程序是否已載入新路由；`/openapi.json` 應列出 `/management/sites`、`/management/users`、`/management/roles`。目前 `manage_fastapi.py` 在啟動時建立路由，新增後端路由後須重啟該開發服務，前端再按 Refresh。
+
+If all three management GETs return `404`, check whether the running backend has loaded the routes: `/openapi.json` should list `/management/sites`, `/management/users` and `/management/roles`. The current backend entry builds routes at startup, so restart that development service after adding routes and refresh the table.
+
+管理 query 以操作者、資源、語言及完整查詢條件隔離，meta.private 排除 SSR／語言 staging 的 hydration。登入替換身份、SESSION 管理權限改變與登出時取消並移除 private resource queries，公開 Portfolio cache 保留；管理 DTO 不寫入 localStorage。此處實作前端 SESSION gate；後端 API permission dependencies 維持原樣，依既有規劃後補。
+
+Management queries are isolated by account, resource, language and query controls, and marked private to exclude them from server/staging hydration. Identity replacement, changed SESSION management permissions and sign-out cancel and remove private resource reads while preserving public caches. DTOs are not stored in localStorage. This is a frontend SESSION gate; backend API permission dependencies remain unchanged and planned separately.
+
+RWD 測試涵蓋 320／375／390／768／820／1024／1280／1920px、中英文標籤、300px 桌面嵌入容器、360px 高的橫向畫面、長帳號及詳情、全部欄位、十四頁分頁、觸控排序及抽屜跨斷點切換。一般 fixture 模式可從 `frontend/` 執行：
+
+Responsive checks cover phone/tablet/desktop widths, English/Chinese labels, narrow desktop embeds, short landscape screens, long content, full column sets, pagination, touch sorting and drawer transitions across breakpoints. Run with the standard fixture backend:
+
+```bash
+npm run test:e2e -- management-responsive.spec.ts management.spec.ts
+```
+
 ## 集合與標籤規格 / Collection and Tag Specifications
 
 | 元件 / Component          | 規格 / Specification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -635,6 +725,22 @@ Each feature owns one selection scope spanning its preview and expanded history.
 `SkillCategoryRow` 以分類內 `skills` 第 1 頁初始化獨立 owner Query，不重抓已內嵌的頁面。內部收合預覽的「標籤＋More」最多佔標籤容器 75%；已載入標籤全部放得下且還有後頁時，才續讀下一頁填補可用寬度。填滿即停止；完整技能全部放得下就不顯示 More。展開與剩餘續頁保留明確操作，縮放重用 cache。Query key 包含 locale／ownerId／ownerType／size，頁碼由 pageParam 管理；label 不一致或 owner 失效提供局部重載，共用 UI 不讀 API。
 
 `SkillCategoryRow` seeds an independent owner cache from embedded page one. The collapsed prefix and More control fit within 75% of the tag container. Only spare capacity with all loaded tags fitting triggers another page; filling the preview stops automatic reads, and a complete fitting list needs no More control. Expansion and remaining continuation stay explicit, resizing reuses cache, and owner keys include locale/type/size. Invalid owners or inconsistent labels provide local recovery; shared UI owns no API.
+
+## 麵包屑 / Breadcrumb
+
+Overview 標語上方透過 `ProfileOverview.breadcrumb` slot 注入共用 `Breadcrumb`，依序顯示「首頁 / 公開 Site 的 user / 總覽」。首頁連結回目前語系的 default；帳號連結使用 `#overview` 保留目前路徑及 `site_id`，身份取自 Site DTO，不使用 SESSION，也不額外讀 API。
+
+The Overview breadcrumb shows Home / the public Site user / Overview above the introduction eyebrow. The page injects the shared component through ProfileOverview's breadcrumb slot. Home returns to the current locale's default portfolio; the account fragment retains the current path and Site ID. Identity comes from the existing public Site DTO without another API read.
+
+## 帳號選單 / Account Menu
+
+`features/account-menu` 的 `AccountMenu(account,onOpen?,busy?,onLogin?,onLogout?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理、平台監控、用戶管理使用 `is_manage_sites`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`accountMenuGroups` 集中列順序與圖示，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
+
+The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management, monitoring and user management to `is_manage_sites`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; monitoring has no route yet.
+
+登入與登出列已接上頁面現有轉場及 SESSION API；主題、語言與管理列保留選單框架。登入門圖示重用 `Icon pulse="chat"` 的 Heartbeat，支援既有暫停與減少動態政策。共用 disclosure hook 與 Bootstrap 處理初始焦點、鍵盤、Escape、外點和關閉焦點還原；44px 觸發器、主題 tokens 與限高捲動保留手機可用性。原本的 `AppearanceMenu`／`LanguageMenu` 仍用於帳號介面及專案詳情等已有操作的場景。
+
+Sign-in and sign-out rows delegate to the existing page transition and SESSION API. Theme, language and management rows retain their presentation framework. Sign in reuses the existing chat Heartbeat decoration and motion policies. Shared disclosure focus and Bootstrap retain keyboard, Escape, outside dismissal and focus restoration. Theme tokens, the 44px trigger and bounded scrolling support small screens. Existing appearance/language controls remain available on their established account and detail surfaces.
 
 ## 語言元件規格 / Language Specifications
 
@@ -728,9 +834,9 @@ Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，
 
 ## 裝飾與進場規格 / Decoration and Entrance Specifications
 
-`BackgroundField(paused,speed,compact)` 是隨 page 載入的非互動外殼，不依賴 API；四邊、靜態格線 fallback 與 pointer glow 不等待 lazy chunk。可選 `BackgroundSignals(paused,speed)` 依 viewport 量測格線，最多 400 個十字與 6 個同時脈衝，重建／卸載清理 ResizeObserver、timer、rAF 與 Web Animations。強度沿用 appearance token；hidden／reduced-motion／使用者 pause 停止排程。Pointer glow 是 fixed radial-gradient，僅支援 mouse＋fine pointer，事件合併為每幀最多一次 paint、無閒置 loop；離開 viewport、blur、touch 或停止政策會隱藏，慢／失敗的 signals chunk 不阻擋它。
+`BackgroundField(paused,speed,compact,copy)` 是隨 page 載入的非互動外殼，不依賴 API；四邊、靜態格線 fallback 與 pointer glow 不等待 lazy chunk。可選 `BackgroundSignals(paused,speed)` 依 viewport 量測格線，最多 400 個十字與 6 個同時脈衝，重建／卸載清理 ResizeObserver、timer、rAF 與 Web Animations。強度沿用 appearance token；hidden／reduced-motion／使用者 pause 停止排程。Pointer glow 是 fixed radial-gradient，僅支援 mouse＋fine pointer，事件合併為每幀最多一次 paint、無閒置 loop；離開 viewport、blur、touch 或停止政策會隱藏，慢／失敗的 signals chunk 不阻擋它。
 
-`BackgroundField(paused,speed,compact)` is an eager, noninteractive page shell with no API dependency. Four edges, a static grid fallback and the pointer halo do not wait for a lazy chunk. Optional `BackgroundSignals(paused,speed)` measures viewport geometry, caps allocation at 400 crosses/six pulses and releases observers, timers, frames and Web Animations on rebuild/unmount. Shared appearance intensity and hidden/reduced/paused policies control scheduling. A fixed radial-gradient halo uses mouse/fine-pointer events with one coalesced paint per frame and no idle loop; viewport exit, blur, touch or suspension hides it. Slow or failed signals do not block the halo.
+`BackgroundField(paused,speed,compact,copy)` is an eager, noninteractive page shell with no API dependency. Four edges, a static grid fallback and the pointer halo do not wait for a lazy chunk. Optional `BackgroundSignals(paused,speed)` measures viewport geometry, caps allocation at 400 crosses/six pulses and releases observers, timers, frames and Web Animations on rebuild/unmount. Shared appearance intensity and hidden/reduced/paused policies control scheduling. A fixed radial-gradient halo uses mouse/fine-pointer events with one coalesced paint per frame and no idle loop; viewport exit, blur, touch or suspension hides it. Slow or failed signals do not block the halo.
 
 `useEntrance(root,ready,reveal,paused,subscribe)` 重用 page 的 `createEntrance(surface)` 管理初次進場與主題重播：上下框線 650ms、左右 ruler 650ms＋100ms 延遲、signals 淡入 800ms；內容沿用原本淡入節奏，450ms＋750ms 延遲，左側 rail／手機 header 450ms＋800ms 延遲。prepare 設定原有 data-entering marker 與 `--entrance-play-state:paused`，replay 僅將同一組 CSS 動畫釋放為 running；1400ms 後清理 marker／變數。初次進場完成才提出一次聯絡介紹；主題重播沒有聯絡 callback，也不重新掛載 component。初次 hidden／reduced-motion／pause 立即完成，恢復時不重播；主題重播只因 hidden／reduced-motion 取消，背景 Pause 不阻擋它。較晚到達的 API 僅補上初次聯絡介紹，不重啟四邊或導覽；手動聯絡操作優先。SSR／無 JavaScript 保持可讀，裝飾失敗不影響資料與操作。
 

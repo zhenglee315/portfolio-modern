@@ -1,6 +1,7 @@
 import { reactRouter } from '@react-router/dev/vite';
 import { defineConfig, loadEnv } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { bootstrapCss } from './bootstrap-css.ts';
 
 // Keep browser and SSR optimizers aligned when adding interactive Bootstrap components.
 const bootstrapComponents = [
@@ -21,6 +22,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [reactRouter()],
+    css: { postcss: { plugins: [bootstrapCss()] } },
     // Managed smoke runtimes keep optimizer files separate from an active local dev server.
     cacheDir: environment.PORTFOLIO_VITE_CACHE_DIR || undefined,
     resolve: { tsconfigPaths: true },

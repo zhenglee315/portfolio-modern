@@ -14,7 +14,7 @@ import { AppProviders } from '@/app/providers/AppProviders';
 import { defaultLocale } from '@/i18n/config';
 import { publicLocale, publicRouteHeaders } from './routes/public-route';
 import { appearanceBootstrapScript } from '@/features/appearance';
-import '@/styles/bootstrap.scss';
+import 'bootstrap/dist/css/bootstrap.css';
 import '@/assets/fonts/fonts.css';
 import '@/styles/tokens.css';
 import '@/styles/global.css';

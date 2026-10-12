@@ -19,13 +19,15 @@ const controlCopy = [
   ['cowWatching', 'hello'],
   ['cowGlobeRotate', 'globeStop'],
   ['cowMouseFollow', 'mouseStop'],
+  ['cowLeavesSway', 'leafStop'],
   ['cowPause', 'pause'],
 ] as const;
 
 vi.mock('@/shared/ui/cow-workspace/CowWorkspace', () => ({
   CowWorkspace: (props: CowWorkspaceProps) => {
     workspaceProps.current = props;
-    const { label, phase, motion, parallax, globeRotation } = props;
+    const { label, phase, motion, parallax, globeRotation, leafMotion, character, codingEffects } =
+      props;
     if (workspaceFailure.failed) throw new Error('The illustration failed to load.');
     return (
       <div
@@ -35,6 +37,9 @@ vi.mock('@/shared/ui/cow-workspace/CowWorkspace', () => ({
         data-motion={String(motion)}
         data-parallax={String(parallax)}
         data-globe-rotation={String(globeRotation)}
+        data-leaf-motion={String(leafMotion)}
+        data-denied-character={String(Boolean(character))}
+        data-coding-effects={String(Boolean(codingEffects))}
       />
     );
   },
@@ -59,20 +64,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderScene(active = true, welcome = false) {
+function renderScene(active = true, welcome = false, denied = false) {
   const i18n = createI18n('en');
   const view = render(
     <I18nextProvider i18n={i18n}>
-      <AuthCowScene active={active} welcome={welcome} />
+      <AuthCowScene active={active} welcome={welcome} denied={denied} />
     </I18nextProvider>,
   );
   return {
     view,
     i18n,
-    rerender: (nextActive: boolean, nextWelcome = false) =>
+    rerender: (nextActive: boolean, nextWelcome = false, nextDenied = false) =>
       view.rerender(
         <I18nextProvider i18n={i18n}>
-          <AuthCowScene active={nextActive} welcome={nextWelcome} />
+          <AuthCowScene active={nextActive} welcome={nextWelcome} denied={nextDenied} />
         </I18nextProvider>,
       ),
   };
@@ -286,7 +291,8 @@ describe('login cow scene controls', () => {
     const mouse = view.getByRole('button', { name: i18n.t('auth.cowMouseFollow') });
     const playback = view.getByRole('button', { name: i18n.t('auth.cowPause') });
     const controls = within(view.getByRole('group', { name: i18n.t('auth.cowPlayback') }));
-    expect(controls.getAllByRole('button')).toEqual([globe, mouse, playback]);
+    const leaves = view.getByRole('button', { name: i18n.t('auth.cowLeavesSway') });
+    expect(controls.getAllByRole('button')).toEqual([globe, mouse, leaves, playback]);
     expect(globe).toHaveAttribute('aria-pressed', 'true');
     expect(scene).toHaveAttribute('data-globe-rotation', 'true');
 
@@ -323,10 +329,10 @@ describe('login cow scene controls', () => {
     expect(scene).toHaveAttribute('data-globe-rotation', 'true');
   });
 
-  it('shares one pixel tooltip contract across all seven controls and dismisses it before each action', async () => {
+  it('shares one pixel tooltip contract across all eight controls and dismisses it before each action', async () => {
     const { view, i18n } = renderScene();
     const scene = await view.findByRole('img');
-    expect(view.getAllByRole('button')).toHaveLength(7);
+    expect(view.getAllByRole('button')).toHaveLength(8);
     fireEvent.click(view.getByRole('button', { name: i18n.t('auth.cowThinking') }));
 
     for (const [label, tip] of controlCopy) {
@@ -346,7 +352,7 @@ describe('login cow scene controls', () => {
       else {
         expect(button).toHaveAttribute(
           'aria-pressed',
-          label === 'cowMouseFollow' || label === 'cowGlobeRotate' ? 'false' : 'true',
+          ['cowMouseFollow', 'cowGlobeRotate', 'cowLeavesSway'].includes(label) ? 'false' : 'true',
         );
       }
       if (label === 'cowCycle') expect(scene).toHaveAttribute('data-phase', 'cycle');
@@ -362,6 +368,10 @@ describe('login cow scene controls', () => {
         expect(scene).toHaveAttribute('data-motion', 'true');
         expect(scene).toHaveAttribute('data-parallax', 'false');
       }
+      if (label === 'cowLeavesSway') {
+        expect(scene).toHaveAttribute('data-motion', 'true');
+        expect(scene).toHaveAttribute('data-leaf-motion', 'false');
+      }
       if (label === 'cowPause') expect(scene).toHaveAttribute('data-motion', 'false');
     }
     const playback = view.getByRole('button', { name: i18n.t('auth.cowPlay') });
@@ -372,6 +382,38 @@ describe('login cow scene controls', () => {
     expect(playback).not.toHaveAttribute('aria-describedby');
     expect(view.getByRole('button', { name: i18n.t('auth.cowPause') })).toBe(playback);
     expect(scene).toHaveAttribute('data-motion', 'true');
+  });
+
+  it('toggles shared leaf motion independently and retains it across playback, pose and page changes', async () => {
+    const { view, i18n, rerender } = renderScene();
+    const scene = await view.findByRole('img');
+    const leaves = view.getByRole('button', { name: i18n.t('auth.cowLeavesSway') });
+    const playback = view.getByRole('button', { name: i18n.t('auth.cowPause') });
+    expect(leaves).toHaveAttribute('aria-pressed', 'true');
+    expect(scene).toHaveAttribute('data-leaf-motion', 'true');
+    fireEvent.click(leaves);
+    expect(leaves).toHaveAttribute('aria-pressed', 'false');
+    expect(scene).toHaveAttribute('data-leaf-motion', 'false');
+    expect(scene).toHaveAttribute('data-motion', 'true');
+    expect(scene).toHaveAttribute('data-parallax', 'true');
+    expect(scene).toHaveAttribute('data-globe-rotation', 'true');
+    fireEvent.click(playback);
+    fireEvent.click(playback);
+    fireEvent.click(view.getByRole('button', { name: i18n.t('auth.cowWatching') }));
+    rerender(false);
+    rerender(true);
+    expect(scene).toHaveAttribute('data-phase', 'glance');
+    expect(scene).toHaveAttribute('data-leaf-motion', 'false');
+    expect(scene).toHaveAttribute('data-motion', 'true');
+    fireEvent.click(playback);
+    fireEvent.click(leaves);
+    expect(leaves).toHaveAttribute('aria-pressed', 'true');
+    expect(scene).toHaveAttribute('data-motion', 'false');
+    fireEvent.click(playback);
+    expect(scene).toHaveAttribute('data-leaf-motion', 'true');
+    expect(scene).toHaveAttribute('data-motion', 'true');
+    expect(scene).toHaveAttribute('data-parallax', 'true');
+    expect(scene).toHaveAttribute('data-globe-rotation', 'true');
   });
 
   it('discloses the same short tooltip on keyboard focus and consumes Escape without changing the pose', async () => {
@@ -492,4 +534,49 @@ describe('login cow scene controls', () => {
       poseWords,
     );
   });
+});
+
+describe('login denial illustration restoration', () => {
+  it.each(['cowCycle', 'cowThinking', 'cowCoding', 'cowWatching'] as const)(
+    'keeps %s and every preference while swapping the character on the same workspace',
+    async (mode) => {
+      const { view, i18n, rerender } = renderScene();
+      const scene = await view.findByRole('img');
+      const selection = view.getByRole('button', { name: i18n.t(`auth.${mode}`) });
+      fireEvent.click(selection);
+      for (const key of ['cowGlobeRotate', 'cowMouseFollow', 'cowLeavesSway', 'cowPause'])
+        fireEvent.click(view.getByRole('button', { name: i18n.t(`auth.${key}`) }));
+      const phase = scene.getAttribute('data-phase');
+      const originalOrigin = workspaceProps.current?.pointerOrigin;
+      rerender(true, false, true);
+      expect(view.getByRole('img')).toBe(scene);
+      expect(scene).toHaveAccessibleName(i18n.t('accessDenied.artwork'));
+      expect(scene).toHaveAttribute('data-denied-character', 'true');
+      expect(scene).toHaveAttribute('data-coding-effects', 'true');
+      expect(scene).toHaveAttribute('data-phase', phase);
+      expect(scene).toHaveAttribute('data-motion', 'false');
+      expect(scene).toHaveAttribute('data-globe-rotation', 'false');
+      expect(scene).toHaveAttribute('data-leaf-motion', 'false');
+      expect(selection).toHaveAttribute('aria-pressed', 'true');
+      expect(workspaceProps.current?.pointerOrigin).toBe(originalOrigin);
+      rerender(true);
+      expect(view.getByRole('img')).toBe(scene);
+      expect(scene).toHaveAccessibleName(i18n.t('auth.cowLabel'));
+      expect(scene).toHaveAttribute('data-denied-character', 'false');
+      expect(scene).toHaveAttribute('data-coding-effects', 'false');
+      expect(scene).toHaveAttribute('data-phase', phase);
+      expect(scene).toHaveAttribute('data-motion', 'false');
+      expect(selection).toHaveAttribute('aria-pressed', 'true');
+      for (const key of ['cowGlobeRotate', 'cowMouseFollow', 'cowLeavesSway'])
+        expect(view.getByRole('button', { name: i18n.t(`auth.${key}`) })).toHaveAttribute(
+          'aria-pressed',
+          'false',
+        );
+      fireEvent.click(view.getByRole('button', { name: i18n.t('auth.cowPlay') }));
+      expect(scene).toHaveAttribute('data-motion', 'true');
+      expect(scene).toHaveAttribute('data-parallax', 'false');
+      expect(scene).toHaveAttribute('data-globe-rotation', 'false');
+      expect(scene).toHaveAttribute('data-leaf-motion', 'false');
+    },
+  );
 });

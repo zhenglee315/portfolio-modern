@@ -4,7 +4,7 @@ import {
   authTransitionStyle,
   createAuthTransition,
   type AuthTransitionPhase,
-} from '../model/auth-transition';
+} from '@/shared/lib/auth-transition';
 
 /**
  * Coordinate the page-owned login frame while preserving the portfolio's saved scroll position.

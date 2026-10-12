@@ -4,9 +4,9 @@
 
 This directory contains the FastAPI backend for the personal profile system. `APPs` holds business APIs, `COMMON` holds shared tools, and `SYSTEM` owns configuration, models, the database, middleware, and the application lifecycle. See the [project README](../README.md) for the product overview.
 
-目前已完成六支 Portfolio 讀取 API、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。管理後台與 Portfolio 寫入 API 尚未實作。
+目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。管理寫入 API 與 Portfolio 寫入 API 尚未實作。
 
-Six Portfolio read APIs, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Administration and Portfolio write APIs are not implemented yet.
+Six Portfolio read APIs, three management lists for sites/accounts/roles, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Administration write APIs and Portfolio write APIs are not implemented yet.
 
 ## 目錄結構 / Directory Layout
 
@@ -21,6 +21,12 @@ backend/
 │   │   ├── views_auth.py         # Auth CBV routes and private responses
 │   │   ├── module/              # Sign-in, sign-out, registration and session logic
 │   │   └── schema/              # Request validation and account responses
+│   ├── Management/
+│   │   ├── views_management.py   # Role/account/platform list GETs
+│   │   ├── constants/
+│   │   │   └── constant_management.py # Query limits and allowed projection/sort fields
+│   │   ├── module/              # Filtered, sorted and paginated ORM projections
+│   │   └── schema/              # parser/ query validation and resp/ response models
 │   ├── Portfolio/
 │   │   ├── views_portfolio.py    # Six public CBV GET routes
 │   │   ├── module/               # ORM-backed business queries
@@ -52,7 +58,6 @@ backend/
 ├── tests/                        # 測試 / tests
 ├── alembic.ini                   # migration 入口 / migration configuration
 ├── manage_fastapi.py            # API 啟動入口 / server entry point
-├── test.py                      # 三語 mock 資料匯入工具 / mock importer
 ├── pyproject.toml                # 依賴宣告 / dependency declarations
 ├── uv.lock                       # 解析後版本 / resolved dependency versions
 └── src/backend/                  # 尚存的 uv 範例入口 / remaining uv sample
@@ -71,7 +76,7 @@ Public content follows the flow below. The Portfolio CBV routes share one `FastA
 ```text
 HTTP request
   → SYSTEM/middleware
-  → APPs/{Auth,Portfolio,Sys}/views
+  → APPs/{Auth,Management,Portfolio,Sys}/views
   → schema/parser → module → ORM or Redis helper
   → SYSTEM/database/ConnectionManager → SQLite/PostgreSQL or Redis
   → schema/resp → JSON response
@@ -179,6 +184,122 @@ Each category contains `{id,label,skills}`. Its nested skills response uses the 
 
 See the [frontend README](../frontend/README.md) for the React migration plan. Integration must follow this backend's `/portfolio` paths, direct response shapes, and OpenAPI contract. Check reference code and older documentation against their actual versions rather than assuming obsolete envelopes or `revision` checks.
 
+## 角色管理列表 / Role Management List
+
+`GET /management/roles` 每列是一個角色，沿用 `{items,total,pages,page,size}`，`items` 是有欄位名稱的物件陣列。前端透過既有代理呼叫 `/api/management/roles`。查詢由 `schema/parser/parser_management.py` 驗證，`module/module_management.py` 組合 SQL，`schema/resp/resp_management.py` 定義回應，`views_management.py` 提供 HTTP 介面；啟動時由現有路由探索機制載入。
+
+`GET /management/roles` returns one object per role in the shared numbered envelope. The frontend uses `/api/management/roles` through its existing proxy. The parser validates query values, the module builds ORM queries, the response schema defines serialization, and the CBV view supplies HTTP behavior. Existing route discovery registers the endpoint.
+
+| Query | 預設 / Default | 規則 / Rule |
+| --- | --- | --- |
+| `page` | `1` | 1–9007199254740991；超頁保留頁碼並回傳空 items / Out-of-range pages retain their requested number |
+| `size` | `6` | 1–100；不接受 all，公開 Portfolio 仍固定 6 / No full-fetch mode; public Portfolio remains fixed at 6 |
+| `search` | 空字串 / Empty | role、description 不分大小寫包含查找；各詞 AND、欄位間 OR；最多 200 字元、10 詞；`%`、`_` 按字面搜尋 / Case-insensitive literal terms, AND across terms and OR across fields |
+| `sort` | `id:desc` | 最多三個不同欄位，依順序優先，例如 `is_active:desc,user_count:desc,role:asc`；可用下表所有欄位 / Up to three ordered, distinct fields |
+| `is_active` | 未篩選 / Omitted | `true` 或 `false`，篩選角色狀態 / Filter role state |
+| `is_default` | 未篩選 / Omitted | `true` 或 `false`，篩選預設註冊角色 / Filter registration default |
+
+| 回應欄位 / Field | 來源 / Source | 用途 / Purpose |
+| --- | --- | --- |
+| `id` | `auth_role.id` | 角色識別及穩定排序 / Identity and sorting tie-breaker |
+| `role` | `auth_role.role` | 唯一角色名稱 / Unique role name |
+| `description` | `auth_role.description` | 角色說明，可為 null / Nullable description |
+| `is_create` | `auth_role.is_create` | 內容新增權限 / Create content |
+| `is_read` | `auth_role.is_read` | 內容管理讀取權限 / Read managed content |
+| `is_update` | `auth_role.is_update` | 內容修改權限 / Update content |
+| `is_delete` | `auth_role.is_delete` | 內容刪除權限 / Delete content |
+| `is_manage_sites` | `auth_role.is_manage_sites` | 網站管理權限 / Manage sites |
+| `is_manage_users` | `auth_role.is_manage_users` | 帳號管理權限 / Manage accounts |
+| `is_manage_roles` | `auth_role.is_manage_roles` | 角色管理權限 / Manage roles |
+| `is_default` | `auth_role.is_default` | 是否為新註冊帳號的預設角色 / Registration default |
+| `is_active` | `auth_role.is_active` | 是否允許所屬帳號登入 / Allow assigned accounts to sign in |
+| `createtime` | `auth_role.createtime` | UTC ISO 8601 建立時間 / Creation timestamp |
+| `updatetime` | `auth_role.updatetime` | UTC ISO 8601 修改時間 / Update timestamp |
+| `user_count` | `COUNT(auth_user.id)`，以 `auth_user.role_id` 分組 / Grouped by role_id | 全部關聯帳號數，包含停用帳號；無帳號回 0 / All assigned accounts, including inactive accounts |
+
+查詢先彙整帳號數再 LEFT JOIN，避免同一角色重複出現。搜尋、篩選與排序都在資料庫執行，再分頁；`total` 是符合條件的完整筆數。各排序欄位 NULL 一律放最後，未指定 id 時補上 `id:asc`。空集合回 `total=0,pages=0,items=[]`。
+
+Counts are aggregated before a LEFT JOIN to preserve one role per row. Search, filtering and sorting run in the database before pagination; total counts all matches. Nulls sort last in both directions, and id:asc breaks ties unless id was explicitly sorted. Empty results use total=0, pages=0 and items=[].
+
+每次請求都查詢資料庫，這支 API 沒有套用回應快取 decorator。無效查詢回 400，detail 為 `INVALID_PAGE`、`INVALID_SIZE`、`INVALID_SEARCH`、`INVALID_SORT`、`INVALID_IS_ACTIVE` 或 `INVALID_IS_DEFAULT`；資料庫不可用回 `503 MANAGEMENT_DATABASE_UNAVAILABLE`。這個工作包只有讀取 API，依規劃尚未加權限 decorator；沿用現有 auth_role／auth_user，沒有新增表或 migration。
+
+Each request queries the database; this endpoint has no response-cache decorator. Invalid query values return 400 with the corresponding INVALID_* detail; unavailable storage returns 503 MANAGEMENT_DATABASE_UNAVAILABLE. This work package contains only the read API, with permission decorators deferred as planned. It reuses auth_role and auth_user without schema changes or migrations.
+
+## 帳號與網站管理列表 / Account and Platform Lists
+
+`GET /management/users` 與 `GET /management/sites` 沿用角色列表的 `{items,total,pages,page,size}`、page=1、size=6（可調 1–100）、字面搜尋與最多三欄排序。每層集中於一個檔案：`module/module_management.py` 內的各資源類別共用 `ManagementListModule`，`schema/parser/parser_management.py` 內的各資源函式共用搜尋、排序、分頁驗證，`schema/resp/resp_management.py` 集中各資源返回類別，HTTP 介面集中於 `views_management.py`。description 沿用 Portfolio API 的分段說明與完整 JSON 範例。前端呼叫 `/api/management/users`、`/api/management/sites`。
+
+The account and platform GETs share the role list's numbered envelope, pagination limits, literal search and ordered sorting. Each layer uses one management file: resource query classes in module_management.py, query functions in parser_management.py, response classes in resp_management.py, and HTTP routes in views_management.py. Shared controls remain inside those files. OpenAPI uses the same sectioned descriptions and complete JSON examples as Portfolio. The frontend uses the existing /api proxy.
+
+| Endpoint | 搜尋欄位 / Search | 額外參數 / Additional query |
+| --- | --- | --- |
+| `GET /management/users` | `auth_user.user`、登入 `auth_user.email`、`auth_role.role` | `is_active`、`role_is_active`、`has_site`（true/false）；`role_id`（1–2147483647） |
+| `GET /management/sites` | `auth_user.user`、公開 `portfolio_site.email`、下表全部語言內容欄位 / All localized fields below | `locale=en\|zh-Hans\|zh-Hant`；`owner_is_active`、`has_site`、`is_published`、`is_default`、`has_translation`（true/false） |
+
+兩者都以帳號為根，每人一列，包含停用帳號與沒有網站的帳號。`id` 一律是 `auth_user.id`，`site_id` 才是網站 ID。User 的成功登入紀錄先彙整再 JOIN，避免重複列；Platform 只 JOIN 指定語言，缺翻譯時不丟棄帳號、不混用其他語言。網站缺失回 `has_site=false`、site_id 與網站欄位為 null；翻譯缺失回 `has_translation=false`、語言內容欄位為 null。`is_published=false`／`is_default=false` 僅篩選有網站且旗標為 false 的列，缺網站的 null 不算 false。
+
+Both lists use one account per row, including inactive accounts and accounts without a portfolio. The row id is auth_user.id; site_id identifies the portfolio. Login records are aggregated before joining. Platform joins only the requested language, retaining accounts with missing translations without falling back. Missing portfolios and translations are explicit nulls, with has_site and has_translation flags. A missing portfolio's null publication/default state does not match a false state filter.
+
+### User 返回欄位 / Account Response Fields
+
+| 欄位 / Field | 來源 / Source | 用途 / Purpose |
+| --- | --- | --- |
+| `id` | `auth_user.id` | 帳號識別 / Account identity |
+| `user` | `auth_user.user` | 公開帳號名稱 / Public handle |
+| `email` | `auth_user.email` | 登入信箱 / Login email |
+| `role_id` | `auth_user.role_id` | 指派角色識別 / Assigned role identity |
+| `role` | `auth_role.role` | 角色名稱 / Role name |
+| `is_active` | `auth_user.is_active` | 帳號狀態；false 為軟刪除 / Account state |
+| `role_is_active` | `auth_role.is_active` | 角色登入狀態 / Role login availability |
+| `site_id` | `portfolio_site.id` | 網站 ID，無網站為 null / Nullable portfolio identity |
+| `has_site` | `portfolio_site.id IS NOT NULL` | 是否已建立網站 / Portfolio presence |
+| `login_count` | `COUNT(record_login.id)`，按 user_id 分組 / Grouped by user_id | 成功登入總次數，無紀錄為 0 / Total successful sign-ins |
+| `last_login` | `MAX(record_login.logintime)`，按 user_id 分組 / Grouped by user_id | 最近成功登入，無紀錄為 null / Latest successful sign-in |
+| `createtime` | `auth_user.createtime` | UTC 帳號建立時間 / Account creation time |
+| `updatetime` | `auth_user.updatetime` | UTC 帳號修改時間 / Account update time |
+
+### Platform 返回欄位 / Platform Response Fields
+
+| 欄位 / Field | 來源 / Source | 用途 / Purpose |
+| --- | --- | --- |
+| `id` | `auth_user.id` | 每人一列的識別 / Person row identity |
+| `user` | `auth_user.user` | 擁有者帳號 / Owner handle |
+| `owner_is_active` | `auth_user.is_active` | 擁有者狀態 / Owner state |
+| `site_id` | `portfolio_site.id` | 網站識別 / Nullable portfolio identity |
+| `has_site` | `portfolio_site.id IS NOT NULL` | 網站是否存在 / Portfolio presence |
+| `is_published` | `portfolio_site.is_published` | 發布旗標；無網站為 null / Nullable publication flag |
+| `is_default` | `portfolio_site.is_default` | 預設首頁旗標；無網站為 null / Nullable homepage flag |
+| `copyright_year` | `portfolio_site.copyright_year` | 版權年份 / Copyright year |
+| `linkedin` | `portfolio_site.linkedin` | LinkedIn 連結 / LinkedIn URL |
+| `github` | `portfolio_site.github` | GitHub 連結 / GitHub URL |
+| `medium` | `portfolio_site.medium` | Medium 連結 / Medium URL |
+| `email` | `portfolio_site.email` | 公開聯絡信箱 / Public contact email |
+| `chat_icon` | `portfolio_site.chat_icon` | 聯絡氣泡圖示路徑 / Contact-bubble icon path |
+| `locale` | 查詢參數 / Requested locale | 管理語言 / Management language |
+| `has_translation` | `portfolio_site_locale.id IS NOT NULL`（指定 locale） / Selected locale | 指定語言內容是否存在 / Translation presence |
+| `brand_title` | `portfolio_site_locale.brand_title` | 品牌標題 / Brand title |
+| `brand_title_sub` | `portfolio_site_locale.brand_title_sub` | 品牌副標題 / Brand subtitle |
+| `first_name` | `portfolio_site_locale.first_name` | 名 / Given name |
+| `family_name` | `portfolio_site_locale.family_name` | 姓 / Family name |
+| `nick_name` | `portfolio_site_locale.nick_name` | 暱稱 / Nickname |
+| `profile_content` | `portfolio_site_locale.profile_content` | 個人介紹 / Profile introduction |
+| `edu_code` | `portfolio_site_locale.edu_code` | 教育簡稱 / Education abbreviation |
+| `program` | `portfolio_site_locale.program` | 教育課程 / Education program |
+| `intro_content` | `portfolio_site_locale.intro_content` | 名字上方介紹 / Introductory text |
+| `footer_content` | `portfolio_site_locale.footer_content` | 頁尾文案 / Footer text |
+| `chat_title` | `portfolio_site_locale.chat_title` | 聯絡氣泡標題 / Contact-bubble title |
+| `chat_title_sub` | `portfolio_site_locale.chat_title_sub` | 聯絡氣泡副標題 / Contact-bubble subtitle |
+| `chat_content` | `portfolio_site_locale.chat_content` | 聯絡氣泡文案 / Contact-bubble copy |
+| `updatetime` | `auth_user.updatetime` | 主表帳號的 UTC 更新時間；沒有網站也有值，並非網站內容修改時間 / Primary-account update time, including accounts without a portfolio; not a website-content timestamp |
+
+以上語言欄位都使用請求的 locale。Platform 的 `updatetime` 使用這張一人一列列表的主表 `auth_user.updatetime`，前端顯示為「帳號更新時間」；網站表沒有建立／修改時間，因此這不是網站設定或翻譯內容的修改時間。User 不選取也不返回密碼；Platform 的 email 是公開聯絡信箱，User 的 email 是登入信箱。全部 User 欄位可排序，Platform 除固定請求值 locale 之外的欄位都可排序，名稱直接對應 response 欄位。
+
+Localized fields use only the requested locale. Platform `updatetime` is the primary account's UTC update timestamp, displayed as "Account updated" even when no portfolio exists. Portfolio and translation tables do not store update times, so this field does not describe website-content changes. User queries never select password data. Platform email is public contact information, while User email is the login address. Every User response field is sortable; every Platform response field except the constant requested locale is sortable.
+
+三支管理列表都不使用快取 decorator、不另外設定 `Cache-Control`，權限 decorator 依原規劃後補；沒有新增表或 migration。共用無效查詢回 400 `INVALID_PAGE`／`INVALID_SIZE`／`INVALID_SEARCH`／`INVALID_SORT`。User 篩選錯誤回 `INVALID_IS_ACTIVE`／`INVALID_ROLE_IS_ACTIVE`／`INVALID_HAS_SITE`／`INVALID_ROLE_ID`；Platform 回 `INVALID_OWNER_IS_ACTIVE`／`INVALID_HAS_SITE`／`INVALID_IS_PUBLISHED`／`INVALID_IS_DEFAULT`／`INVALID_HAS_TRANSLATION`／`INVALID_LOCALE`。資料庫錯誤統一回 `503 MANAGEMENT_DATABASE_UNAVAILABLE`。
+
+All three lists omit response-cache decorators and additional Cache-Control settings. Permission decorators remain deferred as planned, and no migration is required. Invalid queries return the corresponding INVALID_* error with status 400; database failures return 503 MANAGEMENT_DATABASE_UNAVAILABLE.
+
 ## 設定與依賴 / Configuration and Dependencies
 
 | 位置 / Location                             | 用途 / Purpose                                                                                                                                                                                                                                   |
@@ -220,9 +341,9 @@ For SQLite, a relative `DATABASE.META.name` uses `DB_CONF["sqlite"]` in `SYSTEM/
 
 ## 安裝與本機操作 / Installation and Local Workflow
 
-以下順序適用於全新 clone。需要 Git、`uv`、Python 3.13，以及可連線的 Redis。`.python-version` 固定開發用 Python 3.13；`pyproject.toml` 允許 3.13 以上版本。SQLite 驅動隨鎖定依賴安裝，不需要額外安裝資料庫伺服器。依賴第一次下載、Python 安裝及可選 mock clone 需要網路；離線環境須預先備妥相同版本的環境與資料。前端安裝見[前端 README](../frontend/README.md)。
+以下順序適用於全新 clone。需要 Git、`uv`、Python 3.13，以及可連線的 Redis。`.python-version` 固定開發用 Python 3.13；`pyproject.toml` 允許 3.13 以上版本。SQLite 驅動隨鎖定依賴安裝，不需要額外安裝資料庫伺服器。依賴第一次下載與 Python 安裝需要網路；離線環境須預先備妥相同版本的環境。前端安裝見[前端 README](../frontend/README.md)。
 
-These steps cover a fresh clone. Install Git, `uv`, Python 3.13, and a reachable Redis service. `.python-version` pins development to Python 3.13; `pyproject.toml` permits 3.13 or later. Locked dependencies include the SQLite driver, so no separate SQL server is needed for the defaults. Initial dependency downloads, Python installation, and the optional mock clone require network access; prepare the same environment and data in advance for offline use. See the [frontend README](../frontend/README.md) for frontend setup.
+These steps cover a fresh clone. Install Git, `uv`, Python 3.13, and a reachable Redis service. `.python-version` pins development to Python 3.13; `pyproject.toml` permits 3.13 or later. Locked dependencies include the SQLite driver, so no separate SQL server is needed for the defaults. Initial dependency downloads and Python installation require network access; prepare the same environment in advance for offline use. See the [frontend README](../frontend/README.md) for frontend setup.
 
 ### 1. 準備工具與 Redis / Prepare Tools and Redis
 
@@ -268,32 +389,7 @@ FastAPI 啟動流程不建立資料表，也不自動跑 migration。相對的�
 
 FastAPI startup does not create tables or run migrations. The relative default SQLite file is `SYSTEM/models/sqlite/porfolio_modern`; its existing name has no `.db` suffix. Keep SQLite files, journals/WAL, and real user data out of version control. Each developer creates their own database from the same migrations.
 
-### 4. 可選匯入公開示範內容 / Optionally Import Public Demo Content
-
-新資料庫的 Portfolio 表是空的，所有公開 API 都會回 404；前端會顯示對應提示。要使用舊版公開 mock，可將 [portfolio-web](https://github.com/zhenglee315/portfolio-web) clone 到本專案相鄰位置，再匯入。從目前 `backend/` 目錄執行；已存在此來源時不用再 clone：
-
-A new database has empty Portfolio tables: `/portfolio/site` returns 404 and collections return empty data, which the frontend handles with status messages. To use the legacy public demo, clone [portfolio-web](https://github.com/zhenglee315/portfolio-web) beside this repository and import it. Starting in `backend/`, run the following; skip the clone if that source already exists:
-
-```bash
-cd ../..
-git clone https://github.com/zhenglee315/portfolio-web.git
-cd portfolio-modern/backend
-uv run --locked test.py --user existing-user
-```
-
-也可改用明確路徑：
-
-Alternatively, select an explicit source directory:
-
-```bash
-uv run --locked test.py --user existing-user --mock-dir /path/to/portfolio-web/mock
-```
-
-來源需要 `skills.json`，以及 `site/`、`journey/`、`experiences/`、`projects/`、`locales/` 各自的 `en.json`、`zh-Hans.json`、`zh-Hant.json`；三語的 ID、排序與共享欄位必須一致。這些是可選的公開示範資料，不是缺漏的執行程式；前端測試 fixtures 也不等同此匯入格式。`test.py` 會先驗證來源，再以單一 transaction 匯入**已遷移且所有 Portfolio 表皆為空**的資料庫；已有資料時拒絕匯入，不會清空它們。必須先建立有效登入帳號，再用 `--user` 明確指定 owner；匯入不修改帳號，示範作品集會成為已發布首頁。
-
-The source needs `skills.json` and `en.json`, `zh-Hans.json`, and `zh-Hant.json` under each of `site/`, `journey/`, `experiences/`, `projects/`, and `locales/`. IDs, order, and shared fields must agree across locales. These are optional public demo data, rather than missing application code; frontend test fixtures use a different shape. `test.py` validates the source and imports in one transaction into a **migrated database whose Portfolio tables are all empty**. Existing data causes a refusal and is never cleared. Create an active account first and explicitly select its public identifier with --user. The importer leaves accounts untouched and publishes the sole demonstration portfolio as the default.
-
-### 5. 啟動與確認 / Start and Verify
+### 4. 啟動與確認 / Start and Verify
 
 ```bash
 uv run --locked manage_fastapi.py
@@ -308,11 +404,11 @@ curl -fsS http://127.0.0.1:8080/openapi > /dev/null
 curl -fsS 'http://127.0.0.1:8080/portfolio/projects?locale=en&page=1&size=6'
 ```
 
-完成可選匯入後，還可確認 `/portfolio/site?locale=en` 的個人資料。`uv` 產生的 `backend` console script 目前仍指向 `src/backend` 範例，不會啟動 API；入口應使用 `manage_fastapi.py`。目前入口傳入 Uvicorn 的是已建立的 ASGI 物件，因此保持 `SERVER.worker: 1`；`SERVER.reload` 目前沒有傳給入口的 Uvicorn 呼叫，不能將它視為已實作的熱重載。部署多 worker／reload 需要先調整為可匯入的 application factory。
+新資料庫沒有作品集內容；`/portfolio/site?locale=en` 在沒有對應語言的已發布首頁時回傳 404。建立自己的作品集內容後，可用此端點確認個人資料。`uv` 產生的 `backend` console script 目前仍指向 `src/backend` 範例，不會啟動 API；入口應使用 `manage_fastapi.py`。目前入口傳入 Uvicorn 的是已建立的 ASGI 物件，因此保持 `SERVER.worker: 1`；`SERVER.reload` 目前沒有傳給入口的 Uvicorn 呼叫，不能將它視為已實作的熱重載。部署多 worker／reload 需要先調整為可匯入的 application factory。
 
-After the optional import, also check `/portfolio/site?locale=en`. The generated `backend` console script still points to the `src/backend` sample and does not start the API; use `manage_fastapi.py`. This entry point passes an instantiated ASGI application to Uvicorn, so keep `SERVER.worker: 1`. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload. Multiple workers or reload require an importable application factory.
+A new database has no portfolio content; `/portfolio/site?locale=en` returns 404 without a published default site in that locale. After creating your own content, use this endpoint to verify the profile. The generated `backend` console script still points to the `src/backend` sample and does not start the API; use `manage_fastapi.py`. This entry point passes an instantiated ASGI application to Uvicorn, so keep `SERVER.worker: 1`. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload. Multiple workers or reload require an importable application factory.
 
-### 6. 回歸檢查與常見問題 / Regression Checks and Troubleshooting
+### 5. 回歸檢查與常見問題 / Regression Checks and Troubleshooting
 
 完整回歸測試涵蓋 Portfolio、CBV、共用 SQLAlchemy／Redis 工具，以及現行單一非同步 `ConnectionManager` 的 session、transaction、SQLite 外鍵、設定驗證、資源回收與 lifespan。測試使用隔離設定、記憶體或 pytest 暫存 SQLite，Redis client 僅作 lazy 註冊與關閉；不讀取本機 YAML、不連線實際 Redis／PostgreSQL，也不使用現有作品集資料庫。
 
@@ -331,9 +427,7 @@ uv run --locked pytest -q tests
 | `SECURITY.secret_key` 驗證失敗 / Key validation fails | 保持非空字串；正式環境使用私有金鑰檔案，不依賴尚未實作的環境變數覆寫。 / Configure a nonempty string; production uses a private key file rather than unsupported environment overrides.     |
 | Redis connection refused                              | 確認服務正在執行，並以 YAML 的 host／port 執行 `redis-cli ... ping`。 / Start Redis and ping the configured host and port.                                                                  |
 | `no such table`                                       | 在 `backend/` 執行 `uv run --locked alembic upgrade head`，確認 API 與 migration 使用同一份設定。 / Apply migrations from `backend/` and ensure API and migrations share the configuration. |
-| `/portfolio/site` 回 404 / returns 404                | 空資料庫的正常結果；按上述步驟匯入公開 mock 或提供自己的內容。 / Expected for an empty database; import public mocks or provide your own content.                                           |
-| `Mock file not found`                                 | clone 可選來源或傳入有效 `--mock-dir`；確認必要三語 JSON 都存在。 / Clone the optional source or pass a valid directory containing every required locale file.                              |
-| `Portfolio tables must be empty`                      | 來源匯入工具只用於空資料庫；保留既有資料，不要為了重新匯入刪除它們。 / The importer only supports empty tables; preserve existing data instead of deleting it to rerun a seed.              |
+| `/portfolio/site` 回 404 / returns 404 | 尚無對應語言的已發布首頁；建立自己的作品集內容並確認發布狀態與語言。 / Create your own portfolio content and verify that a default site is published in the requested locale. |
 
 ## 分頁與技能方法索引 / Pagination and Skill Reference
 

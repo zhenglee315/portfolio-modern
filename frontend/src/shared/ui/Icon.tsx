@@ -35,6 +35,7 @@ import dpad from 'bootstrap-icons/icons/dpad-fill.svg?raw';
 import balloon from 'bootstrap-icons/icons/balloon-fill.svg?raw';
 import mouse2 from 'bootstrap-icons/icons/mouse2-fill.svg?raw';
 import globeAmericas from 'bootstrap-icons/icons/globe-americas-fill.svg?raw';
+import leafFill from 'bootstrap-icons/icons/leaf-fill.svg?raw';
 import eye from 'bootstrap-icons/icons/eye-fill.svg?raw';
 import eyeSlash from 'bootstrap-icons/icons/eye-slash-fill.svg?raw';
 import lock from 'bootstrap-icons/icons/lock-fill.svg?raw';
@@ -44,6 +45,16 @@ import success from 'bootstrap-icons/icons/check-circle-fill.svg?raw';
 import warning from 'bootstrap-icons/icons/exclamation-triangle-fill.svg?raw';
 import error from 'bootstrap-icons/icons/x-circle-fill.svg?raw';
 import bug from 'bootstrap-icons/icons/bug-fill.svg?raw';
+import gear from 'bootstrap-icons/icons/gear-fill.svg?raw';
+import personCircle from 'bootstrap-icons/icons/person-circle.svg?raw';
+import dashboard from 'bootstrap-icons/icons/window-sidebar.svg?raw';
+import activity from 'bootstrap-icons/icons/activity.svg?raw';
+import shieldLock from 'bootstrap-icons/icons/shield-lock-fill.svg?raw';
+import people from 'bootstrap-icons/icons/people-fill.svg?raw';
+import funnel from 'bootstrap-icons/icons/funnel.svg?raw';
+import funnelFill from 'bootstrap-icons/icons/funnel-fill.svg?raw';
+import caretUpFill from 'bootstrap-icons/icons/caret-up-fill.svg?raw';
+import caretDownFill from 'bootstrap-icons/icons/caret-down-fill.svg?raw';
 import { memo, type ReactNode } from 'react';
 
 const icons = {
@@ -84,6 +95,7 @@ const icons = {
   balloon,
   mouse2,
   globeAmericas,
+  leafFill,
   eye,
   eyeSlash,
   lock,
@@ -93,6 +105,16 @@ const icons = {
   warning,
   error,
   bug,
+  gear,
+  personCircle,
+  dashboard,
+  activity,
+  shieldLock,
+  people,
+  funnel,
+  funnelFill,
+  caretUpFill,
+  caretDownFill,
 };
 export type IconName = keyof typeof icons;
 type IconPulse = 'chat' | 'disclosure';

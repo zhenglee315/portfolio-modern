@@ -3,6 +3,7 @@ import { siteSchema } from '@/features/site/schemas/site';
 import { fullName } from '@/features/site/model/profile';
 import { projectsSchema } from '@/features/projects/schemas/projects';
 import { categoriesSchema } from '@/features/skills/schemas/skills';
+import { dismissStartupThroughAccountMenu, openProjectLanguage } from '../fixtures/browser';
 
 test.skip(
   !process.env.PORTFOLIO_API_SMOKE_TARGET,
@@ -80,10 +81,13 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant'] as const) {
     );
     await expect(page.locator('h1')).toContainText(fullName(site.profile));
     if (locale === 'en') {
-      await page.getByRole('button', { name: 'Change language', exact: true }).click();
+      const { dialog, trigger, close } = await openProjectLanguage(page);
+      await trigger.click();
       await page.getByRole('button', { name: '繁體中文', exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/zh-Hant/${site.user}\\?source=live#overview$`));
       await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
+      await close.click();
+      await expect(dialog).not.toBeVisible();
     }
     expect(errors).toEqual([]);
   });
@@ -110,8 +114,7 @@ test('live contact preserves its wrapped frame and multiline copy on desktop and
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/en');
   // Explicit menu use suppresses the startup offer before manually opening the same disclosure.
-  await page.getByRole('button', { name: 'Background settings' }).click();
-  await page.keyboard.press('Escape');
+  await dismissStartupThroughAccountMenu(page);
   const trigger = page.locator('[data-contact-trigger]:visible');
   await trigger.click();
   const bubble = page.locator('[data-contact-bubble]');

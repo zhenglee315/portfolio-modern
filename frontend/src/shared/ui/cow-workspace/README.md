@@ -32,20 +32,25 @@ import { CowWorkspace } from '@/shared/ui/cow-workspace/CowWorkspace';
 <CowWorkspace phase="glance" motion={false} label="牛工程師微笑看著你" />;
 ```
 
-| Prop            | 預設 / Default           | 用途 / Purpose                                                                         |
-| --------------- | ------------------------ | -------------------------------------------------------------------------------------- |
-| `label`         | 必填 / Required          | 呼叫端提供無障礙描述 / Owner-supplied accessible description                           |
-| `motion`        | `true`                   | 動畫與自然行為切換 / Scene animation and ambient phases                                |
-| `parallax`      | `true`                   | 細指標滑鼠視差 / Fine-pointer parallax                                                 |
-| `globeRotation` | `true`                   | 關閉時停在目前角度 / Independent globe rotation; holds its current angle when disabled |
-| `pointerScope`  | `scene`                  | 場景內跟動；`page` 接收整頁事件 / Local tracking, or full-page events with `page`      |
-| `pointerOrigin` | 場景中心 / Scene center  | 用目前元素 ref 指定跟動中心 / Current element ref used as the tracking origin          |
-| `phase`         | 自然循環 / Ambient cycle | 固定 `thinking`、`typing` 或 `glance` / Optional fixed expression                      |
-| `className`     | 空字串 / Empty           | 呼叫端的容器樣式 / Owner-supplied container style                                      |
+| Prop            | 預設 / Default           | 用途 / Purpose                                                                             |
+| --------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| `label`         | 必填 / Required          | 呼叫端提供無障礙描述 / Owner-supplied accessible description                               |
+| `motion`        | `true`                   | 動畫與自然行為切換 / Scene animation and ambient phases                                    |
+| `parallax`      | `true`                   | 細指標滑鼠視差 / Fine-pointer parallax                                                     |
+| `globeRotation` | `true`                   | 關閉時停在目前角度 / Independent globe rotation; holds its current angle when disabled     |
+| `leafMotion`    | `true`                   | 葉片以 −5° 至 +6° 擺動；關閉時停在目前角度 / Independent stronger leaf sway                |
+| `character`     | 既有牛 / Original cow    | 可替換角色姿勢，同用桌面素材及動態 / Custom pose using the same props and lifecycle        |
+| `codingEffects` | `false`                  | 在替換姿勢時沿用寫代碼的汗滴與電光 / Reuse coding sweat and laptop rays with a custom pose |
+| `pointerScope`  | `scene`                  | 場景內跟動；`page` 接收整頁事件 / Local tracking, or full-page events with `page`          |
+| `pointerOrigin` | 場景中心 / Scene center  | 用目前元素 ref 指定跟動中心 / Current element ref used as the tracking origin              |
+| `phase`         | 自然循環 / Ambient cycle | 固定 `thinking`、`typing` 或 `glance` / Optional fixed expression                          |
+| `className`     | 空字串 / Empty           | 呼叫端的容器樣式 / Owner-supplied container style                                          |
 
 自然循環固定依「思考 → 寫代碼 → 看著你 → 寫代碼」重複，每個狀態停留 3 秒，一輪共 12 秒。滑鼠互動保留循環時序並提供視差；暫停後繼續剩餘時間，也保留第二次打字在循環中的位置。托腮時使用專屬思考眼睛，頭部朝托腮的手輕微傾斜，以 6.4 秒週期在 2–4 度間緩慢微動；眼睛和嘴巴跟著完整牛頭一起轉動。打字時兩隻蹄子交錯敲擊，專注眼神朝下；直視時使用正面眼神與微笑。眼睛和嘴型只依姿勢切換，停止動畫或使用減少動態效果時仍保留所選姿勢的表情。咖啡冒煙、葉片搖擺、地球陸地持續繞球面轉動而支架與底座固定、整本打開的書輕微起伏。
 
 地球開關只停止地球目前影格，不改變表情或滑鼠偏好。系統減少動態、全域暫停、隱藏分頁與場景離開 viewport 的規則仍優先套用。
+
+登入與 Access denied 頁面共用 `useCowMotionControls` 的偏好狀態與 `CowMotionControls` 的控制列，並由 `CowControl` 共用圓形按鈕、PixelTooltip 及點擊關閉提示的行為。共用控制列提供地球、滑鼠、Leaf fill 草葉、播放／暫停；Access denied 透過 `eyes` 額外顯示眼睛追蹤。葉片開關僅暫停葉片，地球與其他動態仍各自運作，恢復播放保留各項偏好。
 
 The default cycle is thinking → coding → hello → coding, with three seconds per phase. Pausing retains expression, remaining time and cycle position. The globe toggle holds only its current frame without changing expression or pointer preferences. Reduced motion, global pause, hidden documents and out-of-view scenes still gate motion.
 
@@ -65,17 +70,21 @@ The default cycle is thinking → coding → hello → coding, with three second
 
 ## 登入整合與素材 / Account Integration and Assets
 
-登入頁透過 `AuthCowScene` 使用完整 `CowWorkspace`。左上四鈕為循環、思考（cup-hot-fill）、編程（dpad-fill）、你好（balloon-fill）；右下依序為地球（globe-americas-fill）、滑鼠跟動（mouse2-fill）及單一播放／暫停鈕。播放時顯示 pause-fill，暫停時顯示 play-fill，提示文字說明下一個動作。七鈕都採 44px 外框，沿用語言／主題控制尺寸與共用像素 tooltip，提供繁體、簡體及英文。
+登入頁透過 `AuthCowScene` 使用完整 `CowWorkspace`。左上四鈕為循環、思考（cup-hot-fill）、編程（dpad-fill）、你好（balloon-fill）；右下依序為地球（globe-americas-fill）、滑鼠跟動（mouse2-fill）、草葉（leaf-fill）及單一播放／暫停鈕。播放時顯示 pause-fill，暫停時顯示 play-fill，提示文字說明下一個動作。八鈕都採 44px 外框，沿用語言／主題控制尺寸與共用像素 tooltip，提供繁體、簡體及英文。
 
-`AuthCowScene` provides four top-left controls for cycle, thinking (cup-hot-fill), coding (dpad-fill) and hello (balloon-fill). Bottom-right controls are globe-americas-fill, mouse2-fill and one play/pause button. Playback shows pause-fill while running and play-fill while paused; its description names the next action. All seven use the language/theme controls' 44px frame and shared pixel tooltips in Traditional Chinese, Simplified Chinese and English.
+`AuthCowScene` provides four top-left controls for cycle, thinking (cup-hot-fill), coding (dpad-fill) and hello (balloon-fill). Bottom-right controls are globe-americas-fill, mouse2-fill, leaf-fill and one play/pause button. Playback shows pause-fill while running and play-fill while paused; its description names the next action. All eight use the language/theme controls' 44px frame and shared pixel tooltips in Traditional Chinese, Simplified Chinese and English.
 
-登入頁使用 `pointerScope="page"`，以目前表單輸入區中心為 `pointerOrigin`；滑鼠在背景與表單上都會跟動，位移依中心到視窗邊緣的距離漸變。離開頁面或視窗失焦時回正，追蹤開關與既有動畫暫停條件仍然生效。場景位於 keyed 表單之外，切換登入／註冊／忘記密碼仍保留表情、播放、滑鼠與地球偏好。760px 以下排列在表單上方，精細指標以外的裝置保留觸控捲動。角色拆件及道具組合保留在元件內部；獨立素材預覽頁及其拆件呈現介面已移除。
+登入頁使用 `pointerScope="page"`，以目前表單輸入區中心為 `pointerOrigin`；滑鼠在背景與表單上都會跟動，位移依中心到視窗邊緣的距離漸變。離開頁面或視窗失焦時回正，追蹤開關與既有動畫暫停條件仍然生效。場景位於 keyed 表單之外，切換登入／註冊／忘記密碼仍保留表情、播放、滑鼠、地球與草葉偏好。760px 以下排列在表單上方，精細指標以外的裝置保留觸控捲動。角色拆件及道具組合保留在元件內部；獨立素材預覽頁及其拆件呈現介面已移除。
 
-The account panel uses `pointerScope="page"` and the live form fields' center as `pointerOrigin`, tracking over both the background and form. Motion scales toward each viewport edge and returns to neutral on page departure or window blur. Keeping the scene outside the keyed form preserves expression, playback, pointer and globe preferences across account modes. At widths up to 760px it sits above the form; touch scrolling remains available. Scene parts remain internal components, and the standalone asset-preview page has been removed.
+The account panel uses `pointerScope="page"` and the live form fields' center as `pointerOrigin`, tracking over both the background and form. Motion scales toward each viewport edge and returns to neutral on page departure or window blur. Keeping the scene outside the keyed form preserves expression, playback, pointer, globe and leaf preferences across account modes. At widths up to 760px it sits above the form; touch scrolling remains available. Scene parts remain internal components, and the standalone asset-preview page has been removed.
 
-場景與各拆件的英文註解說明組合、對齊與動畫歸屬；`useCowWorkspaceMotion` 記錄表情時序、整頁跟動與 observer／listener／timer／rAF 清理。地球影格由 CSS 播放，`globeRotation` 不另外建立 JavaScript 計時器。文案及控制偏好由登入 feature 提供，共用場景不依賴 i18n 或帳號狀態。
+`DeniedCowCharacter` 共用 Access denied 的憤怒眼眉、獨立追蹤瞳孔、舉牌左手及原托腮右手。登入的 `AuthPanel` 僅在具 `INVALID_CREDENTIALS` 代碼的登入失敗後設定 `denied`；`AuthCowScene` 首次需要時才載入角色，替換同一個 `CowWorkspace` 的 `character` 並啟用 `codingEffects`。修改信箱／密碼後恢復原角色，聚焦本身不會恢復；所選模式、偏好及自然循環時鐘保留，網路／服務錯誤仍使用原提示。托腮沿用共用 `cowWatchingArm` 的 6.8 秒動作，不受目前表情階段隱藏。
 
-English comments document scene composition, part alignment and motion ownership. `useCowWorkspaceMotion` describes phase timing, page tracking and observer/listener/timer/frame cleanup. CSS plays the globe frames, so `globeRotation` introduces no additional JavaScript clock. The auth feature supplies copy and control preferences; the shared scene has no dependency on i18n or account state.
+`DeniedCowCharacter` shares the Access denied brows, clipped tracking pupils, raised left sign arm and original right chin-rub arm. Only a coded `INVALID_CREDENTIALS` sign-in failure sets `AuthPanel`'s `denied` flag. `AuthCowScene` loads the character on first use, replacing the same `CowWorkspace`'s `character` slot and enabling `codingEffects`. Email/password edits restore the original character; focus alone does not. The selected mode, preferences and ambient clock persist, while network/service failures keep existing feedback. The shared `cowWatchingArm` retains its 6.8-second chin rub independently of the current expression phase.
+
+場景與各拆件的英文註解說明組合、對齊與動畫歸屬；`useCowWorkspaceMotion` 記錄表情時序、整頁跟動與 observer／listener／timer／rAF 清理。地球影格由 CSS 播放，`globeRotation` 不另外建立 JavaScript 計時器。`useCowMotionControls` 管理呼叫端偏好、`i18n/cow-copy.cowMotionCopy(t)` 注入 `CowMotionCopy`，`CowMotionControls` 只呈現文案；`CowWorkspace` 本身不依賴 i18n 或帳號狀態。
+
+English comments document scene composition, part alignment and motion ownership. `useCowWorkspaceMotion` describes phase timing, page tracking and observer/listener/timer/frame cleanup. CSS plays the globe frames, so `globeRotation` introduces no additional JavaScript clock. `useCowMotionControls` owns caller preferences and `i18n/cow-copy.cowMotionCopy(t)` supplies `CowMotionCopy` and `CowMotionControls` only renders that copy; `CowWorkspace` itself has no dependency on i18n or account state.
 
 正式完整分件位於 `src/assets/cow-workspace/`：`rig-*.svg` 為角色、`complete-*.svg` 為道具；生成資料為 `rig.ts` 與 `complete-props.ts`。SVG 不引用 PNG，也不含嵌入點陣圖片。
 
@@ -109,3 +118,7 @@ python3 scripts/verify-cow-scene-sprite.py
 ```
 
 這是固定正面的 2.5D 堆疊；新增角度仍需要該角度的繪圖。書本目前是完整紙面一起微動，沒有逐頁翻書。
+
+登入與拒絕存取的呼叫端都傳入 `<CowMotionControls controls={controls} copy={cowMotionCopy(t)} />`；拒絕存取再加 `eyes`。`CowControl`／`CowMotionControls` 不訂閱語系、不硬寫 `auth.*`／`accessDenied.*` key；locale adapter 為唯一文案組合來源。`DeniedCowCharacter` 在 shared 的同一個 SVG 組件中保留眉框、瞳孔及雙手，兩個頁面透過 `CowWorkspace` 的 character 插槽重用。
+
+Both callers inject `copy={cowMotionCopy(t)}` into the same motion controls; the denied page additionally enables `eyes`. Controls depend on injected strings rather than authentication or locale keys, while the shared SVG character remains the sole implementation of the denied pose.

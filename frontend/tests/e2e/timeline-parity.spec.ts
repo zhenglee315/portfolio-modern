@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { runtimeTest as test } from '../fixtures/browser';
+import { setPublicMotionPreference, runtimeTest as test } from '../fixtures/browser';
 
 type Feature = 'projects' | 'experiences';
 type PulseSample = {
@@ -213,8 +213,7 @@ test('timeline heartbeat freezes and resumes with preferences and respects reduc
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openTimelines(page);
-  await page.getByRole('button', { name: 'Background settings' }).click();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await setPublicMotionPreference(page, true);
   await expect(page.locator('html')).toHaveAttribute('data-motion-paused', 'true');
   for (const feature of ['projects', 'experiences'] as const) {
     const point = timelinePoints(page, feature).first();
@@ -226,9 +225,8 @@ test('timeline heartbeat freezes and resumes with preferences and respects reduc
     expect(frozen.currentTime).toBe(frozen.beforeTime);
     expect(frozen.shadow).toBe(frozen.beforeShadow);
   }
-  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await setPublicMotionPreference(page, false);
   await expect(page.locator('html')).toHaveAttribute('data-motion-paused', 'false');
-  await page.keyboard.press('Escape');
   for (const feature of ['projects', 'experiences'] as const) {
     const point = timelinePoints(page, feature).first();
     await expect

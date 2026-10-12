@@ -23,6 +23,14 @@ This directory contains real website screenshots and focused crops for the docum
 | [auth-register-desktop.png](auth-register-desktop.png) | 桌面註冊、Confirm 及驗證碼發送入口 / Desktop registration, Confirm and code-send action            |
 | [auth-cow-workspace.png](auth-cow-workspace.png)       | 草地牛工作桌、表情及播放控制局部裁切 / Cow desk, expression and playback controls crop             |
 | [auth-mobile.png](auth-mobile.png)                     | 390px 手機完整註冊介面與上方牛場景 / Complete mobile registration interface and cow scene at 390px |
+| [auth-denied-cow-desktop.png](auth-denied-cow-desktop.png) | 模擬帳密錯誤後的登入禁止牛、原有電光及汗滴 / Sign-in rejection with the shared denied cow, laptop rays and sweat |
+| [auth-denied-cow-mobile.png](auth-denied-cow-mobile.png) | 320px 手機登入禁止牛及保留的控制偏好 / Denied cow and retained controls in the 320px mobile sign-in view |
+| [access-denied-preview-desktop.png](access-denied-preview-desktop.png) | 403 桌面預覽、既有牛桌面與禁止牌 / Desktop 403 preview with the reused cow desk and no-entry sign |
+| [access-denied-preview-mobile.png](access-denied-preview-mobile.png) | 403 手機預覽與返回首頁入口 / Mobile 403 preview and return action |
+| [access-denied-rwd-desktop-short.png](access-denied-rwd-desktop-short.png) | 1280×600 短桌面視窗，牛與五個控制完整顯示 / Short desktop with height-bounded cow and full controls |
+| [access-denied-rwd-tablet.png](access-denied-rwd-tablet.png) | 820×1180 直向平板的置中配置 / Centered portrait tablet layout |
+| [access-denied-rwd-phone.png](access-denied-rwd-phone.png) | 390×844 手機上下配置 / Stacked phone layout |
+| [access-denied-rwd-landscape.png](access-denied-rwd-landscape.png) | 667×375 橫向手機的緊湊雙欄 / Compact two-column phone landscape |
 
 更新圖片時保留既有檔名與功能對應，確認文字、卡片、包邊及控制沒有被意外截斷。對話框／抽屜應在進場完成後擷取，等待字型、內容與圖片載入，並讓裁切保留功能所需的上下文。PNG 不包含瀏覽器網址列、桌面或操作紀錄。展示文字與日期屬於 API 內容，不作為固定文案規格。
 

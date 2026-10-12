@@ -10,3 +10,4 @@ import '../e2e/collections.spec';
 import '../e2e/contact.spec';
 import '../e2e/theme-transition.spec';
 import '../e2e/online-visitors.spec';
+import '../e2e/account-menu.spec';

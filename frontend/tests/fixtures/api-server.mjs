@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { endpointFixture, portfolioSelectorError } from './portfolio.ts';
+import { managementEndpointFixture } from './management.ts';
 
 /** Serve public synthetic DTOs for repeatable SSR and browser tests, without a database. */
 const server = createServer((request, response) => {
@@ -25,7 +26,7 @@ const server = createServer((request, response) => {
       ? { ok: true }
       : url.pathname === '/authority/session'
         ? null
-        : endpointFixture(url);
+        : (managementEndpointFixture(url) ?? endpointFixture(url));
   response.writeHead(data !== undefined ? 200 : 404, {
     'content-type': 'application/json',
     'cache-control': 'no-store',

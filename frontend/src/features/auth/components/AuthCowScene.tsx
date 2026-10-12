@@ -1,16 +1,23 @@
 import { lazy, Suspense, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Icon, type IconName } from '@/shared/ui/Icon';
-import { PixelTooltip } from '@/shared/ui/PixelTooltip';
+import { cowMotionCopy } from '@/i18n/cow-copy';
+import { CowControl } from '@/shared/ui/cow-workspace/CowControl';
+import { CowMotionControls } from '@/shared/ui/cow-workspace/CowMotionControls';
+import { useCowMotionControls } from '@/shared/ui/cow-workspace/useCowMotionControls';
 import { PixelBubble } from '@/shared/ui/PixelBubble';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
-import { useHoverTooltip } from '@/shared/hooks/useHoverTooltip';
 import type { CowWorkspacePhase } from '@/shared/hooks/useCowWorkspaceMotion';
 import styles from './AuthCowScene.module.css';
 
 const CowWorkspace = lazy(() =>
   import('@/shared/ui/cow-workspace/CowWorkspace').then((module) => ({
     default: module.CowWorkspace,
+  })),
+);
+
+const DeniedCowCharacter = lazy(() =>
+  import('@/shared/ui/cow-workspace/DeniedCowCharacter').then((module) => ({
+    default: module.DeniedCowCharacter,
   })),
 );
 
@@ -24,72 +31,37 @@ const modes = [
 ] as const;
 
 /**
- * Share localized accessible labels and short pixel tips across cow controls.
- * Omit pressed for actions such as playback; clicks close the tip before invoking onClick.
- * The shared tooltip hook owns its listeners and cleanup.
- */
-function CowControl({
-  icon,
-  label,
-  text,
-  pressed,
-  onClick,
-}: {
-  icon: IconName;
-  label: string;
-  text: string;
-  pressed?: boolean;
-  onClick: () => void;
-}) {
-  const tooltip = useHoverTooltip();
-  return (
-    <>
-      <button
-        {...tooltip.triggerProps}
-        type="button"
-        className={`icon-button ${styles.control}`}
-        aria-label={label}
-        aria-pressed={pressed}
-        onClick={() => {
-          tooltip.close();
-          onClick();
-        }}
-      >
-        <Icon name={icon} />
-      </button>
-      {tooltip.tooltipProps && (
-        <PixelTooltip {...tooltip.tooltipProps} text={text} placement="above" />
-      )}
-    </>
-  );
-}
-
-/**
  * Own expression, playback, mouse and globe preferences while reusing the shared scene clock.
  * active gates motion without replacing preferences; pointerOrigin anchors full-page tracking.
  * Keep this outside mode-keyed forms so account-mode changes retain these preferences.
  * welcome temporarily shows the watching pose without changing stored controls or motion policy.
+ * denied swaps only the character; the workspace clock, selected phase and preferences persist.
  */
 export function AuthCowScene({
   active = true,
   welcome = false,
+  denied = false,
   pointerOrigin,
 }: {
   active?: boolean;
   welcome?: boolean;
+  denied?: boolean;
   pointerOrigin?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<CowMode>('cycle');
-  const [playing, setPlaying] = useState(true);
-  const [mouseFollowing, setMouseFollowing] = useState(true);
-  const [globeRotating, setGlobeRotating] = useState(true);
-  const motion = active && playing;
+  const controls = useCowMotionControls(active);
+  const { motion, preferences } = controls;
   const phase = welcome ? 'glance' : mode === 'cycle' ? undefined : mode;
   const placeholder = <div className={styles.scene} aria-hidden="true" />;
 
   return (
-    <div className={styles.root} data-auth-cow data-welcome={welcome || undefined}>
+    <div
+      className={styles.root}
+      data-auth-cow
+      data-welcome={welcome || undefined}
+      data-auth-cow-denied={denied || undefined}
+    >
       <div className={styles.modes} role="group" aria-label={t('auth.cowModes')}>
         {modes.map((item) => (
           <CowControl
@@ -113,14 +85,21 @@ export function AuthCowScene({
         >
           <Suspense fallback={placeholder}>
             <CowWorkspace
-              label={t('auth.cowLabel')}
+              label={t(denied ? 'accessDenied.artwork' : 'auth.cowLabel')}
               className={styles.scene}
               phase={phase}
               motion={motion}
-              parallax={motion && mouseFollowing}
+              parallax={motion && preferences.mouseFollowing}
               pointerScope="page"
               pointerOrigin={pointerOrigin}
-              globeRotation={globeRotating}
+              globeRotation={preferences.globeRotating}
+              leafMotion={preferences.leavesSwaying}
+              codingEffects={denied}
+              character={
+                denied ? (
+                  <DeniedCowCharacter motion={motion && preferences.eyeTracking} />
+                ) : undefined
+              }
             />
             {welcome && (
               <PixelBubble
@@ -136,27 +115,8 @@ export function AuthCowScene({
         </SectionBoundary>
       </div>
 
-      <div className={styles.playback} role="group" aria-label={t('auth.cowPlayback')}>
-        <CowControl
-          icon="globeAmericas"
-          label={t('auth.cowGlobeRotate')}
-          text={t(globeRotating ? 'auth.cowTips.globeStop' : 'auth.cowTips.globeStart')}
-          pressed={globeRotating}
-          onClick={() => setGlobeRotating((rotating) => !rotating)}
-        />
-        <CowControl
-          icon="mouse2"
-          label={t('auth.cowMouseFollow')}
-          text={t(mouseFollowing ? 'auth.cowTips.mouseStop' : 'auth.cowTips.mouseStart')}
-          pressed={mouseFollowing}
-          onClick={() => setMouseFollowing((following) => !following)}
-        />
-        <CowControl
-          icon={playing ? 'pause' : 'play'}
-          label={t(playing ? 'auth.cowPause' : 'auth.cowPlay')}
-          text={t(playing ? 'auth.cowTips.pause' : 'auth.cowTips.play')}
-          onClick={() => setPlaying((current) => !current)}
-        />
+      <div className={styles.playback}>
+        <CowMotionControls copy={cowMotionCopy(t)} controls={controls} />
       </div>
     </div>
   );

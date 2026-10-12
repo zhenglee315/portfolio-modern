@@ -15,11 +15,12 @@ type Props = {
   leadingControls?: ReactNode;
   controls?: ReactNode;
   controlsRef?: Ref<HTMLDivElement>;
+  breadcrumb?: ReactNode;
   onExplore: () => void;
 };
 
 /** Render API-owned identity, introduction, contacts and injected journey summary.
- * @param props URL locale, optional work tenure and page-coordinated control slot.
+ * @param props URL locale, optional work tenure and page-coordinated control and breadcrumb slots.
  * Independent query failures leave navigation and sibling sections available.
  */
 export function ProfileOverview({
@@ -29,6 +30,7 @@ export function ProfileOverview({
   leadingControls,
   controls,
   controlsRef,
+  breadcrumb,
   onExplore,
 }: Props) {
   const { t } = useTranslation();
@@ -83,6 +85,7 @@ export function ProfileOverview({
       />
       {site && (
         <>
+          {breadcrumb && <div className={styles.breadcrumb}>{breadcrumb}</div>}
           <p className="eyebrow">
             <span className={styles.tinyLine} aria-hidden="true" />
             {site.profile.introContent}

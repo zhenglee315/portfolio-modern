@@ -1,10 +1,7 @@
 import { StrictMode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  authTransitionTiming,
-  createAuthTransition,
-} from '@/pages/portfolio/model/auth-transition';
+import { authTransitionTiming, createAuthTransition } from '@/shared/lib/auth-transition';
 import { useAuthTransition } from '@/pages/portfolio/hooks/useAuthTransition';
 
 afterEach(() => {

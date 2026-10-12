@@ -1,0 +1,98 @@
+/* Keep the same 44px header frame while replacing Bootstrap's disclosure caret. */
+.dropdown > :global(.dropdown-toggle)::after {
+  display: none;
+}
+.trigger[aria-expanded='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+/* Paired selectors preserve the themed panel when Bootstrap loads after feature CSS. */
+.menu:global(.dropdown-menu) {
+  --bs-dropdown-bg: var(--control-surface);
+  --bs-dropdown-color: var(--text);
+  --bs-dropdown-border-color: var(--control-border);
+  --bs-dropdown-link-color: var(--text);
+  --bs-dropdown-link-hover-bg: var(--control-hover);
+  --bs-dropdown-link-hover-color: var(--text);
+  --bs-dropdown-link-active-bg: var(--control-hover);
+  --bs-dropdown-link-active-color: var(--text);
+  z-index: 65;
+  width: min(280px, calc(100vw - 32px));
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-menu);
+  background: var(--control-surface);
+  color: var(--text);
+  box-shadow: 0 12px 32px var(--shadow-medium);
+  /* Short and narrow viewports retain access to every row without horizontal overflow. */
+  max-height: calc(100dvh - 180px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.menu :global(.dropdown-item) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--control-size);
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+  white-space: normal;
+}
+.menu :global(.dropdown-item):is(:hover, :focus-visible) {
+  background: var(--control-hover);
+  color: var(--text);
+}
+.menu :global(.dropdown-item) > :global(.icon) {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+.menu :global(.dropdown-item):is(:hover, :focus-visible) > :global(.icon) {
+  color: var(--accent);
+}
+.divider:global(.dropdown-divider) {
+  margin: 7px 4px;
+  border-top-color: var(--border);
+  opacity: 1;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 5px 12px;
+}
+.identityIcon {
+  width: 30px;
+  height: 30px;
+  color: var(--accent);
+}
+.identityCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  font-size: 13px;
+}
+.identityCopy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.identityCopy span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.menu :global(.dropdown-item)[aria-disabled='true'] {
+  cursor: wait;
+  opacity: 0.5;
+}

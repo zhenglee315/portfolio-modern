@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
 import styles from './BackgroundField.module.css';
@@ -17,12 +16,13 @@ export default function BackgroundField({
   paused,
   speed,
   compact,
+  copy,
 }: {
   paused: boolean;
   speed: number;
   compact: boolean;
+  copy: { unavailable: string; retry: string };
 }) {
-  const { t } = useTranslation();
   // The shell never tracks input on the server. A desktop hydration snapshot avoids
   // one extra false-to-true listener reset before the first real mouse movement.
   const finePointer = useMediaQuery(finePointerQuery, true);
@@ -74,8 +74,8 @@ export default function BackgroundField({
           <SectionBoundary
             silent
             resetKey="background-signals"
-            message={t('ui.unavailable')}
-            retryLabel={t('ui.retry')}
+            message={copy.unavailable}
+            retryLabel={copy.retry}
           >
             <Suspense fallback={null}>
               <BackgroundSignals paused={paused} speed={speed} />

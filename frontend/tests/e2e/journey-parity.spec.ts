@@ -1,5 +1,9 @@
 import { expect } from '@playwright/test';
-import { runtimeTest as test } from '../fixtures/browser';
+import {
+  openProjectLanguage,
+  runtimeTest as test,
+  setPublicMotionPreference,
+} from '../fixtures/browser';
 
 /** Verify the old atlas's visible final destination and its independently pausable paint. */
 test('journey retains destination coordinates, caption and country breathing', async ({ page }) => {
@@ -29,8 +33,7 @@ test('journey retains destination coordinates, caption and country breathing', a
   expect(await country.evaluate((node) => getComputedStyle(node).animationName)).toContain(
     'country-breathe',
   );
-  await page.getByRole('button', { name: 'Background settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await setPublicMotionPreference(page, true);
   await expect
     .poll(() => country.evaluate((node) => getComputedStyle(node).animationPlayState))
     .toBe('paused');
@@ -56,9 +59,13 @@ test('country decoration survives playback, popup and locale rerenders', async (
   await journey.locator('[data-stop="2"]').focus();
   await expect(page.getByRole('tooltip')).toBeVisible();
   expect(await original?.evaluate((node) => node.isConnected)).toBe(true);
-  await page.getByRole('button', { name: 'Change language', exact: true }).click();
+  const { dialog, trigger, close } = await openProjectLanguage(page);
+  await trigger.click();
   await page.getByRole('button', { name: '繁體中文', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
+  await close.click();
+  await expect(dialog).not.toBeVisible();
+  await journey.scrollIntoViewIfNeeded();
   await expect(country).toHaveCount(1);
   await expect(country).toHaveAttribute('data-country', 'TWN');
   expect(await original?.evaluate((node) => node.isConnected)).toBe(true);

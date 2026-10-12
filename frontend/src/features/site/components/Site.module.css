@@ -1,5 +1,7 @@
 /* API profile typography and shared wordmark preserve the original visual hierarchy. */
 .intro {
+  /* Reserve four social links, the online count and one account-menu trigger on desktop. */
+  --profile-control-space: calc(6 * var(--control-size) + 74px);
   padding-top: 62px;
   padding-bottom: 37px;
   position: relative;
@@ -30,7 +32,11 @@
   letter-spacing: -1px;
 }
 .intro > :global(.eyebrow) {
-  padding-right: calc(7 * var(--control-size) + 84px);
+  padding-right: var(--profile-control-space);
+}
+.breadcrumb {
+  max-width: calc(100% - var(--profile-control-space));
+  margin-bottom: 12px;
 }
 .copy {
   color: var(--profile-copy);
@@ -127,6 +133,9 @@
   }
   .intro > :global(.eyebrow) {
     padding-right: 0;
+  }
+  .breadcrumb {
+    max-width: 100%;
   }
   .copy {
     font-size: 16px;

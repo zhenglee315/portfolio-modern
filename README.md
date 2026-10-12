@@ -24,9 +24,9 @@ The tour uses real website screenshots and focused crops. Images live in [`docs/
 
 [![桌面首頁：左側固定導覽、個人介紹、社群入口與右上角設定 / Desktop overview with navigation, profile, social links and settings](docs/images/overview-desktop.png)](docs/images/overview-desktop.png)
 
-左側導覽連到 Overview、Journey、Experience、Projects、Skills 五個區段，隨捲動標示目前位置，也可收合以增加閱讀空間。首頁呈現個人介紹、累積年資與目前學習方向；右上角集中社群、Email、語言與外觀入口。
+左側導覽連到 Overview、Journey、Experience、Projects、Skills 五個區段，隨捲動標示目前位置，也可收合以增加閱讀空間。首頁呈現個人介紹、累積年資與目前學習方向；右上角保留社群、Email 與 Gear fill 選單。主題與語言已移入選單，帳號及管理項目依登入狀態與權限顯示，登入／登出已整合至齒輪；主題與語言列保留 UI 框架，網站／帳號／角色管理可開啟列表。
 
-The left rail links to five sections, follows the current scroll position, and can collapse to give content more room. The overview presents the profile, engineering tenure and current study direction. Social links, email, language and appearance controls sit at the upper right.
+The left rail links to five sections, follows the current scroll position, and can collapse to give content more room. The overview presents the profile, engineering tenure and current study direction. Social links and email remain at the upper right beside a Gear fill menu. Theme and language have moved into that menu; account and management entries follow session permissions. Sign in and sign out use the gear menu. Website/account/role management opens administrative lists; the theme and language rows retain their UI framework.
 
 ### 2. 旅程地圖 / Interactive Journey
 
@@ -124,7 +124,7 @@ See the [frontend README](frontend/README.md) for component contracts, fault han
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [![桌面登入：左側草地牛與表情控制、右側信箱密碼表單及登入切換列 / Desktop sign-in with the cow workspace, expression controls and email/password form](docs/images/auth-login-desktop.png)](docs/images/auth-login-desktop.png) | [![桌面註冊：Confirm 確認欄、內嵌發送圖示的驗證碼欄與 Register 按鈕 / Desktop registration with Confirm, an embedded code-send icon and Register action](docs/images/auth-register-desktop.png)](docs/images/auth-register-desktop.png) |
 
-導航列的開門圖示進入目前語系的 `?view=login`：導覽收合、作品集淡出，左右邊框對撞再展開登入框。介面提供信箱與密碼登入、註冊及忘記密碼；註冊包含驗證碼欄位與發送入口，密碼使用圖示切換顯示。各模式共用相同框體尺寸，手機與窄平板將牛場景放到表單上方；語言、主題、返回作品集及瀏覽器上一頁／下一頁保持可用。
+右上角齒輪選單的 Sign in 進入目前語系的 `?view=login`：導覽收合、作品集淡出，左右邊框對撞再展開登入框。介面提供信箱與密碼登入、註冊及忘記密碼；註冊包含驗證碼欄位與發送入口，密碼使用圖示切換顯示。各模式共用相同框體尺寸，手機與窄平板將牛場景放到表單上方；語言、主題、返回作品集及瀏覽器上一頁／下一頁保持可用。
 
 The door icon opens `?view=login` on the current locale route. Navigation retracts, the portfolio fades, and the side rails collide before revealing the account card. Email/password sign-in, registration and password recovery share one card size. Registration includes a verification-code field and send action; an icon toggles password visibility. Narrow layouts place the cow above the form. Language, appearance, portfolio return and browser history remain available.
 
@@ -134,15 +134,19 @@ The sign-in/registration switch supports clicks, keyboard activation and horizon
 
 [![草地牛場景局部裁切：四個表情控制、分層牛工作桌與地球、跟動、播放暫停控制 / Cow workspace crop with four expression controls, the layered desk scene and globe, tracking and playback controls](docs/images/auth-cow-workspace.png)](docs/images/auth-cow-workspace.png)
 
-草地牛沿用分層 SVG 與 2.5D 視差，預設以「思考 → 敲代碼 → 看你 → 敲代碼」循環，每個表情停留三秒。場景按鈕可選表情、暫停地球、停止滑鼠跟動，以及以單一按鈕切換播放／暫停；按鈕共用三語像素提示氣泡。滑鼠在整個頁面依輸入區中心控制視差，動態遵守減少動態效果、全域暫停與可見性設定。原本準備素材的獨立預覽頁已移除，向量原稿與重建、比對工具保留；詳見[牛場景文件](frontend/src/shared/ui/cow-workspace/README.md)。
+草地牛沿用分層 SVG 與 2.5D 視差，預設以「思考 → 敲代碼 → 看你 → 敲代碼」循環，每個表情停留三秒。場景按鈕可選表情、暫停地球、停止滑鼠跟動、暫停草葉，以及以單一按鈕切換播放／暫停；按鈕共用三語像素提示氣泡。滑鼠在整個頁面依輸入區中心控制視差，動態遵守減少動態效果、全域暫停與可見性設定。原本準備素材的獨立預覽頁已移除，向量原稿與重建、比對工具保留；詳見[牛場景文件](frontend/src/shared/ui/cow-workspace/README.md)。
 
-The layered SVG cow uses 2.5D parallax and cycles through thinking, typing, watching and typing, holding each expression for three seconds. Controls select expressions, pause globe rotation, disable mouse tracking and toggle playback with one button. They share localized pixel tooltips. Tracking covers the page around the input region, and motion respects accessibility, global pause and visibility preferences. The preparation preview page has been removed; vector sources and rebuild/parity tools remain in the [cow workspace guide](frontend/src/shared/ui/cow-workspace/README.md).
+The layered SVG cow uses 2.5D parallax and cycles through thinking, typing, watching and typing, holding each expression for three seconds. Controls select expressions, pause globe rotation, disable mouse tracking, pause leaves and toggle playback with one button. They share localized pixel tooltips. Tracking covers the page around the input region, and motion respects accessibility, global pause and visibility preferences. The preparation preview page has been removed; vector sources and rebuild/parity tools remain in the [cow workspace guide](frontend/src/shared/ui/cow-workspace/README.md).
 
-[![390px 手機註冊介面：草地牛與七個場景控制位於確認密碼及驗證碼表單上方 / Complete registration interface at 390px with the cow and seven controls above the confirmation and code fields](docs/images/auth-mobile.png)](docs/images/auth-mobile.png)
+登入收到 `INVALID_CREDENTIALS` 時，牛暫時換成 Access denied 頁面共用的憤怒眼神、注視瞳孔與舉牌姿勢，保留原桌面及托腮動作。修改信箱或密碼後恢復原牛，沿用所選表情、動態偏好及同一場景時鐘；僅聚焦欄位不會恢復。網路與服務錯誤維持原本提示，不觸發拒絕表情。
 
-390px 手機版將牛場景、控制列及表單改為上下排列，保留全部七個場景按鈕；短視窗可捲動整張卡片，水平拖曳切換不影響垂直捲動。
+An `INVALID_CREDENTIALS` sign-in response temporarily shows the shared Access denied cow with angry eyes, tracking pupils and a raised sign, retaining the desk and chin rub. Editing email or password restores the original cow with the selected expression, motion preferences and scene clock intact; focusing a field alone keeps the denied pose. Network and service failures retain their existing feedback without changing the cow.
 
-At 390px, the cow, controls and form stack vertically while retaining all seven scene buttons. Short viewports scroll the whole card, and horizontal switching preserves vertical touch scrolling.
+[![390px 手機註冊介面：草地牛與場景控制位於確認密碼及驗證碼表單上方 / Complete registration interface at 390px with the cow and scene controls above the confirmation and code fields](docs/images/auth-mobile.png)](docs/images/auth-mobile.png)
+
+390px 手機版將牛場景、控制列及表單改為上下排列，目前保留全部八個場景按鈕，包含新增草葉開關；短視窗可捲動整張卡片，水平拖曳切換不影響垂直捲動。
+
+At 390px, the cow, controls and form stack vertically with all eight scene buttons, including the leaf toggle. Short viewports scroll the whole card, and horizontal switching preserves vertical touch scrolling.
 
 登入、登出、註冊、email 查重與驗證碼流程已串接 Auth API；登入狀態由伺服器 SESSION 保存，登出時清除。SMTP 目前保留發送框架，以測試碼 `123` 完成 Redis 驗證流程，驗證碼有效 5 分鐘。實際寄信與密碼復原功能仍待後續實作。
 
@@ -219,9 +223,9 @@ portfolio-modern/
 │   │   ├── root.tsx / routes.ts   # Document shell and route declarations
 │   │   ├── app/                  # Providers and shared QueryClient assembly
 │   │   ├── routes/               # URL entry, dynamic SSR loaders and SEO
-│   │   ├── pages/portfolio/      # Page composition, navigation and entrance
+│   │   ├── pages/               # Portfolio, management and access-denied composition
 │   │   ├── features/            # Site, journey, experiences, projects, skills,
-│   │   │                        # appearance, language, online visitors and auth
+│   │   │                        # appearance, language, online visitors, auth, account menu and management
 │   │   ├── shared/              # Reusable API infrastructure, UI and utilities
 │   │   ├── i18n/                # Locale setup, dictionaries and copy helpers
 │   │   ├── styles/              # Design tokens and global styles
@@ -254,7 +258,6 @@ portfolio-modern/
     │   ├── static/               # Local Swagger/ReDoc assets
     │   └── tools/                # Router, docs, Socket.IO assembly
     ├── manage_fastapi.py
-    ├── test.py                   # Three-language mock importer
     ├── alembic.ini
     ├── pyproject.toml
     └── uv.lock
@@ -322,25 +325,32 @@ API 不全部塞進共用資料夾：`features/projects/api/` 擁有專案端點
 
 Feature API directories own endpoint semantics; `shared/api/` handles transport, timeouts, cancellation, errors and pagination infrastructure. Export feature interfaces through `index.ts`, coordinate features at page level, and keep shared code independent of features. Check existing interfaces before adding helpers. Document function, hook and CSS responsibilities, and update component/page specifications in the frontend guide in both languages.
 
+前端共用 hydration、帳號／登出回饋、拒絕轉址、背景、牛控制與載入指示器已有單一實作；管理頁拆分版面、表格 controller 與欄位／URL 模型。ESLint 自動納入實際 feature 目錄，阻擋反向依賴、自我匯入與循環，帳號選單只透過 auth 輕量公開入口取得身份／權限。`npm run check:docs` 檢查共用 README 是否列出公開契約，三語 key 與組合文案另由單元測試檢查；詳見[架構整合說明](frontend/README.md#架構檢查與整合--architecture-review-and-consolidation)。
+
+Hydration, account feedback, denied routing, backgrounds, cow controls and loading indicators have shared implementations. Management layout, interaction and URL/column models are separated. ESLint discovers features and rejects reverse dependencies, self imports and cycles; the account menu uses only auth's lightweight public contracts. Shared documentation and locale contracts are checked automatically; see the [architecture review](frontend/README.md#架構檢查與整合--architecture-review-and-consolidation).
+
 ## API 範圍 / API scope
 
-後端已提供以下六支公開讀取 API，另有一支系統診斷 API：
+後端已提供以下六支公開讀取 API，另有系統診斷及網站／帳號／角色三支管理列表 API：
 
-The backend exposes six public read APIs and one system diagnostic API:
+The backend exposes six public read APIs, a system diagnostic API, and management lists for sites, accounts, and roles:
 
-| 路徑 / Endpoint                   | 內容                                                      | Content                                             |
-| --------------------------------- | --------------------------------------------------------- | --------------------------------------------------- |
-| `GET /portfolio/site`             | 品牌、個人介紹、社群與聯絡入口                            | Brand, profile, social links, and contact entry     |
-| `GET /portfolio/journey`          | 完整旅程與地圖資料                                        | Complete journey and map data                       |
-| `GET /portfolio/experiences`      | 學經歷與技能，每頁 6 筆                                   | Education/work experience and skills, six per page  |
-| `GET /portfolio/projects`         | 專案、完整詳情與技能，每頁 6 筆                           | Projects with full details and skills, six per page |
-| `GET /portfolio/skill-categories` | 技能分類頁碼分頁；每類包含最多 6 個技能的內層 skills 分頁 | Numbered categories with nested skill preview pages |
-| `GET /portfolio/skills`           | 指定分類下的技能頁碼分頁                                  | Numbered skills in one category                     |
-| `GET /system/heartbeat`           | 依近期心跳估算目前在線人數                                | Estimated online count from recent heartbeats       |
+| 路徑 / Endpoint                   | 內容                                                      | Content                                                                  |
+| --------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET /portfolio/site`             | 品牌、個人介紹、社群與聯絡入口                            | Brand, profile, social links, and contact entry                          |
+| `GET /portfolio/journey`          | 完整旅程與地圖資料                                        | Complete journey and map data                                            |
+| `GET /portfolio/experiences`      | 學經歷與技能，每頁 6 筆                                   | Education/work experience and skills, six per page                       |
+| `GET /portfolio/projects`         | 專案、完整詳情與技能，每頁 6 筆                           | Projects with full details and skills, six per page                      |
+| `GET /portfolio/skill-categories` | 技能分類頁碼分頁；每類包含最多 6 個技能的內層 skills 分頁 | Numbered categories with nested skill preview pages                      |
+| `GET /portfolio/skills`           | 指定分類下的技能頁碼分頁                                  | Numbered skills in one category                                          |
+| `GET /system/heartbeat`           | 依近期心跳估算目前在線人數                                | Estimated online count from recent heartbeats                            |
+| `GET /management/roles`           | 角色列表、關聯帳號數、搜尋、篩選與多欄位排序              | Paginated roles with account counts, search, filters and ordered sorting |
+| `GET /management/users`           | 一人一列的帳號、角色狀態與成功登入統計                    | One account per row with role state and successful-login statistics      |
+| `GET /management/sites`           | 一人一列的網站設定及目前管理語言內容                      | One person per row with portfolio settings and selected-language content |
 
-Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。目前只有單份 Portfolio，未建立多作者資料隔離；後端登入驗證、管理後台、寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
+Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。三支管理列表沿用 `{items,total,pages,page,size}`，Platform／User 每人一列，Role 每角色一列；每頁預設 6 筆，可調整為 1–100 筆。Platform 的搜尋和內容使用目前管理語言；管理權限 decorator 依規劃後補。管理寫入、Portfolio 寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
 
-Portfolio APIs default to `locale=en` and also support `zh-Hans` and `zh-Hant`. All six GETs can opt into short-lived response caching with `is_caching=true`. The backend currently serves one Portfolio; multi-author isolation, login, administration, write operations, and uploads are not implemented. See the [backend README](backend/README.md) for parameters and response shapes.
+Portfolio APIs default to `locale=en` and also support `zh-Hans` and `zh-Hant`. All six GETs can opt into short-lived response caching with `is_caching=true`. Management lists share the numbered envelope, with one person per Platform/User row and one role per Role row; the default size of 6 is adjustable from 1 to 100. Platform search and content use the current management language. Permission decorators remain deferred. Management writes, Portfolio writes and uploads remain unimplemented. See the [backend README](backend/README.md) for parameters and response shapes.
 
 ## 從乾淨 checkout 安裝 / Install from a Fresh Checkout
 
@@ -413,21 +423,19 @@ redis-cli ping
 # Expected: PONG
 ```
 
-在 `backend/` 執行 migration；新資料庫沒有作品集內容。若要使用既有公開示例，可將 [portfolio-web](https://github.com/zhenglee315/portfolio-web) clone 到與本專案同層，再執行一次匯入：
+在 `backend/` 執行 migration，再啟動 API：
 
-Apply migrations from `backend/`. A new database has no profile content. To seed the existing public example, clone portfolio-web beside this repository and import it once:
+Apply migrations from `backend/`, then start the API:
 
 ```bash
 # Run inside backend/
 uv run --locked alembic upgrade head
-git clone https://github.com/zhenglee315/portfolio-web.git ../../portfolio-web
-uv run --locked test.py --user existing-user
 uv run --locked manage_fastapi.py
 ```
 
-已經有 `portfolio-web/` 時省略 clone；也可用 `uv run --locked test.py --user existing-user --mock-dir /path/to/mock` 指定自己的合規三語資料。匯入只允許空的 Portfolio 資料表，沒有清空或覆寫既有資料的步驟。後端可先以空資料啟動；SSR 請求需要已發布且有對應語言的 Site 內容；建置不讀取作品集。匯入前需準備有效帳號，再以 `--user` 指定 owner。文件位於 `http://127.0.0.1:8080/swagger`。目前 `uv run backend` 是 uv 範例，不是 API 啟動入口。
+新資料庫沒有作品集內容，後端可先以空資料啟動。SSR 請求需要已發布且有對應語言的 Site 內容；建置不讀取作品集。請建立自己的作品集內容。文件位於 `http://127.0.0.1:8080/swagger`。目前 `uv run backend` 是 uv 範例，不是 API 啟動入口。
 
-Skip cloning if the sibling repository already exists, or pass your own valid three-language mock directory. The importer requires empty Portfolio tables and does not overwrite existing data. Empty-data backend development is supported; SSR requests need a published Site translation, while builds do not fetch portfolio data. Prepare an active account before selecting its handle with --user. API documentation is at `http://127.0.0.1:8080/swagger`. The `backend` console script remains an example; use `manage_fastapi.py` to start the API.
+A new database has no portfolio content; empty-data backend development is supported. SSR requests need a published Site translation, while builds do not fetch portfolio data. Create your own portfolio content. API documentation is at `http://127.0.0.1:8080/swagger`. The `backend` console script remains an example; use `manage_fastapi.py` to start the API.
 
 `SECURITY.secret_key` 是明確標示的開發佔位值，正式環境必須更換為隨機私密金鑰。設定在 Python 匯入時讀取，修改後需重啟；目前沒有自動環境變數覆寫 YAML 的機制，部署時應掛載私有 `SYSTEM/config.yaml`。詳細欄位與金鑰產生方式見後端 README。
 

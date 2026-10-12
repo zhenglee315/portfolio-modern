@@ -135,7 +135,8 @@
   display: none;
 }
 
-.scene[data-cow-motion='active'][data-cow-phase='typing'] .cowTypingSweat {
+.scene[data-cow-motion='active']:is([data-cow-phase='typing'], [data-cow-coding-effects='true'])
+  .cowTypingSweat {
   display: initial;
 }
 
@@ -143,7 +144,8 @@
   opacity: 0;
 }
 
-.scene[data-cow-motion='active'][data-cow-phase='typing'] .typingSweatDrop {
+.scene[data-cow-motion='active']:is([data-cow-phase='typing'], [data-cow-coding-effects='true'])
+  .typingSweatDrop {
   animation: cow-typing-sweat 2.4s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
   animation-delay: var(--cow-sweat-delay, 0s);
 }
@@ -157,7 +159,8 @@
   display: none;
 }
 
-.scene[data-cow-motion='active'][data-cow-phase='typing'] .laptopTypingLight {
+.scene[data-cow-motion='active']:is([data-cow-phase='typing'], [data-cow-coding-effects='true'])
+  .laptopTypingLight {
   display: initial;
 }
 
@@ -187,7 +190,9 @@
   transform: translate(calc(var(--cow-look-x) * 0.8px), calc(var(--cow-look-y) * 0.6px));
 }
 
-.scene[data-cow-motion='active'][data-cow-phase='glance'] .cowThinkingArm {
+.scene[data-cow-motion='active'][data-cow-phase='glance'] .cowThinkingArm,
+.scene[data-cow-motion='active'] .cowWatchingArm {
+  transform-box: fill-box;
   transform-origin: 18% 20%;
   animation: cow-rig-chin-rub 6.8s ease-in-out infinite;
 }
@@ -275,6 +280,10 @@
   animation-play-state: paused;
 }
 
+.scene[data-cow-leaf-motion='paused'] .leaves {
+  animation-play-state: paused;
+}
+
 .scene[data-cow-motion='paused'] *,
 :global(html[data-motion-paused='true']) .scene * {
   animation-play-state: paused;
@@ -284,6 +293,7 @@
 .scene[data-cow-motion='paused'] .cowRigBody,
 .scene[data-cow-motion='paused'] .cowRigHead,
 .scene[data-cow-motion='paused'] .cowThinkingArm,
+.scene[data-cow-motion='paused'] .cowWatchingArm,
 .scene[data-cow-motion='paused'] .cowTypingArmLeft,
 .scene[data-cow-motion='paused'] .cowTypingArmRight {
   animation: none;
@@ -312,6 +322,7 @@
   .cowRigBody,
   .cowRigHead,
   .cowThinkingArm,
+  .cowWatchingArm,
   .cowTypingArmLeft,
   .cowTypingArmRight,
   .mug,
@@ -330,6 +341,7 @@
   .cowRigBody,
   .cowRigHead,
   .cowThinkingArm,
+  .cowWatchingArm,
   .cowTypingArmLeft,
   .cowTypingArmRight {
     transform: none !important;
@@ -522,10 +534,10 @@
 @keyframes cow-leaves {
   0%,
   100% {
-    transform: rotate(-1deg);
+    transform: rotate(-5deg);
   }
   50% {
-    transform: rotate(1.4deg);
+    transform: rotate(6deg);
   }
 }
 

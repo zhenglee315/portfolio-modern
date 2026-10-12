@@ -9,7 +9,7 @@ test('online count leads the social controls and remains independent of the coll
   const rail = page.locator('aside');
   const controls = page.locator('[data-profile-controls]');
   const count = controls.locator('[data-online-visitors]');
-  const language = controls.getByRole('button', { name: 'Change language' });
+  const account = controls.getByRole('button', { name: 'Account settings' });
   const copyright = rail.locator('[data-nav-footer] small');
   const login = rail.getByRole('button', { name: 'Sign in' });
   await expect(count).toHaveAccessibleName('Online now: 3');
@@ -22,13 +22,13 @@ test('online count leads the social controls and remains independent of the coll
   const textBox = (await copyright.boundingBox())!;
   const countBox = (await count.boundingBox())!;
   const loginBox = (await login.boundingBox())!;
-  const languageBox = (await language.boundingBox())!;
+  const accountBox = (await account.boundingBox())!;
   const socialLinks = controls.locator('a.icon-button');
   expect(await socialLinks.count()).toBeGreaterThan(0);
   for (const link of await socialLinks.all()) {
     const box = (await link.boundingBox())!;
     expect(countBox.x + countBox.width).toBeLessThanOrEqual(box.x);
-    expect(box.x + box.width).toBeLessThanOrEqual(languageBox.x);
+    expect(box.x + box.width).toBeLessThanOrEqual(accountBox.x);
   }
   expect(loginBox.x).toBeGreaterThanOrEqual(textBox.x + textBox.width);
   await controls.screenshot({ path: testInfo.outputPath('online-socials-expanded.png') });
@@ -59,8 +59,14 @@ test('localized mobile online count belongs to the social controls rather than t
   await expect(page.locator('[data-online-visitors]')).toHaveCount(1);
   await controls.screenshot({ path: testInfo.outputPath('online-mobile-socials.png') });
   await count.click();
-  await expect(page.getByRole('tooltip')).toHaveText('目前在線人數：3');
-  await expect(page.getByRole('tooltip')).toHaveAttribute('data-side-left', 'false');
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toHaveText('目前在線人數：3');
+  // The shorter toolbar moves its anchor; pointer direction follows measured available space.
+  const tooltipBounds = (await tooltip.boundingBox())!;
+  expect(tooltipBounds.x).toBeGreaterThanOrEqual(0);
+  expect(tooltipBounds.x + tooltipBounds.width).toBeLessThanOrEqual(390);
+  expect(tooltipBounds.y).toBeGreaterThanOrEqual(0);
+  expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(844);
   await page.screenshot({ path: testInfo.outputPath('online-mobile-tooltip.png') });
   await page.keyboard.press('Escape');
   await expect(page.getByRole('tooltip')).toHaveCount(0);

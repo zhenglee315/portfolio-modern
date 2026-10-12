@@ -21,7 +21,11 @@ import { createQueryClient } from '@/app/query-client';
 import { authSessionKey } from '@/features/auth/session';
 
 // Form tests keep the independently tested SVG scene out of this account boundary.
-vi.mock('@/features/auth/components/AuthCowScene', () => ({ AuthCowScene: () => null }));
+vi.mock('@/features/auth/components/AuthCowScene', () => ({
+  AuthCowScene: ({ denied = false }: { denied?: boolean }) => (
+    <div data-testid="auth-cow-state" data-denied={String(denied)} />
+  ),
+}));
 
 const clients = new Set<QueryClient>();
 
@@ -244,6 +248,7 @@ describe('connected sign-in form', () => {
       const message = i18n.t('auth.invalidCredentials');
       expect(message).not.toBe('auth.invalidCredentials');
       expect(view.getByRole('status')).toHaveTextContent(message);
+      expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'true');
       expect(view.container.querySelector('[data-notification-kind]')).toHaveAttribute(
         'data-notification-kind',
         'error',
@@ -1381,4 +1386,137 @@ describe('account form presentation', () => {
       expect(save).not.toHaveBeenCalled();
     },
   );
+});
+
+function fillCowLogin(view: ReturnType<typeof render>) {
+  fireEvent.change(view.getByLabelText('Email'), { target: { value: 'person@example.com' } });
+  fireEvent.change(view.getByLabelText('Password', { exact: true }), {
+    target: { value: 'incorrect-password' },
+  });
+}
+
+describe('credential rejection cow recovery', () => {
+  it.each([401, 403])(
+    'shows the denied cow for classified invalid credentials with status %s',
+    async (status) => {
+      const authenticate = vi.fn(async () => {
+        throw new ApiError('http', status, 'INVALID_CREDENTIALS');
+      });
+      const onSuccess = vi.fn();
+      const { view, form, i18n, onBack } = renderPanel('en', authenticate, false, onSuccess);
+      fillCowLogin(view);
+      await act(async () => fireEvent.submit(form()));
+      expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'true');
+      expect(view.getByRole('status')).toHaveTextContent(i18n.t('auth.invalidCredentials'));
+      expect(view.getByRole('heading', { name: i18n.t('auth.loginTitle') })).toBeVisible();
+      expect(onBack).not.toHaveBeenCalled();
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(authenticate).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([
+    ['network', new ApiError('network')],
+    ['timeout', new ApiError('timeout')],
+    ['rate limit', new ApiError('http', 429, 'TOO_MANY_SIGN_IN_ATTEMPTS')],
+    ['server failure', new ApiError('http', 500)],
+    ['unclassified 401', new ApiError('http', 401)],
+    ['unclassified 403', new ApiError('http', 403)],
+  ] as const)(
+    'keeps the original cow for %s while retaining the failure notification',
+    async (_name, error) => {
+      const { view, form, i18n } = renderPanel('en', async () => {
+        throw error;
+      });
+      fillCowLogin(view);
+      await act(async () => fireEvent.submit(form()));
+      expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'false');
+      expect(view.container.querySelector('[data-notification-kind]')).not.toBeNull();
+      expect(view.getByRole('heading', { name: i18n.t('auth.loginTitle') })).toBeVisible();
+    },
+  );
+
+  it.each([
+    { field: 'Email', value: 'other@example.com', inputType: 'insertReplacementText' },
+    { field: 'Password', value: 'another-password', inputType: 'insertText' },
+    { field: 'Email', value: '', inputType: 'deleteContentBackward' },
+    { field: 'Password', value: '', inputType: 'deleteContentBackward' },
+  ])(
+    'restores the cow after $inputType edits to $field, while focus alone retains it',
+    async ({ field, value, inputType }) => {
+      const { view, form, i18n } = renderPanel('en', async () => {
+        throw new ApiError('http', 401, 'INVALID_CREDENTIALS');
+      });
+      fillCowLogin(view);
+      await act(async () => fireEvent.submit(form()));
+      const input = view.getByLabelText(field, { exact: true });
+      fireEvent.focus(input);
+      expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'true');
+      fireEvent.input(input, { target: { value }, inputType });
+      expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'false');
+      expect(input).toHaveValue(value);
+      expect(view.getByRole('status')).toHaveTextContent(i18n.t('auth.invalidCredentials'));
+    },
+  );
+
+  it.each(['Email', 'Password'])(
+    'cancels a pending login edited through %s and ignores its stale rejection',
+    async (field) => {
+      let reject: (error: unknown) => void = () => {};
+      const request = new Promise<void>((_resolve, rejectRequest) => {
+        reject = rejectRequest;
+      });
+      const authenticate = vi.fn<(request: AuthRequest) => Promise<void>>(() => request);
+      const { view, form } = renderPanel('en', authenticate);
+      fillCowLogin(view);
+      fireEvent.submit(form());
+      const signal = authenticate.mock.calls[0]![0].signal;
+      const input = view.getByLabelText(field, { exact: true });
+      expect(input).toHaveAttribute('readonly');
+      fireEvent.input(input, {
+        target: { value: field === 'Email' ? 'other@example.com' : 'another-password' },
+        inputType: 'insertReplacementText',
+      });
+      expect(signal.aborted).toBe(true);
+      expect(input).not.toHaveAttribute('readonly');
+      await act(async () => reject(new ApiError('http', 401, 'INVALID_CREDENTIALS')));
+      expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'false');
+      expect(view.container.querySelector('[data-notification-kind]')).toBeNull();
+      expect(within(form()).getByRole('button', { name: 'Sign in' })).toBeEnabled();
+    },
+  );
+
+  it('clears denial on retry, keeps pending credentials and restores success without another failure', async () => {
+    let complete = () => {};
+    const retry = new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    const authenticate = vi
+      .fn<(request: AuthRequest) => Promise<void>>()
+      .mockRejectedValueOnce(new ApiError('http', 401, 'INVALID_CREDENTIALS'))
+      .mockImplementationOnce(() => retry);
+    const onSuccess = vi.fn();
+    const { view, form, i18n } = renderPanel('en', authenticate, false, onSuccess);
+    fillCowLogin(view);
+    await act(async () => fireEvent.submit(form()));
+    expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'true');
+    fireEvent.submit(form());
+    expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'false');
+    expect(view.getByLabelText('Password', { exact: true })).toHaveValue('incorrect-password');
+    await act(async () => complete());
+    expect(onSuccess).toHaveBeenCalledOnce();
+    expect(view.getByRole('status')).toHaveTextContent(i18n.t('auth.welcome'));
+    expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'false');
+  });
+
+  it('clears denial on an account mode change', async () => {
+    const { view, form, modes } = renderPanel('en', async () => {
+      throw new ApiError('http', 401, 'INVALID_CREDENTIALS');
+    });
+    fillCowLogin(view);
+    await act(async () => fireEvent.submit(form()));
+    expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'true');
+    fireEvent.click(modes.getByRole('button', { name: 'Create account' }));
+    expect(view.getByTestId('auth-cow-state')).toHaveAttribute('data-denied', 'false');
+  });
 });

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { endpointFixture } from '../fixtures/portfolio';
+import { openProjectLanguage } from '../fixtures/browser';
 
 test('later locale selection cancels a slow preparation and commits only the latest choice', async ({
   page,
@@ -14,15 +15,15 @@ test('later locale selection cancels a slow preparation and commits only the lat
       /* A superseded read is canceled. */
     }
   });
-  await page.goto('/en?source=latest#overview');
-  const trigger = page.getByRole('button', { name: 'Change language' });
+  await page.goto('/en?source=latest#projects');
+  const { trigger } = await openProjectLanguage(page);
   await trigger.click();
   await page.getByRole('button', { name: '简体中文', exact: true }).click();
   await expect(trigger).toHaveAttribute('aria-busy', 'true');
   await trigger.click();
   await page.getByRole('button', { name: '繁體中文', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
-  await expect(page).toHaveURL(/\/zh-Hant\?source=latest#overview$/);
+  await expect(page).toHaveURL(/\/zh-Hant\?source=latest#projects$/);
   await expect(page.locator('#projects')).toContainText('zh-Hant Project 1');
 });
 
@@ -54,8 +55,9 @@ test('failed language preparation retains the visible language and URL', async (
       ? route.fulfill({ status: 503, json: { detail: 'UNAVAILABLE' } })
       : route.fulfill({ json: endpointFixture(url) });
   });
-  await page.goto('/en');
-  await page.getByRole('button', { name: 'Change language' }).click();
+  await page.goto('/en#projects');
+  const { trigger } = await openProjectLanguage(page);
+  await trigger.click();
   await page.getByRole('button', { name: '繁體中文', exact: true }).click();
   await expect(
     page.getByText('The language could not be changed. Please try again.'),

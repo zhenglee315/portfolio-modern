@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { runtimeTest as test } from '../fixtures/browser';
+import { openAuthControls, runtimeTest as test } from '../fixtures/browser';
 
 for (const [path, language] of [
   ['/', 'en'],
@@ -29,7 +29,7 @@ for (const [path, language] of [
 test('development Dropdowns update appearance and change language after hydration', async ({
   page,
 }) => {
-  await page.goto('/en');
+  await openAuthControls(page);
   const appearance = page.getByRole('button', { name: 'Background settings' });
   await appearance.click();
   await page.getByRole('button', { name: 'Amber', exact: true }).click();
@@ -40,7 +40,7 @@ test('development Dropdowns update appearance and change language after hydratio
   await page.getByRole('button', { name: 'Change language' }).click();
   await page.getByRole('button', { name: '繁體中文', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
-  await expect(page).toHaveURL(/\/zh-Hant(?:#.*)?$/);
+  await expect(page).toHaveURL(/\/zh-Hant\?view=login(?:#.*)?$/);
   await expect(page.locator('#projects')).toContainText('zh-Hant Project 1');
 });
 

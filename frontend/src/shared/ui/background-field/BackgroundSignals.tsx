@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { signalGeometry } from '../model/signals';
+import { signalGeometry } from '@/shared/lib/background-signals';
 import styles from './BackgroundField.module.css';
 
 /** Draw optional viewport signals independently of the always-present entrance frame.

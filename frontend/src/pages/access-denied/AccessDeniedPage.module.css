@@ -1,0 +1,380 @@
+.page {
+  --rail-width: 0px;
+  --rail-compact-width: 0px;
+  --denied-main-inset: clamp(20px, 4dvh, 40px);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px clamp(20px, 4vw, 64px);
+  color: var(--text);
+  background: var(--bg);
+}
+
+.header,
+.main {
+  position: relative;
+  z-index: 1;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--auth-reveal-duration, 420ms) ease-out;
+}
+
+.page:is([data-auth-phase='exit'], [data-auth-phase='collide'], [data-auth-phase='expand'])
+  :is(.header, .main) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.header {
+  z-index: 2;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 1280px);
+  min-height: 48px;
+  margin: 0 auto;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-decoration: none;
+}
+
+.brand > svg {
+  width: 28px;
+  height: 28px;
+}
+
+.brand:hover {
+  color: var(--accent);
+}
+
+.brand:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+}
+
+.controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.main {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 72px);
+  width: min(100%, 1200px);
+  min-height: 0;
+  margin: 0 auto;
+  padding-block: var(--denied-main-inset);
+}
+
+.illustration {
+  min-width: 0;
+  width: min(100%, 620px);
+  margin-inline: auto;
+}
+
+/* Limit the square canvas, keeping the controls' column wide enough for every 44px button. */
+.illustration > [data-access-denied-cow] {
+  width: min(
+    100%,
+    max(200px, calc(100dvh - 156px - var(--denied-main-inset) - var(--denied-main-inset)))
+  );
+  margin-inline: auto;
+}
+
+.cowControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.copy {
+  min-width: 0;
+  padding-bottom: 12px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 24px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.code {
+  display: inline-block;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.eyebrow {
+  color: var(--muted);
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+}
+
+.copy h1 {
+  margin: 0 0 20px;
+  font-size: clamp(34px, 4.2vw, 56px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -1.6px;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.description {
+  max-width: 38ch;
+  margin: 0 0 32px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 12px 20px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-card);
+  color: var(--on-accent);
+  background: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  text-decoration: none;
+  transition: box-shadow var(--duration-hover);
+}
+
+.home:hover {
+  color: var(--on-accent);
+  box-shadow: 0 0 0 4px var(--glow-low);
+}
+
+.home:focus-visible {
+  color: var(--on-accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+}
+
+.home > svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding-block: 16px 24px;
+  }
+
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 24px;
+    padding-block: 28px;
+  }
+
+  .illustration {
+    width: min(100%, 420px);
+  }
+
+  .illustration > [data-access-denied-cow] {
+    width: min(100%, max(200px, calc(100dvh - 440px)));
+  }
+
+  .copy {
+    width: min(100%, 480px);
+    margin: 0 auto;
+    padding-bottom: 0;
+    text-align: center;
+  }
+
+  .status {
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  .copy h1 {
+    font-size: clamp(34px, 6vw, 46px);
+    letter-spacing: -1px;
+  }
+
+  .description {
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .page {
+    padding-inline: 16px;
+  }
+
+  .header {
+    gap: 12px;
+  }
+
+  .brand {
+    gap: 7px;
+    font-size: 11px;
+    letter-spacing: 0.9px;
+  }
+
+  .brand > svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .main {
+    gap: 20px;
+    padding-block: 24px;
+  }
+
+  .description {
+    margin-bottom: 28px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 420px) and (max-height: 640px) and (orientation: portrait) {
+  .page {
+    padding-block: 12px;
+  }
+
+  .main {
+    gap: 12px;
+    padding-block: 12px;
+  }
+
+  .illustration > [data-access-denied-cow] {
+    width: min(100%, max(160px, calc(100dvh - 392px)));
+  }
+
+  .cowControls {
+    margin-top: 8px;
+  }
+
+  .status {
+    margin-bottom: 10px;
+  }
+
+  .copy h1 {
+    margin-bottom: 12px;
+    font-size: 30px;
+  }
+
+  .description {
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .home {
+    min-height: 44px;
+    padding: 9px 14px;
+  }
+}
+
+/* Keep five full-size controls and the return action visible on short phone landscapes. */
+@media (min-width: 540px) and (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+  .page {
+    padding: 12px;
+  }
+
+  .header {
+    min-height: 44px;
+  }
+
+  .main {
+    grid-template-columns: minmax(252px, 1fr) minmax(0, 1.05fr);
+    align-content: center;
+    gap: 20px;
+    padding-block: 12px;
+  }
+
+  .illustration {
+    width: 100%;
+  }
+
+  .illustration > [data-access-denied-cow] {
+    width: min(100%, max(120px, calc(100dvh - 144px)));
+    margin-inline: auto;
+  }
+
+  .cowControls {
+    margin-top: 8px;
+  }
+
+  .copy {
+    width: 100%;
+    text-align: left;
+  }
+
+  .status {
+    justify-content: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 10px;
+  }
+
+  .eyebrow {
+    letter-spacing: 1px;
+  }
+
+  .copy h1 {
+    margin-bottom: 12px;
+    font-size: clamp(28px, 4vw, 36px);
+  }
+
+  .description {
+    margin: 0 0 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .home {
+    min-height: 44px;
+    padding: 9px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home,
+  .header,
+  .main {
+    transition: none;
+  }
+}

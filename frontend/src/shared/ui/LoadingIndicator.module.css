@@ -1,0 +1,80 @@
+.root {
+  display: inline-grid;
+  aspect-ratio: 1;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.graphic {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.track {
+  fill: var(--muted);
+  opacity: 0.3;
+}
+
+.beam {
+  opacity: 0.12;
+  animation: beam-phase 1.2s linear infinite;
+  filter: drop-shadow(0 0 2px var(--glow-bright));
+}
+
+.label {
+  fill: var(--accent);
+  font-family: var(--sans);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.dot {
+  fill: var(--muted);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes beam-phase {
+  0%,
+  8% {
+    opacity: 1;
+  }
+  40%,
+  100% {
+    opacity: 0.12;
+  }
+}
+
+@keyframes dot-bounce {
+  0%,
+  45%,
+  100% {
+    fill: var(--muted);
+    transform: translateY(0);
+  }
+  20% {
+    fill: var(--accent);
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beam,
+  .dot {
+    animation: none;
+    filter: none;
+  }
+
+  .beam {
+    opacity: 0.28;
+  }
+
+  .bar:first-child .beam {
+    opacity: 1;
+  }
+
+  .dot {
+    transform: none;
+  }
+}

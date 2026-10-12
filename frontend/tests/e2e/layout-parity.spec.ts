@@ -111,10 +111,8 @@ test('localized skill disclosures preserve the original chip paint and measured 
       await page.goto(`/${locale}#skills`);
       const toolkit = page.locator('[data-skill-categories]');
       await expect(toolkit).toHaveCount(1);
-      await expect(toolkit.locator(':scope > [data-category-id]')).toHaveCount(7);
-      await expect(
-        page.locator('#skills').getByRole('button', { name: /Show more skill categories/ }),
-      ).toHaveCount(0);
+      await expect(toolkit.locator(':scope > [data-category-id]')).toHaveCount(6);
+      await expect(page.locator('#skills .load-more-control button')).toBeVisible();
       const row = page.locator('[data-category-id="category-0"]');
       await expect(row).toHaveCSS('padding-top', '23px');
       await expect(row).toHaveCSS('padding-bottom', '23px');

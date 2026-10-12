@@ -1,11 +1,21 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
-const extensions = new Set(['.html', '.data', '.js', '.css', '.woff2', '.svg', '.json', '.txt']);
+const extensions = new Set([
+  '.html',
+  '.data',
+  '.js',
+  '.css',
+  '.woff2',
+  '.svg',
+  '.json',
+  '.txt',
+  '.gz',
+]);
 const privateContent =
-  /(?:\/Users\/|\/home\/|\/agent\/|SYSTEM\/config|config\.yaml|DATABASE\.META|API_BUILD_TARGET|API_PROXY_TARGET)/;
+  /(?:\/Users\/|\/home\/|\/agent\/|SYSTEM\/config|config\.yaml|DATABASE\.META|API_BUILD_TARGET|API_SERVER_TARGET|API_PROXY_TARGET)/;
 
 /** Verify deliverable files and measured asset ceilings without disclosing matched content.
  * @param directory Public client artifact only; no private source or backend files are read.
@@ -27,7 +37,12 @@ export async function verifyPublic(directory) {
       if (!extensions.has(extension) || entry.isSymbolicLink())
         throw new Error('Unexpected file type in public output.');
       const data = await readFile(path);
-      if (extension !== '.woff2' && privateContent.test(data.toString('utf8')))
+      if (extension === '.gz') {
+        const source = await readFile(path.slice(0, -3));
+        if (!gunzipSync(data).equals(source))
+          throw new Error('Compressed public asset does not match its validated source.');
+      }
+      if (!['.woff2', '.gz'].includes(extension) && privateContent.test(data.toString('utf8')))
         throw new Error('Private configuration reference detected in public output.');
       if (extension === '.js') {
         totals.js += data.length;
@@ -38,7 +53,8 @@ export async function verifyPublic(directory) {
         totals.cssGzip += gzipSync(data).length;
       }
       if (extension === '.woff2') totals.fonts += data.length;
-      if (entry.name.startsWith('cow-engineer-')) totals.mascot += data.length;
+      if (extension !== '.gz' && entry.name.startsWith('cow-engineer-'))
+        totals.mascot += data.length;
       if (/^JourneyMap-.*\.js$/.test(entry.name)) totals.map += data.length;
     }
   }

@@ -2,9 +2,11 @@ import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { loadEnvFile } from 'node:process';
 import sirv from 'sirv';
+import { createRequestListener } from '@react-router/node';
 
-/** Preview static deployment with a separate /api route, never a SPA API fallback.
- * Environment files remain local; the browser receives only relative /api URLs.
+/** Serve dynamic public documents and a separate browser API proxy.
+ * @remarks Environment files and the server build remain outside the public directory.
+ * Hashed assets are immutable; document and route-data responses always recheck visibility.
  */
 try {
   loadEnvFile('.env.local');
@@ -12,16 +14,34 @@ try {
   if (error.code !== 'ENOENT') throw error;
 }
 const origin = new URL(process.env.API_PROXY_TARGET || 'http://127.0.0.1:8080');
-const serve = sirv('build/client', { single: '__spa-fallback.html', dev: true });
-const files = sirv('build/client', { dev: true });
+const build = await import(new URL('../build/server/index.js', import.meta.url).href);
+const render = createRequestListener({ build, mode: 'production' });
+const files = sirv('build/client', {
+  etag: true,
+  gzip: true,
+  setHeaders(response, path) {
+    response.setHeader(
+      'cache-control',
+      /\/assets\//.test(path) ? 'public, max-age=31536000, immutable' : 'no-cache',
+    );
+  },
+});
 const server = createServer((incoming, outgoing) => {
   const path = incoming.url || '/';
-  if (/^\/assets\//.test(path) || path.split('?')[0].endsWith('.data'))
+  if (!/^\/api(?:\/|\?|$)/.test(path))
     return files(incoming, outgoing, () => {
-      outgoing.writeHead(404);
-      outgoing.end();
+      const pathname = path.split('?')[0];
+      // A missing asset keeps its 404; .data requests belong to the dynamic router.
+      if (
+        pathname.startsWith('/assets/') ||
+        (/\.[^/]+$/.test(pathname) && !pathname.endsWith('.data'))
+      ) {
+        outgoing.writeHead(404, { 'cache-control': 'no-store' });
+        return outgoing.end();
+      }
+      outgoing.setHeader('cache-control', 'no-store');
+      render(incoming, outgoing);
     });
-  if (!/^\/api(?:\/|\?|$)/.test(path)) return serve(incoming, outgoing);
   if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(incoming.method)) {
     outgoing.writeHead(405, { 'cache-control': 'no-store' });
     return outgoing.end();
@@ -75,8 +95,12 @@ const server = createServer((incoming, outgoing) => {
   });
   incoming.pipe(proxy);
 });
-server.listen(4173, '127.0.0.1', () => console.log('Static preview ready on local port 4173.'));
-/** Allow test runners and development shells to release the preview port cleanly. */
+const port = Number(process.env.PORT ?? 5173);
+if (!Number.isInteger(port) || port < 1 || port > 65_535)
+  throw new Error('PORT must be a valid TCP port.');
+const host = process.env.HOST ?? '127.0.0.1';
+server.listen(port, host, () => console.log(`Dynamic portfolio ready on ${host}:${port}.`));
+/** Allow test runners and development shells to release the runtime port cleanly. */
 for (const signal of ['SIGINT', 'SIGTERM'])
   process.on(signal, () => {
     server.close();

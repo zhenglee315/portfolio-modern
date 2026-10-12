@@ -14,7 +14,7 @@ export function ProjectTimeline({
 }: {
   projects: Project[];
   locale: Locale;
-  onDetail?: (id: number) => void;
+  onDetail?: (id: number, trigger: HTMLButtonElement) => void;
 }) {
   const { t } = useTranslation();
   return (

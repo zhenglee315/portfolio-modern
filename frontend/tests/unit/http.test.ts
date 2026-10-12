@@ -21,6 +21,7 @@ describe('HTTP boundary', () => {
   const account = {
     id: 12,
     email: 'person@example.com',
+    user: 'person',
     role: 'editor',
     is_create: true,
     is_read: true,
@@ -28,6 +29,7 @@ describe('HTTP boundary', () => {
     is_delete: true,
     is_manage_roles: false,
     is_manage_users: false,
+    is_manage_sites: false,
   };
 
   it('sends sign-in as one JSON POST with browser-managed cookies and no caching', async () => {

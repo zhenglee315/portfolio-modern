@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /** Configure browser checks against one synthetic API in either runtime.
- * @param runtime Development exercises Vite's module runner; preview verifies static delivery.
+ * @param runtime Development exercises Vite's module runner; preview verifies dynamic Node delivery.
  * @returns A managed Chromium configuration that never starts or stops a personal backend.
  */
 export function createBrowserConfig(runtime: 'development' | 'preview') {
@@ -34,7 +34,9 @@ export function createBrowserConfig(runtime: 'development' | 'preview') {
         reuseExistingServer: false,
         timeout: 120_000,
         env: {
-          API_BUILD_TARGET: process.env.PORTFOLIO_API_SMOKE_TARGET ?? 'http://127.0.0.1:4181',
+          API_SERVER_TARGET: process.env.PORTFOLIO_API_SMOKE_TARGET ?? 'http://127.0.0.1:4181',
+          PORT: development ? '5174' : '4173',
+          PORTFOLIO_VITE_CACHE_DIR: 'node_modules/.vite-smoke',
           API_PROXY_TARGET: process.env.PORTFOLIO_API_SMOKE_TARGET ?? 'http://127.0.0.1:4181',
           VITE_PUBLIC_SITE_URL: 'https://example.com',
         },

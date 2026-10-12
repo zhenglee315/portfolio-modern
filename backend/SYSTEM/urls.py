@@ -14,6 +14,7 @@ class PreFix(EnumUtils):
     # -< Url >----------------------------------------------------------【 Authority 】
     AUTH = "authority"
 
+
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Tags
 class Tags(Enum):
     # -< Tags >---------------------------------------------------------【 Portfolio 】
@@ -30,30 +31,31 @@ class Tags(Enum):
 # ■—< Route >—————————————————————————————————————————————————————————————————————————■ Portfolio
 class RoutePortfolio(EnumUtils):
     # -< GET >----------------------------------------------------------【 Site 】
-    # Brand, profile, social links, and chat entry; locale only.
+    # Brand, profile, social links, and chat entry; locale and optional user/site_id.
     SITE = "/site"
     # -< GET >----------------------------------------------------------【 Journey 】
-    # Full lightweight journey for the map and career timeline; locale only.
+    # Full lightweight journey for the map and career timeline; locale and optional site_id.
     JOURNEY = "/journey"
     # -< GET >----------------------------------------------------------【 Experiences 】
-    # Experience list with complete skills; locale, page, and fixed size=6.
+    # Experience list with complete skills; locale, page, fixed size=6, and optional site_id.
     EXPERIENCES = "/experiences"
     # -< GET >----------------------------------------------------------【 Projects 】
-    # Project list with full detail and skills; locale, page, and fixed size=6.
+    # Project list with full detail and skills; locale, page, fixed size=6, and optional site_id.
     PROJECTS = "/projects"
     # -< GET >----------------------------------------------------------【 Skill Categories 】
-    # Cursor page of localized categories; locale, cursor, limit=12 (1-50), and six skill previews each.
-    # Returns items, page, and included.skills for the preview IDs actually referenced.
+    # Numbered categories in one portfolio; locale, page, fixed size=6, and optional site_id.
+    # Returns items/total/pages/page/size with one nested six-skill preview page per category.
     SKILL_CATEGORIES = "/skill-categories"
     # -< GET >----------------------------------------------------------【 Skills 】
-    # Cursor page of localized category skills; locale, ownerType=category, ownerId, cursor, limit=12 (1-50).
-    # Returns items and page; preview nextCursor may continue this category's skill list.
+    # Numbered category skills in one portfolio; locale, ownerType=category, ownerId, page, size=6.
+    # Optional site_id selects the portfolio; ownerId selects a category inside that portfolio.
     SKILLS = "/skills"
 
 
 # ■—< Route >—————————————————————————————————————————————————————————————————————————■ System
 class RouteSys(EnumUtils):
     HEARTBEAT = "/heartbeat"
+
 
 # ■—< Route >—————————————————————————————————————————————————————————————————————————■ Auth
 class RouteAuth(EnumUtils):

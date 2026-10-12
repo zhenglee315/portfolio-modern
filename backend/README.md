@@ -77,9 +77,13 @@ HTTP request
   → schema/resp → JSON response
 ```
 
-`GET /authority/session` 以伺服器 SESSION 的帳號 ID 查詢啟用中的帳號與角色，回傳 `id`、`email`、`role` 及六個 CRUD／管理權限；訪客或失效帳號回傳 `null`，儲存服務錯誤回傳 `503`。查詢會更新 SESSION 中的身份與權限，保留原 SID 及尚未完成的註冊驗證。Auth 回應使用 `Cache-Control: no-store`；前端可在重新整理後恢復身份，無須儲存密碼。
+`GET /authority/session` 以伺服器 SESSION 的帳號 ID 查詢啟用中的帳號與角色，回傳 `id`、`email`、`user`、`role` 及七個 CRUD／管理權限；訪客或失效帳號回傳 `null`，儲存服務錯誤回傳 `503`。查詢會更新 SESSION 中的身份與權限，保留原 SID 及尚未完成的註冊驗證。Auth 回應使用 `Cache-Control: no-store`；前端可在重新整理後恢復身份，無須儲存密碼。
 
-`GET /authority/session` resolves the server session's account ID against an active account and role, returning `id`, `email`, `role`, and six CRUD/management permissions. Guests and invalid accounts receive `null`; storage failures return `503`. Lookup refreshes session identity and permissions while retaining the SID and pending registration proof. Auth responses use `Cache-Control: no-store`, allowing the frontend to restore identity after reload without storing passwords.
+`GET /authority/session` resolves the server session's account ID against an active account and role, returning `id`, `email`, `user`, `role`, and seven CRUD/management permissions. Guests and invalid accounts receive `null`; storage failures return `503`. Lookup refreshes session identity and permissions while retaining the SID and pending registration proof. Auth responses use `Cache-Control: no-store`, allowing the frontend to restore identity after reload without storing passwords.
+
+`POST /authority/sign-in` 驗證帳號、角色與密碼，建立 SESSION 後，透過 `execute_orm()` 新增一筆 `RecordLogin`（`record_login`）：保存帳號 `user_id`，由資料庫產生 serial `id` 與具時區的 `logintime`。每次成功登入各有一筆；登入失敗及 SESSION 查詢不新增紀錄。紀錄寫入失敗時回傳 `503 AUTH_DATABASE_UNAVAILABLE` 並清除剛建立的登入身份。Migration `159af2dc7898` 僅建立這張表、FK、檢查限制及兩個歷史查詢索引。
+
+`POST /authority/sign-in` verifies the account, role and password, initializes SESSION, then inserts one `RecordLogin` (`record_login`) through `execute_orm()`. It stores the account's `user_id`; the database supplies the serial `id` and timezone-aware `logintime`. Each successful sign-in creates a separate row; failed sign-ins and session lookups create none. A record write failure returns `503 AUTH_DATABASE_UNAVAILABLE` and clears the newly prepared identity. Migration `159af2dc7898` creates only this table, its FK, check constraint and two history indexes.
 
 `POST /authority/sign-out` 不需要 body，使用目前的 session cookie，先刪除 System Redis 中的 SESSION，再清除所有欄位並使 cookie 過期。成功回傳 `200 {"signed_out": true}`，訪客或重複登出也回成功。後續 SESSION 查詢回傳 `null`；同一帳號的其他瀏覽器 session 不受影響。
 
@@ -97,9 +101,34 @@ Auth 快取操作統一透過 `RedisAsync`。發碼、驗證、註冊憑證的�
 
 Auth cache operations use `RedisAsync`. Code delivery, verification, and registration-proof ownership use the shared `transaction()` method: Python callbacks retain business decisions while the tool manages WATCH/MULTI/EXEC and bounded retries. Proofs keep their existing JSON and raw `verify_<email>` formats; updates preserve their deadline with KEEPTTL. Sign-in limiting uses `incr_with_expiry()` for atomic increments and initial expiry. See the [Redis tool guide](COMMON/tools/storage/redis/README.md).
 
-Portfolio 的 `site`、`journey` 直接回傳物件或陣列；四種集合 `experiences`、`projects`、`skill-categories`、`skills` 共用五欄位頁碼分頁。沒有統一的外層 `data/meta/revision` 包裝。`is_caching=true` 才會使用 `EnumCache.WEB` 的回應快取；session 與心跳使用 `EnumCache.SYS`。目前所有內容屬於單份 Portfolio，多作者歸屬與隔離尚待資料模型擴充。
+Portfolio 的 `site`、`journey` 直接回傳物件或陣列；四種集合 `experiences`、`projects`、`skill-categories`、`skills` 共用五欄位頁碼分頁。沒有統一的外層 `data/meta/revision` 包裝。`is_caching=true` 才會使用 `EnumCache.WEB` 的回應快取；session 與心跳使用 `EnumCache.SYS`。公開內容、分頁及快取依作品集隔離；SESSION 不影響公開作品集的選擇。
 
-`site` and `journey` return a direct object or array; all four collections use the same five-field numbered pagination. There is no universal `data/meta/revision` envelope. `is_caching=true` opts into the `EnumCache.WEB` response cache; sessions and heartbeats use `EnumCache.SYS`. The current data belongs to one Portfolio, with multi-author ownership and isolation still to be modeled.
+`site` and `journey` return a direct object or array; all four collections use the same five-field numbered pagination. There is no universal `data/meta/revision` envelope. `is_caching=true` opts into the `EnumCache.WEB` response cache; sessions and heartbeats use `EnumCache.SYS`. Public content, pagination and cache are isolated by portfolio; SESSION does not select the public owner.
+
+## 多用戶作品集 / Multi-user Portfolios
+
+只有 Site API 接受互斥的 `user`／`site_id` selector。`/portfolio/site?user=zhenglee315` 先解析公開帳號並回傳 `site_id` 與 `user`；其他五支內容 API 只接受 `site_id`，例如 `/portfolio/projects?site_id=1`，帶入 `user` 會回 400 `INVALID_SITE_SELECTOR`，不會忽略參數後誤讀首頁。Site 不帶兩個 selector、內容 API 不帶 `site_id` 時，皆讀取 `is_default=true` 的已發布作品集；Site 同時帶兩個 selector 回 400。不存在、草稿、軟刪除帳號或未設首頁都回 404，不會退回其他帳號。角色停用只阻擋登入，不會自動下架作品集。
+
+Only Site accepts mutually exclusive user/site_id selectors. `/portfolio/site?user=zhenglee315` resolves the public account and returns its identity; the other five content APIs accept only site_id, such as `/portfolio/projects?site_id=1`. Supplying user on a content endpoint returns 400 INVALID_SITE_SELECTOR instead of silently reading the default. Omitting the supported selectors reads the published default. Missing/draft portfolios, inactive owners and a missing default return 404 without fallback. Role inactivity blocks login independently of publication.
+
+| Model                                      | 歸屬及約束 / Ownership and constraints                                                                                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AuthUser`                                 | 唯一 email 與獨立唯一 `user`；公開識別 3–32 個小寫 ASCII 字元，保留路由不可使用 / Independent unique login email and stable public handle                               |
+| `AuthRole`                                 | 七個權限；預設註冊角色不可有任何 `is_manage_*` / Seven permissions, no management permission on the registration default                                                |
+| `PortfolioSite`                            | `user_id UNIQUE`；`is_published`／`is_default` 預設 false；全站最多一個 default，default 必須 published / At most one site per account and one published global default |
+| Career／Project                            | `site_id` FK，順序唯一性及查詢索引以 site 開頭 / Site-owned numeric IDs and per-site ordering                                                                           |
+| Skill／SkillCategory                       | `(site_id,id)` 複合 PK，保留原字串 ID / Composite keys retain public string IDs                                                                                         |
+| SkillLocale／CategoryLocale／CategorySkill | 共用 site_id 的複合 FK，DB 阻擋跨站關聯 / Composite foreign keys prevent cross-site associations                                                                        |
+| `PortfolioLocale`                          | 全站語言字典 / Shared language dictionary                                                                                                                               |
+| `RecordLogin`                              | 成功登入的帳號與時間 / Successful account login timestamps                                                                                                              |
+
+`COMMON/schema/schema_user.py` 共用公開識別驗證及 email 前綴分配；省略註冊 `user` 時自動加數字後綴處理撞名。新帳號不會自動建立作品集。`PortfolioManagementModule` 提供共用帳號／owner 權限檢查及原子發布／首頁切換，目前沒有對外寫入 route。多 statement 交易透過 `SqlAlchemyExecAsync.transaction()`，business module 仍只提交 ORM statement。
+
+Shared user validation/allocation handles prefix collisions. Registration does not automatically create a portfolio. The management module supplies reusable authorization and atomic publication/default operations without exposing write routes. Multi-statement operations use the shared transaction tool and execute_orm interface.
+
+公開可見性 dependency 在 response cache 前執行；cache key 包含解析後的 site_id、語言與分頁／owner 參數。發布／首頁變更提交後使用共用 Redis SCAN 工具刪除 portfolio namespace；Auth 保持 no-store。Migration 依 `2f6a91c3e480` 擴充、`4c7e2b90d615` 補齊資料、`6d4f8a21c903` 補上約束，歷史內容不變；多站已有重複字串 ID 時拒絕降回全域 PK。
+
+Visibility is checked before cache hits. Keys include resolved site, locale, pagination and category ownership. Publication/default commits invalidate the dedicated namespace through bounded Redis scanning; Auth remains no-store. Expand/backfill/constraint migrations preserve historical content, and unsafe downgrades reject reused cross-site IDs.
 
 ## 啟動與生命週期 / Startup and Lifespan
 
@@ -116,19 +145,19 @@ Portfolio 的 `site`、`journey` 直接回傳物件或陣列；四種集合 `exp
 
 ## 目前的 GET API / Available GET APIs
 
-六支 Portfolio API 都接受 `locale=en|zh-Hans|zh-Hant`（預設 `en`），以及 `is_caching`（預設 `false`）；設為 `true` 時可使用最多 60 秒的 Redis 回應快取。所有文字與技能標籤直接使用指定語言。
+六支 Portfolio API 都接受 `locale=en|zh-Hans|zh-Hant`（預設 `en`），以及 `is_caching`（預設 `false`）；設為 `true` 時可使用最多 60 秒的 Redis 回應快取。所有文字與技能標籤直接使用指定語言。每支 CBV 只收一個 `query_string: dict = Depends(parser_...)`，parser 組合已解析的 `site_id` 與其他參數，module 使用 `**query_string` 接收。
 
-All six Portfolio APIs accept `locale=en|zh-Hans|zh-Hant` (default `en`) and `is_caching` (default `false`). Setting `is_caching=true` allows a Redis response cache for up to 60 seconds. Text and skill labels are returned directly in the selected language.
+All six Portfolio APIs accept `locale=en|zh-Hans|zh-Hant` (default `en`) and `is_caching` (default `false`). Setting `is_caching=true` allows a Redis response cache for up to 60 seconds. Text and skill labels are returned directly in the selected language. Every CBV accepts one `query_string` dictionary from its parser, including the resolved `site_id`; modules receive the dictionary with `**query_string`.
 
-| Endpoint                          | 用途 / Purpose                                                                                          | 額外查詢參數 / Additional query                                                                          | 回應 / Response                     |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `GET /portfolio/site`             | 品牌、個人介紹、社群連結與聯絡入口 / Site branding, profile, social links, and contact entry            | 無 / None                                                                                                | `{brand, profile, social, chatme}`  |
-| `GET /portfolio/journey`          | 供地圖與時間線使用的完整旅程，依儲存順序排列 / Complete ordered journey for the map and timeline        | 無 / None                                                                                                | `JourneyItem[]`                     |
-| `GET /portfolio/experiences`      | 學經歷、內容、詳情及完整技能清單 / Work and education records with details and skills                   | `page=1`, `size=6`（固定 / fixed）                                                                       | `{total, pages, page, size, items}` |
-| `GET /portfolio/projects`         | 專案介紹、完整詳情及技能 / Projects with introductions, full details, and skills                        | `page=1`, `size=6`（固定 / fixed）                                                                       | `{total, pages, page, size, items}` |
-| `GET /portfolio/skill-categories` | 技能分類；每類最多預覽 6 個技能 / Categories with up to six skill previews each                         | `page=1`, `size=6`（固定 / fixed）                                                                       | `{items, total, pages, page, size}` |
-| `GET /portfolio/skills`           | 取得指定分類中的技能，亦可接續分類預覽 / Ordered skills in one category, including preview continuation | `ownerType=category`（預設 / default）, `ownerId`（必填 / required）, `page=1`, `size=6`（固定 / fixed） | `{items, total, pages, page, size}` |
-| `GET /system/heartbeat`           | 依近期心跳估算在線人數 / Estimated online count from recent heartbeats                                  | `is_caching=false`                                                                                       | `{online: number}`                  |
+| Endpoint                          | 用途 / Purpose                                                                                          | 額外查詢參數 / Additional query                                                                                                          | 回應 / Response                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `GET /portfolio/site`             | 品牌、個人介紹、社群連結與聯絡入口 / Site branding, profile, social links, and contact entry            | `user` 或 / or `site_id`（互斥 / exclusive）                                                                                             | `{site_id, user, brand, profile, social, chatme}` |
+| `GET /portfolio/journey`          | 供地圖與時間線使用的完整旅程，依儲存順序排列 / Complete ordered journey for the map and timeline        | `site_id`（可省略 / optional）                                                                                                           | `JourneyItem[]`                                   |
+| `GET /portfolio/experiences`      | 學經歷、內容、詳情及完整技能清單 / Work and education records with details and skills                   | `site_id`（可省略 / optional）, `page=1`, `size=6`（固定 / fixed）                                                                       | `{total, pages, page, size, items}`               |
+| `GET /portfolio/projects`         | 專案介紹、完整詳情及技能 / Projects with introductions, full details, and skills                        | `site_id`（可省略 / optional）, `page=1`, `size=6`（固定 / fixed）                                                                       | `{total, pages, page, size, items}`               |
+| `GET /portfolio/skill-categories` | 技能分類；每類最多預覽 6 個技能 / Categories with up to six skill previews each                         | `site_id`（可省略 / optional）, `page=1`, `size=6`（固定 / fixed）                                                                       | `{items, total, pages, page, size}`               |
+| `GET /portfolio/skills`           | 取得指定分類中的技能，亦可接續分類預覽 / Ordered skills in one category, including preview continuation | `site_id`（可省略 / optional）, `ownerType=category`（預設 / default）, `ownerId`（必填 / required）, `page=1`, `size=6`（固定 / fixed） | `{items, total, pages, page, size}`               |
+| `GET /system/heartbeat`           | 依近期心跳估算在線人數 / Estimated online count from recent heartbeats                                  | `is_caching=false`                                                                                                                       | `{online: number}`                                |
 
 `/site` 是單一物件，缺少站點內容回 404；`/journey` 一次回傳地圖需要的資料，沒有資料時回 `[]`。`/experiences` 與 `/projects` 每頁固定 6 筆，超過最後一頁時 `items` 為空；前者每筆提供完整技能字串陣列，後者包含完整專案詳情與技能。
 
@@ -138,9 +167,9 @@ All six Portfolio APIs accept `locale=en|zh-Hans|zh-Hant` (default `en`) and `is
 
 All paginated responses inherit `RespRecords[T]` from `COMMON/schema/resp/resp_common.py`. Use `from_records()` to compute pages consistently. The response is `{items,total,pages,page,size}`; empty collections use total=0 and pages=0, while out-of-range requests keep the requested page and actual totals. Public endpoints use size=6.
 
-分類每項提供 `{id,label,skills}`，內層 skills 也使用同一五欄位模型，為該分類的第 1 頁技能預覽。`skills.items` 直接提供指定語言的 `{id,label}`，最多 6 筆；`skills.total` 與 `skills.pages` 描述完整技能集合。展開時以相同 locale、ownerId 呼叫 `/portfolio/skills?page=2&size=6`，之後逐頁續取。分類預覽使用視窗函式批次查詢，避免每類各查一次。
+分類每項提供 `{id,label,skills}`，內層 skills 也使用同一五欄位模型，為該分類的第 1 頁技能預覽。`skills.items` 直接提供指定語言的 `{id,label}`，最多 6 筆；`skills.total` 與 `skills.pages` 描述完整技能集合。展開時以相同 site_id、locale、ownerId 呼叫 `/portfolio/skills?site_id=1&page=2&size=6`，之後逐頁續取。分類預覽使用視窗函式批次查詢，避免每類各查一次。
 
-Each category contains `{id,label,skills}`. Its nested skills response uses the same five fields and represents page 1 of that category, with up to six localized `{id,label}` records. Continue through `/portfolio/skills?page=2&size=6` with the same locale and ownerId. Window functions batch preview queries across categories instead of querying each category separately.
+Each category contains `{id,label,skills}`. Its nested skills response uses the same five fields and represents page 1 of that category, with up to six localized `{id,label}` records. Continue through `/portfolio/skills?site_id=1&page=2&size=6` with the same site_id, locale and ownerId. Window functions batch preview queries across categories instead of querying each category separately.
 
 `/system/heartbeat` 回傳近期心跳對應的估算人數，並非登入帳號或瀏覽器分頁數；設 `is_caching=true` 時最多快取 30 秒。語言、頁碼、size 或 owner 參數錯誤由 API 回傳對應 400；省略 `/skills` 必填的 `ownerId` 由 FastAPI 驗證回 422，找不到分類回 404。完整欄位與範例可在 `/swagger` 查看。
 
@@ -159,9 +188,9 @@ See the [frontend README](../frontend/README.md) for the React migration plan. I
 | `alembic.ini`、`SYSTEM/models/migrations/`  | 指向 migration 環境與版本；Alembic 使用目前資料庫設定及 `SYSTEM/models` metadata。 / Migration location and revisions; Alembic uses the configured database and model metadata.                                                                  |
 | `pyproject.toml`、`uv.lock`                 | 宣告依賴與鎖定解析後版本。 / Declare dependencies and lock resolved versions.                                                                                                                                                                    |
 
-`SYSTEM/config.yaml` 至少需要非空的 `SECURITY.secret_key`，以及 `DATABASE.META` 的 `type`、`is_async: true`、`name`。公開預設可直接用於本機開發：API `127.0.0.1:8080`、Redis `127.0.0.1:6379`、SQLite。`SERVER.locally: false` 讓 server 與 Redis 各自讀取 YAML 的 host／port；設為 `true` 時 server 強制使用 loopback，Redis 固定使用本機 6379。文件路徑由 `URL` 設定；預設 Swagger 是 `/swagger`、ReDoc 是 `/redoc`、OpenAPI 是 `/openapi`。
+`SYSTEM/config.yaml` 至少需要非空的 `SECURITY.secret_key`，以及 `DATABASE.META` 的 `type`、`is_async: true`、`name`。多用戶 migration 使用 PostgreSQL；底層 SQLite 支援保留供工具及隔離測試。API `127.0.0.1:8080`、Redis `127.0.0.1:6379`。`SERVER.locally: false` 讓 server 與 Redis 各自讀取 YAML 的 host／port；設為 `true` 時 server 強制使用 loopback，Redis 固定使用本機 6379。文件路徑由 `URL` 設定；預設 Swagger 是 `/swagger`、ReDoc 是 `/redoc`、OpenAPI 是 `/openapi`。
 
-`SYSTEM/config.yaml` requires a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async: true`, and `name`. The public defaults run locally with API `127.0.0.1:8080`, Redis `127.0.0.1:6379`, and SQLite. With `SERVER.locally: false`, the server and Redis use their YAML host/port values; `true` forces a loopback server and local Redis on port 6379. Documentation defaults are `/swagger`, `/redoc`, and `/openapi`.
+`SYSTEM/config.yaml` requires a nonempty `SECURITY.secret_key` and `DATABASE.META` values for `type`, `is_async: true`, and `name`. The local API uses port 8080 and Redis port 6379; configure PostgreSQL for the multi-user migration chain. With `SERVER.locally: false`, the server and Redis use their YAML host/port values; `true` forces a loopback server and local Redis on port 6379. Documentation defaults are `/swagger`, `/redoc`, and `/openapi`.
 
 目前 `YamlConfig` 直接讀取此檔案，**沒有環境變數覆寫或 `${VARIABLE}` 插值機制**。正式環境必須將 `SECURITY.secret_key` 換成部署專用的隨機值，並以私有部署檔案或 secret mount 覆蓋此路徑；不要把真實金鑰寫進版本控制的設定。也須依部署設定 `SERVER.host`、HTTPS cookie、Redis 主機與資料庫連線。可在部署環境產生金鑰，再填入私有 YAML：
 
@@ -171,9 +200,9 @@ See the [frontend README](../frontend/README.md) for the React migration plan. I
 uv run --locked python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-目前支援 `sqlite` 與 `postgresql`；PostgreSQL 還需實際 `host`、`port`、`name`、`user`、`password`，且必須先建立資料庫。公開 YAML 中的 PostgreSQL 帳密只是未啟用的占位值，SQLite 不使用它們。`SEC_CORS` 的 origins 目前由 `SYSTEM/settings.py` 建立，沒有 YAML origins 選項；前端預設 `VITE_API_BASE_URL=/api`，瀏覽器請求同源的 `/api/portfolio/*`，開發 proxy 或正式 reverse proxy 移除 `/api` 前綴後轉送至後端的 `/portfolio/*`。若要直接使用不同網域，須按部署需求設定 CORS。
+目前支援 `sqlite` 與 `postgresql`；PostgreSQL 還需實際 `host`、`port`、`name`、`user`、`password`，且必須先建立資料庫。依部署環境填入 PostgreSQL 連線設定；SQLite 不使用這些欄位。`SEC_CORS` 的 origins 目前由 `SYSTEM/settings.py` 建立，沒有 YAML origins 選項；前端預設 `VITE_API_BASE_URL=/api`，瀏覽器請求同源的 `/api/portfolio/*`，開發 proxy 或正式 reverse proxy 移除 `/api` 前綴後轉送至後端的 `/portfolio/*`。若要直接使用不同網域，須按部署需求設定 CORS。
 
-Both `sqlite` and `postgresql` are supported. PostgreSQL additionally needs actual host, port, database name, username, password, and a database created in advance. The public PostgreSQL credentials are inactive placeholders that SQLite ignores. `SEC_CORS` origins are currently defined in `SYSTEM/settings.py`; there is no YAML origins option. The frontend defaults to `VITE_API_BASE_URL=/api`, so browsers request same-origin `/api/portfolio/*`. The development proxy or production reverse proxy strips `/api` and forwards `/portfolio/*` to this API. Direct cross-origin deployments require matching CORS configuration.
+Both `sqlite` and `postgresql` are supported. PostgreSQL additionally needs actual host, port, database name, username, password, and a database created in advance. Supply PostgreSQL connection values for the deployment environment; SQLite ignores those fields. `SEC_CORS` origins are currently defined in `SYSTEM/settings.py`; there is no YAML origins option. The frontend defaults to `VITE_API_BASE_URL=/api`, so browsers request same-origin `/api/portfolio/*`. The development proxy or production reverse proxy strips `/api` and forwards `/portfolio/*` to this API. Direct cross-origin deployments require matching CORS configuration.
 
 使用 SQLite 時，相對的 `DATABASE.META.name` 會依 `SYSTEM/settings.py` 的 `DB_CONF["sqlite"]` 存放在 `SYSTEM/models/sqlite/`，缺少的資料夾會自動建立；`:memory:` 不建立檔案，絕對路徑則保留指定位置。FastAPI 與 Alembic 使用同一個路徑。
 
@@ -226,9 +255,9 @@ uv sync --locked
 
 ### 3. 檢查設定並建立資料表 / Check Configuration and Migrate
 
-檢查公開 `SYSTEM/config.yaml` 是否符合本機環境；預設可直接使用。先建立資料表，再啟動 API：
+檢查 `SYSTEM/config.yaml`，為多用戶版本準備 PostgreSQL 連線與既有資料備份。先建立資料表，再啟動 API：
 
-Check the tracked `SYSTEM/config.yaml` against your local environment; its defaults are ready for local use. Create tables before starting the API:
+Configure PostgreSQL in SYSTEM/config.yaml and back up existing data before multi-user migrations. Create tables before starting the API:
 
 ```bash
 uv run --locked alembic upgrade head
@@ -241,7 +270,7 @@ FastAPI startup does not create tables or run migrations. The relative default S
 
 ### 4. 可選匯入公開示範內容 / Optionally Import Public Demo Content
 
-新資料庫的 Portfolio 表是空的，`/portfolio/site` 會回 404，集合會回空資料；前端會顯示對應提示。要使用舊版公開 mock，可將 [portfolio-web](https://github.com/zhenglee315/portfolio-web) clone 到本專案相鄰位置，再匯入。從目前 `backend/` 目錄執行；已存在此來源時不用再 clone：
+新資料庫的 Portfolio 表是空的，所有公開 API 都會回 404；前端會顯示對應提示。要使用舊版公開 mock，可將 [portfolio-web](https://github.com/zhenglee315/portfolio-web) clone 到本專案相鄰位置，再匯入。從目前 `backend/` 目錄執行；已存在此來源時不用再 clone：
 
 A new database has empty Portfolio tables: `/portfolio/site` returns 404 and collections return empty data, which the frontend handles with status messages. To use the legacy public demo, clone [portfolio-web](https://github.com/zhenglee315/portfolio-web) beside this repository and import it. Starting in `backend/`, run the following; skip the clone if that source already exists:
 
@@ -249,7 +278,7 @@ A new database has empty Portfolio tables: `/portfolio/site` returns 404 and col
 cd ../..
 git clone https://github.com/zhenglee315/portfolio-web.git
 cd portfolio-modern/backend
-uv run --locked test.py
+uv run --locked test.py --user existing-user
 ```
 
 也可改用明確路徑：
@@ -257,12 +286,12 @@ uv run --locked test.py
 Alternatively, select an explicit source directory:
 
 ```bash
-uv run --locked test.py --mock-dir /path/to/portfolio-web/mock
+uv run --locked test.py --user existing-user --mock-dir /path/to/portfolio-web/mock
 ```
 
-來源需要 `skills.json`，以及 `site/`、`journey/`、`experiences/`、`projects/`、`locales/` 各自的 `en.json`、`zh-Hans.json`、`zh-Hant.json`；三語的 ID、排序與共享欄位必須一致。這些是可選的公開示範資料，不是缺漏的執行程式；前端測試 fixtures 也不等同此匯入格式。`test.py` 會先驗證來源，再以單一 transaction 匯入**已遷移且所有 Portfolio 表皆為空**的資料庫；已有資料時拒絕匯入，不會清空它們。`auth_user` 不受影響，匯入不建立登入帳號。
+來源需要 `skills.json`，以及 `site/`、`journey/`、`experiences/`、`projects/`、`locales/` 各自的 `en.json`、`zh-Hans.json`、`zh-Hant.json`；三語的 ID、排序與共享欄位必須一致。這些是可選的公開示範資料，不是缺漏的執行程式；前端測試 fixtures 也不等同此匯入格式。`test.py` 會先驗證來源，再以單一 transaction 匯入**已遷移且所有 Portfolio 表皆為空**的資料庫；已有資料時拒絕匯入，不會清空它們。必須先建立有效登入帳號，再用 `--user` 明確指定 owner；匯入不修改帳號，示範作品集會成為已發布首頁。
 
-The source needs `skills.json` and `en.json`, `zh-Hans.json`, and `zh-Hant.json` under each of `site/`, `journey/`, `experiences/`, `projects/`, and `locales/`. IDs, order, and shared fields must agree across locales. These are optional public demo data, rather than missing application code; frontend test fixtures use a different shape. `test.py` validates the source and imports in one transaction into a **migrated database whose Portfolio tables are all empty**. Existing data causes a refusal and is never cleared. `auth_user` remains untouched and no login account is created.
+The source needs `skills.json` and `en.json`, `zh-Hans.json`, and `zh-Hant.json` under each of `site/`, `journey/`, `experiences/`, `projects/`, and `locales/`. IDs, order, and shared fields must agree across locales. These are optional public demo data, rather than missing application code; frontend test fixtures use a different shape. `test.py` validates the source and imports in one transaction into a **migrated database whose Portfolio tables are all empty**. Existing data causes a refusal and is never cleared. Create an active account first and explicitly select its public identifier with --user. The importer leaves accounts untouched and publishes the sole demonstration portfolio as the default.
 
 ### 5. 啟動與確認 / Start and Verify
 
@@ -308,19 +337,21 @@ uv run --locked pytest -q tests
 
 ## 分頁與技能方法索引 / Pagination and Skill Reference
 
-| 類別／方法 / Class or method                                              | 參數 / Parameters                                                              | 職責與回傳 / Responsibility and result                                                                                              |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `RespRecords[T]`                                                          | items、total、pages、page、size                                                | 共用 typed response；items 必為陣列，總數和頁數非負、頁碼和容量為正 / Shared typed response with required items and numeric bounds. |
-| `RespRecords.from_records()`                                              | items；keyword-only total、page、size                                          | 計算 pages，建立回應；size ≤ 0 回 ValueError / Compute page count and build the response; reject nonpositive size.                  |
-| `parser_pagination()`                                                     | page=1、size=6                                                                 | 驗證正頁碼與固定容量；回傳 dict / Validate page and fixed capacity, return a dictionary.                                            |
-| `parser_portfolio_skill_categories()`                                     | locale、pagination                                                             | 合併語系與共用頁碼參數 / Combine locale and shared pagination.                                                                      |
-| `parser_portfolio_skills()`                                               | locale、pagination、owner_type、owner_id                                       | 合併參數，限定 category 並驗證非空 ownerId / Validate category ownership and combine parameters.                                    |
-| `PortfolioSkillsModule.__init__()`                                        | locale、page、size、owner_type?、owner_id?                                     | 建立分類與技能共用查詢上下文 / Initialize query context for categories and skills.                                                  |
-| `PortfolioSkillsModule._skill_query()`                                    | 無 / None                                                                      | 組裝指定語言的技能關聯查詢 / Build the localized skill membership query.                                                            |
-| `PortfolioSkillsModule.select_categories()`                               | 無 / None                                                                      | 回傳分類頁與批次取得的 skills 第 1 頁 / Return category pagination and batched nested skill previews.                               |
-| `PortfolioSkillsModule.select_skills()`                                   | 無 / None                                                                      | 驗證分類存在，回傳有序技能頁 / Check category existence and return ordered skill pagination.                                        |
-| `PortfolioExperiencesModule.select()`、`PortfolioProjectsModule.select()` | 無 / None                                                                      | ORM 分頁後以共用 from_records 建立回應 / Build the shared response after ORM pagination.                                            |
-| `PortfolioSkills.get_skill_categories()`、`PortfolioSkills.get_skills()`  | FastAPI Depends 注入 parser 及 is_caching / Injected parser and cache settings | 宣告 HTTP schema，委派 module 執行 / Declare HTTP schemas and delegate business queries.                                            |
+| 類別／方法 / Class or method                                              | 參數 / Parameters                                       | 職責與回傳 / Responsibility and result                                                                                              |
+| ------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `RespRecords[T]`                                                          | items、total、pages、page、size                         | 共用 typed response；items 必為陣列，總數和頁數非負、頁碼和容量為正 / Shared typed response with required items and numeric bounds. |
+| `RespRecords.from_records()`                                              | items；keyword-only total、page、size                   | 計算 pages，建立回應；size ≤ 0 回 ValueError / Compute page count and build the response; reject nonpositive size.                  |
+| `parser_pagination()`                                                     | page=1、size=6                                          | 驗證正頁碼與固定容量；回傳 dict / Validate page and fixed capacity, return a dictionary.                                            |
+| `parser_portfolio_site()`                                                 | user?、site_id?、locale、is_caching                     | 唯一公開帳號查找；回傳已解析 site_id 及共用參數 / Sole public account lookup with resolved identity and common parameters.          |
+| `parser_portfolio_content()`                                              | site_id?、locale、is_caching                            | 驗證公開可見性並組合內容參數；拒絕 user / Resolve visible content by ID/default and reject user selectors.                          |
+| `parser_portfolio_records()`                                              | content query_string、pagination                        | 在共用內容參數加上頁碼 / Add numbered pagination to the common content dictionary.                                                  |
+| `parser_portfolio_skills()`                                               | content query_string、owner_type、owner_id              | 合併參數，限定 category 並驗證非空 ownerId / Validate category ownership and combine parameters.                                    |
+| `PortfolioSkillsModule.__init__()`                                        | site_id、locale、page、size、owner_type?、owner_id?     | 建立分類與技能共用查詢上下文 / Initialize query context for categories and skills.                                                  |
+| `PortfolioSkillsModule._skill_query()`                                    | 無 / None                                               | 組裝指定語言的技能關聯查詢 / Build the localized skill membership query.                                                            |
+| `PortfolioSkillsModule.select_categories()`                               | 無 / None                                               | 回傳分類頁與批次取得的 skills 第 1 頁 / Return category pagination and batched nested skill previews.                               |
+| `PortfolioSkillsModule.select_skills()`                                   | 無 / None                                               | 驗證分類存在，回傳有序技能頁 / Check category existence and return ordered skill pagination.                                        |
+| `PortfolioExperiencesModule.select()`、`PortfolioProjectsModule.select()` | 無 / None                                               | ORM 分頁後以共用 from_records 建立回應 / Build the shared response after ORM pagination.                                            |
+| `PortfolioSkills.get_skill_categories()`、`PortfolioSkills.get_skills()`  | 單一 query_string 注入 / One combined parser dictionary | 宣告 HTTP schema，委派 module 執行 / Declare HTTP schemas and delegate business queries.                                            |
 
 `RespPortfolioExperiences`、`RespPortfolioProjects`、`RespPortfolioSkills`、`RespPortfolioSkillCategories` 僅特化共用模型的 item 型別；`RespPortfolioSkillCategoryItem.skills` 直接使用 `RespPortfolioSkills`。分頁欄位不得在各 API 重複宣告或計算。
 

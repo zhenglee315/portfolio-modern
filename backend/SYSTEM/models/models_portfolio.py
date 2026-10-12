@@ -13,6 +13,7 @@ from sqlalchemy import (
     Date,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     JSON,
     String,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     cast,
     extract,
     func,
+    false,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref
@@ -111,10 +113,24 @@ class PortfolioSite(BASE):
         Integer,
         ForeignKey(AuthUser.id, ondelete='RESTRICT'),
         nullable=False,
-        index=True,
         comment='Portfolio account owner',
     )
     user = relationship(AuthUser, backref=backref('sites', passive_deletes='all'))
+    # ---------------------------------------------------------------------● Publication
+    is_published = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+        comment='Whether this portfolio is publicly visible',
+    )
+    is_default = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+        comment='Published portfolio shown without a user selector',
+    )
     # ---------------------------------------------------------------------● Brand
     copyright_year = Column(Integer, nullable=False, comment='Explicit copyright year; not calculated from the clock')
     # ---------------------------------------------------------------------● Social
@@ -127,7 +143,18 @@ class PortfolioSite(BASE):
     # ---------------------------------------------------------------------● Chatme
     chat_icon = Column(String(512), nullable=False, comment='Relative path to the bundled chat icon')
     # ---------------------------------------------------------------------● Constraints
-    __table_args__ = (CheckConstraint(copyright_year.between(1900, 9999), name='ck_portfolio_site_copyright_year'),)
+    __table_args__ = (
+        UniqueConstraint(user_id, name='uq_portfolio_site_user_id'),
+        CheckConstraint(~is_default | is_published, name='ck_portfolio_site_default_published'),
+        Index(
+            'uq_portfolio_site_one_default',
+            is_default,
+            unique=True,
+            postgresql_where=is_default.is_(True),
+            sqlite_where=is_default.is_(True),
+        ),
+        CheckConstraint(copyright_year.between(1900, 9999), name='ck_portfolio_site_copyright_year'),
+    )
 
 
 # ■—< PORTFOLIO >——————————————————————————————————————————————————————————————————————■ Site - Locale
@@ -175,6 +202,11 @@ class PortfolioCareer(BASE):
 
     # ---------------------------------------------------------------------● PK
     id = Column(_PORTFOLIO_ID, primary_key=True, autoincrement=True, comment='Shared Journey / Experience ID')
+    # ---------------------------------------------------------------------● FK / Site
+    site_id = Column(
+        Integer, ForeignKey(PortfolioSite.id, ondelete='CASCADE'), nullable=False, comment='Portfolio owner site'
+    )
+    site = relationship(PortfolioSite, backref=backref('careers', cascade='all, delete-orphan'))
     # ---------------------------------------------------------------------● Ordering
     journey_position = Column(Integer, nullable=False, comment='Journey array order, starting at zero')
     experience_order = Column(Float, nullable=False, comment='Experience order value returned by the API')
@@ -194,8 +226,8 @@ class PortfolioCareer(BASE):
     detail_end_day = Column(Integer, nullable=True, comment='Optional actual day within detail_end_month')
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
-        UniqueConstraint(journey_position, name='uq_portfolio_career_journey_position'),
-        Index('ix_portfolio_career_experience_order', experience_order, id),
+        UniqueConstraint(site_id, journey_position, name='uq_portfolio_career_journey_position'),
+        Index('ix_portfolio_career_experience_order', site_id, experience_order, id),
         CheckConstraint(id.between(1, 9007199254740991), name='ck_portfolio_career_safe_id'),
         CheckConstraint(journey_position >= 0, name='ck_portfolio_career_journey_position'),
         CheckConstraint(
@@ -277,6 +309,11 @@ class PortfolioProject(BASE):
 
     # ---------------------------------------------------------------------● PK
     id = Column(_PORTFOLIO_ID, primary_key=True, autoincrement=True, comment='Project API ID')
+    # ---------------------------------------------------------------------● FK / Site
+    site_id = Column(
+        Integer, ForeignKey(PortfolioSite.id, ondelete='CASCADE'), nullable=False, comment='Portfolio owner site'
+    )
+    site = relationship(PortfolioSite, backref=backref('projects', cascade='all, delete-orphan'))
     # ---------------------------------------------------------------------● Ordering / Period
     position = Column(Integer, nullable=False, comment='Project array order, starting at zero')
     start_month = Column(Date, nullable=False, comment='First day of project start month; API formats YYYY-MM')
@@ -284,7 +321,7 @@ class PortfolioProject(BASE):
     expected = Column(Boolean, nullable=False, default=False, comment='Whether the project period is expected')
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
-        UniqueConstraint(position, name='uq_portfolio_project_position'),
+        UniqueConstraint(site_id, position, name='uq_portfolio_project_position'),
         CheckConstraint(id.between(1, 9007199254740991), name='ck_portfolio_project_safe_id'),
         CheckConstraint(position >= 0, name='ck_portfolio_project_position'),
         CheckConstraint(_month_start(start_month), name='ck_portfolio_project_start_month'),
@@ -344,12 +381,16 @@ class PortfolioSkill(BASE):
     __tablename__ = 'portfolio_skill'
 
     # ---------------------------------------------------------------------● PK
+    site_id = Column(
+        Integer, ForeignKey(PortfolioSite.id, ondelete='CASCADE'), primary_key=True, comment='Portfolio owner site'
+    )
     id = Column(String(128), primary_key=True, comment='Skill slug returned by the API')
+    site = relationship(PortfolioSite, backref=backref('skills', cascade='all, delete-orphan'))
     # ---------------------------------------------------------------------● Conf
     label_key = Column(String(255), nullable=False, comment='Translation key, e.g. skill.python')
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
-        UniqueConstraint(label_key, name='uq_portfolio_skill_label_key'),
+        UniqueConstraint(site_id, label_key, name='uq_portfolio_skill_label_key'),
         CheckConstraint(_trimmed_identifier(id, 120), name='ck_portfolio_skill_id'),
         CheckConstraint(_utf16_length(id) <= 120, name='ck_portfolio_skill_id_utf16_length').ddl_if(
             dialect='postgresql'
@@ -368,9 +409,8 @@ class PortfolioSkillLocale(BASE):
     # ---------------------------------------------------------------------● PK
     id = column_id()
     # ---------------------------------------------------------------------● FK / Locale
-    skill_id = Column(
-        String(128), ForeignKey(PortfolioSkill.id, ondelete='CASCADE'), nullable=False, comment='Skill slug'
-    )
+    site_id = Column(Integer, nullable=False, comment='Portfolio owner site inherited from the skill')
+    skill_id = Column(String(128), nullable=False, comment='Skill slug')
     locale = Column(
         String(32), ForeignKey(PortfolioLocale.code, ondelete='RESTRICT'), nullable=False, comment='Language code'
     )
@@ -380,8 +420,14 @@ class PortfolioSkillLocale(BASE):
     label = Column(String(255), nullable=False, comment='Localized label for label_key')
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
-        UniqueConstraint(skill_id, locale, name='uq_portfolio_skill_locale'),
-        Index('ix_portfolio_skill_locale_locale_skill_id', locale, skill_id),
+        ForeignKeyConstraint(
+            (site_id, skill_id),
+            (PortfolioSkill.site_id, PortfolioSkill.id),
+            name='fk_portfolio_skill_locale_site_skill',
+            ondelete='CASCADE',
+        ),
+        UniqueConstraint(site_id, skill_id, locale, name='uq_portfolio_skill_locale'),
+        Index('ix_portfolio_skill_locale_locale_skill_id', site_id, locale, skill_id),
     )
 
 
@@ -390,14 +436,18 @@ class PortfolioSkillCategory(BASE):
     __tablename__ = 'portfolio_skill_category'
 
     # ---------------------------------------------------------------------● PK
+    site_id = Column(
+        Integer, ForeignKey(PortfolioSite.id, ondelete='CASCADE'), primary_key=True, comment='Portfolio owner site'
+    )
     id = Column(String(128), primary_key=True, comment='Category slug returned by the API')
+    site = relationship(PortfolioSite, backref=backref('skill_categories', cascade='all, delete-orphan'))
     # ---------------------------------------------------------------------● Conf
     label_key = Column(String(255), nullable=False, comment='Translation key for the category label')
     position = Column(Integer, nullable=False, comment='Category array order, starting at zero')
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
-        UniqueConstraint(label_key, name='uq_portfolio_skill_category_label_key'),
-        UniqueConstraint(position, name='uq_portfolio_skill_category_position'),
+        UniqueConstraint(site_id, label_key, name='uq_portfolio_skill_category_label_key'),
+        UniqueConstraint(site_id, position, name='uq_portfolio_skill_category_position'),
         CheckConstraint(_trimmed_identifier(id, 120), name='ck_portfolio_skill_category_id'),
         CheckConstraint(_utf16_length(id) <= 120, name='ck_portfolio_skill_category_id_utf16_length').ddl_if(
             dialect='postgresql'
@@ -417,12 +467,8 @@ class PortfolioSkillCategoryLocale(BASE):
     # ---------------------------------------------------------------------● PK
     id = column_id()
     # ---------------------------------------------------------------------● FK / Locale
-    category_id = Column(
-        String(128),
-        ForeignKey(PortfolioSkillCategory.id, ondelete='CASCADE'),
-        nullable=False,
-        comment='Category slug',
-    )
+    site_id = Column(Integer, nullable=False, comment='Portfolio owner site inherited from the category')
+    category_id = Column(String(128), nullable=False, comment='Category slug')
     locale = Column(
         String(32), ForeignKey(PortfolioLocale.code, ondelete='RESTRICT'), nullable=False, comment='Language code'
     )
@@ -432,8 +478,14 @@ class PortfolioSkillCategoryLocale(BASE):
     label = Column(String(255), nullable=False, comment='Localized label for label_key')
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
-        UniqueConstraint(category_id, locale, name='uq_portfolio_skill_category_locale'),
-        Index('ix_portfolio_skill_category_locale_locale_category_id', locale, category_id),
+        ForeignKeyConstraint(
+            (site_id, category_id),
+            (PortfolioSkillCategory.site_id, PortfolioSkillCategory.id),
+            name='fk_portfolio_skill_category_locale_site_category',
+            ondelete='CASCADE',
+        ),
+        UniqueConstraint(site_id, category_id, locale, name='uq_portfolio_skill_category_locale'),
+        Index('ix_portfolio_skill_category_locale_locale_category_id', site_id, locale, category_id),
     )
 
 
@@ -446,26 +498,37 @@ class PortfolioCategorySkill(BASE):
     # ---------------------------------------------------------------------● PK
     id = column_id()
     # ---------------------------------------------------------------------● FK / Ordering
-    category_id = Column(
-        String(128),
-        ForeignKey(PortfolioSkillCategory.id, ondelete='CASCADE'),
-        nullable=False,
-        comment='Category slug',
-    )
-    skill_id = Column(
-        String(128), ForeignKey(PortfolioSkill.id, ondelete='CASCADE'), nullable=False, comment='Skill slug'
-    )
+    site_id = Column(Integer, nullable=False, comment='Shared portfolio owner of the category and skill')
+    category_id = Column(String(128), nullable=False, comment='Category slug')
+    skill_id = Column(String(128), nullable=False, comment='Skill slug')
     position = Column(Integer, nullable=False, comment='Skill order inside the category, starting at zero')
     category = relationship(
         PortfolioSkillCategory,
         backref=backref('skills', cascade='all, delete-orphan', order_by=position),
+        overlaps='categories,skill',
     )
-    skill = relationship(PortfolioSkill, backref=backref('categories', cascade='all, delete-orphan'))
+    skill = relationship(
+        PortfolioSkill,
+        backref=backref('categories', cascade='all, delete-orphan', overlaps='category,skills'),
+        overlaps='category,skills',
+    )
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
-        UniqueConstraint(category_id, skill_id, name='uq_portfolio_category_skill'),
-        UniqueConstraint(category_id, position, name='uq_portfolio_category_skill_position'),
-        Index('ix_portfolio_category_skill_skill_id', skill_id),
+        ForeignKeyConstraint(
+            (site_id, category_id),
+            (PortfolioSkillCategory.site_id, PortfolioSkillCategory.id),
+            name='fk_portfolio_category_skill_site_category',
+            ondelete='CASCADE',
+        ),
+        ForeignKeyConstraint(
+            (site_id, skill_id),
+            (PortfolioSkill.site_id, PortfolioSkill.id),
+            name='fk_portfolio_category_skill_site_skill',
+            ondelete='CASCADE',
+        ),
+        UniqueConstraint(site_id, category_id, skill_id, name='uq_portfolio_category_skill'),
+        UniqueConstraint(site_id, category_id, position, name='uq_portfolio_category_skill_position'),
+        Index('ix_portfolio_category_skill_skill_id', site_id, skill_id),
         CheckConstraint(position >= 0, name='ck_portfolio_category_skill_position'),
     )
 

@@ -11,6 +11,7 @@ import styles from './Site.module.css';
 type Props = {
   locale: Locale;
   tenure?: string;
+  summaryPending?: boolean;
   leadingControls?: ReactNode;
   controls?: ReactNode;
   controlsRef?: Ref<HTMLDivElement>;
@@ -24,6 +25,7 @@ type Props = {
 export function ProfileOverview({
   locale,
   tenure,
+  summaryPending = false,
   leadingControls,
   controls,
   controlsRef,
@@ -98,7 +100,9 @@ export function ProfileOverview({
             <Icon name="arrow" />
           </button>
           <div className={styles.meta}>
-            <span title={t('ui.tenureHint')}>{tenure ?? t('ui.empty')}</span>
+            <span title={t('ui.tenureHint')} aria-busy={summaryPending || undefined}>
+              {tenure ?? (summaryPending ? '—' : t('ui.empty'))}
+            </span>
             <i aria-hidden="true" />
             <span>
               {site.profile.eduCode} · {site.profile.program}

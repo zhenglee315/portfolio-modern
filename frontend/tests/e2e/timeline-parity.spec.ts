@@ -77,7 +77,7 @@ function timelinePoints(page: Page, feature: Feature) {
   );
 }
 
-/** Read the shared distinct-month fixtures through normal static or development delivery. */
+/** Read the shared distinct-month fixtures through preview or development delivery. */
 async function openTimelines(page: Page) {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.mouse.move(5, 5);

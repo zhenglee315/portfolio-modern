@@ -9,15 +9,20 @@ const bootstrapComponents = [
   'react-bootstrap/Modal',
 ];
 
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(({ mode }) => {
   const directory = fileURLToPath(new URL('.', import.meta.url));
   const environment = loadEnv(mode, directory, '');
   // Only server loaders read this value; .server modules are excluded from browser bundles.
-  process.env.API_BUILD_TARGET = environment.API_BUILD_TARGET || process.env.API_BUILD_TARGET;
-  process.env.PORTFOLIO_PRERENDER = command === 'build' ? '1' : '0';
+  process.env.API_SERVER_TARGET =
+    environment.API_SERVER_TARGET ||
+    process.env.API_SERVER_TARGET ||
+    environment.API_BUILD_TARGET ||
+    process.env.API_BUILD_TARGET;
 
   return {
     plugins: [reactRouter()],
+    // Managed smoke runtimes keep optimizer files separate from an active local dev server.
+    cacheDir: environment.PORTFOLIO_VITE_CACHE_DIR || undefined,
     resolve: { tsconfigPaths: true },
     // Scan route entries before the first browser request, including lazy components.
     // Late dependency discovery can rebuild the graph and split React instances.
@@ -25,7 +30,7 @@ export default defineConfig(({ mode, command }) => {
       entries: ['src/root.tsx', 'src/routes/**/*.tsx'],
       include: bootstrapComponents,
     },
-    // Transform extensionless component imports in both development and static rendering.
+    // Transform extensionless component imports in both development and server rendering.
     ssr: {
       // @restart/ui selects CommonJS under Node export conditions. Pre-bundle the
       // component dependency trees into ESM; keep React native so those

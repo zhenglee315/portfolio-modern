@@ -2,12 +2,7 @@ import { dehydrate } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/app/query-client';
 import { fillNumberedPages } from '@/shared/api/numbered-query';
-import {
-  categoriesQuery,
-  prefetchCategoryIndex,
-  skillsQuery,
-  skillsSchema,
-} from '@/features/skills';
+import { categoriesQuery, skillsQuery, skillsSchema } from '@/features/skills';
 import { endpointFixture } from '../fixtures/portfolio';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -98,27 +93,29 @@ describe('validated numbered continuation', () => {
   });
 });
 
-describe('static skill category index', () => {
-  it('prepares every category while retaining embedded owner page-one previews', async () => {
+describe('bounded skill category snapshot', () => {
+  it('prepares only the first category page while retaining embedded owner previews', async () => {
     const client = createQueryClient();
     const requests: URL[] = [];
     fixtureFetch(requests);
-    await prefetchCategoryIndex(client, 'en', 'https://example.test');
+    await client.prefetchInfiniteQuery(categoriesQuery('en', 'https://example.test'));
     const data = client.getQueryData(categoriesQuery('en').queryKey);
-    expect(data?.pages.flatMap((page) => page.items)).toHaveLength(7);
-    expect(requests.map((url) => url.searchParams.get('page'))).toEqual(['1', '2']);
+    expect(data?.pages.flatMap((page) => page.items)).toHaveLength(6);
+    expect(requests.map((url) => url.searchParams.get('page'))).toEqual(['1']);
     expect(requests.every((url) => url.pathname.endsWith('/skill-categories'))).toBe(true);
-    expect(client.getQueriesData({ queryKey: ['portfolio', 'en', 'skills'] })).toHaveLength(0);
+    expect(
+      client.getQueriesData({ queryKey: ['portfolio', 'default', 'en', 'skills'] }),
+    ).toHaveLength(0);
     client.clear();
   });
 
-  it('keeps first-page categories serializable when optional continuation is malformed', async () => {
+  it('never requests an optional continuation during snapshot preparation', async () => {
     const client = createQueryClient();
     const requests: URL[] = [];
     fixtureFetch(requests, (url, result) =>
       url.searchParams.get('page') === '2' ? { items: [] } : result,
     );
-    await expect(prefetchCategoryIndex(client, 'en')).resolves.toBeUndefined();
+    await expect(client.prefetchInfiniteQuery(categoriesQuery('en'))).resolves.toBeUndefined();
     const options = categoriesQuery('en');
     expect(client.getQueryData(options.queryKey)?.pages.flatMap((page) => page.items)).toHaveLength(
       6,
@@ -132,7 +129,7 @@ describe('static skill category index', () => {
     const client = createQueryClient();
     const requests: URL[] = [];
     fixtureFetch(requests, () => ({ items: [] }));
-    await expect(prefetchCategoryIndex(client, 'en')).resolves.toBeUndefined();
+    await expect(client.prefetchInfiniteQuery(categoriesQuery('en'))).resolves.toBeUndefined();
     expect(client.getQueryData(categoriesQuery('en').queryKey)).toBeUndefined();
     expect(dehydrate(client).queries).toHaveLength(0);
     client.clear();

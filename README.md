@@ -60,11 +60,11 @@ The scrollable dialog separates workflow, implementation, contribution and outco
 
 ### 5. 技能分類與展開 / Skills and Disclosure
 
-[![技能區局部裁切：所有分類預設呈現、各列技能標籤與虛線更多技能按鈕 / Skills crop with all categories visible and dashed controls for additional skills](docs/images/skills-toolkit.png)](docs/images/skills-toolkit.png)
+[![技能區局部裁切：分類、各列技能標籤與虛線更多技能按鈕 / Skills crop with categories and dashed controls for additional skills](docs/images/skills-toolkit.png)](docs/images/skills-toolkit.png)
 
-所有技能分類預設呈現。每列依可用寬度安排標籤；需要收合時，以約 75% 的預覽寬度保留「＋N skills」的空間，而不是固定顯示六個標籤。分類與分類內技能分別使用頁碼 API，畫面仍維持一份連續的技能清單。
+技能區進入視窗時呈現首批分類；更多分類由展開按鈕讀取。每列依可用寬度安排標籤；需要收合時，以約 75% 的預覽寬度保留「＋N skills」的空間。分類與分類內技能分別使用頁碼 API，畫面仍維持一份連續的技能清單。
 
-All categories are visible by default. Tags adapt to the available width; when disclosure is needed, the preview uses roughly 75% of the row and leaves space for “+N skills,” rather than imposing a fixed six-tag limit. Category and owner-skill pagination remain separate while the UI presents one continuous toolkit.
+The first category page appears when the skills section approaches the viewport; a disclosure control loads further categories. Tags adapt to the available width, with roughly 75% of the row reserved for previews and space for “+N skills.” Category and owner-skill pagination remain separate while the UI presents one continuous toolkit.
 
 ### 6. 主題、背景與進場 / Appearance and Entrance
 
@@ -144,23 +144,18 @@ The layered SVG cow uses 2.5D parallax and cycles through thinking, typing, watc
 
 At 390px, the cow, controls and form stack vertically while retaining all seven scene buttons. Short viewports scroll the whole card, and horizontal switching preserves vertical touch scrolling.
 
-目前帳號操作僅為前端介面：密碼與驗證碼留在當前表單，尚未送出或儲存。發送入口以綠色提示搭配 send-fill 顯示「驗證碼已送出」、有效 5 分鐘，並啟動 5 分鐘冷卻倒數；這是送出狀態的展示預覽，沒有實際寄信或伺服器驗證。登入驗證、SMTP、註冊與密碼復原 API 尚未串接，其他有效送出仍顯示服務尚未提供的提示。
+登入、登出、註冊、email 查重與驗證碼流程已串接 Auth API；登入狀態由伺服器 SESSION 保存，登出時清除。SMTP 目前保留發送框架，以測試碼 `123` 完成 Redis 驗證流程，驗證碼有效 5 分鐘。實際寄信與密碼復原功能仍待後續實作。
 
-Account actions currently provide UI only: passwords and verification codes remain in the current form without transmission or storage. The send action shows a green send-fill notification stating that a code was sent and is valid for five minutes, then starts a five-minute cooldown. This is a sent-state presentation preview without email delivery or server verification. Authentication, SMTP, registration and password recovery endpoints remain unconnected; other valid submissions report that the service is unavailable.
+Sign-in, sign-out, registration, email availability and verification codes use the Auth APIs. Server sessions retain account identity and are cleared on sign-out. SMTP currently provides a delivery stub with test code `123`, verified through Redis with a five-minute expiry. Actual email delivery and password recovery remain pending.
 
 ## 目前進度 / Current status
 
-- 已完成 FastAPI 啟動入口、六支公開 Portfolio GET API、線上人數診斷 API，以及本機 Swagger／ReDoc。
-- 後端使用單一非同步 SQLite 或 PostgreSQL 連線管理器；Redis 用於 session、心跳與可選的 HTTP 快取。
-- 已建立作品集與帳號 ORM 模型、初版 Alembic migration 及三語 mock 匯入腳本；migration 須手動執行，登入與寫入 API 尚未實作。
-- React Router、React、TypeScript、Bootstrap 樣式與图示已完成版型及六 API 整合，包含三語、經歷／專案／技能分頁、地圖播放、詳情、外觀與聯絡互動；四 URL 靜態內容、區段容錯與正式檢查工具可使用。
-- 登入／註冊／忘記密碼前端、登入轉場及草地牛場景已整合，支援三語、RWD、共用提示與獨立動畫控制；帳號及 SMTP API 尚未串接。
+- 六支公開 Portfolio API 支援預設首頁及各帳號作品集。只有 Site API 以 `user` 查找公開帳號，回傳 `site_id`；其餘內容 API 使用 `site_id`，未帶入時讀取已發布的 default 作品集。資料與快取依 `site_id` 隔離，每個帳號最多一個作品集，草稿不可公開或設為首頁。
+- 登入、登出、註冊、SESSION 與成功登入紀錄已接上 PostgreSQL／Redis；角色包含 CRUD 及 `is_manage_roles`、`is_manage_users`、`is_manage_sites`。
+- 公開頁面採動態 SSR，保留 `/`、`/en`、`/zh-Hans`、`/zh-Hant`，支援 `/:locale/:user` 與 `/:locale?site_id=1`。區塊、後續分頁與地圖等資源按需載入。
+- Dashboard、內容編輯介面與 CRUD／發布 API 留在後續階段；目前只有可重用的權限及發布交易 module。
 
-- The backend has a FastAPI entry point, six public Portfolio GET APIs, an online-count diagnostic endpoint, and local Swagger/ReDoc.
-- One async connection manager supports SQLite or PostgreSQL; Redis supplies sessions, heartbeats, and optional HTTP response caching.
-- Portfolio and account ORM models, an initial Alembic migration, and a three-language mock importer are present. Migrations run manually; login and write APIs are not implemented.
-- The React frontend integrates six APIs with three languages, numbered collections, maps/playback, detail dialogs, appearance and contact interactions. Four static URLs, independent fault recovery and verification tooling are available.
-- Sign-in, registration and password-recovery UI, the entrance transition and cow workspace are integrated with three languages, responsive layouts, shared tooltips and independent animation controls. Account and SMTP endpoints are not yet connected.
+Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default when it is omitted. Dynamic SSR serves default and individual portfolio URLs with bounded initial content and demand loading. Dashboard and content editing remain a later phase; shared authorization and publication transactions are ready for those views.
 
 ## 技術選擇 / Technology choices
 
@@ -223,7 +218,7 @@ portfolio-modern/
 │   ├── src/
 │   │   ├── root.tsx / routes.ts   # Document shell and route declarations
 │   │   ├── app/                  # Providers and shared QueryClient assembly
-│   │   ├── routes/               # URL entry, loaders, pre-render data and SEO
+│   │   ├── routes/               # URL entry, dynamic SSR loaders and SEO
 │   │   ├── pages/portfolio/      # Page composition, navigation and entrance
 │   │   ├── features/            # Site, journey, experiences, projects, skills,
 │   │   │                        # appearance, language, online visitors and auth
@@ -291,7 +286,7 @@ A feature is a frontend module such as projects, skills or appearance. Keep its 
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/root.tsx`、`src/routes.ts` | 全站文件、CSS 入口與路由宣告。 / Document shell, stylesheet entry and route declarations.                                                                                                                             |
 | `src/app/`                      | 組裝 QueryClient 與外觀等 providers，提供全站狀態入口。 / Assemble the QueryClient and application providers.                                                                                                         |
-| `src/routes/`                   | 解析 URL 語言、loader、預先渲染資料與 metadata；交給 page 呈現。 / Handle locale URLs, loaders, pre-render data and metadata, then render a page.                                                                     |
+| `src/routes/`                   | 解析 URL 語言／user、動態 SSR loader 與 metadata；交給 page 呈現。 / Handle locale/user URLs, dynamic SSR loaders and metadata, then render a page.                                                                   |
 | `src/pages/portfolio/`          | 組合五個區段、導覽、背景與進場動畫，協調切語言、主題及聯絡面板。 / Compose sections, navigation, background and entrance; coordinate page interactions.                                                               |
 | `src/features/`                 | 擁有功能專用 API、schema、model、hooks、components 與公開匯出。 / Own feature-specific requests, schemas, models, hooks, components and exports.                                                                      |
 | `src/shared/`                   | 共用 HTTP、防呆、分頁、對話框焦點、標籤、狀態提示及工具；介面見[共用 SPEC](frontend/src/shared/README.md)。 / Reuse HTTP, validation, pagination, focus, tags, status UI and utilities through documented interfaces. |
@@ -404,12 +399,12 @@ python -c "import sys; print(sys.executable)"
 Use `uv run` to execute project commands without manually activating the environment. For example, check Python formatting:
 
 ```bash
-uv run black --check .
+uv run black --check --skip-string-normalization .
 ```
 
-公開的 `SYSTEM/config.yaml` 預設使用 loopback、8080、SQLite 與本機 Redis 6379。先依 [Redis 安裝文件](https://redis.io/docs/latest/operate/oss_and_stack/install/install-stack/homebrew/)啟動 Redis；macOS 已安裝 Homebrew 時可執行：
+多用戶版本請將 `SYSTEM/config.yaml` 設為 PostgreSQL 並先建立資料庫；底層 SQLite 支援保留供工具及隔離測試。API 使用 8080，本機 Redis 使用 6379。先依 [Redis 安裝文件](https://redis.io/docs/latest/operate/oss_and_stack/install/install-stack/homebrew/)啟動 Redis；macOS 已安裝 Homebrew 時可執行：
 
-The published YAML uses loopback port 8080, SQLite and local Redis on 6379. Start Redis first; on macOS with Homebrew:
+Configure PostgreSQL and create the database before running multi-user migrations. SQLite remains supported by the storage tools and isolated tests. The local API uses 8080 and Redis uses 6379. Start Redis first; on macOS with Homebrew:
 
 ```bash
 brew install redis
@@ -426,13 +421,13 @@ Apply migrations from `backend/`. A new database has no profile content. To seed
 # Run inside backend/
 uv run --locked alembic upgrade head
 git clone https://github.com/zhenglee315/portfolio-web.git ../../portfolio-web
-uv run --locked test.py
+uv run --locked test.py --user existing-user
 uv run --locked manage_fastapi.py
 ```
 
-已經有 `portfolio-web/` 時省略 clone；也可用 `uv run --locked test.py --mock-dir /path/to/mock` 指定自己的合規三語資料。匯入只允許空的 Portfolio 資料表，沒有清空或覆寫既有資料的步驟。後端可先以空資料啟動；前端正式預先渲染則需要三語有效的 Site 內容。文件位於 `http://127.0.0.1:8080/swagger`。目前 `uv run backend` 是 uv 範例，不是 API 啟動入口。
+已經有 `portfolio-web/` 時省略 clone；也可用 `uv run --locked test.py --user existing-user --mock-dir /path/to/mock` 指定自己的合規三語資料。匯入只允許空的 Portfolio 資料表，沒有清空或覆寫既有資料的步驟。後端可先以空資料啟動；SSR 請求需要已發布且有對應語言的 Site 內容；建置不讀取作品集。匯入前需準備有效帳號，再以 `--user` 指定 owner。文件位於 `http://127.0.0.1:8080/swagger`。目前 `uv run backend` 是 uv 範例，不是 API 啟動入口。
 
-Skip cloning if the sibling repository already exists, or pass your own valid three-language mock directory. The importer requires empty Portfolio tables and does not overwrite existing data. Empty-data backend development is supported; a production frontend build needs valid Site content in every locale. API documentation is at `http://127.0.0.1:8080/swagger`. The `backend` console script remains an example; use `manage_fastapi.py` to start the API.
+Skip cloning if the sibling repository already exists, or pass your own valid three-language mock directory. The importer requires empty Portfolio tables and does not overwrite existing data. Empty-data backend development is supported; SSR requests need a published Site translation, while builds do not fetch portfolio data. Prepare an active account before selecting its handle with --user. API documentation is at `http://127.0.0.1:8080/swagger`. The `backend` console script remains an example; use `manage_fastapi.py` to start the API.
 
 `SECURITY.secret_key` 是明確標示的開發佔位值，正式環境必須更換為隨機私密金鑰。設定在 Python 匯入時讀取，修改後需重啟；目前沒有自動環境變數覆寫 YAML 的機制，部署時應掛載私有 `SYSTEM/config.yaml`。詳細欄位與金鑰產生方式見後端 README。
 
@@ -451,318 +446,63 @@ cp .env.example .env.local
 npm run dev
 ```
 
-首次安裝才複製 `.env.example`，保留已有 `.env.local` 的個人設定。預設 proxy 與 build target 都是後端 8080；若更換 API 位址，同時調整兩者。開發頁面位於 `http://127.0.0.1:5173`，支援 `/`、`/en`、`/zh-Hans` 與 `/zh-Hant`。`npm run check` 執行型別、lint、格式、單元測試與建置，建置時需要已匯入內容的 API。瀏覽器測試另需 `npx playwright install chromium`，然後依序執行 `npm run test:dev` 與 `npm run test:e2e`；兩套測試共用 4181 fixture API，須分開執行。
+首次安裝才複製 `.env.example`，保留已有 `.env.local` 的個人設定。預設 browser proxy 與 SSR server target 都是後端 8080；若更換 API 位址，同時調整兩者。開發頁面位於 `http://127.0.0.1:5173`，支援 `/`、`/en`、`/zh-Hans`、`/zh-Hant` 及 `/:locale/:user`。`npm run check` 執行型別、lint、格式、單元測試與建置，建置不讀取作品集資料，SSR 執行時需要可用的 API。瀏覽器測試另需 `npx playwright install chromium`，然後依序執行 `npm run test:dev` 與 `npm run test:e2e`；兩套測試共用 4181 fixture API，須分開執行。
 
-Copy the environment example only on first setup; preserve existing local settings. Both default API targets point to port 8080. Development runs on port 5173 with four locale URLs. Standard checks include a build against seeded API content. Install Chromium before running the development and production browser suites sequentially, since both manage the same fixture API port 4181.
+Copy the environment example only on first setup; preserve existing local settings. Both default API targets point to port 8080. Development runs on port 5173 with default and user URLs. Builds do not fetch portfolio content; the SSR runtime requires an available API. Install Chromium before running the development and production browser suites sequentially, since both manage the same fixture API port 4181.
 
 ## 前後端正式部署 / Production Deployment
 
-以下以**單台 Linux 主機、systemd、Nginx、Redis 與 SQLite** 為可重現範例。前端目前是 React Router 的靜態預先渲染模式：正式發布 `frontend/build/client/`，由 Nginx 提供檔案；後端 FastAPI 由 systemd 常駐。瀏覽器以同源 `/api/` 請求後端，前後端仍各自建置與發布。
+公開 HTML 由 Node.js 動態 SSR 產生，Nginx 提供靜態資產並代理前後端。正式環境需要 Python 3.13／uv、Node.js 24／npm、PostgreSQL、Redis 與 Nginx；API origin 放在伺服器環境設定，不放進瀏覽器 bundle。HTTPS 憑證仍由正式伺服器的私有配置管理。
 
-This example uses **one Linux host with systemd, Nginx, Redis and SQLite**. React Router produces pre-rendered static files in `frontend/build/client/`, served by Nginx. systemd keeps FastAPI running. The browser uses same-origin `/api/` requests while frontend and backend retain separate build and release steps.
+Node renders public HTML on each request. Nginx serves static assets and proxies the API and document runtime. Production needs Python/uv, Node/npm, PostgreSQL, Redis and Nginx. API origins belong to server environment settings, while TLS certificates remain in server configuration.
 
 ```mermaid
 flowchart LR
-    Browser["Browser / 瀏覽器"] -->|HTTPS| Proxy["Nginx :443"]
-    Proxy -->|"/ and locale URLs"| Static["build/client → public web root"]
-    Proxy -->|"/api/* → /*"| API["FastAPI 127.0.0.1:8080"]
-    API --> DB["Persistent SQLite / PostgreSQL"]
-    API --> Redis["Private Redis :6379"]
-    Config["Private config.yaml"] --> API
+    Browser[Browser] --> Nginx[Nginx HTTPS]
+    Nginx -->|/assets/*| Assets[build/client]
+    Nginx -->|HTML and route data| Node[Node SSR :5173]
+    Nginx -->|/api/*| API[FastAPI :8080]
+    Node -->|public reads only| API
+    API --> PostgreSQL
+    API --> Redis
 ```
 
-### 1. 準備部署環境 / Prepare the Deployment Host
+### 資料庫與後端 / Database and Backend
 
-先準備 Python 3.13／uv、Nginx、Redis、rsync，以及非 root 執行帳號 `portfolio`。建置機另需專案指定的 Node.js 24／npm 11；只接收靜態產物的 Nginx 主機不需要 Node.js。下列 systemd 指令以 Debian／Ubuntu 的 `redis-server.service` 為例，其他發行版須調整服務名稱。Python 與 uv 必須安裝在 `portfolio` 可存取的環境，避免把虛擬環境指向 root 私有目錄中的 interpreter。
+先依 [後端文件](backend/README.md) 配置 PostgreSQL／Redis、建立資料備份，再依序同步依賴及執行 migration。既有單一作品集會保留原 ID／內容，綁定既有帳號並成為已發布首頁。Migration 不會在應用啟動時自動執行。
 
-Prepare Python 3.13/uv, Nginx, Redis, rsync and a non-root `portfolio` service account. The build machine also needs the repository's Node.js/npm versions; a static-only host needs no Node.js runtime. This example uses Debian/Ubuntu's `redis-server.service`; adapt service names for other distributions. Install uv and Python where the service account can access them.
-
-| 範例值 / Example                                  | 用途 / Purpose                                                                                                    |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `portfolio.example.com`                           | 網站網域，DNS 指向主機並備妥有效 TLS 憑證。 / Website domain with DNS and a valid TLS certificate.                |
-| `/srv/portfolio-modern/backend`                   | 後端部署副本，不含 `.git`、開發虛擬環境或資料庫。 / Backend deployment copy, separate from the checkout and data. |
-| `/etc/portfolio-modern/config.yaml`               | 私有正式配置的保存位置。 / Private production configuration source.                                               |
-| `/var/lib/portfolio-modern/portfolio.sqlite`      | 持久化 SQLite，更新程式時保留。 / Persistent SQLite database retained across code updates.                        |
-| `/var/www/portfolio-modern`                       | Nginx 公開目錄，只接收 `build/client`。 / Public web root containing only the client artifact.                    |
-| `/etc/ssl/portfolio/fullchain.pem`、`privkey.pem` | Nginx 範例中的憑證與私鑰路徑。 / Certificate and private-key paths used below.                                    |
-
-上述帳號、網域與路徑均為範例；執行前替換為部署環境的值。此流程將網站放在網域根路徑，支援 `/`、`/en`、`/zh-Hans`、`/zh-Hant`。目前沒有配置 `/portfolio/` 子路徑的 basename／asset base；若要沿用舊站子路徑，須另外調整路由、資產與 SEO URL。
-
-Replace these account, domain and path examples before running the commands. Hosting is at the domain root with four locale URLs. A `/portfolio/` subpath requires additional route, asset-base and SEO configuration.
-
-### 2. 安裝後端與私有配置 / Install the Backend and Private Configuration
-
-取得要發布的原始碼後，在 checkout 根目錄將後端複製到部署位置。先建立 `portfolio` 帳號，再以管理者執行：
-
-After checking out the intended release and creating the service account, copy backend sources from the repository root as an administrator:
+Configure PostgreSQL and Redis using the backend guide, back up data, then synchronize dependencies and migrate. The existing sole portfolio retains its IDs/content and becomes the published default. Application startup never runs migrations automatically.
 
 ```bash
-sudo install -d -o portfolio -g portfolio /srv/portfolio-modern/backend /var/lib/portfolio-modern
-sudo install -d -m 0750 -o root -g portfolio /etc/portfolio-modern
-sudo rsync -a --chown=portfolio:portfolio \
-  --exclude='.venv/' --exclude='.env*' --exclude='__pycache__/' --exclude='.pytest_cache/' \
-  --exclude='/SYSTEM/config.yaml' --exclude='/SYSTEM/models/sqlite/' \
-  backend/ /srv/portfolio-modern/backend/
+cd backend
+uv sync --locked
+uv run --locked alembic upgrade head
+uv run --locked manage_fastapi.py
 ```
 
-**首次部署**才用公開模板初始化私有配置；已有正式配置時保留它，省略第一行 `install`。複製完整 YAML，再編輯下面列出的值，其他必要區段一併保留：
+正式主機以既有 service manager 管理 FastAPI 與 Redis。程式更新後重啟後端；資料庫及私有設定放在發版替換範圍之外。
 
-Initialize the private configuration from the public template **only on first deployment**. Preserve an existing production file by skipping the first command. Copy the full YAML and edit the fields below without dropping other required sections:
+Use the host service manager for FastAPI and Redis. Restart the API after source updates and retain database/private settings across releases.
+
+### 前端建置與 Node 服務 / Frontend Build and Runtime
 
 ```bash
-sudo install -m 0640 -o root -g portfolio backend/SYSTEM/config.yaml /etc/portfolio-modern/config.yaml
-sudoedit /etc/portfolio-modern/config.yaml
-sudo install -m 0640 -o root -g portfolio /etc/portfolio-modern/config.yaml /srv/portfolio-modern/backend/SYSTEM/config.yaml
-```
-
-| YAML 欄位 / Field                | 正式環境設定 / Production Setting                                                                                                                                            |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SERVER.debug`                   | `false`                                                                                                                                                                      |
-| `SERVER.host`、`SERVER.port`     | `127.0.0.1`、`8080`，由同主機 Nginx 轉送。 / Bind behind the local Nginx proxy.                                                                                              |
-| `SERVER.worker`                  | `1`；目前入口傳入已建立的 ASGI app，多 worker 須先改成可匯入的啟動方式。 / The current entry passes an instantiated ASGI app; multiple workers need a different entry point. |
-| `SERVER.locally`                 | `false`，使 server 與 Redis 各自使用 YAML host／port。 / Read the configured host/port values.                                                                               |
-| `SERVER.https`                   | 對外使用 HTTPS 時設為 `true`，控制 Secure cookie；TLS 本身由 Nginx 處理。 / Enable secure cookies for HTTPS; Nginx terminates TLS.                                           |
-| `SECURITY.secret_key`            | 替換成部署專用隨機私密金鑰，產生方式見[後端設定](backend/README.md)。 / Replace the development placeholder with a private random key.                                       |
-| `CACHE.host`、`CACHE.port`       | 同主機 Redis 為 `127.0.0.1`、`6379`。 / Use the private Redis address.                                                                                                       |
-| `DATABASE.META.type`、`is_async` | `sqlite`、`true`。 / Use the async SQLite driver.                                                                                                                            |
-| `DATABASE.META.name`             | `/var/lib/portfolio-modern/portfolio.sqlite`；`portfolio` 須可寫入所在目錄。 / Use a persistent absolute path with a writable parent directory.                              |
-
-程式仍從部署副本的 `SYSTEM/config.yaml` 讀取，沒有環境變數覆寫或 `${VARIABLE}` 插值；`/etc` 是此教程選用的私有保存位置。正式值只進部署副本，不回寫 checkout。改用 PostgreSQL 時先建立資料庫，再配置 `type: postgresql` 與實際 `host`、`port`、`name`、`user`、`password`。
-
-The application still reads `SYSTEM/config.yaml` inside the deployment copy; `/etc` is the private source used by this tutorial. Environment overrides and YAML interpolation are not implemented. Keep production values outside the Git checkout. PostgreSQL requires a database created beforehand and real connection fields.
-
-使用部署帳號安裝鎖定的正式依賴並手動遷移資料表。`--no-dev` 排除開發依賴，`--locked` 確保鎖定檔不被安裝動作改寫，見 [uv 官方同步文件](https://docs.astral.sh/uv/concepts/projects/sync/)。
-
-Install the locked runtime dependencies and apply migrations as the service account. uv's `--no-dev` excludes development dependencies and `--locked` enforces the existing lockfile.
-
-```bash
-sudo -iu portfolio
-cd /srv/portfolio-modern/backend
-uv python install 3.13
-uv sync --locked --no-dev --python 3.13
-uv run --locked --no-dev alembic upgrade head
-```
-
-新資料庫還需要三語作品集內容。只有空的 Portfolio 資料表才可執行以下匯入；`/path/to/mock` 請替換為可讀取的公開示例或自己的三語 mock 目錄，來源與格式見[本機後端初始化](#後端本機開發--local-backend-development)。已有資料的正式站省略匯入；SQLite 資料與備份不放在公開 web root。
-
-A fresh database also needs content in all three locales. Import only into empty Portfolio tables, replacing the mock path with a readable example or your own valid dataset. Skip this on a populated site. Keep the database and backups outside the public web root.
-
-```bash
-# Optional: empty Portfolio tables only / 僅限空作品集資料表
-uv run --locked --no-dev test.py --mock-dir /path/to/mock
-```
-
-初始化完成後回到管理者終端機，再建立系統服務。 / Return to the administrator shell before creating the service:
-
-```bash
-exit
-```
-
-### 3. 以 systemd 啟動後端 / Run the Backend with systemd
-
-建立 `/etc/systemd/system/portfolio-modern-api.service`。使用實際 `.venv` interpreter 執行 `manage_fastapi.py`，讓常駐程序使用前一步安裝的正式依賴：
-
-Create the following service unit. Execute `manage_fastapi.py` through the deployed virtual environment so the service uses the installed runtime dependencies:
-
-```ini
-[Unit]
-Description=Portfolio Modern API
-After=network.target redis-server.service
-Wants=redis-server.service
-
-[Service]
-Type=simple
-User=portfolio
-Group=portfolio
-WorkingDirectory=/srv/portfolio-modern/backend
-ExecStart=/srv/portfolio-modern/backend/.venv/bin/python /srv/portfolio-modern/backend/manage_fastapi.py
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl enable --now redis-server
-redis-cli ping
-sudo systemctl daemon-reload
-sudo systemctl enable --now portfolio-modern-api
-sudo systemctl status portfolio-modern-api
-curl --fail 'http://127.0.0.1:8080/portfolio/site?locale=en'
-curl --fail 'http://127.0.0.1:8080/portfolio/site?locale=zh-Hans'
-curl --fail 'http://127.0.0.1:8080/portfolio/site?locale=zh-Hant'
-```
-
-預期 Redis 回傳 `PONG`、服務為 active，三語 Site API 都回傳有效 JSON。修改 YAML 後執行 `sudo systemctl restart portfolio-modern-api`；查錯使用 `sudo journalctl -u portfolio-modern-api -n 100 --no-pager`。目前入口信任 forwarded headers，所以 API 8080 保持 loopback，只由受信任 proxy 存取。服務管理參考 [systemd 官方文件](https://systemd.io/)。
-
-Expect Redis `PONG`, an active API service and valid Site JSON in every locale. Restart the API after YAML changes and inspect its journal for failures. The entry point trusts forwarded headers, so keep port 8080 on loopback behind the trusted proxy.
-
-### 4. 建置與發布前端 / Build and Publish the Frontend
-
-在建置機 checkout 的 `frontend/` 執行 `npm ci`，包含 Vite／TypeScript 等建置依賴。建立或更新被 Git 忽略的 `.env.production.local`，只保留需要的部署設定：
-
-Run `npm ci` in the checkout's `frontend/` on the build machine, including build dependencies. Create or update the ignored `.env.production.local`:
-
-```dotenv
-VITE_API_BASE_URL=/api
-API_PROXY_TARGET=http://127.0.0.1:8080
-API_BUILD_TARGET=http://127.0.0.1:8080
-VITE_PUBLIC_SITE_URL=https://portfolio.example.com
-```
-
-| 變數 / Variable        | 使用時機 / Usage                                                                                                                                                                                    |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_BASE_URL`    | 瀏覽器 API 前綴，同源部署使用 `/api`。 / Browser API prefix.                                                                                                                                        |
-| `API_BUILD_TARGET`     | 建置期間實際可連線的 API；同主機可用 loopback，遠端建置則改成可達的 API，例如 `https://portfolio.example.com/api`。 / Reachable API for pre-rendering; include `/api` when using the website proxy. |
-| `API_PROXY_TARGET`     | 開發／本機 preview proxy 上游，正式 Nginx 不讀取此值。 / Development and preview upstream, independent of Nginx.                                                                                    |
-| `VITE_PUBLIC_SITE_URL` | 網站 origin，用於 canonical、hreflang 與 Open Graph，不含子路徑。 / Public origin for absolute SEO URLs.                                                                                            |
-
-所有 `VITE_` 值會進入用戶端，不能放金鑰。正式 mode 會讀取 `.env.production.local`；shell 已設定的同名變數優先，因此建置前也要確認沒有舊的 target。修改這些值後須重新建置。載入順序見 [Vite 官方環境設定](https://vite.dev/guide/env-and-mode)。
-
-`VITE_` values are public client configuration and must contain no secrets. Production mode reads `.env.production.local`, while existing process environment values take priority. Rebuild after changes and check for stale shell targets.
-
-```bash
-# Run inside frontend/ / 於 frontend 執行
+cd frontend
 npm ci
 npm run check
-npm run verify:public
+API_SERVER_TARGET=http://127.0.0.1:8080 API_PROXY_TARGET=http://127.0.0.1:8080 PORT=5173 npm start
 ```
 
-`check` 包含型別、lint、格式、單元測試與正式建置；Site API 三語內容必須有效。建置先驗證完整產物，再替換上一份 `build`。如需瀏覽器驗證，先安裝 Chromium，再**依序**執行 `npm run test:dev`、`npm run test:e2e`；兩者會建立合成資料產物，因此發布前必須再以正式 `API_BUILD_TARGET` 執行 `npm run build` 與 `npm run verify:public`。
+發布 `build/client` 給 Nginx，`build/server`、`scripts/preview.mjs` 及 Node 執行依賴則供私有 Node 服務使用。`npm start` 與 `npm run preview` 都啟動同一 SSR runtime，預設 5173；本機開發用 `npm run dev`。它們不能同時占用相同 port。正式 Node 服務須由 systemd 等服務管理器維持。
 
-The check command runs types, lint, formatting, unit tests and a production build requiring valid Site data in every locale. Builds replace the previous artifact only after acceptance. Optional browser suites run sequentially and produce synthetic snapshots; rebuild against the production API and verify again before publishing.
+Publish `build/client` to Nginx and retain the server build, runtime script and Node dependencies for the private SSR service. Start and preview use the same runtime on port 5173; development uses `npm run dev`. Run one frontend service per port and supervise production Node with systemd or an equivalent service manager.
 
-只複製 `build/client/` 的內容到 web root。以下在部署主機的 `frontend/` 產物目錄操作，先發布新的 hashed assets，再發布 HTML／route data；保留舊 assets，讓尚未重新整理的頁面仍可取得舊 chunk：
+Nginx 使用 [部署範例](frontend/deploy/nginx.conf.example)，替換部署主機的 root／upstream。`/api/` 移除 prefix 後交給 FastAPI；HTML 與 route data 交給 Node 並使用 `no-store`，hashed assets 使用 immutable cache，未知資產與用戶保留實際 404。作品集發布狀態及預設首頁變更會在新請求生效，內容更新無需重建前端。
 
-Publish only `build/client/`. With the accepted artifact on the host, copy new hashed assets first, then HTML and route data. Retain old assets so existing browser sessions can load their previous chunks:
+Adapt the Nginx example's root/upstreams. It forwards stripped API paths to FastAPI, renders HTML/data through Node with no-store, and caches hashed assets immutably. Missing assets/users retain real 404s. New requests reflect publication/default changes without rebuilding the frontend.
 
-```bash
-sudo install -d /var/www/portfolio-modern/assets
-sudo rsync -a --chmod=D755,F644 build/client/assets/ /var/www/portfolio-modern/assets/
-sudo rsync -a --chmod=D755,F644 --exclude='/assets/' build/client/ /var/www/portfolio-modern/
-```
+### 驗證與發布 / Verification and Release
 
-web root 不放原始碼、`build/server`、`.env`、YAML、資料庫或備份。舊資產在確認不再支援舊頁面後另行清理。`npm run dev` 與 `npm run preview` 用於開發及本機驗證；本部署方式不需要 Node.js 常駐服務。
+後端執行 `uv run --locked pytest`；前端執行 `npm run check`，再依序跑 `npm run test:dev`／`npm run test:e2e`。瀏覽器測試使用隔離 fixture API 與暫時 port，結束後會釋放。正式驗收確認預設／個人三語網址、登入登出、跨作品集隔離、草稿不可見、HTTP 狀態及手機的按需載入。
 
-Keep sources, server build output, environment files, YAML, databases and backups outside the web root. Retire old assets separately after their supported lifetime. Development and preview commands are local tools; this deployment needs no persistent Node.js process.
-
-### 5. 設定 Nginx 與 HTTPS / Configure Nginx and HTTPS
-
-通用模板位於 [`frontend/deploy/nginx.conf.example`](frontend/deploy/nginx.conf.example)。該檔的 `backend:8080` 是容器網路上游範例；本機 systemd 部署改成 `127.0.0.1:8080`。先準備網域與有效憑證，再將以下設定存入 `/etc/nginx/sites-available/portfolio-modern.conf`，替換範例網域及憑證路徑：
-
-The generic template uses a container-network upstream. For this systemd deployment, use loopback instead. Prepare DNS and a valid certificate, then save this adapted configuration with your domain and certificate paths:
-
-```nginx
-server {
-    listen 80;
-    server_name portfolio.example.com;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name portfolio.example.com;
-    ssl_certificate /etc/ssl/portfolio/fullchain.pem;
-    ssl_certificate_key /etc/ssl/portfolio/privkey.pem;
-
-    root /var/www/portfolio-modern;
-    index index.html;
-
-    # Strip /api/ and preserve API errors / 移除前綴，保留 API 錯誤
-    location ^~ /api/ {
-        proxy_pass http://127.0.0.1:8080/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_read_timeout 15s;
-    }
-
-    # Cache versioned assets; missing files remain 404 / 版本資產快取與 404
-    location ^~ /assets/ {
-        try_files $uri =404;
-        add_header Cache-Control "public, max-age=31536000, immutable";
-    }
-
-    # Revalidate route snapshots / 路由資料每次重新驗證
-    location ~ \.data$ {
-        try_files $uri =404;
-        add_header Cache-Control "no-cache";
-    }
-
-    # Locale pages and SPA fallback / 語系頁面與 fallback
-    location / {
-        try_files $uri $uri/ /__spa-fallback.html;
-        add_header Cache-Control "no-cache";
-    }
-}
-```
-
-`proxy_pass` 尾端的 `/` 將 `/api/portfolio/site` 轉成 `/portfolio/site`；API location 不套用 SPA fallback。HTTPS 與 URI 轉送規則分別見 [Nginx HTTPS 文件](https://nginx.org/en/docs/http/configuring_https_servers.html)與 [proxy_pass 文件](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)。同源方案符合目前後端 CORS；若改成不同網域直連 API，須修改並驗證 `SYSTEM/settings.py` 的 CORS origins，沒有可直接填入 YAML 的 origins 欄位。
-
-The trailing slash strips the `/api/` prefix; API failures never fall back to application HTML. Same-origin proxying works with the current backend configuration. Direct cross-origin access needs a verified CORS change in `SYSTEM/settings.py`; YAML has no origins option.
-
-```bash
-sudo ln -sfn /etc/nginx/sites-available/portfolio-modern.conf /etc/nginx/sites-enabled/portfolio-modern.conf
-sudo nginx -t
-# Reload only after the configuration check succeeds / 檢查成功才重載
-sudo systemctl reload nginx
-```
-
-### 6. 部署驗收 / Verify the Deployment
-
-```bash
-curl --fail --head --location https://portfolio.example.com/
-curl --fail --head --location https://portfolio.example.com/en
-curl --fail --head --location https://portfolio.example.com/zh-Hans
-curl --fail --head --location https://portfolio.example.com/zh-Hant
-curl --fail 'https://portfolio.example.com/api/portfolio/site?locale=en'
-curl --head https://portfolio.example.com/assets/missing-file.js
-```
-
-四個頁面應成功回應，API 應回傳 JSON，缺少的 assets 應回傳 `404`。瀏覽器再確認切語言、主題與進場動畫、導覽、地圖、timeline、技能展開、專案詳情、聯絡面板，以及手機／平板／桌面的排版。API 中斷時，各區段應保留可用資料或顯示錯誤／無資料提示，頁面仍可操作。
-
-Expect successful locale pages, JSON from the API and `404` for missing assets. Check language/theme transitions, navigation, map, timeline, skill expansion, project details and contact UI across mobile, tablet and desktop. API failure should leave available content or section-level feedback while the page remains usable.
-
-### 7. 後續更新與資料保留 / Updates and Data Retention
-
-1. 在 web root 以外備份資料庫與私有 YAML，保留上一份已驗收前端產物；SQLite 使用一致性備份或停寫後複製。 / Back up the database and private configuration outside the web root, using a consistent SQLite backup; retain the accepted client artifact.
-2. 取得指定版本的原始碼，依步驟 2 同步後端；保留私有配置與持久化 DB，先安裝鎖定依賴，再視 migration 內容安排遷移及 API 重啟。 / Sync the intended release while retaining private configuration and persistent data; install locked dependencies, then plan migrations and restart.
-3. 完成驗證後用正式 API 重新建置前端，再依步驟 4 發布；前端發布通常不用重啟 API。 / Build and publish the frontend against the production API after validation; a frontend release normally needs no API restart.
-4. 修改個人介紹、經歷等後端內容時也重新建置與發布，更新預先渲染 HTML／route data 的快照。 / Rebuild after backend content changes so pre-rendered HTML and route data reflect the new content.
-5. 重做步驟 6；失敗時恢復已驗收的前端產物或相容的後端版本，資料庫 migration 的回復另外評估。 / Repeat acceptance checks; restore an accepted artifact or compatible backend if needed, assessing database rollback separately.
-
-詳細前端產物、容錯與環境規格見[前端 README](frontend/README.md)，資料庫、初始化與 API 契約見[後端 README](backend/README.md)。
-
-See the frontend guide for artifact and failure-handling details, and the backend guide for database initialization and API contracts.
-
-## 可重建檔案與版本控制 / Reproducible Files and Version Control
-
-| 隨原始碼提交 / Tracked input                                                                        | 安裝或執行時產生 / Regenerated locally                                        |
-| --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Python／npm manifests、lockfiles、版本檔 / Manifests, locks and runtime pins                        | `.venv/`、`node_modules/` / Installed dependencies                            |
-| 前後端原始碼、CSS、三語字典、圖片／地圖／字型與授權 / Sources, styles, locales, assets and licenses | `.react-router/` / Route-generated types                                      |
-| migration、維護中的測試與 fixtures、CI／工具設定 / Migrations, tests, fixtures and tooling          | SQLite 檔案／journal、測試報告／cache / Database data and verification output |
-| 開發用 `config.yaml`、`.env.example`、README／部署範例 / Safe development configuration and docs    | `.env.local`、`build/` / Local settings and accepted builds                   |
-
-這些輸入檔都屬於專案交付內容；依賴、型別與產物由以上指令重建，因此不需要提交 `node_modules`、虛擬環境或資料庫。需要初始內容時使用公開 mock 匯入流程；個人部署金鑰另行提供。Git 的 `??` 表示尚未追蹤，`!!` 才表示被忽略；發佈新功能時必須一併加入新增 source、assets、tests 與工具檔案，不能只提交 README 或 package.json。
-
-Commit every required input file with a feature. Dependencies, route types and artifacts regenerate from the documented commands; database content comes from the import workflow and deployment secrets are supplied separately. In Git status, `??` means untracked and `!!` means ignored. New source, assets, tests and tooling must accompany the change.
-
-## 文件與版本控制 / Documentation and version control
-
-- 本儲存庫為公開專案；公開文件僅記錄架構、通用開發流程與不含敏感值的設定示例。
-- 不在公開文件記錄實際伺服器配置、識別資訊、網路位址、登入資訊、金鑰或憑證。
-- 本機工作筆記、暫存資料與私有部署紀錄統一存放於根目錄 `agent/`，該目錄已由 `.gitignore` 排除。
-- manifests、lockfiles、完整原始碼與開發預設配置納入版本控制；虛擬環境、個人環境檔、SQLite 資料與正式機密不提交。
-
-- This is a public repository. Public documentation covers architecture, general development workflows, and configuration examples without sensitive values.
-- Keep actual server specifications, identifiers, network addresses, login details, keys, and credentials out of public documentation.
-- Local working notes, temporary files, and private deployment records belong in the root `agent/` directory, which is excluded by `.gitignore`.
-- Track manifests, lockfiles, complete sources and development defaults; keep dependency environments, local environment files, SQLite data and production secrets private.
-
-## 授權 / License
-
-本專案採 MIT License。
-
-This project is licensed under the MIT License.
+Run backend tests and frontend checks, followed by development/production browser suites sequentially. Browser tests manage isolated fixtures and temporary ports. Release acceptance covers default/individual locales, account sessions, isolation, draft visibility, real HTTP statuses and mobile demand loading.

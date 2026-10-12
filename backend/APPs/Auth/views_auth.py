@@ -27,7 +27,11 @@ from fastapi.routing import APIRoute
 
 # ■—< ROUTE >——————————————————————————————————————————————————————————————————————————■ Auth - Validation
 class AuthRoute(APIRoute):
-    """Keep credentials and verification codes out of validation error responses."""
+    """
+    Sanitize authentication validation errors and disable response caching.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
 
     def get_route_handler(self):
         """
@@ -40,6 +44,15 @@ class AuthRoute(APIRoute):
         route_handler = super().get_route_handler()
 
         async def handle(request: Request):
+            """
+            Apply one shared validation and cache policy to every authentication route.
+
+            :param request: Current authentication HTTP request.
+            :return: Original response with Cache-Control set to no-store.
+            :raises HTTPException: Validation fails or the original operation rejects the request.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+            """
             try:
                 response = await route_handler(request)
             except RequestValidationError as error:
@@ -61,6 +74,12 @@ router = FastApiRouter(prefix=PreFix.AUTH, tags=Tags.AUTH, route_class=AuthRoute
 # ■—< API >———————————————————————————————————————————————————————————————————————————■ Auth - Session
 @cbv(router)
 class AuthSession:
+    """
+    Restore current database-backed account permissions through a class-based view.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
+
     path = RouteAuth.SESSION
 
     @router.get(
@@ -74,7 +93,7 @@ class AuthSession:
             "🗂️ **How It Works:**\n"
             "- Reads the account primary key `id` from `SESSION`; the client does not supply an account ID.\n"
             "- Queries the current account and assigned role through the ORM; both must have `is_active=true`.\n"
-            "- Returns the current email, role, and all six permission flags from the database.\n"
+            "- Returns the current email, public `user`, role, and all seven permission flags from the database.\n"
             "- Guests, invalid session identities, missing accounts, and inactive accounts or roles return `null`.\n\n"
             "🔐 **Session:**\n"
             "- Keep the same session cookie issued by Sign In or Register; browser requests must include credentials.\n"
@@ -88,9 +107,9 @@ class AuthSession:
             "- An enabled signed-in account returns status 200 and this direct object:\n"
             "```json\n"
             "{\n"
-            '  "id": 1, "email": "developer@example.com", "role": "editor",\n'
+            '  "id": 1, "email": "developer@example.com", "user": "developer", "role": "editor",\n'
             '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true,\n'
-            '  "is_manage_roles": false, "is_manage_users": false\n'
+            '  "is_manage_roles": false, "is_manage_users": false, "is_manage_sites": false\n'
             "}\n"
             "```\n"
             "- A guest or invalid identity also returns status 200:\n"
@@ -119,6 +138,12 @@ class AuthSession:
 # ■—< API >———————————————————————————————————————————————————————————————————————————■ Auth - Sign In
 @cbv(router)
 class AuthSignIn:
+    """
+    Delegate credential verification, SESSION initialization, and successful login recording.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
+
     path = RouteAuth.SIGN_IN
 
     @router.post(
@@ -138,11 +163,13 @@ class AuthSignIn:
             "- Selects the account and its assigned role through the ORM, then verifies the Argon2id password hash.\n"
             "- Both the account and its role must have `is_active=true` before sign-in succeeds.\n"
             "- Unknown emails, incorrect passwords, inactive accounts, and inactive roles share the same 401 response.\n"
+            "- Each successful sign-in inserts one `record_login` row with the account ID and a database-generated UTC timestamp.\n"
+            "- Failed sign-ins and session restoration requests do not create login records.\n"
             "- Allows up to 30 sign-in attempts per request client IP in a fixed 60-second window.\n"
             "- Successful and failed sign-ins share this allowance; further attempts do not extend the window.\n\n"
             "🔐 **Session:**\n"
             "- On success, invalidates the previous session and issues a replacement authenticated session cookie.\n"
-            "- Stores `id`, `email`, `role`, and all six permission flags in `SESSION` for subsequent requests.\n"
+            "- Stores `id`, `email`, `user`, `role`, and all seven permission flags in `SESSION` for subsequent requests.\n"
             "- Keep that cookie and include browser credentials when calling the other Auth APIs.\n"
             "- Passwords and password hashes are never returned or stored in `SESSION`.\n\n"
             "⚡ **Caching:**\n"
@@ -152,9 +179,9 @@ class AuthSignIn:
             "- Successful authentication returns status 200 and a direct account object:\n"
             "```json\n"
             "{\n"
-            '  "id": 1, "email": "developer@example.com", "role": "editor",\n'
+            '  "id": 1, "email": "developer@example.com", "user": "developer", "role": "editor",\n'
             '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true,\n'
-            '  "is_manage_roles": false, "is_manage_users": false\n'
+            '  "is_manage_roles": false, "is_manage_users": false, "is_manage_sites": false\n'
             "}\n"
             "```\n\n"
             "📝 **Notes:**\n"
@@ -162,6 +189,7 @@ class AuthSignIn:
             "- Invalid credentials return 401 `INVALID_CREDENTIALS`.\n"
             "- Excess attempts return 429 `TOO_MANY_SIGN_IN_ATTEMPTS`, with remaining seconds in `Retry-After`.\n"
             "- Missing, invalid, or unexpected body fields return 422 without echoing submitted credentials.\n"
+            "- If the login record cannot be saved, returns 503 and clears the newly prepared authenticated session.\n"
             "- Database failures return 503 `AUTH_DATABASE_UNAVAILABLE`; session or Redis failures return 503 `AUTH_STORAGE_UNAVAILABLE`."
         ),
         response_model=RespAuthUser,
@@ -182,6 +210,12 @@ class AuthSignIn:
 # ■—< API >———————————————————————————————————————————————————————————————————————————■ Auth - Sign Out
 @cbv(router)
 class AuthSignOut:
+    """
+    Delegate current SESSION removal without requiring account credentials.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
+
     path = RouteAuth.SIGN_OUT
 
     @router.post(
@@ -233,6 +267,12 @@ class AuthSignOut:
 # ■—< API >———————————————————————————————————————————————————————————————————————————■ Auth - Register
 @cbv(router)
 class AuthRegister:
+    """
+    Organize email availability, verification, and account registration through class-based views.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
+
     path = RouteAuth.REGISTER
 
     @router.get(
@@ -392,7 +432,7 @@ class AuthRegister:
             "Create an account for a verified registration email and sign it in with the configured default role.\n\n"
             "📨 **Request:**\n"
             "- Complete Confirm Email and Verify Email first, then send `POST /authority/register`.\n"
-            "- The JSON body contains only `email` and `password`; the verified code is not submitted again.\n"
+            "- The JSON body contains `email`, `password`, and optional `user`; the verified code is not submitted again.\n"
             "- Use the same exact email: a supported ASCII address of 5–254 characters with at most 64 characters before `@`.\n"
             "- Email matching is case-sensitive; casing is preserved and surrounding whitespace is invalid.\n"
             "- `password` must contain 8–1024 valid Unicode characters, inclusive; its case and whitespace are preserved.\n"
@@ -403,12 +443,15 @@ class AuthRegister:
             "- Requires this session's verified, unexpired, latest registration proof for the exact email.\n"
             "- Checks email uniqueness across active and inactive accounts and hashes the password with Argon2id.\n"
             "- Creates an active account using the role currently marked `is_default=true` and `is_active=true`.\n"
-            "- The default role must have `is_manage_roles=false` and `is_manage_users=false`; the client cannot choose its role.\n"
+            "- Optional `user` chooses a stable public identifier; omission allocates the email prefix and resolves collisions with a suffix.\n"
+            "- Public identifiers use 3–32 lowercase letters, digits, underscores, or hyphens, with alphanumeric ends; reserved routes are unavailable.\n"
+            "- A requested identifier already in use returns 409 `USER_ALREADY_EXISTS`; changing email later keeps this identifier.\n"
+            "- The default role must have `is_manage_roles=false`, `is_manage_users=false`, and `is_manage_sites=false`; the client cannot choose its role.\n"
             "- Saves the account through the ORM and consumes the verification proof after successful account creation.\n\n"
             "🔐 **Session:**\n"
             "- Include the same session cookie used by Confirm Email and Verify Email.\n"
             "- On success, replaces the registration session with a new authenticated session cookie.\n"
-            "- Stores `id`, `email`, `role`, and all six permission flags in `SESSION` for subsequent requests.\n"
+            "- Stores `id`, `email`, `user`, `role`, and all seven permission flags in `SESSION` for subsequent requests.\n"
             "- Passwords and password hashes are never returned or stored in the authentication session.\n\n"
             "⚡ **Caching:**\n"
             "- Uses the System Redis proof within its original 300-second validity; verification does not reset its expiry.\n"
@@ -418,9 +461,9 @@ class AuthRegister:
             "- Successful account creation and sign-in return status 201:\n"
             "```json\n"
             "{\n"
-            '  "id": 2, "email": "developer@example.com", "role": "editor",\n'
+            '  "id": 2, "email": "developer@example.com", "user": "developer", "role": "editor",\n'
             '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true,\n'
-            '  "is_manage_roles": false, "is_manage_users": false\n'
+            '  "is_manage_roles": false, "is_manage_users": false, "is_manage_sites": false\n'
             "}\n"
             "```\n\n"
             "📝 **Notes:**\n"

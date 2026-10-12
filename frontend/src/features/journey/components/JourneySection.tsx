@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { queryCopy } from '@/i18n/query-copy';
+import { usePortfolioContext } from '@/shared/context/portfolio';
+import { observeViewport } from '@/shared/lib/viewport';
 import { QueryStatus } from '@/shared/ui/QueryStatus';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
@@ -18,28 +20,35 @@ const JourneyMap = lazy(() => import('./JourneyMap'));
 export function JourneySection({
   locale,
   suspended = false,
+  enabled = true,
 }: {
   locale: Locale;
   suspended?: boolean;
+  enabled?: boolean;
 }) {
   const { t } = useTranslation();
-  const query = useJourney(locale);
+  const context = usePortfolioContext();
+  const query = useJourney(locale, enabled);
   const [selectedId, setSelectedId] = useState<number>();
   const [visible, setVisible] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const region = useRef<HTMLDivElement>(null);
   const selected = query.data?.find((entry) => entry.id === selectedId) ?? query.data?.[0];
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true);
-          observer.disconnect();
-        }
+    const target = region.current;
+    if (!target) return;
+    const disconnectVisibility = observeViewport(target, setVisible);
+    const disconnectDemand = observeViewport(
+      target,
+      (near) => {
+        if (near) setLoaded(true);
       },
-      { rootMargin: '200px' },
+      '200px',
     );
-    if (region.current) observer.observe(region.current);
-    return () => observer.disconnect();
+    return () => {
+      disconnectVisibility();
+      disconnectDemand();
+    };
   }, []);
   const count = new Set(query.data?.map((entry) => entry.city)).size;
   const fallback =
@@ -65,7 +74,11 @@ export function JourneySection({
       <SectionHeader
         eyebrow={t('ui.journeyEyebrow')}
         title={t('ui.journeyTitle')}
-        note={t(count === 1 ? 'ui.journeySummaryOne' : 'ui.journeySummary', { count })}
+        note={
+          query.data
+            ? t(count === 1 ? 'ui.journeySummaryOne' : 'ui.journeySummary', { count })
+            : undefined
+        }
       />
       <QueryStatus
         pending={query.isPending}
@@ -79,20 +92,20 @@ export function JourneySection({
       <div ref={region} className={styles.placeholder}>
         {query.data?.length && selected ? (
           <SectionBoundary
-            resetKey={locale}
+            resetKey={`${context?.site?.site_id}:${locale}`}
             message={t('ui.mapUnavailable')}
             retryLabel={t('ui.reloadPage')}
             reloadOnRetry
             fallback={fallback}
           >
-            {visible ? (
+            {loaded ? (
               <Suspense fallback={fallback}>
                 <JourneyMap
                   items={query.data}
                   selectedId={selected.id}
                   locale={locale}
                   onSelect={setSelectedId}
-                  suspended={suspended}
+                  suspended={suspended || !visible}
                 />
               </Suspense>
             ) : (

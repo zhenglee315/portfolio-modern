@@ -117,6 +117,7 @@ describe('private account identity boundaries', () => {
   const account = {
     id: 12,
     email: 'Case.Owner+Portfolio@example.com',
+    user: 'case-owner-portfolio',
     role: 'editor',
     is_create: true,
     is_read: true,
@@ -124,6 +125,7 @@ describe('private account identity boundaries', () => {
     is_delete: true,
     is_manage_roles: false,
     is_manage_users: false,
+    is_manage_sites: false,
   };
 
   it('shares one restoration request across readers and restores a fresh page from its session', async () => {

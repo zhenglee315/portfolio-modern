@@ -1,4 +1,6 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { trimPortfolioCache } from '@/app/query-client';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { AppearanceMenu, useAppearance } from '@/features/appearance';
@@ -17,7 +19,16 @@ import {
   ProfileOverview,
   SiteFooter,
   useSite,
+  type Site,
 } from '@/features/site';
+import { PortfolioProvider, usePortfolioContext } from '@/shared/context/portfolio';
+import { ApiError } from '@/shared/api/http';
+import {
+  cancelPortfolioQueries,
+  portfolioIdentity,
+  type PortfolioSiteSelector,
+} from '@/shared/api/portfolio';
+import { useSectionDemand } from '@/shared/hooks/useSectionDemand';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
 import { SectionState } from '@/shared/ui/SectionState';
 import { useNotifications } from '@/shared/ui/NotificationProvider';
@@ -34,8 +45,46 @@ const AuthPanel = lazy(() =>
   import('@/features/auth').then((module) => ({ default: module.ConnectedAuthPanel })),
 );
 
+/** Resolve public ownership once before rendering any independently loaded portfolio sections. */
+export function PortfolioPage({
+  locale,
+  nowMonth,
+  selector,
+  site: initialSite,
+}: {
+  locale: Locale;
+  nowMonth: string;
+  selector: PortfolioSiteSelector;
+  site?: Site;
+}) {
+  const client = useQueryClient();
+  const { t } = useTranslation();
+  const site = useSite(locale, selector, initialSite);
+  const siteId = site.data?.site_id;
+  useEffect(() => {
+    trimPortfolioCache(client, [
+      portfolioIdentity(selector),
+      ...(siteId !== undefined ? [portfolioIdentity({ site_id: siteId })] : []),
+    ]);
+    return () => {
+      void cancelPortfolioQueries(client, locale, selector, siteId);
+    };
+  }, [client, locale, selector, siteId]);
+  if (site.error instanceof ApiError && site.error.status === 404)
+    return <SectionState message={t('ui.unavailable')} />;
+  return (
+    <PortfolioProvider selector={selector} site={site.data}>
+      <PortfolioContent
+        key={`${portfolioIdentity(selector)}:${siteId ?? 'pending'}`}
+        locale={locale}
+        nowMonth={nowMonth}
+      />
+    </PortfolioProvider>
+  );
+}
+
 /** Compose independent feature boundaries; the page owns cross-domain coordination. */
-export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: string }) {
+function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: string }) {
   const { t } = useTranslation();
   const { notify } = useNotifications();
   const signOut = useAuthSignOut();
@@ -65,7 +114,9 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
     back: auth.back,
     dismissContact: contact.dismiss,
   });
-  const language = useLocaleSwitch(locale);
+  const context = usePortfolioContext();
+  const identity = `${context?.site?.site_id ?? 'pending'}:${locale}`;
+  const language = useLocaleSwitch(locale, context?.selector, context?.site?.site_id);
   const localeControl = (
     <LanguageMenu
       locale={locale}
@@ -84,7 +135,32 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
     appearance.subscribeThemeTransition,
     !auth.isAuth,
   );
-  const journey = useJourney(locale);
+  const navigation = useSectionNavigation(identity, !auth.isAuth);
+  const journeyEnabled = useSectionDemand(
+    'journey',
+    identity,
+    !auth.isAuth,
+    navigation.active === 'journey',
+  );
+  const experienceEnabled = useSectionDemand(
+    'experience',
+    identity,
+    !auth.isAuth,
+    navigation.active === 'experience',
+  );
+  const projectsEnabled = useSectionDemand(
+    'projects',
+    identity,
+    !auth.isAuth,
+    navigation.active === 'projects',
+  );
+  const skillsEnabled = useSectionDemand(
+    'skills',
+    identity,
+    !auth.isAuth,
+    navigation.active === 'skills',
+  );
+  const journey = useJourney(locale, journeyEnabled);
   const stops = journey.data;
   const final = stops?.at(-1);
   let tenure: string | undefined;
@@ -103,13 +179,14 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
     }
   }
   const [compact, setCompact] = useState(false);
-  const navigation = useSectionNavigation(locale, !auth.isAuth);
   return (
     <div
       ref={root}
       className={`${styles.frame} ${compact ? styles.compact : ''}`}
       data-auth-phase={auth.phase}
       data-auth-view={auth.isAuth}
+      data-portfolio-user={context?.site?.user}
+      data-portfolio-site={context?.site?.site_id}
       style={auth.style}
     >
       <SectionBoundary
@@ -158,7 +235,7 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
       >
         <section id="overview" tabIndex={-1} aria-label={t('ui.overview')}>
           <SectionBoundary
-            resetKey={locale}
+            resetKey={identity}
             message={t('ui.unavailable')}
             retryLabel={t('ui.retry')}
           >
@@ -166,6 +243,7 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
               locale={locale}
               controlsRef={profileControls}
               tenure={tenure}
+              summaryPending={journey.data === undefined}
               leadingControls={
                 <OnlineVisitors data={onlineVisitors.data} failed={onlineVisitors.isError} />
               }
@@ -181,38 +259,48 @@ export function PortfolioPage({ locale, nowMonth }: { locale: Locale; nowMonth: 
         </section>
         <section id="journey" className={styles.section} aria-label={t('ui.journey')}>
           <SectionBoundary
-            resetKey={locale}
+            resetKey={identity}
             message={t('ui.unavailable')}
             retryLabel={t('ui.retry')}
           >
-            <JourneySection locale={locale} suspended={auth.isAuth} />
+            <JourneySection locale={locale} suspended={auth.isAuth} enabled={journeyEnabled} />
           </SectionBoundary>
         </section>
         <section id="experience" className={styles.section} aria-label={t('ui.experience')}>
           <SectionBoundary
-            resetKey={locale}
+            resetKey={identity}
             message={t('ui.unavailable')}
             retryLabel={t('ui.retry')}
           >
-            <ExperiencesSection locale={locale} locked={language.busy} yearRange={yearRange} />
+            <ExperiencesSection
+              locale={locale}
+              locked={language.busy}
+              yearRange={yearRange}
+              enabled={experienceEnabled}
+            />
           </SectionBoundary>
         </section>
         <section id="projects" className={styles.section} aria-label={t('ui.projects')}>
           <SectionBoundary
-            resetKey={locale}
+            resetKey={identity}
             message={t('ui.unavailable')}
             retryLabel={t('ui.retry')}
           >
-            <ProjectsSection locale={locale} locked={language.busy} localeControl={localeControl} />
+            <ProjectsSection
+              locale={locale}
+              locked={language.busy}
+              localeControl={localeControl}
+              enabled={projectsEnabled}
+            />
           </SectionBoundary>
         </section>
         <section id="skills" className={styles.section} aria-label={t('ui.skills')}>
           <SectionBoundary
-            resetKey={locale}
+            resetKey={identity}
             message={t('ui.unavailable')}
             retryLabel={t('ui.retry')}
           >
-            <SkillsSection locale={locale} locked={language.busy} />
+            <SkillsSection locale={locale} locked={language.busy} enabled={skillsEnabled} />
           </SectionBoundary>
         </section>
         <SiteFooter

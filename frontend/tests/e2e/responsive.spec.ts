@@ -25,15 +25,17 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
   });
 }
 
-test('static content remains readable without JavaScript', async ({ browser }) => {
+test('bounded server content remains readable without JavaScript', async ({
+  browser,
+}, testInfo) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   for (const path of ['/', '/en', '/zh-Hans', '/zh-Hant']) {
-    await page.goto(`http://127.0.0.1:4173${path}`);
+    await page.goto(`${testInfo.project.use.baseURL}${path}`);
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.locator('[data-project-id]')).toHaveCount(6);
     await expect(page.locator('[data-experience-id]')).toHaveCount(6);
-    await expect(page.locator('[data-category-id]')).toHaveCount(7);
+    await expect(page.locator('[data-category-id]')).toHaveCount(6);
   }
   await context.close();
 });

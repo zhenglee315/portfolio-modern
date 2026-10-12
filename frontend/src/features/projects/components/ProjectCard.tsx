@@ -18,7 +18,7 @@ export function ProjectCard({
 }: {
   project: Project;
   locale: Locale;
-  onDetail?: (id: number) => void;
+  onDetail?: (id: number, trigger: HTMLButtonElement) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -35,7 +35,7 @@ export function ProjectCard({
             type="button"
             className={styles['project-open']}
             aria-label={t('ui.readProject', { projectName: project.projectName })}
-            onClick={() => onDetail(project.id)}
+            onClick={(event) => onDetail(project.id, event.currentTarget)}
           >
             <Icon name="arrow" pulse="disclosure" />
           </button>

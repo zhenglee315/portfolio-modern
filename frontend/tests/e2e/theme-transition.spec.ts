@@ -512,12 +512,8 @@ test('document visibility cancels held preparation and returns without a delayed
 
 test('replay retains page identity, focused input and scroll while a first API read is pending', async ({
   page,
-}, testInfo) => {
-  // The generated empty-cache fallback is a production artifact; other theme cases also run in dev.
-  test.skip(
-    testInfo.project.testDir.endsWith('/dev'),
-    'Production SPA fallback exercises an empty first-read cache.',
-  );
+}) => {
+  // Navigate to an unvisited owner so the same first-read contract runs in both runtimes.
   let releaseJourney!: () => void;
   let journeyPending = false;
   const pending = new Promise<void>((resolve) => {
@@ -525,8 +521,14 @@ test('replay retains page identity, focused input and scroll while a first API r
   });
   const requests: string[] = [];
   page.on('request', (request) => {
-    const path = new URL(request.url()).pathname;
-    if (/\/api\/portfolio\/(?:site|journey|experiences|projects)$/.test(path)) requests.push(path);
+    const url = new URL(request.url());
+    if (
+      /\/api\/portfolio\/(?:site|journey|experiences|projects)$/.test(url.pathname) &&
+      (url.pathname.endsWith('/site')
+        ? url.searchParams.get('user') === 'sam'
+        : url.searchParams.get('site_id') === '2')
+    )
+      requests.push(url.pathname);
   });
   await page.route('**/api/portfolio/**', async (route) => {
     const url = new URL(route.request().url());
@@ -534,14 +536,18 @@ test('replay retains page identity, focused input and scroll while a first API r
       journeyPending = true;
       await pending;
     }
-    await route.fulfill({ json: endpointFixture(url) });
+    try {
+      await route.fulfill({ json: endpointFixture(url) });
+    } catch {
+      // The owner switch cancels an obsolete first-owner read before its response is released.
+    }
   });
   await observeThemePaint(page);
   try {
     await openClientShell(page);
     await expect.poll(() => journeyPending).toBe(true);
     await expect(page.locator('[data-entering]')).toHaveCount(0);
-    await expect(page.locator('h1[data-profile-content]')).toContainText('Alex');
+    await expect(page.locator('h1[data-profile-content]')).toContainText('Sam');
     await expect.poll(() => requests.length).toBe(4);
     await page.getByRole('button', { name: 'Background settings' }).click();
     const speed = page.getByRole('slider', { name: 'Blink frequency' });

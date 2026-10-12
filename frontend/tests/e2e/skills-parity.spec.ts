@@ -31,12 +31,12 @@ async function setSnapshotAge(page: Page, ageMs = 1000) {
   if (!stream) throw new Error('Expected a delivered route data stream.');
   const decoded = await UNSAFE_decodeViaTurboStream(stream, globalThis);
   const snapshot = routeSnapshot.parse(decoded.value)['routes/home'].data.dehydratedState;
-  const categories = snapshot.queries.find((query) => query.queryKey[2] === 'skill-categories');
+  const categories = snapshot.queries.find((query) => query.queryKey[3] === 'skill-categories');
   if (!categories) throw new Error('Expected validated category data in the route snapshot.');
   await page.clock.setFixedTime(categories.state.dataUpdatedAt + ageMs);
 }
 
-/** Record category-owner continuation independently from the complete static category list. */
+/** Record category-owner continuation independently from the bounded server category list. */
 async function observeSkillPages(page: Page) {
   const requests: URL[] = [];
   await page.route('**/api/portfolio/**', (route) => {
@@ -77,7 +77,7 @@ async function previewGeometry(tags: Locator) {
 }
 
 /** A wide row fills its measured preview, while classification remains fully visible. */
-test('wide skill previews fill spare space without an outer category disclosure', async ({
+test('wide skill previews fill spare space and category pages continue only on request', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -87,10 +87,15 @@ test('wide skill previews fill spare space without an outer category disclosure'
   await page.goto('/en#skills');
   const toolkit = page.locator('[data-skill-categories]');
   await expect(toolkit).toHaveCount(1);
-  await expect(toolkit.locator(':scope > [data-category-id]')).toHaveCount(7);
+  await expect(toolkit.locator(':scope > [data-category-id]')).toHaveCount(6);
   await expect(
-    page.locator('#skills').getByRole('button', { name: /Show more skill categories/ }),
-  ).toHaveCount(0);
+    page.locator('#skills').getByRole('button', { name: /Show more categories/ }),
+  ).toBeVisible();
+  await page
+    .locator('#skills')
+    .getByRole('button', { name: /Show more categories/ })
+    .click();
+  await expect(toolkit.locator(':scope > [data-category-id]')).toHaveCount(7);
   const tags = toolkit.locator('[data-category-id="category-0"] .tag-list');
   await expect(tags.locator(':scope > span')).toHaveCount(14);
   await expect(tags.locator('button[aria-expanded]')).toHaveCount(0);
@@ -139,8 +144,8 @@ test('resizing skill previews fills capacity once and reuses owner pages after c
   expect(ownerPages('category-0')).toEqual(['2', '3']);
 });
 
-/** Expired embedded owner data still refetches normally; fresh checks do not disable this policy. */
-test('stale skill previews refresh page one before retaining the narrow disclosure', async ({
+/** A refreshed category owns its page-one preview without a redundant skill-owner request. */
+test('stale categories refresh page one while retaining the narrow owner disclosure', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -150,7 +155,7 @@ test('stale skill previews refresh page one before retaining the narrow disclosu
   await page.goto('/en#skills');
   const tags = page.locator('[data-category-id="category-0"] .tag-list');
   await expect(tags.locator('button[aria-expanded="false"]')).toBeVisible();
-  await expect.poll(() => ownerPages('category-0')).toEqual(['1']);
+  expect(ownerPages('category-0')).toEqual([]);
   const geometry = await previewGeometry(tags);
   expect(geometry.used).toBeLessThanOrEqual(geometry.budget + 1);
 });

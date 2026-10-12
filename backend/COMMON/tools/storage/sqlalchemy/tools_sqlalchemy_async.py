@@ -38,9 +38,7 @@ class SqlAlchemyExecAsync:
                                                                                                ♂ ZhengLee 2026.10.03
     """
 
-    def __init__(
-        self, key: str | None = None, session: AsyncSession | None = None, *, manage_transaction: bool = True
-    ):
+    def __init__(self, key: str | None = None, session: AsyncSession | None = None, *, manage_transaction: bool = True):
         """
         Select the configured database or an injected async session without opening a connection.
 
@@ -121,6 +119,27 @@ class SqlAlchemyExecAsync:
                 raise
 
     @asynccontextmanager
+    async def transaction(self):
+        """
+        Share one atomic transaction through the existing ORM execution interface.
+
+        ● Guide:
+            async with executor.transaction() as transaction:
+                await transaction.execute_orm(first_statement)
+                await transaction.execute_orm(second_statement)
+
+        :yield: Executor bound to one session; successful managed scopes commit once.
+        :raises Exception: Any statement failure rolls back the complete managed scope.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        if not self.manage_transaction:
+            yield self
+            return
+        async with self._session_scope(commit=True) as session:
+            yield SqlAlchemyExecAsync(session=session, manage_transaction=False)
+
+    @asynccontextmanager
     async def _inspection_scope(self):
         """
         Inspect through the selected session so uncommitted schema changes are visible.
@@ -171,9 +190,10 @@ class SqlAlchemyExecAsync:
 
                                                                                                ♂ ZhengLee 2026.10.04
         """
+
         def model_columns(value: Any) -> dict[str, Any] | None:
             state = inspect(value, raiseerr=False)
-            if state is None or not hasattr(state, 'mapper'):
+            if state is None or not hasattr(state, "mapper"):
                 return None
             return {column.key: getattr(value, column.key) for column in state.mapper.column_attrs}
 
@@ -181,11 +201,11 @@ class SqlAlchemyExecAsync:
         if columns is not None:
             return columns
 
-        mapping = getattr(item, '_mapping', None)
+        mapping = getattr(item, "_mapping", None)
         if mapping is None and isinstance(item, Mapping):
             mapping = item
         if mapping is None:
-            raise TypeError('ORM pagination requires rows or mapped model instances.')
+            raise TypeError("ORM pagination requires rows or mapped model instances.")
 
         if len(mapping) == 1:
             columns = model_columns(next(iter(mapping.values())))
@@ -627,8 +647,12 @@ class SqlAlchemyExecAsync:
     # —< Transaction >—————————————————————————————————————● RAW Pagination
     @validate_call
     async def paginate_query(
-        self, sql: str, page: Union[int, str] = 1, size: Union[int, str] = 20,
-        single_element: bool = False, sql_params: Optional[Dict[str, Any]] = None,
+        self,
+        sql: str,
+        page: Union[int, str] = 1,
+        size: Union[int, str] = 20,
+        single_element: bool = False,
+        sql_params: Optional[Dict[str, Any]] = None,
     ):
         """
         Generate a paginated (or full‑fetch) response for an arbitrary SQL statement.
@@ -648,7 +672,7 @@ class SqlAlchemyExecAsync:
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        sql = sql.rstrip().removesuffix(';').rstrip()
+        sql = sql.rstrip().removesuffix(";").rstrip()
         if not sql:
             raise ValueError("sql must be a non-empty string.")
 
@@ -704,7 +728,7 @@ class SqlAlchemyExecAsync:
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        sql = sql.rstrip().removesuffix(';').rstrip()
+        sql = sql.rstrip().removesuffix(";").rstrip()
         if not sql:
             raise ValueError("sql must be a non-empty string.")
 

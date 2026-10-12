@@ -1,13 +1,13 @@
 """Import the portfolio-web mock into the migrated portfolio database.
 
-From backend, run: uv run test.py
+From backend, run: uv run test.py --user <existing-public-user>
 All portfolio tables must be empty. The auth_user table is left untouched.
 """
 
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.database import CONN_MANAGER
 from SYSTEM.models import (
-    PortfolioLocale, PortfolioSite, PortfolioSiteLocale,
+    AuthUser, PortfolioLocale, PortfolioSite, PortfolioSiteLocale,
     PortfolioCareer, PortfolioCareerLocale,
     PortfolioProject, PortfolioProjectLocale,
     PortfolioSkill, PortfolioSkillLocale,
@@ -220,8 +220,21 @@ async def require_empty(session: AsyncSession) -> None:
     require(not populated, 'Portfolio tables must be empty before import: ' + ', '.join(populated))
 
 
-async def seed(session: AsyncSession, data: dict) -> dict[str, int]:
+async def seed(session: AsyncSession, data: dict, user: str) -> dict[str, int]:
+    """
+    Import the public mock under one explicitly selected existing account.
+
+    :param session: Caller-owned import transaction.
+    :param data: Validated three-language mock content.
+    :param user: Stable public identifier of the existing active portfolio owner.
+    :return: Verified counts for the imported portfolio tables.
+    :raises ValueError: The owner is missing or existing portfolio data must be preserved.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+    """
     await require_empty(session)
+    owner_id = await session.scalar(select(AuthUser.id).where(AuthUser.user == user, AuthUser.is_active.is_(True)))
+    require(owner_id is not None, 'An existing active account must own the imported portfolio.')
 
     # String keys come from mock. Integer primary keys are never assigned.
     for code, name in LOCALE_NAMES.items():
@@ -230,6 +243,9 @@ async def seed(session: AsyncSession, data: dict) -> dict[str, int]:
 
     english_site = data['site']['en']
     site = PortfolioSite(
+        user_id=owner_id,
+        is_published=True,
+        is_default=True,
         copyright_year=english_site['brand']['copyrightYear'],
         linkedin=english_site['social']['linkedin'],
         github=english_site['social']['github'],
@@ -246,6 +262,7 @@ async def seed(session: AsyncSession, data: dict) -> dict[str, int]:
     for position, item in sorted(enumerate(journey_en), key=lambda pair: pair[1]['id']):
         detail = item.get('detail')
         career = PortfolioCareer(
+            site_id=site.id,
             journey_position=position,
             experience_order=experience_en[item['id']]['order'],
             country_code=item['countryCode'],
@@ -270,6 +287,7 @@ async def seed(session: AsyncSession, data: dict) -> dict[str, int]:
     project_rows = {}
     for position, item in sorted(enumerate(projects_en), key=lambda pair: pair[1]['id']):
         project = PortfolioProject(
+            site_id=site.id,
             position=position,
             start_month=month(item['startMonth']),
             end_month=month(item['endMonth']),
@@ -284,10 +302,10 @@ async def seed(session: AsyncSession, data: dict) -> dict[str, int]:
     skills = data['skills']['items']
     categories = data['skills']['categories']
     for item in skills:
-        session.add(PortfolioSkill(id=item['id'], label_key=item['labelKey']))
+        session.add(PortfolioSkill(site_id=site.id, id=item['id'], label_key=item['labelKey']))
     for position, item in enumerate(categories):
         session.add(PortfolioSkillCategory(
-            id=item['id'], label_key=item['labelKey'], position=position
+            site_id=site.id, id=item['id'], label_key=item['labelKey'], position=position
         ))
     await session.flush()
 
@@ -345,17 +363,17 @@ async def seed(session: AsyncSession, data: dict) -> dict[str, int]:
         labels = data['locales'][locale]
         for item in skills:
             session.add(PortfolioSkillLocale(
-                skill_id=item['id'], locale=locale, label=labels[item['labelKey']]
+                site_id=site.id, skill_id=item['id'], locale=locale, label=labels[item['labelKey']]
             ))
         for item in categories:
             session.add(PortfolioSkillCategoryLocale(
-                category_id=item['id'], locale=locale, label=labels[item['labelKey']]
+                site_id=site.id, category_id=item['id'], locale=locale, label=labels[item['labelKey']]
             ))
 
     for category in categories:
         for position, skill_id in enumerate(category['skillIds']):
             session.add(PortfolioCategorySkill(
-                category_id=category['id'], skill_id=skill_id, position=position
+                site_id=site.id, category_id=category['id'], skill_id=skill_id, position=position
             ))
     await session.flush()
 
@@ -393,7 +411,7 @@ async def seed(session: AsyncSession, data: dict) -> dict[str, int]:
     return expected
 
 
-async def main(mock_dir: Path) -> None:
+async def main(mock_dir: Path, user: str) -> None:
     data = load_mock(mock_dir)
 
     # Resolve SQLite relative to backend, the directory used for Alembic migration.
@@ -411,7 +429,7 @@ async def main(mock_dir: Path) -> None:
     try:
         async with CONN_MANAGER.get_db() as session:
             async with session.begin():
-                counts = await seed(session, data)
+                counts = await seed(session, data, user)
     finally:
         await CONN_MANAGER.shutdown_all_connections()
 
@@ -423,6 +441,7 @@ async def main(mock_dir: Path) -> None:
 
 if __name__ == '__main__':
     parser = ArgumentParser(description=__doc__)
+    parser.add_argument('--user', required=True, help='Existing active account public identifier.')
     parser.add_argument('--mock-dir', type=Path, default=DEFAULT_MOCK_DIR)
     args = parser.parse_args()
-    asyncio.run(main(args.mock_dir.resolve()))
+    asyncio.run(main(args.mock_dir.resolve(), args.user))

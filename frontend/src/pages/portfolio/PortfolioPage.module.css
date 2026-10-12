@@ -29,6 +29,8 @@
   transition: margin-left var(--duration-drawer) var(--ease-drawer);
 }
 .section {
+  /* Demand reads retain a stable anchor before their bounded first page becomes available. */
+  min-height: 240px;
   padding: var(--control-size) 0;
   scroll-margin-top: 20px;
 }

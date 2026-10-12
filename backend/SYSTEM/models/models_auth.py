@@ -81,6 +81,13 @@ class AuthRole(BASE):
         server_default=false(),
         comment='Allow managing accounts and assigned roles',
     )
+    is_manage_sites = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+        comment='Allow managing portfolio publication and the website default',
+    )
     # ---------------------------------------------------------------------● State
     is_active = Column(
         Boolean,
@@ -110,10 +117,13 @@ class AuthRole(BASE):
         CheckConstraint(id > 0, name='ck_auth_role_id_positive'),
         UniqueConstraint(role, name='uq_auth_role_role'),
         CheckConstraint(
-            func.length(role).between(1, 64) & ~role.regexp_match(rf'\A[{_ROLE_WHITESPACE}]|[{_ROLE_WHITESPACE}]\Z'),
+            func.length(role).between(1, 64) & ~role.regexp_match(rf"\A[{_ROLE_WHITESPACE}]|[{_ROLE_WHITESPACE}]\Z"),
             name='ck_auth_role_role',
         ),
-        CheckConstraint(~is_default | ~(is_manage_roles | is_manage_users), name='ck_auth_role_default_no_management'),
+        CheckConstraint(
+            ~is_default | ~(is_manage_roles | is_manage_users | is_manage_sites),
+            name='ck_auth_role_default_no_management',
+        ),
         # Only true rows participate; role-management transactions must maintain at least one default.
         Index(
             'uq_auth_role_one_default',
@@ -133,6 +143,8 @@ class AuthUser(BASE):
 
     # ---------------------------------------------------------------------● PK
     id = column_id()
+    # ---------------------------------------------------------------------● Public Identity
+    user = Column(String(32), nullable=False, comment='Unique public handle; independent of the login email')
     # ---------------------------------------------------------------------● Login
     email = Column(String(320), nullable=False, comment='Unique login email; independent of the public portfolio email')
     password = Column(String(255), nullable=False, comment='Salted Argon2id password hash; never plaintext')
@@ -168,6 +180,27 @@ class AuthUser(BASE):
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
         CheckConstraint(id > 0, name='ck_auth_user_id_positive'),
+        UniqueConstraint(user, name='uq_auth_user_user'),
+        CheckConstraint(user.regexp_match(r'\A[a-z0-9][a-z0-9_-]{1,30}[a-z0-9]\Z'), name='ck_auth_user_user_format'),
+        CheckConstraint(
+            ~user.in_(
+                (
+                    'admin',
+                    'dashboard',
+                    'login',
+                    'register',
+                    'authority',
+                    'portfolio',
+                    'api',
+                    'assets',
+                    'en',
+                    'zh-hans',
+                    'zh-hant',
+                    'system',
+                )
+            ),
+            name='ck_auth_user_user_reserved',
+        ),
         UniqueConstraint(email, name='uq_auth_user_email'),
         # ASCII dot-atom login addresses with a dotted DNS domain; no surrounding whitespace.
         CheckConstraint(func.length(email).between(5, 254), name='ck_auth_user_email_length'),

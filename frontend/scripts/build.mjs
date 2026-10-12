@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
-import { access, readFile, rename, rm } from 'node:fs/promises';
+import { access, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { join, extname } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { verifyPublic } from './verify-public.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -18,7 +20,21 @@ async function exists(path) {
   }
 }
 
-/** Build into an isolated artifact directory and publish only a complete prerender.
+/** Prepare compressed sidecars so Node and Nginx deliver the same bounded asset bytes.
+ * @param directory Validated public client artifact; private server output is excluded.
+ */
+async function compressAssets(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) await compressAssets(path);
+    else if (['.js', '.css', '.svg', '.json'].includes(extname(entry.name))) {
+      const body = await readFile(path);
+      if (body.length >= 1024) await writeFile(`${path}.gz`, gzipSync(body, { level: 9 }));
+    }
+  }
+}
+
+/** Build into an isolated artifact directory and publish only complete server/client artifacts.
  * Failure keeps the last accepted build. An interrupted swap is recovered on the next run.
  * Concurrent builds are unsupported; CI and local callers must serialize publication.
  */
@@ -39,31 +55,16 @@ async function build() {
     process.exitCode = 1;
     return;
   }
-  // Router prerender may render loader errors into HTML with exit status zero.
-  // Acceptance therefore validates public content, rather than trusting the CLI status alone.
-  for (const [path, locale] of [
-    ['index.html', 'en'],
-    ['en/index.html', 'en'],
-    ['zh-Hans/index.html', 'zh-Hans'],
-    ['zh-Hant/index.html', 'zh-Hant'],
-  ]) {
-    let valid = false;
-    try {
-      const html = await readFile(new URL(`client/${path}`, staging), 'utf8');
-      valid =
-        html.includes(`<html lang="${locale}"`) && /<h1[^>]*data-profile-content[^>]*>/.test(html);
-    } catch {
-      /* Missing locale output cannot replace the last accepted artifact. */
-    }
-    if (!valid) {
-      console.error('Static publication requires valid profile content in every locale.');
-      await rm(staging, { recursive: true, force: true });
-      process.exitCode = 1;
-      return;
-    }
+  // Runtime HTML is generated on request; builds do not query private deployment services.
+  // Accept only a complete Node entry and a separate public client directory.
+  if (!(await exists(new URL('server/index.js', staging)))) {
+    await rm(staging, { recursive: true, force: true });
+    throw new Error('Dynamic publication requires a complete server build.');
   }
   try {
-    await verifyPublic(fileURLToPath(new URL('client/', staging)));
+    const publicDirectory = fileURLToPath(new URL('client/', staging));
+    await verifyPublic(publicDirectory);
+    await compressAssets(publicDirectory);
   } catch (error) {
     await rm(staging, { recursive: true, force: true });
     throw error;

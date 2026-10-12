@@ -1,25 +1,36 @@
-import { useInfiniteQuery, type InfiniteData, type QueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+} from '@tanstack/react-query';
 import type { Locale } from '@/i18n/config';
-import { fillNumberedPages, numberedQuery } from '@/shared/api/numbered-query';
+import { numberedQuery, pageRecords } from '@/shared/api/numbered-query';
+import { portfolioKey } from '@/shared/api/portfolio';
+import { usePortfolioScope } from '@/shared/context/portfolio';
 import type { NumberedPage } from '@/shared/schemas/records';
 import { categoriesSchema, skillsSchema, type Skill, type SkillCategory } from '../schemas/skills';
 import { assertSkillLabels, categorySkillLabels } from '../model/skills';
 
-/** Reject inconsistent labels against all already validated owners of the same locale. */
-function cachedOwnerLabels(client: QueryClient, locale: Locale, incoming: Skill[]) {
+/** Reject inconsistent labels against validated owners in the same Site and language. */
+function cachedOwnerLabels(
+  client: QueryClient,
+  locale: Locale,
+  incoming: Skill[],
+  siteId?: number,
+) {
   const pages = client.getQueriesData<InfiniteData<NumberedPage<Skill>>>({
-    queryKey: ['portfolio', locale, 'skills'],
+    queryKey: [...portfolioKey(locale, { site_id: siteId }), 'skills'],
   });
-  assertSkillLabels([
-    incoming,
-    ...pages.flatMap(([, data]) => data?.pages.map((page) => page.items) ?? []),
-  ]);
+  assertSkillLabels([incoming, ...pages.map(([, data]) => pageRecords(data))]);
 }
 
 /** Validate category continuation and cross-category/owner consistency before caching. */
-export function categoriesQuery(locale: Locale, baseUrl?: string) {
+export function categoriesQuery(locale: Locale, baseUrl?: string, siteId?: number) {
   return numberedQuery('skill-categories', locale, categoriesSchema, {
     baseUrl,
+    siteId,
     validate: (result, client, previous) => {
       const categories = [...previous.flatMap((page) => page.items), ...result.items];
       categorySkillLabels(categories);
@@ -27,57 +38,64 @@ export function categoriesQuery(locale: Locale, baseUrl?: string) {
         client,
         locale,
         categories.flatMap((category) => category.skills.items),
+        siteId,
       );
     },
   });
 }
 
-/** Prepare the complete category index while keeping embedded owner previews untouched.
- * @param client Isolated server cache reused by the portfolio loader.
- * @param locale Public content locale represented by this snapshot.
- * @param baseUrl Server-only API origin; never serialized into the public query cache.
- * @remarks Optional continuation failures retain the validated prefix for browser recovery.
- */
-export async function prefetchCategoryIndex(client: QueryClient, locale: Locale, baseUrl?: string) {
-  const options = categoriesQuery(locale, baseUrl);
-  await client.prefetchInfiniteQuery(options);
-  if (!client.getQueryData(options.queryKey)) return;
-  try {
-    await fillNumberedPages(client, options);
-  } catch {
-    // Category failures cannot discard the profile or other independently usable sections.
-  }
-}
-
 /** Keep owner identity and size in the key for measured previews and explicit continuation. */
-export function skillsQuery(locale: Locale, ownerId: string, baseUrl?: string) {
+export function skillsQuery(locale: Locale, ownerId: string, baseUrl?: string, siteId?: number) {
   return numberedQuery('skills', locale, skillsSchema, {
     ownerId,
     baseUrl,
+    siteId,
     validate: (result, client) => {
       const categories = client.getQueryData<InfiniteData<NumberedPage<SkillCategory>>>(
-        categoriesQuery(locale).queryKey,
+        categoriesQuery(locale, undefined, siteId).queryKey,
       );
       assertSkillLabels([
         result.items,
-        ...(categories?.pages.flatMap((page) =>
-          page.items.map((category) => category.skills.items),
-        ) ?? []),
+        ...pageRecords(categories).map((category) => category.skills.items),
       ]);
-      cachedOwnerLabels(client, locale, result.items);
+      cachedOwnerLabels(client, locale, result.items, siteId);
     },
   });
 }
 
 /** Subscribe to category pages, each carrying a validated first-page owner preview. */
-export function useCategories(locale: Locale) {
-  return useInfiniteQuery(categoriesQuery(locale));
+export function useCategories(locale: Locale, enabled = true) {
+  const scope = usePortfolioScope(enabled);
+  return useInfiniteQuery({
+    ...categoriesQuery(locale, undefined, scope.siteId),
+    enabled: scope.enabled,
+  });
 }
 
 /** Seed owner cache from its category instead of issuing a redundant page-one request. */
 export function useOwnerSkills(locale: Locale, category: SkillCategory, updatedAt: number) {
+  const scope = usePortfolioScope();
+  const client = useQueryClient();
+  const options = skillsQuery(locale, category.id, undefined, scope.siteId);
+  useEffect(() => {
+    const cached = client.getQueryData<InfiniteData<NumberedPage<Skill>>>(options.queryKey);
+    if (
+      !cached ||
+      (client.getQueryState(options.queryKey)?.dataUpdatedAt ?? 0) >= updatedAt ||
+      JSON.stringify(cached.pages[0]) === JSON.stringify(category.skills)
+    )
+      return;
+    // A new category preview invalidates an old continuation instead of mixing publication snapshots.
+    client.setQueryData(
+      options.queryKey,
+      { pages: [category.skills], pageParams: [1] },
+      { updatedAt },
+    );
+  }, [client, options.queryKey, category.skills, updatedAt]);
   return useInfiniteQuery({
-    ...skillsQuery(locale, category.id),
+    ...options,
+    // The category owns page one; its demanded preview or disclosure requests continuation.
+    enabled: false,
     initialData: { pages: [category.skills], pageParams: [1] },
     initialDataUpdatedAt: updatedAt,
   });

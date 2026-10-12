@@ -278,3 +278,22 @@ def test_keyless_wrapper_forwards_async_calls(db_tools):
         assert [row[0] async for row in stream] == [3, 5]
 
     asyncio.run(run())
+
+
+def test_transaction_commits_all_statements_and_rolls_back_failures(db_tools):
+    """Business code reuses execute_orm while one tool-owned transaction stays atomic."""
+
+    async def run():
+        await create_items(db_tools.manager)
+        executor = db_tools.executor()
+        async with executor.transaction() as transaction:
+            await transaction.execute_orm(text("INSERT INTO item (id, value) VALUES (1, 10)"))
+            await transaction.execute_orm(text("INSERT INTO item (id, value) VALUES (2, 20)"))
+        assert await executor.query_scalar("SELECT COUNT(*) FROM item") == 2
+        with pytest.raises(IntegrityError):
+            async with executor.transaction() as transaction:
+                await transaction.execute_orm(text("INSERT INTO item (id, value) VALUES (3, 30)"))
+                await transaction.execute_orm(text("INSERT INTO item (id, value) VALUES (1, 40)"))
+        assert await executor.query_scalar("SELECT COUNT(*) FROM item") == 2
+
+    asyncio.run(run())

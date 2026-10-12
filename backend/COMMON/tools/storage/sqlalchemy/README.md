@@ -21,6 +21,10 @@ These helpers run asynchronous SQL and ORM operations against the project's sing
 - Accessing `executor.session` without injecting one creates and pins a session for legacy direct access. The caller must close that pinned session. Do not share one `AsyncSession` across concurrent tasks.
 - 未注入 session 卻直接讀取 `executor.session` 時，會建立並固定一個 session 以相容舊用法；呼叫端須自行關閉。不同並行任務不可共用同一個 `AsyncSession`。
 
+`async with executor.transaction() as transaction:` 會共用一個工具管理的 transaction，scope 內仍呼叫 `transaction.execute_orm(stmt)`；成功只提交一次，任一 statement 失敗即全部回滾。外部注入 `manage_transaction=False` 時保留呼叫端交易歸屬。
+
+Use the shared transaction context for atomic multi-statement operations without handling sessions in business modules. It commits once or rolls back all statements; external transaction ownership remains with the injecting caller.
+
 ## `SqlAlchemyExecAsync` API / 方法
 
 Raw SQL uses SQLAlchemy `text()` and named parameters such as `:code`; pass values separately rather than formatting them into SQL. SQL-taking query methods validate that `sql` is non-empty. Return values and behavior are:

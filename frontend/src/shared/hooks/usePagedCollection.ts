@@ -10,7 +10,7 @@ import type { NumberedPage } from '@/shared/schemas/records';
 
 /** Share cache-preserving collection feedback and first-page contract recovery.
  * @param query Domain-owned infinite query subscription.
- * @param queryKey Exact locale/owner identity, used only for explicit reset.
+ * @param queryKey Exact public Site, locale and owner identity, used only for explicit reset.
  */
 export function usePagedCollection<T>(
   query: UseInfiniteQueryResult<InfiniteData<NumberedPage<T>>, Error>,

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { queryCopy } from '@/i18n/query-copy';
+import { usePortfolioContext } from '@/shared/context/portfolio';
 import { usePagedCollection } from '@/shared/hooks/usePagedCollection';
 import { QueryStatus } from '@/shared/ui/QueryStatus';
 import { SectionHeader } from '@/shared/ui/SectionHeader';
@@ -14,14 +15,21 @@ export function ExperiencesSection({
   locale,
   locked = false,
   yearRange,
+  enabled = true,
 }: {
   locale: Locale;
   locked?: boolean;
   yearRange?: string;
+  enabled?: boolean;
 }) {
   const { t } = useTranslation();
-  const query = useExperiences(locale);
-  const collection = usePagedCollection(query, experiencesQuery(locale).queryKey, locked);
+  const context = usePortfolioContext();
+  const query = useExperiences(locale, enabled);
+  const collection = usePagedCollection(
+    query,
+    experiencesQuery(locale, undefined, context?.site?.site_id).queryKey,
+    locked,
+  );
   const { records, total, invalid } = collection;
   const copy = queryCopy(t, query.error, !!query.data);
   return (

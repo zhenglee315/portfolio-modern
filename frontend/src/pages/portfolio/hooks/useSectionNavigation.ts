@@ -3,16 +3,16 @@ import { mobileQuery, reducedMotionQuery } from '@/shared/hooks/useMediaQuery';
 import { resolveSection, sections } from '../model/navigation';
 
 /** Own deep links, explicit history entries and passive scroll replacement.
- * @param locale Rebind after route language changes; query strings remain intact.
+ * @param identity Rebind after public site or language changes; query strings remain intact.
  * @param enabled Suspend portfolio observers while another page surface owns navigation.
  * Resize, font, scroll and animation resources are cleaned up on each binding.
  */
-export function useSectionNavigation(locale: string, enabled = true) {
+export function useSectionNavigation(identity: string, enabled = true) {
   const [active, setActive] = useState('overview');
   const restoring = useRef(false);
   const pending = useRef<string | undefined>(undefined);
   const deadline = useRef(0);
-  const restoredLocale = useRef<string | undefined>(undefined);
+  const restoredIdentity = useRef<string | undefined>(undefined);
   const navigate = useCallback(
     (id: string, push = true, smooth = true) => {
       if (!enabled) return;
@@ -86,7 +86,7 @@ export function useSectionNavigation(locale: string, enabled = true) {
     };
     const restore = () => {
       if (stopped) return;
-      restoredLocale.current = locale;
+      restoredIdentity.current = identity;
       restoring.current = true;
       navigate(resolveSection(location.hash) ?? 'overview', false, false);
       deadline.current = performance.now() + 2000;
@@ -105,7 +105,7 @@ export function useSectionNavigation(locale: string, enabled = true) {
     };
     restoreFrame = requestAnimationFrame(() => {
       restoreFrame = 0;
-      if (restoredLocale.current !== locale) restore();
+      if (restoredIdentity.current !== identity) restore();
       else update(false);
     });
     window.addEventListener('scroll', schedule, { passive: true });
@@ -145,6 +145,6 @@ export function useSectionNavigation(locale: string, enabled = true) {
       window.removeEventListener('touchstart', release);
       window.removeEventListener('keydown', key);
     };
-  }, [locale, navigate, enabled]);
+  }, [identity, navigate, enabled]);
   return { active, navigate };
 }

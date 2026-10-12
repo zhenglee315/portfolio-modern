@@ -45,6 +45,8 @@ class RespPortfolioSiteChatme(BaseModel):
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Site
 class RespPortfolioSite(BaseModel):
+    site_id: int = Field(..., gt=0, description="Resolved portfolio ID used to pin subsequent public section requests.")
+    user: str = Field(..., description="Stable public account identifier, independent of the login email.")
     brand: RespPortfolioSiteBrand = Field(..., description="Brand content.")
     profile: RespPortfolioSiteProfile = Field(..., description="Personal profile content.")
     social: RespPortfolioSiteSocial = Field(..., description="Social and email links.")

@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { publicUserSchema } from '@/shared/schemas/portfolio';
 
 /** Server-issued identity and permissions; session cookies remain browser-managed. */
 export const authUserSchema = z.object({
   id: z.number().int().positive(),
+  user: publicUserSchema,
   email: z.string().min(5).max(254),
   role: z.string().min(1).max(64),
   is_create: z.boolean(),
@@ -11,6 +13,7 @@ export const authUserSchema = z.object({
   is_delete: z.boolean(),
   is_manage_roles: z.boolean(),
   is_manage_users: z.boolean(),
+  is_manage_sites: z.boolean(),
 });
 
 export type AuthUser = z.infer<typeof authUserSchema>;

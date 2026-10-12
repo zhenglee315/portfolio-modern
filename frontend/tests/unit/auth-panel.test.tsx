@@ -124,6 +124,7 @@ describe('connected sign-in form', () => {
   const account = {
     id: 12,
     email: 'person@example.com',
+    user: 'person',
     role: 'editor',
     is_create: true,
     is_read: true,
@@ -131,6 +132,7 @@ describe('connected sign-in form', () => {
     is_delete: true,
     is_manage_roles: false,
     is_manage_users: false,
+    is_manage_sites: false,
   };
 
   function fillLogin(view: ReturnType<typeof render>) {
@@ -356,6 +358,7 @@ describe('connected registration form', () => {
   const account = {
     id: 13,
     email,
+    user: 'new-person',
     role: 'editor',
     is_create: true,
     is_read: true,
@@ -363,6 +366,7 @@ describe('connected registration form', () => {
     is_delete: true,
     is_manage_roles: false,
     is_manage_users: false,
+    is_manage_sites: false,
   };
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 

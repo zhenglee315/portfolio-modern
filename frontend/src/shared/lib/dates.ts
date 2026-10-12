@@ -60,14 +60,14 @@ export function projectPeriod(period: Period, locale: string, copy: DateCopy) {
   return `${label} (${count} ${count === 1 ? copy.month : copy.months})`;
 }
 
-/** Produce a deterministic UTC month for SSG/client summary handoff. */
+/** Produce a deterministic UTC month for SSR/client summary handoff. */
 export function currentMonthUTC(now = new Date()) {
   return `${now.getUTCFullYear().toString().padStart(4, '0')}-${(now.getUTCMonth() + 1).toString().padStart(2, '0')}`;
 }
 
 /** Derive the complete career span without depending on paginated experience records.
  * @param entries Complete Journey in any order; education is part of the displayed span.
- * @param nowMonth Explicit clock shared by SSG and hydration for ongoing entries.
+ * @param nowMonth Explicit clock shared by SSR and hydration for ongoing entries.
  * @returns Inclusive year bounds, or no summary when the collection is empty.
  */
 export function careerYearRange(entries: Period[], nowMonth: string) {

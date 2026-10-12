@@ -9,6 +9,7 @@ import sys
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -21,6 +22,8 @@ def skill_client(monkeypatch, request):
     # Isolate import-time settings and extension wiring while retaining the real
     # route, model, constants, and query code against the session factory below.
     settings = ModuleType("SYSTEM.settings")
+    settings.SEC_SECRET_KEY = "isolated-test-secret"
+    settings.TIME_ZONE = "UTC"
     settings.CACHE_CONF = {}
     settings.DB_CONF = {}
     settings.SQLALCHEMY_ENGINE_CONF = {}
@@ -35,12 +38,21 @@ def skill_client(monkeypatch, request):
     base = import_module("SYSTEM.database.orm").BASE
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def enable_foreign_keys(connection, _record):
+        connection.execute("PRAGMA foreign_keys=ON")
+
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(sql_tools.CONN_MANAGER, "get_db", sessions)
 
     @asynccontextmanager
     async def lifespan(_app):
+        auth_models = import_module("SYSTEM.models.models_auth")
         tables = [
+            auth_models.AuthRole.__table__,
+            auth_models.AuthUser.__table__,
+            models.PortfolioSite.__table__,
             models.PortfolioLocale.__table__,
             models.PortfolioSkill.__table__,
             models.PortfolioSkillLocale.__table__,
@@ -66,21 +78,48 @@ def skill_client(monkeypatch, request):
             "category-d": ["skill-9"],
         }
 
+        account = auth_models.AuthUser(id=1, user="owner-one", email="owner@example.com", role_id=1)
+        await account.set_password("12345678")
+        other_account = auth_models.AuthUser(
+            id=2, user="owner-two", email="other@example.com", role_id=1, password=account.password
+        )
+        draft_account = auth_models.AuthUser(
+            id=3, user="draft-owner", email="draft@example.com", role_id=1, password=account.password
+        )
+        async with sessions.begin() as session:
+            session.add(auth_models.AuthRole(id=1, role="editor", is_default=True))
+        async with sessions.begin() as session:
+            session.add_all((account, other_account, draft_account))
+        async with sessions.begin() as session:
+            session.add_all(
+                models.PortfolioSite(
+                    id=site_id,
+                    user_id=site_id,
+                    is_published=site_id != 3,
+                    is_default=site_id == 1,
+                    copyright_year=2026,
+                    chat_icon="assets/cow.svg",
+                )
+                for site_id in (1, 2, 3)
+            )
         async with sessions.begin() as session:
             session.add_all(
                 models.PortfolioLocale(code=code, name=name, is_active=True) for code, (name, _, _) in languages.items()
             )
             session.add_all(
-                models.PortfolioSkillCategory(id=category, label_key=f"category.{category}", position=position)
+                models.PortfolioSkillCategory(
+                    site_id=1, id=category, label_key=f"category.{category}", position=position
+                )
                 for position, category in enumerate(categories)
             )
             session.add_all(
-                models.PortfolioSkill(id=f"skill-{index}", label_key=f"skill.{index}") for index in range(10)
+                models.PortfolioSkill(site_id=1, id=f"skill-{index}", label_key=f"skill.{index}") for index in range(10)
             )
 
         async with sessions.begin() as session:
             session.add_all(
                 models.PortfolioSkillCategoryLocale(
+                    site_id=1,
                     category_id=category,
                     locale=code,
                     label=f"{prefix} {category}",
@@ -90,6 +129,7 @@ def skill_client(monkeypatch, request):
             )
             session.add_all(
                 models.PortfolioSkillLocale(
+                    site_id=1,
                     skill_id=f"skill-{index}",
                     locale=code,
                     label=f"{prefix} {index}",
@@ -98,10 +138,26 @@ def skill_client(monkeypatch, request):
                 for code, (_, _, prefix) in languages.items()
             )
             session.add_all(
-                models.PortfolioCategorySkill(category_id=category, skill_id=skill, position=position)
+                models.PortfolioCategorySkill(site_id=1, category_id=category, skill_id=skill, position=position)
                 for category, skills in memberships.items()
                 if category in categories
                 for position, skill in enumerate(skills)
+            )
+
+        async with sessions.begin() as session:
+            session.add(
+                models.PortfolioSkillCategory(site_id=2, id="category-a", label_key="category.category-a", position=0)
+            )
+            session.add(models.PortfolioSkill(site_id=2, id="skill-0", label_key="skill.0"))
+        async with sessions.begin() as session:
+            session.add(
+                models.PortfolioSkillCategoryLocale(
+                    site_id=2, category_id="category-a", locale="en", label="Other category"
+                )
+            )
+            session.add(models.PortfolioSkillLocale(site_id=2, skill_id="skill-0", locale="en", label="Other skill"))
+            session.add(
+                models.PortfolioCategorySkill(site_id=2, category_id="category-a", skill_id="skill-0", position=0)
             )
 
         try:
@@ -110,9 +166,25 @@ def skill_client(monkeypatch, request):
             await engine.dispose()
 
     app = FastAPI(lifespan=lifespan)
+    app.state.sessions = sessions
     app.include_router(views.router)
     with TestClient(app) as client:
         yield client
+
+
+@pytest.fixture
+def portfolio_cache_client(skill_client):
+    """Exercise response caching with the real CBV key builder and isolated in-memory storage."""
+    from fastapi_cache import FastAPICache
+    from fastapi_cache.backends.inmemory import InMemoryBackend
+
+    cache_tools = import_module("SYSTEM.tools.tools_fastapi")
+    FastAPICache.reset()
+    FastAPICache.init(InMemoryBackend(), prefix="isolated", key_builder=cache_tools.fastapi_cache_key_builder)
+    try:
+        yield skill_client
+    finally:
+        FastAPICache.reset()
 
 
 @pytest.mark.parametrize(
@@ -288,9 +360,162 @@ def test_skill_routes_document_numbered_query_and_nested_pages(skill_client):
     spec = skill_client.get("/openapi.json").json()
     for path in ("/portfolio/skill-categories", "/portfolio/skills"):
         names = {parameter["name"] for parameter in spec["paths"][path]["get"]["parameters"]}
-        assert {"locale", "page", "size", "is_caching"} <= names
-        assert not {"limit", "cursor", "owner_type", "owner_id"} & names
+        assert {"site_id", "locale", "page", "size", "is_caching"} <= names
+        assert not {"user", "limit", "cursor", "owner_type", "owner_id"} & names
     names = {parameter["name"] for parameter in spec["paths"]["/portfolio/skills"]["get"]["parameters"]}
     assert {"ownerType", "ownerId"} <= names
     schema = spec["components"]["schemas"]["RespPortfolioSkillCategories"]
     assert set(schema["required"]) == {"items", "total", "pages", "page", "size"}
+
+
+def test_site_id_isolates_reused_skill_ids(skill_client):
+    """Use the same public string IDs in two portfolios without mixing rows or counts."""
+    selector = {"site_id": 2}
+    categories = skill_client.get("/portfolio/skill-categories", params=selector)
+    assert categories.status_code == 200
+    assert categories.json()["total"] == 1
+    assert categories.json()["items"][0]["label"] == "Other category"
+    assert categories.json()["items"][0]["skills"]["items"] == [{"id": "skill-0", "label": "Other skill"}]
+    skills = skill_client.get("/portfolio/skills", params={**selector, "ownerId": "category-a"})
+    assert skills.status_code == 200
+    assert skills.json()["total"] == 1
+    assert skills.json()["items"] == [{"id": "skill-0", "label": "Other skill"}]
+    missing_owner = skill_client.get("/portfolio/skills", params={**selector, "ownerId": "category-b"})
+    assert missing_owner.status_code == 404
+
+
+@pytest.mark.parametrize("path", ["site", "journey", "experiences", "projects", "skill-categories", "skills"])
+@pytest.mark.parametrize("selector", [{"site_id": 3}, {"site_id": 999}])
+def test_every_public_api_rejects_hidden_or_missing_site(skill_client, path, selector):
+    """Visibility guards run independently on every public endpoint, without default fallback."""
+    response = skill_client.get(f"/portfolio/{path}", params={**selector, "ownerId": "category-a"})
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "selector,detail",
+    [
+        ({"user": "owner-one", "site_id": 1}, "INVALID_SITE_SELECTOR"),
+        ({"user": "admin"}, "INVALID_USER"),
+        ({"user": "Owner-one"}, "INVALID_USER"),
+        ({"site_id": "abc"}, "INVALID_SITE_ID"),
+        ({"site_id": 0}, "INVALID_SITE_ID"),
+    ],
+)
+def test_invalid_site_lookup_selectors_do_not_fall_back(skill_client, selector, detail):
+    """Reject ambiguous or malformed public identities through the common parser."""
+    response = skill_client.get("/portfolio/site", params=selector)
+    assert response.status_code == 400
+    assert response.json()["detail"] == detail
+
+
+def test_visibility_is_checked_before_cached_response(portfolio_cache_client):
+    """A cached public response becomes inaccessible immediately after unpublishing."""
+    from sqlalchemy import update
+
+    skill_client = portfolio_cache_client
+    models = import_module("SYSTEM.models.models_portfolio")
+    parameters = {"site_id": 2, "is_caching": "true"}
+    assert skill_client.get("/portfolio/skill-categories", params=parameters).status_code == 200
+    cached = skill_client.get("/portfolio/skill-categories", params=parameters)
+    assert cached.status_code == 200
+    assert cached.headers["X-FastAPI-Cache"] == "HIT"
+
+    async def hide():
+        async with skill_client.app.state.sessions.begin() as session:
+            await session.execute(
+                update(models.PortfolioSite).where(models.PortfolioSite.id == 2).values(is_published=False)
+            )
+
+    skill_client.portal.call(hide)
+    assert skill_client.get("/portfolio/skill-categories", params=parameters).status_code == 404
+
+
+def test_disabled_role_blocks_login_without_hiding_public_site(skill_client):
+    """Role login availability and public portfolio publication remain independent."""
+    from sqlalchemy import update
+
+    auth_models = import_module("SYSTEM.models.models_auth")
+
+    async def disable_role():
+        async with skill_client.app.state.sessions.begin() as session:
+            await session.execute(update(auth_models.AuthRole).values(is_active=False))
+
+    skill_client.portal.call(disable_role)
+    assert skill_client.get("/portfolio/skill-categories", params={"site_id": 2}).status_code == 200
+
+    async def disable_owner():
+        async with skill_client.app.state.sessions.begin() as session:
+            await session.execute(
+                update(auth_models.AuthUser).where(auth_models.AuthUser.id == 2).values(is_active=False)
+            )
+
+    skill_client.portal.call(disable_owner)
+    assert skill_client.get("/portfolio/skill-categories", params={"site_id": 2}).status_code == 404
+
+
+def test_default_change_keeps_resolved_site_cache_independent(portfolio_cache_client):
+    """Cached default reads include the resolved ID; pinned reads retain the original owner."""
+    from sqlalchemy import update
+
+    skill_client = portfolio_cache_client
+    models = import_module("SYSTEM.models.models_portfolio")
+    assert skill_client.get("/portfolio/skill-categories", params={"is_caching": "true"}).json()["total"] == 9
+    cached = skill_client.get("/portfolio/skill-categories", params={"is_caching": "true"})
+    assert cached.headers["X-FastAPI-Cache"] == "HIT"
+
+    async def replace():
+        async with skill_client.app.state.sessions.begin() as session:
+            await session.execute(
+                update(models.PortfolioSite).where(models.PortfolioSite.id == 1).values(is_default=False)
+            )
+            await session.execute(
+                update(models.PortfolioSite).where(models.PortfolioSite.id == 2).values(is_default=True)
+            )
+
+    skill_client.portal.call(replace)
+    assert skill_client.get("/portfolio/skill-categories", params={"is_caching": "true"}).json()["total"] == 1
+    assert (
+        skill_client.get("/portfolio/skill-categories", params={"site_id": 1, "is_caching": "true"}).json()["total"]
+        == 9
+    )
+
+    async def remove_default():
+        async with skill_client.app.state.sessions.begin() as session:
+            await session.execute(update(models.PortfolioSite).values(is_default=False))
+
+    skill_client.portal.call(remove_default)
+    assert skill_client.get("/portfolio/skill-categories", params={"is_caching": "true"}).status_code == 404
+
+
+@pytest.mark.parametrize("path", ["journey", "experiences", "projects", "skill-categories", "skills"])
+@pytest.mark.parametrize("is_caching", ["false", "true"])
+@pytest.mark.parametrize("selector", [{"user": "owner-two"}, {"user": ""}, {"user": "owner-two", "site_id": 2}])
+def test_content_routes_reject_removed_user_selector(skill_client, path, is_caching, selector):
+    """An obsolete user parameter cannot be ignored and accidentally disclose the default portfolio."""
+    response = skill_client.get(
+        f"/portfolio/{path}", params={**selector, "ownerId": "category-a", "is_caching": is_caching}
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "INVALID_SITE_SELECTOR"
+
+
+@pytest.mark.parametrize("path", ["journey", "experiences", "projects", "skill-categories", "skills"])
+@pytest.mark.parametrize("site_id", ["abc", 0, -1, 2_147_483_648])
+def test_content_routes_reject_invalid_site_id(skill_client, path, site_id):
+    """All content routes validate the positive database ID before reading data or cache."""
+    response = skill_client.get(f"/portfolio/{path}", params={"site_id": site_id, "ownerId": "category-a"})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "INVALID_SITE_ID"
+
+
+@pytest.mark.parametrize("path,parameters", [("skill-categories", {}), ("skills", {"ownerId": "category-a"})])
+def test_removed_user_cannot_read_a_cached_default(portfolio_cache_client, path, parameters):
+    """Reject obsolete selectors even after the default and pinned content responses are cached."""
+    client = portfolio_cache_client
+    query = {**parameters, "is_caching": "true"}
+    for selector in ({}, {"site_id": 1}):
+        assert client.get(f"/portfolio/{path}", params={**query, **selector}).status_code == 200
+        response = client.get(f"/portfolio/{path}", params={**query, **selector, "user": "owner-two"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "INVALID_SITE_SELECTOR"

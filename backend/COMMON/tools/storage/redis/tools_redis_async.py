@@ -546,6 +546,31 @@ class RedisAsync:
         return [k.decode() if isinstance(k, bytes) else k for k in keys]
 
     # —< Command >—————————————————————————————————————————● Flush (Dangerous!)
+    async def delete_pattern(self, pattern: str, batch_size: int = 128) -> int:
+        """
+        Delete a bounded batch at a time while incrementally scanning one cache namespace.
+
+        :param pattern: Explicit Redis glob pattern identifying the intended cache group.
+        :param batch_size: Positive maximum keys submitted in one DELETE command.
+        :return: Number of keys removed; unrelated cache groups are preserved.
+        :raises ValueError: The pattern is empty or the batch size is invalid.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        if not pattern or type(batch_size) is not int or batch_size < 1:
+            raise ValueError("A cache pattern and positive batch size are required.")
+        removed = 0
+        batch = []
+        async for key in self.redis.scan_iter(match=pattern, count=batch_size):
+            batch.append(key)
+            if len(batch) >= batch_size:
+                removed += await self._execute(self.redis.delete, *batch)
+                batch.clear()
+        if batch:
+            removed += await self._execute(self.redis.delete, *batch)
+        return removed
+
+    # —< Command >—————————————————————————————————————————● Flush (Dangerous!)
     async def flush(self) -> bool:
         """
         Delete every key in the selected logical Redis database using FLUSHDB.

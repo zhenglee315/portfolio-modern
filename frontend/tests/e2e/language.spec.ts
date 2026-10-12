@@ -58,7 +58,7 @@ test('failed language preparation retains the visible language and URL', async (
   await page.getByRole('button', { name: 'Change language' }).click();
   await page.getByRole('button', { name: '繁體中文', exact: true }).click();
   await expect(
-    page.getByText('Could not change language. Your current content is preserved.'),
+    page.getByText('The language could not be changed. Please try again.'),
   ).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page).toHaveURL(/\/en(?:#.*)?$/);

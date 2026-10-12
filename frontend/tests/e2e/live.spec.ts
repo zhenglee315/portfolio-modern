@@ -10,7 +10,7 @@ test.skip(
 );
 
 for (const locale of ['en', 'zh-Hans', 'zh-Hant'] as const) {
-  test(`live ${locale} static content, project continuation and complete skill categories`, async ({
+  test(`live ${locale} server content, project continuation and complete skill categories`, async ({
     page,
     request,
   }, testInfo) => {
@@ -20,11 +20,17 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant'] as const) {
       await (await request.get(`/api/portfolio/site?locale=${locale}`)).json(),
     );
     const projects = projectsSchema.parse(
-      await (await request.get(`/api/portfolio/projects?locale=${locale}&page=1&size=6`)).json(),
+      await (
+        await request.get(
+          `/api/portfolio/projects?locale=${locale}&site_id=${site.site_id}&page=1&size=6`,
+        )
+      ).json(),
     );
     const categories = categoriesSchema.parse(
       await (
-        await request.get(`/api/portfolio/skill-categories?locale=${locale}&page=1&size=6`)
+        await request.get(
+          `/api/portfolio/skill-categories?locale=${locale}&site_id=${site.site_id}&page=1&size=6`,
+        )
       ).json(),
     );
     const errors: string[] = [];
@@ -38,6 +44,14 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant'] as const) {
       await page.locator('#projects button[aria-expanded="false"][aria-controls]').last().click();
       await expect(page.locator('#projects [data-project-id]')).toHaveCount(
         Math.min(12, projects.total),
+      );
+    }
+    await expect(page.locator('[data-category-id]')).toHaveCount(categories.items.length);
+    while (await page.locator('#skills .load-more-control button').count()) {
+      const previous = await page.locator('[data-category-id]').count();
+      await page.locator('#skills .load-more-control button').click();
+      await expect(page.locator('[data-category-id]')).toHaveCount(
+        Math.min(previous + 6, categories.total),
       );
     }
     await expect(page.locator('[data-category-id]')).toHaveCount(categories.total);
@@ -55,6 +69,21 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant'] as const) {
         await expect(closeIntroduction).toHaveCount(0);
       }
       await page.screenshot({ path: testInfo.outputPath('skills-live-desktop.png') });
+    }
+    const ownerResponse = await request.get(`/${locale}/${site.user}`);
+    expect(ownerResponse.status()).toBe(200);
+    expect(await ownerResponse.text()).toContain('data-profile-content');
+    await page.goto(`/${locale}/${site.user}?source=live#overview`);
+    await expect(page.locator('[data-portfolio-site]')).toHaveAttribute(
+      'data-portfolio-site',
+      String(site.site_id),
+    );
+    await expect(page.locator('h1')).toContainText(fullName(site.profile));
+    if (locale === 'en') {
+      await page.getByRole('button', { name: 'Change language', exact: true }).click();
+      await page.getByRole('button', { name: '繁體中文', exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/zh-Hant/${site.user}\\?source=live#overview$`));
+      await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
     }
     expect(errors).toEqual([]);
   });
@@ -104,7 +133,12 @@ test('live contact preserves its wrapped frame and multiline copy on desktop and
   expect(rect!.x).toBeGreaterThanOrEqual(0);
   expect(rect!.x + rect!.width).toBeLessThanOrEqual(390);
   const controls = (await page.locator('[data-profile-controls]').boundingBox())!;
-  expect(rect!.y).toBeGreaterThanOrEqual(controls.y + controls.height + 12);
+  const header = (await page.locator('header[data-entrance-navigation]').boundingBox())!;
+  expect(rect!.y).toBeCloseTo(header.y + header.height + 12, 1);
+  const copy = (await bubble.locator('[data-contact-content]').boundingBox())!;
+  const closeBounds = (await close.boundingBox())!;
+  expect(copy.y).toBeGreaterThanOrEqual(controls.y + controls.height);
+  expect(closeBounds.y).toBeGreaterThanOrEqual(controls.y + controls.height);
   await page.screenshot({ path: testInfo.outputPath('contact-live-mobile.png') });
   await page.setViewportSize({ width: 320, height: 430 });
   await expect

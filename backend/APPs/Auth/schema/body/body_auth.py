@@ -1,3 +1,6 @@
+# ◆—< Pack >—————————————————————————————————◆ Common
+from COMMON.schema.schema_user import validate_public_user
+
 # ◆—< Pack >—————————————————————————————————◆ Pydantic
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
@@ -90,12 +93,30 @@ class BodyAuthVerifyEmail(BodyAuthEmail):
 
 # ■—< BODY >————————————————————————————————————————————————————————————————————————————■ Auth - Register
 class BodyAuthRegister(BodyAuthSignIn):
+    user: str | None = Field(
+        default=None,
+        description="Optional stable public identifier; omitted values are allocated from the email prefix.",
+    )
     password: SecretStr = Field(
         ...,
         min_length=8,
         max_length=1024,
         description="New password with at least eight characters; whitespace is preserved.",
     )
+
+    @field_validator("user")
+    @classmethod
+    def validate_user(cls, user: str | None) -> str | None:
+        """
+        Apply the common public route rules to an explicitly requested identifier.
+
+        :param user: Optional lowercase public identifier.
+        :return: The unchanged identifier, or None for automatic allocation.
+        :raises ValueError: The identifier is invalid or reserves an application route.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        return validate_public_user(user) if user is not None else None
 
 
 __all__ = ("BodyAuthEmail", "BodyAuthSignIn", "BodyAuthVerifyEmail", "BodyAuthRegister", "validate_auth_email")

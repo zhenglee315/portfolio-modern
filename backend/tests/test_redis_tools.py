@@ -725,3 +725,18 @@ def test_heartbeat_total_counts_live_members_and_removes_stale(redis_tools, monk
     smembers.assert_awaited_once_with("online_clients")
     srem.assert_awaited_once_with("online_clients", "stale")
     pipeline.assert_called_once()
+
+
+def test_delete_pattern_scans_and_deletes_bounded_batches(redis_tools, monkeypatch):
+    """Cache invalidation avoids blocking KEYS or clearing unrelated namespaces."""
+
+    async def scan_iter(**kwargs):
+        assert kwargs == {"match": "cache:portfolio:*", "count": 2}
+        for key in (b"a", b"b", b"c"):
+            yield key
+
+    delete = AsyncMock(side_effect=[2, 1])
+    monkeypatch.setattr(redis_tools.client, "scan_iter", scan_iter)
+    monkeypatch.setattr(redis_tools.client, "delete", delete)
+    assert asyncio.run(redis_tools.cache.delete_pattern("cache:portfolio:*", 2)) == 3
+    assert [call.args for call in delete.await_args_list] == [(b"a", b"b"), (b"c",)]

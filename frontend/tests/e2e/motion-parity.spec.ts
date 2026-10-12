@@ -67,7 +67,7 @@ test('four inward edges settle before the desktop rail slides and content appear
   await expect(page.locator('#overview')).toHaveCSS('opacity', '1');
 });
 
-test('static documents keep the profile, rail and inward frame readable without JavaScript', async ({
+test('server documents keep the profile, rail and inward frame readable without JavaScript', async ({
   browser,
   baseURL,
 }) => {

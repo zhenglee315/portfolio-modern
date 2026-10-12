@@ -27,6 +27,7 @@ All commands below are asynchronous. / 以下方法均為非同步。
 | Method / 方法 | 繁體中文 | English |
 | --- | --- | --- |
 | `set(key, value, ex=None, serialize=True, *, nx=False, xx=False, keepttl=False)` | 寫入字串 key；`ex` 是有效秒數；`nx` 僅新增、`xx` 僅覆蓋，條件未成立回傳 `None`。`keepttl` 保留期限，與 `ex` 互斥。 | Write a string key; NX requires absence and XX requires presence, returning `None` if unmet. KEEPTTL preserves expiry and cannot be combined with `ex`. |
+| `delete_pattern(pattern, batch_size=128)` | 以 SCAN 逐批刪除指定 namespace，避免 KEYS／FLUSHDB。 | Incrementally scan and delete bounded batches in one explicit namespace. |
 | `get(key, deserialize=True)` | 讀取字串；不存在回傳 `None`。 | Read a string value; return `None` if missing. |
 | `mget(keys, deserialize=True)` | 依 key 順序讀取字串清單，缺少值為 `None`；空清單回傳 `[]`。 | Read strings in key order, using `None` for missing values; return `[]` for no keys. |
 | `get_by_key(key, method, deserialize=True)` | 讀取 `<key>:<method>` 組合 key；`method` 是後綴，不是 Redis 指令。 | Read the composite `<key>:<method>` key; `method` is a suffix, not a Redis command. |

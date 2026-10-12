@@ -24,12 +24,20 @@ export const runtimeTest = base.extend<{ checkRuntime: void }>({
   ],
 });
 
-/** Exercise the production SPA fallback with an empty browser query cache.
- * Static snapshots are tested separately; this helper covers first-read failure states.
+/** Exercise a second owner's handle or ID URL with an empty owner-scoped browser cache.
+ * Public SSR is covered separately; history navigation uses the browser route loader here.
  */
-export async function openClientShell(page: Page) {
-  const shell = await page.request.get('/__spa-fallback.html');
-  const body = await shell.body();
-  await page.route('**/en', (route) => route.fulfill({ contentType: 'text/html', body }));
+export async function openClientShell(page: Page, path = '/en/sam#projects') {
   await page.goto('/en');
+  await waitForFixtureHydration(page);
+  await page.evaluate((target) => {
+    history.pushState(null, '', target);
+    dispatchEvent(new PopStateEvent('popstate'));
+  }, path);
+  await expect(page).toHaveURL((url) => `${url.pathname}${url.search}${url.hash}` === path);
+  await expect(
+    page
+      .locator('[data-portfolio-user="sam"]')
+      .or(page.getByRole('heading', { name: 'Page not found' })),
+  ).toBeVisible();
 }

@@ -4,6 +4,8 @@ import type { Locale } from '@/i18n/config';
  * They deliberately contain no captured API responses or personal configuration.
  */
 export const siteFixture = {
+  site_id: 1,
+  user: 'alex',
   brand: { title: 'Demo', titleSub: 'Engineer', copyrightYear: 2026 },
   profile: {
     firstName: 'Alex',
@@ -55,7 +57,7 @@ export const journeyFixture = [
     longitude: 77.59,
     startMonth: '2024-06',
     endMonth: '2024-10',
-    // One valid long entry exercises popup scrolling through both SSG and dev first reads.
+    // One valid long entry exercises popup scrolling through SSR and development first reads.
     detail: {
       startMonth: '2024-06',
       endMonth: '2024-10',
@@ -114,29 +116,73 @@ export function pageFixture<T>(items: T[], page = 1) {
   };
 }
 
-/** Assign distinct descending months so static and live fixtures share timeline selection scope. */
+/** Assign distinct descending months so both runtimes share timeline selection scope. */
 function timelineMonth(index: number) {
   return new Date(Date.UTC(2024, 11 - index, 1)).toISOString().slice(0, 7);
 }
 
-/** Resolve all six endpoint fixtures while honoring page, owner, and locale. */
+/** Reject selectors removed from the public contract before resolving any default data. */
+export function portfolioSelectorError(url: URL) {
+  const path = url.pathname.replace(/^\/api/, '');
+  if (!path.startsWith('/portfolio/') || !url.searchParams.has('user')) return undefined;
+  return path !== '/portfolio/site' || url.searchParams.has('site_id')
+    ? 'INVALID_SITE_SELECTOR'
+    : undefined;
+}
+
+/** Resolve Site by its handle or ID; content reads accept only an ID or the default. */
 export function endpointFixture(url: URL) {
   const locale = (url.searchParams.get('locale') ?? 'en') as Locale;
   const page = Number(url.searchParams.get('page') ?? 1);
-  const skills = Array.from({ length: 14 }, (_, i) => ({
+  const user = url.searchParams.get('user');
+  const siteId = url.searchParams.get('site_id');
+  if (portfolioSelectorError(url)) return undefined;
+  if (
+    (user !== null && !['alex', 'sam', 'stress'].includes(user)) ||
+    (siteId !== null && !['1', '2', '3'].includes(siteId))
+  )
+    return undefined;
+  const secondSite = user === 'sam' || siteId === '2';
+  const stressSite = user === 'stress' || siteId === '3';
+  const owner = stressSite ? 'stress ' : secondSite ? 'sam ' : '';
+  const skills = Array.from({ length: stressSite ? 100 : 14 }, (_, i) => ({
     id: `skill-${i}`,
-    label: `${locale} Skill ${i + 1}`,
+    label: `${owner}${locale} Skill ${i + 1}`,
   }));
   switch (url.pathname.replace(/^\/api/, '')) {
     case '/system/heartbeat':
       return { online: 3 };
     case '/portfolio/site':
-      return siteFixture;
+      return stressSite || secondSite
+        ? {
+            ...siteFixture,
+            site_id: stressSite ? 3 : 2,
+            user: stressSite ? 'stress' : 'sam',
+            profile: {
+              ...siteFixture.profile,
+              firstName: stressSite ? 'Stress' : 'Sam',
+              nickName: stressSite ? 'Stress' : 'Sam',
+              content: stressSite
+                ? 'I build reliable services and thoughtful interfaces for people using many different devices. My work connects product design, accessible interaction, and dependable platform engineering. I document decisions, collaborate across teams, and keep improving the systems that support everyday work. '.repeat(
+                    3,
+                  )
+                : siteFixture.profile.content,
+            },
+          }
+        : siteFixture;
     case '/portfolio/journey':
-      return journeyFixture;
+      return stressSite
+        ? Array.from({ length: 100 }, (_, i) => ({
+            ...journeyFixture[i % journeyFixture.length],
+            id: i + 1,
+            startMonth: timelineMonth(i),
+            endMonth: timelineMonth(i),
+            detail: null,
+          }))
+        : journeyFixture;
     case '/portfolio/experiences':
       return pageFixture(
-        Array.from({ length: 8 }, (_, i) => ({
+        Array.from({ length: stressSite ? 100 : 8 }, (_, i) => ({
           ...experienceFixture,
           id: i + 1,
           startMonth: timelineMonth(i),
@@ -146,20 +192,20 @@ export function endpointFixture(url: URL) {
       );
     case '/portfolio/projects':
       return pageFixture(
-        Array.from({ length: 15 }, (_, i) => ({
+        Array.from({ length: stressSite ? 100 : 15 }, (_, i) => ({
           ...projectFixture,
           id: i + 1,
           startMonth: timelineMonth(i),
           endMonth: timelineMonth(i),
-          projectName: `${locale} Project ${i + 1}`,
+          projectName: `${owner}${locale} Project ${i + 1}`,
         })),
         page,
       );
     case '/portfolio/skill-categories':
       return pageFixture(
-        Array.from({ length: 7 }, (_, i) => ({
+        Array.from({ length: stressSite ? 100 : 7 }, (_, i) => ({
           id: `category-${i}`,
-          label: `${locale} Category ${i + 1}`,
+          label: `${owner}${locale} Category ${i + 1}`,
           skills: pageFixture(skills),
         })),
         page,

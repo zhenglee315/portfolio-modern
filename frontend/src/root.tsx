@@ -1,69 +1,42 @@
-import { useSyncExternalStore, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
-  data,
   isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
   Scripts,
-  useParams,
   useRouteLoaderData,
   type ShouldRevalidateFunction,
 } from 'react-router';
 
 import type { Route } from './+types/root';
 import { AppProviders } from '@/app/providers/AppProviders';
-import { defaultLocale, localeSchema, messages } from '@/i18n/config';
+import { defaultLocale } from '@/i18n/config';
+import { publicLocale, publicRouteHeaders } from './routes/public-route';
 import { appearanceBootstrapScript } from '@/features/appearance';
 import '@/styles/bootstrap.scss';
 import '@/assets/fonts/fonts.css';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
 
-/** Resolve the shared language contract for build-time and browser loaders. */
+/** Resolve the shared language contract for server and browser loaders. */
 function getLocaleData(params: { locale?: string }) {
-  const result = localeSchema.safeParse(params.locale ?? defaultLocale);
-
-  if (!result.success) {
-    throw data('Page not found.', { status: 404 });
-  }
-
-  return { locale: result.data };
+  return { locale: publicLocale(params.locale) };
 }
 
-/** Validate the URL language before rendering or pre-rendering a route. */
+/** Validate the URL language before rendering a route. */
 export function loader({ params }: Route.LoaderArgs) {
   return getLocaleData(params);
 }
 
-/** Resolve browser navigation without requiring a frontend runtime server. */
+/** Resolve browser navigation without a second server language read. */
 export function clientLoader({ params }: Route.ClientLoaderArgs) {
   return getLocaleData(params);
 }
 
-// Valid initial documents already carry validated loader data. Keep this pure
-// URL validator for navigation without replacing pre-rendered content on hydration.
-
-/** Keep invalid-language documents consistent while their client route errors resolve.
- * Layout owns scripts; both the loading shell and route errors remain plain content.
- */
-export function HydrateFallback() {
-  const params = useParams();
-  const snapshot = useRouteLoaderData<typeof loader>('root');
-  // A static SPA fallback carries the build's default-locale snapshot and loading
-  // markup. Preserve that markup until the child validates its actual URL.
-  if (!snapshot && !localeSchema.safeParse(params.locale ?? defaultLocale).success)
-    return <RouteError missing />;
-  return <RouteLoading />;
-}
-
-/** Keep the static SPA loading markup identical wherever an initial router error lands. */
-function RouteLoading() {
-  return (
-    <main className="container py-5" aria-busy="true">
-      <p role="status">{messages[defaultLocale].ui.loading}</p>
-    </main>
-  );
+/** Route errors and language responses follow the same publication freshness policy. */
+export function headers() {
+  return publicRouteHeaders();
 }
 
 /** Parent routes also consume the child's locale, so pathname changes must revalidate it. */
@@ -104,25 +77,12 @@ export default function App({ loaderData }: Route.ComponentProps) {
   );
 }
 
-/** Present route errors without exposing production error details. */
+/** Present server and browser route failures without exposing private error details. */
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  const snapshot = useRouteLoaderData<typeof loader>('root');
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false,
-  );
-  const missing = isRouteErrorResponse(error) && error.status === 404;
-  // Unmatched static URLs may enter this boundary on the very first client render.
-  // Match their delivered SPA shell during hydration, then show the resolved error.
-  if (missing && snapshot && !hydrated) return <RouteLoading />;
-  return <RouteError missing={missing} />;
+  return <RouteError missing={isRouteErrorResponse(error) && error.status === 404} />;
 }
 
-/** Hydration switches React's server/client snapshots without an external event source. */
-const subscribeToHydration = () => () => {};
-
-/** Share identical missing/error content across route errors and initial SPA fallback. */
+/** Share the public missing/error content across document and navigation failures. */
 function RouteError({ missing }: { missing: boolean }) {
   return (
     <main className="container py-5">

@@ -1,8 +1,11 @@
 import { z } from 'zod';
 import { textSchema as text } from '@/shared/schemas/records';
+import { publicUserSchema } from '@/shared/schemas/portfolio';
 
 /** Public Site DTO. Empty optional display copy remains a valid string. */
 export const siteSchema = z.object({
+  site_id: z.number().int().positive(),
+  user: publicUserSchema,
   brand: z.object({
     title: text,
     titleSub: text,

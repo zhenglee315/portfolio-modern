@@ -1,10 +1,11 @@
 # ◆—< Pack >—————————————————————————————————◆ Common
+from COMMON.schema.schema_user import public_user_candidate, validate_public_user
 from COMMON.tools.storage.redis import RedisAsync, RedisUpdate, RedisValue
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import EnumCache
-from SYSTEM.models import AuthRole, AuthUser
+from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache
+from SYSTEM.models import AuthRole, AuthUser, RecordLogin
 from SYSTEM.settings import SEC_SECRET_KEY
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
@@ -44,10 +45,10 @@ AUTH_SIGN_IN_LIMIT = 30
 AUTH_SIGN_IN_WINDOW = 60
 _DUMMY_ACCOUNT: AuthUser | None = None
 _DUMMY_ACCOUNT_LOCK = Lock()
-_PERMISSION_FIELDS = ("is_create", "is_read", "is_update", "is_delete", "is_manage_roles", "is_manage_users")
 _REGISTRATION_SESSION_KEY = "auth_registration"
 
 
+# ■—< SECURITY >——————————————————————————————————————————————————————————————————————■ Auth - Password Timing
 async def _dummy_account() -> AuthUser:
     """
     Prepare a process-local password hash for unknown login addresses.
@@ -67,6 +68,7 @@ async def _dummy_account() -> AuthUser:
     return _DUMMY_ACCOUNT
 
 
+# ■—< SMTP >——————————————————————————————————————————————————————————————————————————■ Auth - Registration Delivery
 async def send_registration_email(email: str, code: str) -> None:
     """
     Define the SMTP delivery interface for a future configured mail provider.
@@ -158,8 +160,9 @@ class AuthModule(SqlAlchemyExecAsync):
         return {
             "id": account.id,
             "email": account.email,
+            "user": account.user,
             "role": role.role,
-            **{permission: getattr(role, permission) for permission in _PERMISSION_FIELDS},
+            **{permission: getattr(role, permission) for permission in AUTH_PERMISSION_FIELDS},
         }
 
     async def _load_session(self) -> None:
@@ -177,6 +180,20 @@ class AuthModule(SqlAlchemyExecAsync):
         except (RedisError, KeyError):
             raise HTTPException(status_code=503, detail="AUTH_STORAGE_UNAVAILABLE") from None
 
+    async def _destroy_session(self) -> None:
+        """
+        Remove the current stored session through the configured middleware handler.
+
+        :return: None after storage removal; the caller controls identity clearing and SID replacement.
+        :raises HTTPException: The stored session cannot be removed from Redis.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        try:
+            await get_session_handler(self.request).destroy()
+        except RedisError:
+            raise HTTPException(status_code=503, detail="AUTH_STORAGE_UNAVAILABLE") from None
+
     async def _start_session(self, account: dict[str, Any]) -> None:
         """
         Invalidate the previous server-side session and issue a new authenticated session.
@@ -188,10 +205,7 @@ class AuthModule(SqlAlchemyExecAsync):
                                                                                                ♂ ZhengLee 2026.10.11
         """
         await self._load_session()
-        try:
-            await get_session_handler(self.request).destroy()
-        except RedisError:
-            raise HTTPException(status_code=503, detail="AUTH_STORAGE_UNAVAILABLE") from None
+        await self._destroy_session()
         self.request.session.clear()
         regenerate_session_id(self.request)
         self.request.session.update(account)
@@ -212,21 +226,35 @@ class AuthModule(SqlAlchemyExecAsync):
             raise HTTPException(status_code=503, detail="AUTH_DATABASE_UNAVAILABLE") from None
 
     @staticmethod
-    def _email_conflict(error: IntegrityError) -> bool:
+    def _unique_conflict(error: IntegrityError, constraint: str, column: str) -> bool:
         """
-        Identify only the account email uniqueness violation among integrity errors.
+        Identify one named uniqueness violation without treating other integrity failures as conflicts.
 
-        :param error: SQLAlchemy integrity exception raised by insertion or commit.
-        :return: Whether the PostgreSQL or SQLite error identifies the email unique constraint.
+        :param error: SQLAlchemy exception raised by insertion or commit.
+        :param constraint: PostgreSQL uniqueness constraint name.
+        :param column: SQLite table-qualified column name used by isolated tests.
+        :return: Whether the original database error identifies the selected unique key.
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
         for source in (error.orig, getattr(error.orig, "__cause__", None)):
-            if getattr(source, "constraint_name", None) == "uq_auth_user_email":
+            if getattr(source, "constraint_name", None) == constraint:
                 return True
-            if getattr(getattr(source, "diag", None), "constraint_name", None) == "uq_auth_user_email":
+            if getattr(getattr(source, "diag", None), "constraint_name", None) == constraint:
                 return True
-        return "UNIQUE constraint failed: auth_user.email" in str(error.orig)
+        return f"UNIQUE constraint failed: {column}" in str(error.orig)
+
+    @staticmethod
+    def _email_conflict(error: IntegrityError) -> bool:
+        """
+        Identify the existing account email reservation.
+
+        :param error: SQLAlchemy integrity exception.
+        :return: Whether the email unique key rejected the operation.
+
+                                                                                               ♂ ZhengLee 2026.10.11
+        """
+        return AuthModule._unique_conflict(error, "uq_auth_user_email", "auth_user.email")
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Auth - Session
@@ -266,7 +294,7 @@ class AuthSessionModule(AuthModule):
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
-        for field in ("id", "email", "role", "password", *_PERMISSION_FIELDS):
+        for field in ("id", "email", "user", "role", "password", *AUTH_PERMISSION_FIELDS):
             self.request.session.pop(field, None)
 
     async def current_session(self) -> dict[str, Any] | None:
@@ -362,9 +390,9 @@ class AuthSignInModule(AuthModule):
 
     async def sign_in(self) -> dict[str, Any]:
         """
-        Authenticate an enabled account and role, then rotate and initialize SESSION.
+        Authenticate an enabled account and role, initialize SESSION, and record the login.
 
-        :return: Account ID, email, role, and the assigned CRUD/management permissions.
+        :return: Account ID, email, public user, role, and the assigned CRUD/management permissions.
         :raises HTTPException: Credentials are invalid, rate-limited, or storage is unavailable.
 
                                                                                                ♂ ZhengLee 2026.10.11
@@ -387,6 +415,14 @@ class AuthSignInModule(AuthModule):
         except SQLAlchemyError:
             raise HTTPException(status_code=503, detail="AUTH_DATABASE_UNAVAILABLE") from None
         await self._start_session(response)
+        stmt = insert(RecordLogin).values(user_id=response["id"])
+        try:
+            await self.execute_orm(stmt)
+        except (SQLAlchemyError, RuntimeError, OSError):
+            # An error response must not persist the authenticated identity prepared above.
+            self.request.session.clear()
+            get_session_handler(self.request).session_id = None
+            raise HTTPException(status_code=503, detail="AUTH_DATABASE_UNAVAILABLE") from None
         return response
 
 
@@ -420,10 +456,7 @@ class AuthSignOutModule(AuthModule):
         """
         await self._load_session()
         handler = get_session_handler(self.request)
-        try:
-            await handler.destroy()
-        except RedisError:
-            raise HTTPException(status_code=503, detail="AUTH_STORAGE_UNAVAILABLE") from None
+        await self._destroy_session()
 
         self.request.session.clear()
         if handler.session_id:
@@ -449,6 +482,7 @@ class AuthRegisterModule(AuthModule):
         password: str | None = None,
         code: str | None = None,
         *,
+        user: str | None = None,
         session: AsyncSession | None = None,
         redis: Redis | None = None,
         sender: Callable[[str, str], Awaitable[None]] | None = None,
@@ -461,6 +495,7 @@ class AuthRegisterModule(AuthModule):
         :param email: Validated, exact login address.
         :param password: Registration password when creating the account.
         :param code: Temporary three-digit verification code when verifying the registration email.
+        :param user: Optional public identifier; omitted values are allocated from the email prefix.
         :param session: Optional asynchronous database session.
         :param redis: Optional asynchronous Redis client.
         :param sender: Reserved SMTP function; temporary fixed-code mode does not call it.
@@ -472,6 +507,7 @@ class AuthRegisterModule(AuthModule):
         super().__init__(request, email, session=session, redis=redis, manage_transaction=manage_transaction)
         self.password = password
         self.code = code
+        self.user = user
         self.sender = sender if sender is not None else send_registration_email
 
     @staticmethod
@@ -809,7 +845,7 @@ class AuthRegisterModule(AuthModule):
         session. In external mode, the injected session's owner must commit before
         releasing the response and owns rollback if any operation fails.
 
-        :return: Account ID, exact email, default role, and its CRUD/management permissions.
+        :return: Account ID, exact email, public user, default role, and its CRUD/management permissions.
         :raises HTTPException: Email is reserved, verification/default role is unavailable, or storage fails.
 
                                                                                                ♂ ZhengLee 2026.10.11
@@ -837,33 +873,63 @@ class AuthRegisterModule(AuthModule):
                 select(
                     AuthRole.id.label("role_id"),
                     AuthRole.role,
-                    *(getattr(AuthRole, field) for field in _PERMISSION_FIELDS),
+                    *(getattr(AuthRole, field) for field in AUTH_PERMISSION_FIELDS),
                 )
                 .where(
                     AuthRole.is_default.is_(True),
                     AuthRole.is_active.is_(True),
                     AuthRole.is_manage_roles.is_(False),
                     AuthRole.is_manage_users.is_(False),
+                    AuthRole.is_manage_sites.is_(False),
                 )
                 .with_for_update(read=True)
                 .subquery("registration_role")
             )
-            stmt = (
-                insert(AuthUser)
-                .from_select(
-                    ("email", "password", "role_id", "is_active"),
-                    select(literal(self.email), literal(account.password), role.c.role_id, literal(True)),
+            if self.user is not None:
+                try:
+                    validate_public_user(self.user)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="INVALID_USER") from None
+            response = None
+            for attempt in range(1, 101):
+                user = self.user if self.user is not None else public_user_candidate(self.email, attempt)
+                if (await self.execute_orm(select(AuthUser.id).where(AuthUser.user == user))).first() is not None:
+                    if self.user is not None:
+                        raise HTTPException(status_code=409, detail="USER_ALREADY_EXISTS")
+                    continue
+                stmt = (
+                    insert(AuthUser)
+                    .from_select(
+                        ("email", "user", "password", "role_id", "is_active"),
+                        select(
+                            literal(self.email), literal(user), literal(account.password), role.c.role_id, literal(True)
+                        ),
+                    )
+                    .returning(
+                        AuthUser.id,
+                        AuthUser.email,
+                        AuthUser.user,
+                        *(
+                            select(role.c[field]).scalar_subquery().label(field)
+                            for field in ("role", *AUTH_PERMISSION_FIELDS)
+                        ),
+                    )
                 )
-                .returning(
-                    AuthUser.id,
-                    AuthUser.email,
-                    *(select(role.c[field]).scalar_subquery().label(field) for field in ("role", *_PERMISSION_FIELDS)),
-                )
-            )
-            row = (await self.execute_orm(stmt)).mappings().one_or_none()
-            if row is None:
-                raise HTTPException(status_code=503, detail="REGISTRATION_UNAVAILABLE")
-            response = dict(row)
+                try:
+                    row = (await self.execute_orm(stmt)).mappings().one_or_none()
+                except IntegrityError as error:
+                    if not self._unique_conflict(error, "uq_auth_user_user", "auth_user.user"):
+                        raise
+                    if self.user is not None or not self.manage_transaction:
+                        raise HTTPException(status_code=409, detail="USER_ALREADY_EXISTS") from None
+                    # A concurrent registration reserved this candidate; the tool rolled back before retrying.
+                    continue
+                if row is None:
+                    raise HTTPException(status_code=503, detail="REGISTRATION_UNAVAILABLE")
+                response = dict(row)
+                break
+            if response is None:
+                raise HTTPException(status_code=409, detail="USER_ALLOCATION_UNAVAILABLE")
         except BaseException as error:
             if claimed:
                 await self._release_claim(challenge_id, claim_id)

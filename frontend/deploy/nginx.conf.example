@@ -1,11 +1,14 @@
-# Generic static hosting example. Replace root/upstream in private deployment configuration.
-# Serve only build/client; source directories and server build artifacts are not public files.
+# Dynamic SSR hosting example. Keep private origins in deployment configuration.
+# Publish only build/client as static files; run npm start with build/server available to Node.
 server {
     listen 80;
     root /usr/share/nginx/html;
-    index index.html;
+    gzip on;
+    gzip_vary on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_static on;
 
-    # Public API routing is separate from the SPA fallback; errors retain their status.
+    # Browser API requests remain separate from public document rendering.
     location /api/ {
         proxy_pass http://backend:8080/;
         proxy_set_header Host $host;
@@ -13,19 +16,22 @@ server {
         proxy_read_timeout 15s;
     }
 
-    # Hashed assets are immutable; unknown assets must not return application HTML.
+    # Hashed assets are immutable; missing assets retain their actual status.
     location /assets/ {
         try_files $uri =404;
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
-    # Route data and HTML require revalidation after publishing a new static snapshot.
-    location ~ \.data$ {
-        try_files $uri =404;
-        add_header Cache-Control "no-cache";
-    }
+    # HTML and .data requests use Node so publication/default changes apply immediately.
     location / {
-        try_files $uri $uri/ /__spa-fallback.html;
-        add_header Cache-Control "no-cache";
+        try_files $uri @portfolio;
+    }
+    location @portfolio {
+        proxy_pass http://frontend:5173;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "no-store" always;
     }
 }

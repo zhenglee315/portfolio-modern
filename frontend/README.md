@@ -4,9 +4,9 @@
 
 This directory implements the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
 
-**目前狀態：React 功能遷移與登入介面已實作。** 九個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數及登入介面。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。四個公開 URL 預先渲染有效資料，瀏覽器故障由各區獨立處理。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
+**目前狀態：React 功能遷移與登入介面已實作。** 九個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數及登入介面。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。公開首頁與個人網址由 Node 動態 SSR，先解析已發布的 Site，再載入有界首批內容；後續資料與互動按需取得。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
 
-**Status: React feature migration and account interface implemented.** Nine features cover public content, locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction, online visitors and account forms. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in and registration use the backend session API. Registration temporarily uses code 123 while SMTP delivery and password reset await integration. Four public URLs pre-render validated content, with independently recoverable browser requests. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
+**Status: React feature migration and account interface implemented.** Nine features cover public content, locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction, online visitors and account forms. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in and registration use the backend session API. Registration temporarily uses code 123 while SMTP delivery and password reset await integration. The default homepage and owner URLs use dynamic Node SSR, resolving a published Site before reading bounded initial content. Subsequent data and interactions load on demand. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
 
 ## 網站畫面導覽 / Visual Website Tour
 
@@ -53,7 +53,7 @@ The tools below are installed. The manifest and lockfile record exact dependenci
 | ESLint、typescript-eslint、import-x、Prettier | 型別語法、Hooks、依賴邊界與一致排版 / Typed syntax, Hooks, import boundaries, and formatting                                                          |
 | Vitest、React Testing Library                 | 純邏輯、資料契約與元件行為測試 / Logic, contract, and component behavior tests                                                                        |
 | Playwright                                    | Chromium 瀏覽器驗證，可後續增加其他瀏覽器 / Chromium checks, extensible to other browsers                                                             |
-| sirv                                          | 正式建置的本機靜態預覽 / Local static build preview                                                                                                   |
+| sirv                                          | Node SSR runtime 的靜態資產服務 / Static assets within the Node SSR runtime                                                                           |
 
 React、Vite 與其他工具安裝為專案依賴。Node.js 與 npm 是本機準備事項；安裝 npm 套件不代表已啟動 FastAPI、資料庫或 Redis。日常可直接在本機開發，Docker 按實際服務或部署需要使用。
 
@@ -61,27 +61,36 @@ Install frontend tools as project dependencies. Node.js and npm are local prereq
 
 ### 渲染、路由與按需載入 / Rendering, Routing, and On-Demand Loading
 
-React Router Framework Mode 是前端框架，Vite 是其開發與建置基礎。FastAPI 持續提供業務 API；前端的路由與預先渲染不取代後端的驗證、權限或資料存取。框架支援瀏覽器渲染、預先渲染及伺服器渲染，目錄分層不因渲染方式改變。[官方模式說明](https://reactrouter.com/start/modes)
+React Router Framework Mode 使用動態 SSR（`ssr: true`），由常駐 Node.js 服務產生 HTML；FastAPI 持續負責業務 API、公開狀態與帳號權限。建置只產生 client／server 程式與資產，不在 build 時固定任何人的作品集資料。
 
-React Router Framework Mode uses Vite for development and builds and supports client rendering, pre-rendering, and server rendering. FastAPI remains responsible for business APIs, validation, authorization, and persistence. Feature boundaries remain the same across rendering strategies.
+React Router Framework Mode uses dynamic SSR through a persistent Node.js service. FastAPI owns content, visibility and account permissions. Builds produce client/server code and assets rather than an owner's content snapshot.
 
-| 情境 / Requirement                                           | 方案與影響 / Approach and implications                                                                                                                                          |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 初期公開個人檔案頁 / Initial public profile pages            | 預先渲染（SSG）：建置時取得公開資料，產生包含主要內容與 metadata 的 HTML；內容更新需重新建置 / Pre-render public content and metadata at build time; updates require rebuilding |
-| 地圖、對話框、後續分頁 / Maps, dialogs, and subsequent pages | 瀏覽器互動與按需載入；依操作載入程式碼或取得 API 資料 / Client interaction with code or data loaded when needed                                                                 |
-| 未來公開 HTML 須即時反映資料 / Future live public HTML       | 評估伺服器渲染（SSR），增加相應前端執行服務 / Evaluate SSR with an appropriate frontend runtime                                                                                 |
+| 公開網址 / Public URL                                              | 內容解析 / Resolution                                                                  |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `/`、`/en`、`/zh-Hans`、`/zh-Hant`                                 | 後端 `is_default=true` 且已發布的 Site / Published default Site                        |
+| `/:locale?site_id=1`，例如 `/en?site_id=1`                         | Query string 指定的已發布 Site；切換語言保留 ID / Published Site selected by ID        |
+| `/:locale/:user`，例如 `/en/alex`                                  | 唯一公開 `user` 所屬的已發布 Site / Published Site belonging to a unique public handle |
+| 不存在、草稿、停用帳號或不合法的個人網址 / Unavailable owner route | 真正 HTTP 404，不改讀預設資料 / Actual HTTP 404 without a default fallback             |
 
-目前設定 `ssr: false`，預先渲染 `/`（英文）、`/en`、`/zh-Hans` 與 `/zh-Hant` 四個 URL。各 URL 包含 Site、完整 Journey、經歷／專案第一頁與完整技能分類的 HTML、Query snapshot 及 API metadata；分類續頁失敗時保留有效前綴，瀏覽器可局部補讀。瀏覽器 loader 使用相同語系驗證，未知語系呈現錯誤頁。動態路由參數不能只靠路由宣告自動產生所有頁面。部署時提供產生的 HTML、路由資料及靜態資產，並配置必要的路由回退。這種部署不需要常駐前端 Node.js 服務，Node.js 仍用於開發與建置。[官方預先渲染說明](https://reactrouter.com/how-to/pre-rendering)
+沿用六支公開 API，以 query string 選擇作品集，沒有重複的 owner path API。只有 Site API 接受 `user`，也可改帶 `site_id`（兩者互斥）；其他五支內容 API 只接受 `site_id`。第一次 Site 查詢用 `user`（省略時解析 default）；Site response 的 `site_id` 固定後續區塊查詢，避免 default 在載入期間切換時混入另一人的內容。`ownerType`／`ownerId` 仍表示技能分類。公開網址的主人與目前登入帳號分開；SESSION 不決定訪客看哪一份作品集。
 
-Runtime SSR is disabled, and `/`, `/en`, `/zh-Hans`, and `/zh-Hant` are pre-rendered. They include profile/journey content, the first experience/project pages and the complete category index, query snapshots and API-derived metadata. A failed category continuation retains its validated prefix for independent browser recovery. Browser loading applies the same locale validation. Dynamic route parameters need concrete build paths. Serve generated HTML, route data, and assets with the required routing fallback. Node.js is needed for development and builds, without a persistent frontend Node.js service.
+Only Site accepts the `user` query selector, with optional `site_id` as an alternative. Other content endpoints accept only `site_id`; resolve Site first and pin subsequent section reads to its returned ID. Omitting the selector resolves the published default. Skill `ownerType`/`ownerId` still identify categories. A signed-in account never overrides the public URL's owner.
 
-按需載入包含兩個不同責任：**Code Splitting** 將程式拆成可獨立下載的區塊；**Lazy Loading** 決定何時取得與呈現。框架自動按路由分割程式碼；同一頁中的地圖或對話框仍須設計動態 import 與觸發條件。立即渲染所有 lazy 元件仍會立即觸發載入，不能只靠資料夾分組達成延遲下載。API 資料載入與程式碼下載也分開管理。[官方程式碼分割說明](https://reactrouter.com/explanation/code-splitting)
+前端 `/en` 顯示 default；`/en?site_id=1` 直接選擇 ID 為 1 的作品集。SSR、瀏覽器導覽、重新整理與語言切換共用相同 selector；查找失敗不改讀 default。ID 必須是正整數，與 path 中的 `user` 互斥；無效或重複的 ID 參數回 404。Canonical／分享網址及各語言連結保留所選 ID。
 
-Code splitting creates separately downloadable modules; lazy loading controls when they are requested and rendered. Framework mode splits routes automatically. Deferred maps and dialogs within one page still need dynamic imports and meaningful triggers; immediately rendered lazy components load immediately. API requests have their own loading policy.
+The frontend `/en` displays the default; `/en?site_id=1` directly selects Site 1. SSR, browser navigation, reloads and language switches share that selector. Invalid, duplicate or conflicting ID selectors return 404 without a default fallback. Canonical, sharing and language links retain the selected ID.
 
-既有單頁區塊導覽可沿用錨點；語系與未來多份個人檔案的 URL 按公開路由需求設計。預先渲染的公開 HTML 與路由資料只包含可公開內容；瀏覽器專用的 `window`、storage、DOM 量測及地圖初始化放在可於建置時安全執行的生命週期邊界。舊版直接以 `file://` 開啟的離線能力另行設計與驗證。
+每次 SSR 建立獨立 QueryClient，解析 Site 後準備經歷、專案與技能分類的第 1 頁（各最多六筆），保留可讀正文與 metadata。Journey index、分類續頁、集合續頁、地圖、帳號表單、詳情與牛場景不全部一起載入。SSR snapshot 複製完成就清除 request cache；不轉交瀏覽器的 SESSION cookie，也不序列化 private auth query。HTML 與 route data 使用 `no-store`，每次請求重新確認公開狀態；hashed assets 可長期快取。未知地址回 404，無法解析公開 API 時回 503。
 
-Retain section anchors and design locale and future profile URLs deliberately. Pre-rendered output contains only public content. Keep browser-only APIs and imperative initialization behind lifecycle boundaries that are safe during build-time rendering. Direct `file://` delivery requires a separate design.
+Each SSR request owns a QueryClient and prepares Site plus the first experience, project and category pages, with at most six records per collection. Journey data, continuation pages and heavy interactions are deferred. The request cache is cleared after dehydration. Public SSR never forwards account cookies or serializes private auth queries. Documents and route data are `no-store`; hashed assets are immutable. Missing routes return 404 and unavailable public content returns 503.
+
+Code Splitting 分開可下載的程式；Lazy Loading 決定下載時機。`useSectionDemand` 在距 viewport 200px 或使用直接 hash 導覽時啟用區塊查詢；fragment 不送到 SSR，瀏覽器負責優先載入目標。JourneyMap 在接近時載入，在真正離開 viewport、背景頁籤、帳號畫面或停止動畫政策下暫停。未讀頁數不自動耗盡；技能分類以「顯示更多分類」逐頁讀取。穩定 section anchor 保留最小空間，避免空白載入區消失。
+
+Code splitting separates downloads; lazy loading selects when they happen. Sections activate within 200px of the viewport or through fragment navigation. Browsers prioritize fragments because hashes are absent from SSR requests. The map pauses offscreen, in hidden tabs and while the account surface owns the screen. Continuation pages require demand; category continuation has an explicit control. Stable anchors retain minimum space before data arrives.
+
+Query identity 包含 selector／已解析 Site、locale、resource、分類與頁尺寸。語言切換只準備目前 Site 已讀過的範圍，保留 `user`、query 與 hash；切換主人則重置個別區塊的選取／導覽狀態並取消舊請求。Browser cache 的 inactive GC 為 5 分鐘，另外限制保留的公開 identity 群組；private SESSION query 不受公開清理影響。
+
+Query identity includes the public selector or resolved Site, locale, resource, category and page size. Locale changes stage only the current Site's loaded ranges while preserving its handle, search and fragment. Owner changes reset selection/navigation state and cancel obsolete requests. Inactive browser queries expire after five minutes, with an additional public-identity retention cap; private session state is preserved.
 
 ## 目錄分層 / Directory Layout
 
@@ -97,7 +106,7 @@ frontend/
 ├── vite.config.ts / tsconfig.json
 ├── .env.example                   # Public configuration example
 ├── scripts/                       # Build acceptance, preview and public-output checks
-├── deploy/                        # Generic static/API hosting example
+├── deploy/                        # Generic Node SSR/static/API hosting example
 ├── public/                        # Stable public paths and asset license notices
 ├── src/
 │   ├── root.tsx                   # Root layout and providers
@@ -167,9 +176,9 @@ app / routes / pages / features → i18n → shared
 
 Keep shared code independent of features, routes, and application assembly. Pages coordinate features. The ESLint configuration enforces import direction, feature isolation, and public indexes; register new feature names in its `features` list.
 
-React Router Framework Mode 以 `:locale?` route 管理三語 URL、loader、client navigation 與錯誤邊界；帳號畫面使用 URL query state，頁內章節使用 hash，並非每個 section 都是一條 route。路由 chunk 分割與元件 lazy 分割各自負責不同層級：帳號表單於進入時載入、ProjectDetail 於選取專案時載入、JourneyMap 於接近 viewport 時載入、ContactBubble 於開啟時載入、牛場景於需要時載入。BackgroundSignals 有獨立 chunk 但首頁立即掛載；Bootstrap 以 Sass 只編譯網站使用的基礎、button、dropdown、modal、offcanvas、helpers 及 utilities；三語 UI 文案仍共同載入。建置的 Site 與獨立 section 資料平行準備，失敗仍遵守原本發布條件。
+React Router Framework Mode 以 `:locale?` 與 `:locale/:user` route 管理公開 URL、loader、client navigation 與錯誤邊界；帳號畫面使用 URL query state，頁內章節使用 hash，並非每個 section 都是一條 route。路由 chunk 分割與元件 lazy 分割各自負責不同層級：帳號表單於進入時載入、ProjectDetail 於選取專案時載入、JourneyMap 於接近 viewport 時載入、ContactBubble 於開啟時載入、牛場景於需要時載入。BackgroundSignals 有獨立 chunk 但首頁立即掛載；Bootstrap 以 Sass 只編譯網站使用的基礎、button、dropdown、modal、offcanvas、helpers 及 utilities；三語 UI 文案仍共同載入。SSR 先解析 Site，再平行準備有界首批正文；後續 section 依 viewport 或導覽需求載入。
 
-React Router Framework Mode manages locale URLs, loaders, client navigation and route error boundaries through `:locale?`; account access uses query state and in-page sections use hashes. Route splitting and component lazy loading cover different boundaries: account entry, selected project detail, near-viewport map, open contact bubble and the needed cow scene. BackgroundSignals is a separate chunk mounted immediately. Bootstrap Sass compiles only the used foundations, buttons, dropdowns, modals, offcanvas, helpers and utilities. All three UI dictionaries remain shared upfront. Build-time Site/section reads start concurrently while preserving publication requirements.
+React Router Framework Mode manages locale URLs, loaders, client navigation and route error boundaries through `:locale?` and `:locale/:user`; account access uses query state and in-page sections use hashes. Route splitting and component lazy loading cover different boundaries: account entry, selected project detail, near-viewport map, open contact bubble and the needed cow scene. BackgroundSignals is a separate chunk mounted immediately. Bootstrap Sass compiles only the used foundations, buttons, dropdowns, modals, offcanvas, helpers and utilities. All three UI dictionaries remain shared upfront. SSR resolves Site before parallel bounded page-one reads; later section requests follow viewport or navigation demand.
 
 帳號入口目前是 `?view=login`，由頁面管理 history 與切換效果，沒有獨立的登入 route。直接開啟這個 URL 仍載入個人檔案 route，底層導覽、各 section 與其 query 訂閱保持掛載；`inert`／`aria-hidden` 禁止互動及隱藏無障礙內容，並不卸載元件或停止資料訂閱。現有 lazy 主要延後帳號表單、詳情與大型場景，尚未完全隔離登入入口的個人檔案載入成本。
 
@@ -204,9 +213,9 @@ Name files by responsibility and split them as complexity grows, without introdu
 
 Frontend API modules call FastAPI. Features own endpoint semantics, while `shared/api` owns HTTP mechanics. Reuse a feature API through its public interface even when several pages need it.
 
-路由 loader 呼叫功能 API 或公開查詢設定，不在路由檔案另寫一套 endpoint 與解析規則。預先渲染負責取得首批公開資料；初始化時將這批資料銜接到 Query cache，明確設定刷新時機。後續分頁、重試與瀏覽器更新由功能 Hooks 使用 Query 管理，避免同一筆資料在掛載時無意重抓，或另存一份全域 store。[Query 初始資料與刷新規則](https://tanstack.com/query/latest/docs/framework/react/guides/initial-query-data)
+路由 loader 呼叫功能 API 或公開查詢設定，不在路由檔案另寫一套 endpoint 與解析規則。request SSR 負責取得有界首批公開資料；初始化時將這批資料銜接到 Query cache，明確設定刷新時機。後續分頁、重試與瀏覽器更新由功能 Hooks 使用 Query 管理，避免同一筆資料在掛載時無意重抓，或另存一份全域 store。[Query 初始資料與刷新規則](https://tanstack.com/query/latest/docs/framework/react/guides/initial-query-data)
 
-Route loaders reuse feature APIs or public query options. Pre-rendering supplies initial public data; initialize Query caching from that data with an explicit freshness policy. Feature hooks manage subsequent pagination, retries, and refreshes without accidental duplicate requests or a second global copy.
+Route loaders reuse feature APIs or public query options. Request SSR supplies bounded initial public data; initialize Query caching from that data with an explicit freshness policy. Feature hooks manage subsequent pagination, retries, and refreshes without accidental duplicate requests or a second global copy.
 
 典型請求與回應流程：
 
@@ -307,9 +316,9 @@ Original cow vectors load through a same-origin external SVG sprite while React 
 
 The shared tooltip mounts and adds `aria-describedby` only while open. A 150ms pointer-departure delay allows movement into it; visible keyboard focus retains it and touch skips hover dismissal. Blur outside both hovered surfaces, outside pointerdown, Escape, scroll, resize, window blur or document hiding closes it, with timer/listener cleanup on closing and unmount. Owners supply copy and button actions; the shared layer reads neither i18n nor login state.
 
-查詢只在瀏覽器執行，不加入靜態預先渲染資料；可見頁面每 45 秒更新，不啟用後端 30 秒回應快取，背景頁籤暫停，恢復可見時重新取得過期資料。沿用共用 HTTP 驗證、取消與短暫錯誤重試。後端依最近 60 秒的 IP 活動估算人數，並非登入帳號或分頁數；建置端仍不因這項可選查詢而失敗。
+查詢只在瀏覽器執行，不加入公開 SSR snapshot；可見頁面每 45 秒更新，不啟用後端 30 秒回應快取，背景頁籤暫停，恢復可見時重新取得過期資料。沿用共用 HTTP 驗證、取消與短暫錯誤重試。後端依最近 60 秒的 IP 活動估算人數，並非登入帳號或分頁數；建置端仍不因這項可選查詢而失敗。
 
-This browser-only query is excluded from static snapshots. It polls every 45 seconds without backend response caching, pauses in hidden documents and refreshes stale data on return. Shared HTTP validation, cancellation and transient retries apply. The backend estimates recent active IPs within 60 seconds, rather than accounts or tabs; this optional feature cannot block static publication.
+This browser-only query is excluded from public SSR snapshots. It polls every 45 seconds without backend response caching, pauses in hidden documents and refreshes stale data on return. Shared HTTP validation, cancellation and transient retries apply. The backend estimates recent active IPs within 60 seconds, rather than accounts or tabs; this optional feature cannot block public SSR.
 
 ## 元件、Hooks 與重用規範 / Components, Hooks, and Reuse
 
@@ -377,15 +386,17 @@ Backend models, query parsers, and OpenAPI define the API contract. Separate gen
 
 目前 Portfolio API 摘要如下；完整欄位與錯誤格式見[後端 README](../backend/README.md#目前的-get-api--available-get-apis)。
 
-| Endpoint                          | 回應 / Response                     | 分頁 / Pagination                                             |
-| --------------------------------- | ----------------------------------- | ------------------------------------------------------------- |
-| `GET /portfolio/site`             | `{brand, profile, social, chatme}`  | 無 / None                                                     |
-| `GET /portfolio/journey`          | `JourneyItem[]`                     | 無 / None                                                     |
-| `GET /portfolio/experiences`      | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page           |
-| `GET /portfolio/projects`         | `{total, pages, page, size, items}` | `page` 從 1 開始，`size=6` / Numbered, six per page           |
-| `GET /portfolio/skill-categories` | `{items, total, pages, page, size}` | 頁碼；每類 skills 也是分頁 / Numbered with nested skill pages |
-| `GET /portfolio/skills`           | `{items, total, pages, page, size}` | 分類內的技能頁碼分頁 / Skills within a category               |
+| Endpoint                          | 回應 / Response                                   | 分頁 / Pagination                                             |
+| --------------------------------- | ------------------------------------------------- | ------------------------------------------------------------- |
+| `GET /portfolio/site`             | `{site_id, user, brand, profile, social, chatme}` | 無 / None                                                     |
+| `GET /portfolio/journey`          | `JourneyItem[]`                                   | 無 / None                                                     |
+| `GET /portfolio/experiences`      | `{total, pages, page, size, items}`               | `page` 從 1 開始，`size=6` / Numbered, six per page           |
+| `GET /portfolio/projects`         | `{total, pages, page, size, items}`               | `page` 從 1 開始，`size=6` / Numbered, six per page           |
+| `GET /portfolio/skill-categories` | `{items, total, pages, page, size}`               | 頁碼；每類 skills 也是分頁 / Numbered with nested skill pages |
+| `GET /portfolio/skills`           | `{items, total, pages, page, size}`               | 分類內的技能頁碼分頁 / Skills within a category               |
 
+- `/portfolio/site` 接受可選 `user` 或 `site_id`（兩者互斥）；其他五支內容 API 只接受 `site_id`，帶入 `user` 回 400。省略選擇參數時只解析已發布的 default，登入帳號不改變公開選擇。
+- 個人網址 `/en/sam` 先呼叫 `/portfolio/site?user=sam&locale=en`，取得 `site_id=2` 後，專案請求使用 `/portfolio/projects?site_id=2&locale=en&page=1&size=6`。同一 ID 也用於語言切換、集合續頁與分類技能續頁。
 - 六支 API 接受 `locale=en|zh-Hans|zh-Hant`，預設 `en`；所有業務文字直接使用指定語系。
 - 回應沒有共通的 `data/meta/revision` envelope，也不使用資料集 revision 比對；保留資源自己的回應形狀。
 - 四種集合共用 `{items,total,pages,page,size}`，page 從 1 開始，size 固定 6；空集合 pages=0，超頁 items=[]。
@@ -408,13 +419,13 @@ Query cache 保留回應作為來源，避免把同一批 API 資料再複製到
 
 Keep one authoritative server-data cache. Query caching is not a globally normalized entity store; derive lookup tables and deduplicate references where the feature needs them.
 
-快取鍵包含資源、語系、size、owner 分類及實際篩選條件；InfiniteQuery 的頁碼保存在 pageParams，不為每頁建立另一份集合快取。四種集合使用相同五欄位頁碼回應；分類 skills 預覽已是第 1 頁，後續從第 2 頁接續。切換語系或分類時重新使用相應範圍的資料與頁碼，失敗不得前進頁碼。重試依錯誤類型與次數設定，取消請求傳遞 `AbortSignal`；舊請求完成後不得覆蓋新選擇的畫面。
+快取鍵包含已解析 Site／公開 selector、資源、語系、size、owner 分類及實際篩選條件；InfiniteQuery 的頁碼保存在 pageParams，不為每頁建立另一份集合快取。四種集合使用相同五欄位頁碼回應；分類 skills 預覽已是第 1 頁，後續從第 2 頁接續。切換語系或分類時重新使用相應範圍的資料與頁碼，失敗不得前進頁碼。重試依錯誤類型與次數設定，取消請求傳遞 `AbortSignal`；舊請求完成後不得覆蓋新選擇的畫面。
 
 Cache keys identify the resource and all relevant selection parameters. Manage numbered pages according to the Query API, keep pages scoped, and ensure failed or outdated requests do not advance or overwrite visible state.
 
-目前後端服務單份 Portfolio。未來加入多人作品集時，公開識別、後端資料隔離與快取範圍需一起完成；前端在路由、API 參數與快取鍵納入真正的作品集識別後才能支援。現階段不預設尚未實作的 slug endpoint。
+目前已支援多人的公開作品集：每個帳號最多一個 Site；公開 handle、Site ownership、技能複合 identity、公開狀態、路由與 cache scope 一起隔離。此階段建立公開瀏覽架構，不包含 Dashboard、內容 CRUD、編輯表單或發布操作 UI。
 
-Multi-author support requires coordinated backend ownership, public identifiers, routes, and cache scopes. Current endpoints serve one Portfolio.
+Multi-author public browsing coordinates handles, Site ownership, skill identities, visibility, routes and cache scopes. This phase provides the public foundation without dashboard, content CRUD, editing forms or publication controls.
 
 ## 程式與視覺標準 / Code and Visual Standards
 
@@ -458,18 +469,18 @@ Copy the example only on first setup and preserve existing local settings. Start
 | `npm run lint`                            | 程式、Hooks 與依賴邊界檢查 / Code, Hooks, and import rules                                       |
 | `npm run format` / `npm run format:check` | 排版／排版檢查 / Format or check formatting                                                      |
 | `npm run test` / `npm run test:watch`     | 單元與元件測試／持續監看 / Unit and component tests or watch mode                                |
-| `npm run test:e2e`                        | 自動建置、啟動靜態預覽與執行 Chromium 測試 / Build, preview, and run Chromium scenarios          |
+| `npm run test:e2e`                        | 自動建置、啟動 Node SSR 與執行 Chromium 測試 / Build, preview, and run Chromium scenarios        |
 | `npm run test:dev`                        | 重新轉換相依並驗證實際 dev server / Check the real dev server with fresh dependency optimization |
-| `npm run build`                           | 正式建置與三語預先渲染 / Production build and locale pre-rendering                               |
+| `npm run build`                           | client／server 正式建置 / Production client and server build                                     |
 | `npm run verify:public`                   | 公開檔案與資產預算檢查 / Check deliverable files and asset budgets                               |
-| `npm run preview`                         | 預覽既有 `build/client`，通常使用 port 4173 / Preview an existing build, normally on port 4173   |
+| `npm run preview`                         | 啟動既有 Node SSR，預設 port 5173 / Start the existing Node build on port 5173                   |
 | `npm run check`                           | 型別、lint、格式、單元測試及建置 / Types, lint, formatting, unit tests, and build                |
 
 ### 開發相依載入 / Development Dependency Loading
 
-即使正式配置為 `ssr:false`，React Router 開發模式仍會在 Node 中渲染頁面；dev module runner 與正式建置的相依處理方式不同。React-Bootstrap 的間接相依 `@restart/ui` 在 Node 條件下提供 CommonJS，因此 `ssr.noExternal` 必須搭配 `ssr.optimizeDeps.include` 將元件相依樹預先轉成 ESM。SSR optimizer 排除 `react`／`react-dom`，讓元件與外部渲染器共用同一份 React，避免 Hook dispatcher 不一致。
+React Router 的開發與正式模式都在 Node 中渲染頁面；dev module runner 與正式建置的相依處理方式不同。React-Bootstrap 的間接相依 `@restart/ui` 在 Node 條件下提供 CommonJS，因此 `ssr.noExternal` 必須搭配 `ssr.optimizeDeps.include` 將元件相依樹預先轉成 ESM。SSR optimizer 排除 `react`／`react-dom`，讓元件與外部渲染器共用同一份 React，避免 Hook dispatcher 不一致。
 
-React Router renders development pages in Node even with production `ssr:false`. Its development module runner differs from the production bundler. Keep `ssr.noExternal` for component transformation and pre-bundle the component dependency trees through `ssr.optimizeDeps.include` to convert the Node-selected CommonJS dependencies. Excluding React and React DOM from SSR optimization preserves the renderer's shared React instance.
+React Router renders both development and production pages in Node. Its development module runner differs from the production bundler. Keep `ssr.noExternal` for component transformation and pre-bundle the component dependency trees through `ssr.optimizeDeps.include` to convert the Node-selected CommonJS dependencies. Excluding React and React DOM from SSR optimization preserves the renderer's shared React instance.
 
 瀏覽器 optimizer 在啟動時掃描 root／route entries，包含懶載入元件；已使用的 Dropdown／Offcanvas／Modal 集中於 `vite.config.ts` 的 `bootstrapComponents`，兩個 optimizer 重用同一清單。新增 React-Bootstrap 互動元件時同步更新此清單，避免操作後才重新轉換相依。`npm run test:dev` 使用獨立 port 5174 與合成 API，強制重新轉換快取，驗證四 URL、hydration、下拉選單、手機導覽、Modal 及分頁，並檢查 runtime／console errors；建置後的 preview 另由 `test:e2e` 驗證。
 
@@ -487,18 +498,18 @@ To customize the local API target, copy the public example and edit the ignored 
 cp .env.example .env.local
 ```
 
-預設 `API_PROXY_TARGET` 與 `API_BUILD_TARGET` 都是 `http://127.0.0.1:8080`，與公開後端開發配置一致；更換服務位址時一起調整兩者，修改環境檔後重啟 dev server。`npm ci` 安裝依賴，不會自動建立環境檔或啟動後端。
+預設 `API_PROXY_TARGET` 與 `API_SERVER_TARGET` 都是 `http://127.0.0.1:8080`，與公開後端開發配置一致；更換服務位址時一起調整兩者，修改環境檔後重啟 dev server。`npm ci` 安裝依賴，不會自動建立環境檔或啟動後端。
 
 Both API targets default to `http://127.0.0.1:8080`, matching the published backend configuration. Update both when changing origins and restart the development server after environment edits. Dependency installation does not create an environment file or start the backend.
 
 - `VITE_API_BASE_URL=/api`：瀏覽器 HTTP transport 的公開前綴；所有 `VITE_` 變數都可能進入公開 bundle，只能填公開值。
 - `API_PROXY_TARGET`：僅供本機 dev／preview 的公開 API 轉交；移除 `/api` 並保留 query 與錯誤 status。
-- `API_BUILD_TARGET`：僅供 server loader 在建置時讀取公開 API，不進入瀏覽器 bundle；建置不經 dev proxy。
+- `API_SERVER_TARGET`：server loader 每次 SSR 讀取公開 API 的私有 origin，不進入 browser bundle；建置不需要在線 API。
 - `VITE_PUBLIC_SITE_URL`：可選的公開網站 origin；設定後產生 canonical、四組 hreflang 與 Open Graph URL。未設定時省略絕對 URL，不猜測正式網域；不支援 origin 以外的子目錄部署。
 - 正式 hosting 需獨立把 `/api` 轉給 FastAPI。範例使用同源 proxy；若改成跨來源 API，另外驗證後端 CORS。
 - `.env.example` 只有通用示例；實際本機環境檔不提交，憑證與資料庫設定不放前端。
 
-The browser uses a public API prefix. Dev/preview proxy and build-time origins are separate server-only settings. Static builds read the public backend directly. An optional public website origin enables canonical/hreflang/Open Graph URLs; absent or invalid origins are omitted, and subdirectory hosting is not supported. Production requires explicit API routing; cross-origin delivery additionally needs verified CORS. Local settings and credentials stay outside published files.
+The browser uses a public API prefix. Browser proxy and request SSR origins are separate server-only settings. Builds require no live content API. An optional public website origin enables canonical/hreflang/Open Graph URLs; absent or invalid origins are omitted, and subdirectory hosting is not supported. Production requires explicit API routing; cross-origin delivery additionally needs verified CORS. Local settings and credentials stay outside published files.
 
 ### 樣式與圖示 / Styles and Icons
 
@@ -508,29 +519,29 @@ Compile the selected official Bootstrap Sass modules before tokens and global ov
 
 ### 建置與檢查範圍 / Build and Verification Scope
 
-`npm run build` 在隔離產物目錄執行 React Router，再檢查四語系路徑的有效 Site 標記、公開檔案與資產預算，全部通過才替換 `build`。CLI exit=0 不足以代表 loader 成功，錯誤 HTML 不能通過。Site 缺少／契約錯誤使建置失敗並保留上一份產物；其餘區的建置請求可獨立失敗，瀏覽器提供重試。
+`npm run build` 在隔離產物目錄執行 React Router，再確認 Node server entry、公開檔案政策與資產預算，全部通過才替換 `build`；失敗保留上一份產物。建置不呼叫 Site API，也不保存各用戶的 HTML；請求時由 SSR loader 檢查 Site，缺少公開作品集回傳 404，服務故障回傳 503，其餘內容區可在瀏覽器獨立重試。
 
-Builds use an isolated directory and accept output only after verifying all four locale profiles, public-file policy and asset budgets. Router CLI success alone is insufficient: rendered loader errors cannot pass. A missing/invalid required Site preserves the previous artifact; independent domains can recover in the browser.
+Builds use an isolated directory and accept output only after verifying the Node server entry, public-file policy and asset budgets. Failure preserves the previous artifact. Builds neither call the Site API nor store per-user HTML. The request-time SSR loader validates the public Site, returning 404 for missing portfolios and 503 for unavailable services; other domains can recover independently in the browser.
 
-僅發布 `build/client`。`npm run preview` 以 sirv 靜態檔優先，並獨立代理公開 API；未知 API／asset 不回傳成功的 SPA HTML。[Nginx 範例](deploy/nginx.conf.example)提供相同分工，實際 upstream／root 在私有部署配置調整。HTML／route data 重新驗證，hashed assets 可長期快取；fallback 的未知前端路由先回 HTML，hydration 後顯示安全錯誤頁，不能當作伺服器已回 HTTP 404。
+部署需要 `build/client` 的公開資產及 Node 私有的 `build/server`。`npm start` 預設使用 5173；Nginx 直接服務 immutable／gzip assets、把 HTML／route data 交給 Node，並把 `/api` 交給 FastAPI。環境檔與 server build 不放入公開目錄；未知 URL／asset 保留 HTTP 404。
 
-Publish only `build/client`. Local preview prioritizes static files and separately proxies public reads. Unknown APIs/assets retain failures. The generic Nginx example keeps routing responsibilities separate and revalidates HTML/data while caching hashed assets. Unknown frontend paths initially receive fallback HTML and show a route error after hydration; this does not imply an HTTP 404 response.
+Deploy public client assets and the private Node server build. The Node runtime defaults to port 5173. Nginx serves immutable compressed assets, forwards documents/data to Node and routes `/api` to FastAPI. Environment files and server code stay outside the public directory; missing resources retain HTTP 404.
 
-SSG 是建置時的公開快照；後端內容變更後需重建／重新發布 HTML。Query staleTime=60 秒、gcTime=30 分鐘；有效資料在 fresh 期間不立即重複讀取。語言導覽會檢查相應 cache；正常內容沒有常駐區塊重新整理按鈕，載入失敗才呈現重試入口並保留已驗證資料。owner 技能第 1 頁來自分類 preview，後續頁由 75% 預覽量測或展開操作按需取得。沒有後端 revision 的情況下，前端以 ID、總數與頁碼驗證常見異常，不能保證多次讀取為同一資料庫快照。
+公開 SSR 每次重新解析作品集，內容修改不需要重建前端。Query staleTime=60 秒，inactive browser gcTime=5 分鐘；公開 selector／Site identity 額外限制六組。分類 preview 是技能第 1 頁的來源；新 preview 內容改變時重設舊 owner continuation，避免拼接不同發布內容。沒有後端 revision 時，ID／總數／頁碼驗證可以偵測常見變更，不能代表跨 API 的同一資料庫 transaction snapshot。
 
-SSG changes require rebuilding and publishing. Browser queries are fresh for one minute and retained for thirty minutes, avoiding immediate duplicate reads. Locale navigation consults cache. Normal sections have no persistent refresh control; failed reads expose retry while retaining validated content. Owner previews seed skill page one; measured capacity or disclosure requests continuation as needed. Identity/count/page checks detect common changes without claiming transaction-level snapshot consistency.
+Public SSR resolves content on each request without rebuilding frontend code. Queries remain fresh for one minute; inactive browser data expires after five minutes with a six-identity public-cache cap. Category previews seed skill page one, and changed previews reset obsolete owner continuations. Identity/count/page checks detect common changes without claiming a shared database transaction across APIs.
 
-Vitest 涵蓋六契約、日期、HTTP timeout／取消、頁碼與 label 一致性、locale staging、地圖、播放及偏好，並驗證登入導覽／轉場、表單、驗證碼占位、牛控制與 tooltip 生命週期；Playwright 使用合成公開 fixtures 驗證四 URL、分頁、對話框、切語言／取消、fault、RWD／四色、鍵盤、無 JavaScript 和建置故障保留。 `*-parity.spec.ts` 對照實際版型、paint 與互動：四邊／導覽進場時序、光暈與慢 chunk、短 viewport、三語／四色、手機／平板／桌面至 4K、選單內距／焦點、對話框技能與流程、聯絡漸層及 Journey 鍵盤／overflow。開發 runtime 與正式 preview 分開執行；宣告的測試範圍不等同當次執行結果。目前儲存庫未配置 CI workflow，使用下列本機指令執行檢查；瀏覽器測試建置的合成快照不能發布為正式網站。
+Vitest 涵蓋六契約、日期、HTTP timeout／取消、頁碼與 label 一致性、locale staging、地圖、播放及偏好，並驗證登入導覽／轉場、表單、驗證碼占位、牛控制與 tooltip 生命週期；Playwright 使用合成公開 fixtures 驗證default／個人 URL、分頁、對話框、切語言／取消、fault、RWD／四色、鍵盤、無 JavaScript 和建置故障保留。 `*-parity.spec.ts` 對照實際版型、paint 與互動：四邊／導覽進場時序、光暈與慢 chunk、短 viewport、三語／四色、手機／平板／桌面至 4K、選單內距／焦點、對話框技能與流程、聯絡漸層及 Journey 鍵盤／overflow。開發 runtime 與正式 preview 分開執行；宣告的測試範圍不等同當次執行結果。目前儲存庫未配置 CI workflow，使用下列本機指令執行檢查；瀏覽器測試的合成 API 僅用於驗證，正式 runtime 需連接真實後端。
 
-Vitest covers contracts, dates, bounded HTTP failures/cancellation, pagination consistency, locale staging, map/playback and preferences, plus auth navigation/transitions, forms, verification-code placeholders, cow controls and tooltip lifecycles. Chromium verifies static delivery, interactions, faults, responsive layouts, keyboard behavior, JavaScript-disabled content and artifact preservation. Parity tests inspect visible geometry, paint and behavior: entrance timing, halo/slow chunks, short viewports, three languages/four themes, mobile/tablet/desktop through 4K, menu padding/focus, detail skills/flow, contact surfaces and Journey keyboard/overflow boundaries. Development runtime and production preview are exercised separately; declared coverage does not claim that a particular run passed. The repository currently has no CI workflow; run the local checks below. Browser-test synthetic snapshots are not production websites.
+Vitest covers contracts, dates, bounded HTTP failures/cancellation, pagination consistency, locale staging, map/playback and preferences, plus auth navigation/transitions, forms, verification-code placeholders, cow controls and tooltip lifecycles. Chromium verifies dynamic SSR delivery, interactions, faults, responsive layouts, keyboard behavior, JavaScript-disabled content and artifact preservation. Parity tests inspect visible geometry, paint and behavior: entrance timing, halo/slow chunks, short viewports, three languages/four themes, mobile/tablet/desktop through 4K, menu padding/focus, detail skills/flow, contact surfaces and Journey keyboard/overflow boundaries. Development runtime and production preview are exercised separately; declared coverage does not claim that a particular run passed. The repository currently has no CI workflow; run the local checks below. Synthetic test APIs are verification fixtures; production resolves its real configured backend.
 
-真 API 驗證是額外的只讀模式：在 shell 設定 `PORTFOLIO_API_SMOKE_TARGET` 為你的公開 API origin 後，執行 `npm run test`（六 endpoint／所有續頁）及 `npm run test:e2e -- live.spec.ts`（三語靜態交付及實際分頁）。未設定時跳過 live checks；一般測試不需要你的後端，也不停止服務。`npm run verify:public` 可重跑公開產物檢查。
+真 API 驗證是額外的只讀模式：在 shell 設定 `PORTFOLIO_API_SMOKE_TARGET` 為你的公開 API origin 後，執行 `npm run test`（六 endpoint／所有續頁）及 `npm run test:e2e -- live.spec.ts`（三語 SSR 交付及實際分頁）。未設定時跳過 live checks；一般測試不需要你的後端，也不停止服務。`npm run verify:public` 可重跑公開產物檢查。
 
 For optional read-only live verification, set `PORTFOLIO_API_SMOKE_TARGET` in the shell, then run the unit suite for all endpoint/pages and `npm run test:e2e -- live.spec.ts` for three-language browser integration. Live checks are skipped when unset; normal tests do not depend on or stop a personal backend. `npm run verify:public` reruns public-output inspection.
 
-從乾淨 checkout 驗證時，先執行 `npm run typecheck`（重新產生 `.react-router` 型別）、`npm run lint`、`npm run format:check`、`npm run test`；再**依序**執行 `npm run test:dev` 與 `npm run test:e2e`。兩者共用自動管理的 fixture API 4181，開發驗證使用 5174，正式 preview 使用 4173，不能同時啟動。瀏覽器測試會以合成資料重建 `build/`；要交付正式網站，測試結束後以有效公開 API 執行 `npm run build`，再 `npm run verify:public` 與 `npm run preview`。
+從乾淨 checkout 執行 typecheck、lint、format:check、unit checks，再依序執行 test:dev 與 test:e2e。兩套瀏覽器測試共用管理的 fixture API 4181，暫用開發 5174／SSR preview 4173，結束後自動關閉；日常服務維持 5173。build 不含固定 fixture 內容，正式部署用私有 API_SERVER_TARGET 連接真實後端。
 
-For a fresh checkout, generate route types, then run lint, formatting and unit checks. Run development and production browser suites sequentially: both own fixture port 4181, with frontend ports 5174 and 4173 respectively. Browser verification replaces `build/` with a synthetic snapshot. Rebuild against valid public API content before delivering a site, verify the output, then preview it.
+Generate route types and run lint, formatting and unit checks, then run development and production browser suites sequentially. Tests temporarily own fixture API 4181, development 5174 and SSR preview 4173 and close them afterward. Normal operation remains on port 5173. Builds contain no frozen fixture content; production resolves the configured private API origin.
 
 開發瀏覽器測試固定使用兩個 worker，每項測試上限 60 秒，為冷載入模組與多尺寸畫面矩陣保留時間。操作伺服器先渲染的按鈕前，測試以預設 fixture 的 client-only 在線數更新確認 hydration，避免把尚未掛上事件的靜態畫面當成可互動頁面；覆寫 heartbeat 的測試使用自己的就緒條件。
 
@@ -538,7 +549,7 @@ Development browser checks use two workers and a 60-second per-test budget for c
 
 原始碼、CSS、字典、字型／地圖／圖片及授權、測試 fixtures、scripts、deploy 範例與工具設定必須隨功能提交。`.gitignore` 僅排除依賴、本機環境及可重建產物；`.react-router` 由 typecheck／dev／build 產生，`build/client` 由正式 build 產生，測試瀏覽器由 Playwright 安裝。使用者不需要取得其他開發者的 `node_modules` 或環境檔；重建所需輸入與安裝指令在本儲存庫中。
 
-Commit every source, style, locale, asset/license, fixture, script, deployment example and tool configuration with its feature. Ignore dependencies, local settings and reproducible output. Route types regenerate through framework commands, static delivery comes from the production build, and Playwright installs its browser separately.
+Commit every source, style, locale, asset/license, fixture, script, deployment example and tool configuration with its feature. Ignore dependencies, local settings and reproducible output. Route types regenerate through framework commands, dynamic delivery uses the client and server builds, and Playwright installs its browser separately.
 
 ### 載入與資產預算 / Loading and Asset Budgets
 
@@ -549,6 +560,14 @@ Route splitting is automatic. AuthPanel loads when entering the account view, wh
 每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.05 MB raw／350 KB gzip、CSS 330 KB raw／60 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。超限會停止接受新產物。
 
 Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.05 MB raw/350 KB gzip for JavaScript, 330 KB raw/60 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. Output exceeding a ceiling is rejected.
+
+低端手機的可重現情境由 `tests/e2e/mobile-performance.spec.ts` 驗證：Chromium 360×800、冷快取、6 倍 CPU 降速、下載 1.6Mbps／上傳 0.75Mbps／延遲 150ms，合成作品集各集合 100 筆並有完整介紹。預算是 raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1；初始離屏 Map／Auth／Cow／detail 不下載，API 不自動讀第 2 頁。短介紹使地圖已進入 viewport 時，需求觸發的 lazy chunk 另計。
+
+The mobile performance test uses a cold Chromium 360×800 viewport with 6× CPU throttling, 1.6Mbps download, 0.75Mbps upload and 150ms latency. Its synthetic portfolio contains 100 records per collection and a full introduction. Budgets are ≤200KiB raw HTML, ≤250KiB initial base JavaScript gzip, LCP ≤2.5s and CLS ≤0.1, with no offscreen heavy chunks or automatic page-two reads. A map already near the viewport on a short profile is a demand-triggered lazy resource.
+
+2026-10-11 本機模擬量測：HTML 90.2KiB、初始 JS gzip 219.0KiB、首屏總傳輸 469.4KiB、LCP 1.336 秒、CLS 0.00082、初始 JS heap 16.6MiB，並通過按需續頁檢查。操作事件最大觀測 duration 是 128ms，這不是正式 INP 指標；量測附在測試結果。這些是實驗室樣本，不表示已在實體低端手機測得同樣結果。Nginx 正式配置壓縮 HTML，Node preview 的 raw HTML 量測保留較大的傳輸條件。
+
+The local 2026-10-11 laboratory sample measured 90.2KiB HTML, 219.0KiB initial JavaScript gzip, 469.4KiB total initial transfer, 1.336s LCP, 0.00082 CLS and 16.6MiB initial JavaScript heap, with demand continuation passing. The maximum observed interaction event duration was 128ms, which is not a formal INP measurement; test attachments retain the measurements. These measurements do not claim physical-device results. Production Nginx compresses documents; Node preview retains the larger raw-document transfer.
 
 帳號牛場景使用獨立的大型 `scene-sprite.svg`，只在帳號畫面載入；目前不列入聯絡吉祥物的檔名預算。延後下載已降低首頁資源需求，SVG 素材大小仍有後續精簡空間。三語 UI 字典也仍共同載入，並未按語言分 chunk。
 
@@ -567,14 +586,14 @@ The account cow uses a separate large `scene-sprite.svg`, requested only by the 
 
 ## 頁面規格 / Page Specification
 
-`PortfolioPage(locale, nowMonth)` 是跨 feature 的組合層：依 URL 語言訂閱資料、建立各區獨立的 render boundary，並協調導覽、進場與共用摘要。`careerYearRange` 從完整 Journey 推導職涯年分範圍（包含教育，ongoing 使用 nowMonth），再以 yearRange 注入 ExperiencesSection；不能從經歷第一頁計算完整範圍。工作年資另用排除教育與重疊月份的 `workDuration`。route loader 使用獨立 QueryClient 產生 SSG snapshot，HydrationBoundary 交接成功資料，避免首屏重複請求。頁面不保存另一份 API 資料副本。
+`PortfolioPage(locale, nowMonth, selector, site?)` 是跨 feature 的組合層：依 URL 語言訂閱資料、建立各區獨立的 render boundary，並協調導覽、進場與共用摘要。`careerYearRange` 從完整 Journey 推導職涯年分範圍（包含教育，ongoing 使用 nowMonth），再以 yearRange 注入 ExperiencesSection；不能從經歷第一頁計算完整範圍。工作年資另用排除教育與重疊月份的 `workDuration`。route loader 使用獨立 QueryClient 產生 request SSR snapshot，HydrationBoundary 交接成功資料，避免首屏重複請求。頁面透過共用 PortfolioProvider 傳遞已解析的公開 identity，不保存另一份 API 資料副本。
 
-`PortfolioPage(locale, nowMonth)` composes feature boundaries and coordinates navigation, entrance and shared summaries. `careerYearRange` derives the year span from the complete Journey, including education and the explicit month for ongoing periods, then injects it into ExperiencesSection. A first experience page cannot define the complete span. Work tenure separately uses `workDuration`, excluding education and overlapping months. The route loader builds an isolated locale snapshot and HydrationBoundary restores validated queries without immediate duplicate reads. Domain DTOs remain in the query cache.
+`PortfolioPage(locale, nowMonth, selector, site?)` composes feature boundaries and coordinates navigation, entrance and shared summaries. `careerYearRange` derives the year span from the complete Journey, including education and the explicit month for ongoing periods, then injects it into ExperiencesSection. A first experience page cannot define the complete span. Work tenure separately uses `workDuration`, excluding education and overlapping months. The route loader builds an isolated locale snapshot and HydrationBoundary restores validated queries without immediate duplicate reads. Domain DTOs remain in the query cache.
 
 | 框架元件 / Framework component   | 規格 / Specification                                                                                                                                                                                                                                                                                                             |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AppProviders(locale, children)` | 組裝 Query、每個 locale 的 i18n instance、全站 NotificationProvider／NotificationEvents 與 AppearanceProvider；SSR client 隔離，瀏覽器 cache 跨語言持續使用。Composes isolated translations, Query service, global notification delivery/events and appearance, retaining the browser cache across locale navigation.            |
-| `PortfolioRoute`                 | 驗證 URL locale，將 loader 的 dehydratedState 放入 HydrationBoundary，再傳 locale／UTC nowMonth 給頁面；SPA fallback 缺少快照時走 clientLoader。Validates route language, hydrates loader queries and supplies explicit UTC month, with browser loading for empty SPA fallback.                                                  |
+| `PortfolioRoute`                 | 驗證 URL locale，將 request loader 的 dehydratedState 放入 HydrationBoundary，再傳 locale／user／Site／UTC nowMonth 給頁面；browser navigation 同樣先驗證公開 Site。Validates route language/handle, hydrates request-scoped queries and supplies public ownership plus the explicit UTC month.                                  |
 | `Layout` / `App`                 | document lang 與驗證後的 locale 一致；可信外觀 bootstrap 在 CSS 前恢復偏好，本地 `favicon.svg` 沿用固定 dark／mint 品牌，不發外部請求。App 把 Outlet 放入 Providers。Own document language, trusted first-paint preferences and the local fixed-brand favicon; App provides the route outlet without external branding requests. |
 | `ErrorBoundary`                  | root 僅呈現安全的路由錯誤（未知語言／地址等），不揭露 exception／stack；業務請求錯誤由 feature 區段處理。Presents safe routing errors without exception detail; domain request failures stay in their own sections.                                                                                                              |
 
@@ -609,9 +628,9 @@ Each feature owns one selection scope spanning its preview and expanded history.
 
 ## Skills 元件規格 / Skills Component Specifications
 
-`SkillsSection` 把所有分類直接呈現在同一個 toolkit，不套用首六筆收合。`prefetchCategoryIndex` 在建置時透過共用 `fillNumberedPages` 續讀完整分類；瀏覽器自動補完缺頁，失敗停止且保留已驗證分類，提供同頁重試或契約重載。每列上下內距 23px、桌面標題欄 190px／欄距 30px，2200px 以上標題欄 220px；760px 以下單欄、欄距 12px。標題 15px、行高 1.65，標籤 gap 7px。
+`SkillsSection` 在同一個 toolkit 呈現目前已讀分類；SSR 直接透過 `categoriesQuery` 準備最多六筆的第 1 頁，其他分類由「顯示更多分類」逐頁取得。失敗保留已驗證分類，提供同頁重試或契約重載。每列上下內距 23px、桌面標題欄 190px／欄距 30px，2200px 以上標題欄 220px；760px 以下單欄、欄距 12px。標題 15px、行高 1.65，標籤 gap 7px。
 
-`SkillsSection` renders every category in one toolkit without a six-row disclosure. `prefetchCategoryIndex` uses shared `fillNumberedPages` to prepare the complete index; browser continuation fills missing pages, stops on failure and retains valid rows with local recovery. Rows preserve 23px vertical padding, a 190px desktop label column with a 30px gap, a 220px label column at widths of 2200px and above, and a single column with a 12px gap up to 760px. Labels use 15px text at line-height 1.65; tags retain a 7px gap.
+`SkillsSection` renders loaded categories in one toolkit. SSR directly prefetches `categoriesQuery` page one, with at most six records; the explicit Show more categories control reads each continuation. Failed reads retain validated rows with local recovery. Rows preserve 23px vertical padding, a 190px desktop label column with a 30px gap, a 220px label column at widths of 2200px and above, and a single column with a 12px gap up to 760px. Labels use 15px text at line-height 1.65; tags retain a 7px gap.
 
 `SkillCategoryRow` 以分類內 `skills` 第 1 頁初始化獨立 owner Query，不重抓已內嵌的頁面。內部收合預覽的「標籤＋More」最多佔標籤容器 75%；已載入標籤全部放得下且還有後頁時，才續讀下一頁填補可用寬度。填滿即停止；完整技能全部放得下就不顯示 More。展開與剩餘續頁保留明確操作，縮放重用 cache。Query key 包含 locale／ownerId／ownerType／size，頁碼由 pageParam 管理；label 不一致或 owner 失效提供局部重載，共用 UI 不讀 API。
 
@@ -685,9 +704,9 @@ A single `useContactDisclosure` owns responsive open, presented, appearance, idl
 
 The bottom-right north indicator presents N above the shared Bootstrap `arrowUp` SVG, preserving its 1em size and decorative semantics.
 
-`JourneySummary(entry, locale, index, count, nextCity)` 共用組織／職稱／城市與期間呈現；SSG 或 map chunk 故障時，站點選取仍會更新可讀的職涯資訊，完整 map 重用同一元件。`JourneySummary` shares readable chapter information between static/failure fallback and the enhanced map, keeping destination detail usable without its optional atlas.
+`JourneySummary(entry, locale, index, count, nextCity)` 共用組織／職稱／城市與期間呈現；SSR 的 map 尚未載入或 chunk 故障時，站點選取仍會更新可讀的職涯資訊，完整 map 重用同一元件。`JourneySummary` shares readable chapter information between demand/failure fallback and the enhanced map, keeping destination detail usable without its optional atlas.
 
-旅程播放 / Playback：`useJourneyPlayback` 使用單一可取消 rAF 與 ref clock；每幀只更新 SVG，章節／phase 才更新 React。沿用 hold 1500、flight 5200、arrival 500、finalHold 3000ms；最後 500ms 先畫亮目的地，summary／strip／ARIA selection 在完整 7200ms 後才切換章節。最後一站停留後回第一站，不畫不存在的返程。手動選站暫停，Restart 回第一站；hidden 停止排程並保留 elapsed，reduced-motion 停用自動動畫，unmount 清理。`atlasViewport` 延展 viewBox 以涵蓋所有 API 座標和超寬畫面。
+旅程播放 / Playback：`useJourneyPlayback` 使用單一可取消 rAF 與 ref clock；每幀只更新 SVG，章節／phase 才更新 React。沿用 hold 1500、flight 5200、arrival 500、finalHold 3000ms；最後 500ms 先畫亮目的地，summary／strip／ARIA selection 在完整 7200ms 後才切換章節。最後一站停留後回第一站，不畫不存在的返程。手動選站暫停，Restart 回第一站；offscreen／hidden 停止排程並保留 elapsed，reduced-motion 停用自動動畫，unmount 清理。`atlasViewport` 延展 viewBox 以涵蓋所有 API 座標和超寬畫面。
 
 `useJourneyPlayback` owns one cancellable animation frame loop and a ref clock. Frames update SVG directly; React updates only chapters and phases. Original hold/flight/arrival/final durations are preserved. The arrival destination highlights during the last 500ms while chapter summary/strip/ARIA selection remain on the source until the complete 7200ms interval ends. The final stop rests before restarting without a fabricated return arc. Manual selection pauses, restart selects the first stop, hidden documents stop scheduling and reduced motion disables automatic flight. The atlas viewport expands for all supplied coordinates and wide displays.
 
@@ -705,7 +724,7 @@ The bottom-right north indicator presents N above the shared Bootstrap `arrowUp`
 
 Each feature validates its six-endpoint DTOs with Zod. All pagination uses the same five-field contract and size six. Null items, duplicate identities, invalid calendar periods and inconsistent page arithmetic cannot enter the query cache. Nullable DTO semantics are preserved. Reads time out after ten seconds and transient failures retry once. Sections load independently and retain validated content when refresh or continuation fails.
 
-靜態預覽 / Static preview：`npm run preview` 以靜態檔案優先，`/api` 由本機 server 單獨轉交公開 API，未知 API 不回傳 SPA HTML。API_PROXY_TARGET 用於 preview／dev；API_BUILD_TARGET 僅供 server loader，瀏覽器始終使用 VITE_API_BASE_URL。`npm run preview` serves static files first and proxies public reads under `/api` separately, preserving API error status instead of returning SPA HTML.
+Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，再由 React Router 產生 HTML／route data；`/api` 獨立轉交 FastAPI 並保留錯誤 status。API_PROXY_TARGET 用於 browser proxy，API_SERVER_TARGET 僅供 SSR，瀏覽器使用 VITE_API_BASE_URL。The runtime serves assets, dynamically renders public documents and separately proxies browser API requests with their real status codes.
 
 ## 裝飾與進場規格 / Decoration and Entrance Specifications
 
@@ -724,7 +743,7 @@ Each feature validates its six-endpoint DTOs with Zod. All pagination uses the s
 - [Node.js LTS 下載](https://nodejs.org/en/download)
 - [Vite：環境需求](https://vite.dev/guide/)與[CSS Modules](https://vite.dev/guide/features#css-modules)
 - [TypeScript：strict](https://www.typescriptlang.org/tsconfig/strict.html)
-- [React Router：模式選擇](https://reactrouter.com/start/modes)、[路由設定](https://reactrouter.com/start/framework/routing)、[目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)、[預先渲染](https://reactrouter.com/how-to/pre-rendering)與[程式碼分割](https://reactrouter.com/explanation/code-splitting)
+- [React Router：模式選擇](https://reactrouter.com/start/modes)、[路由設定](https://reactrouter.com/start/framework/routing)、[目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)、[SSR](https://reactrouter.com/start/framework/rendering)與[程式碼分割](https://reactrouter.com/explanation/code-splitting)
 - [TanStack Query：query keys](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys)與[初始資料](https://tanstack.com/query/latest/docs/framework/react/guides/initial-query-data)
 - [ESLint](https://eslint.org/docs/latest/use/getting-started)、[Prettier](https://prettier.io/docs/install)
 - [Vitest](https://vitest.dev/guide/)、[React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)、[Playwright](https://playwright.dev/docs/intro)

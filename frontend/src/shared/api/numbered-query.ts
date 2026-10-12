@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import type { z } from 'zod';
 import { ApiError, requestJson } from './http';
+import { portfolioKey, portfolioContentParams } from './portfolio';
 import { pageSize, type NumberedPage } from '@/shared/schemas/records';
 
 /** Reject inconsistent append results while retaining the last validated collection. */
@@ -26,10 +27,10 @@ export function assertPageAppend<T extends { id: string | number }>(
 }
 
 /** Create the only continuation policy used by all four paginated endpoints.
- * @param resource Domain endpoint suffix; query keys include locale and optional owner.
+ * @param resource Domain endpoint suffix; keys include public Site, locale and optional owner.
  * @param locale Language identifier, passed explicitly by each domain API module.
  * @param schema Specialized common page schema.
- * @param options Build-only origin or category owner parameters.
+ * @param options Server-only origin, resolved Site, category owner and domain validation.
  */
 export function numberedQuery<T extends { id: string | number }>(
   resource: string,
@@ -37,13 +38,13 @@ export function numberedQuery<T extends { id: string | number }>(
   schema: z.ZodType<NumberedPage<T>>,
   options: {
     baseUrl?: string;
+    siteId?: number;
     ownerId?: string;
     validate?: (value: NumberedPage<T>, client: QueryClient, previous: NumberedPage<T>[]) => void;
   } = {},
 ) {
   const queryKey = [
-    'portfolio',
-    locale,
+    ...portfolioKey(locale, { site_id: options.siteId }),
     resource,
     options.ownerId ?? '',
     pageSize,
@@ -53,11 +54,9 @@ export function numberedQuery<T extends { id: string | number }>(
     queryKey,
     initialPageParam: 1,
     queryFn: async ({ pageParam, signal, client }) => {
-      const params = new URLSearchParams({
-        locale,
-        page: String(pageParam),
-        size: String(pageSize),
-      });
+      const params = portfolioContentParams(locale, options.siteId);
+      params.set('page', String(pageParam));
+      params.set('size', String(pageSize));
       if (options.ownerId) {
         params.set('ownerType', 'category');
         params.set('ownerId', options.ownerId);

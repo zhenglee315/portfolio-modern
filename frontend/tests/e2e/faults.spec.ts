@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { endpointFixture, pageFixture, siteFixture } from '../fixtures/portfolio';
 import { openClientShell } from '../fixtures/browser';
 
-test('backend outage retains static content and independently reports continuation failure', async ({
+test('browser API outage retains server content and independently reports continuation failure', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -95,7 +95,7 @@ test('duplicate continuation identity requires first-page contract recovery', as
   await expect(section.getByRole('button', { name: 'Reload this section' })).toHaveCount(0);
 });
 
-test('Site not found leaves language controls and sibling domains usable', async ({ page }) => {
+test('Site not found prevents an owner page from rendering another portfolio', async ({ page }) => {
   await page.route('**/api/portfolio/**', (route) => {
     const url = new URL(route.request().url());
     return url.pathname.endsWith('/site')
@@ -103,9 +103,8 @@ test('Site not found leaves language controls and sibling domains usable', async
       : route.fulfill({ json: endpointFixture(url) });
   });
   await openClientShell(page);
-  await expect(page.locator('#overview .section-state')).toContainText('profile');
-  await expect(page.locator('[data-project-id]')).toHaveCount(6);
-  await expect(page.getByRole('button', { name: 'Change language', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+  await expect(page.locator('[data-project-id]')).toHaveCount(0);
 });
 
 test('public text escapes markup and unsafe social links cannot execute', async ({ page }) => {
@@ -116,6 +115,8 @@ test('public text escapes markup and unsafe social links cannot execute', async 
       json: url.pathname.endsWith('/site')
         ? {
             ...siteFixture,
+            user: 'sam',
+            site_id: 2,
             profile: { ...siteFixture.profile, content: payload },
             social: { ...siteFixture.social, github: 'javascript:window.pwned=true' },
           }
@@ -141,7 +142,7 @@ test('failed map chunk keeps destinations and other sections available', async (
   await expect(page.locator('[data-project-id]')).toHaveCount(6);
 });
 
-/** Client-only reads append all categories; a failed continuation retains its validated prefix. */
+/** Explicit category continuation retains its validated prefix when a page fails. */
 test('skill category continuation failure retains rows and retries only the missing page', async ({
   page,
 }) => {
@@ -162,18 +163,20 @@ test('skill category continuation failure retains rows and retries only the miss
   await openClientShell(page);
   const section = page.locator('#skills');
   const toolkit = section.locator('[data-skill-categories]');
+  await section.scrollIntoViewIfNeeded();
   await expect(toolkit.locator(':scope > [data-category-id]')).toHaveCount(6);
+  await section.getByRole('button', { name: /Show more categories/ }).click();
   await expect(section.getByRole('alert')).toBeVisible();
-  await expect(section.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
+  await expect(section.getByRole('button', { name: /Show more categories/ })).toBeVisible();
   await expect(page.locator('[data-project-id]')).toHaveCount(6);
   expect(await section.innerText()).not.toContain('private continuation failure');
   expect(requested.filter((number) => number === '1')).toHaveLength(1);
 
   fail = false;
-  await section.getByRole('button', { name: 'Try again', exact: true }).click();
+  await section.getByRole('button', { name: /Show more categories/ }).click();
   await expect(toolkit.locator(':scope > [data-category-id]')).toHaveCount(7);
   await expect(section.getByRole('alert')).toHaveCount(0);
   expect(requested.filter((number) => number === '1')).toHaveLength(1);
   expect(requested.slice(1).every((number) => number === '2')).toBe(true);
-  await expect(section.getByRole('button', { name: /Show more skill categories/ })).toHaveCount(0);
+  await expect(section.getByRole('button', { name: /Show more categories/ })).toHaveCount(0);
 });

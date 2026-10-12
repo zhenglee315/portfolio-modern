@@ -70,3 +70,40 @@ test('development lazy Modal and API pagination reuse project list data', async 
   await expect(dialog).not.toBeVisible();
   await expect(trigger).toBeFocused();
 });
+
+/** A cold lazy import must retain its activating trigger even when focus leaves while loading. */
+test('development delayed project detail returns Escape focus to its activating trigger', async ({
+  page,
+}) => {
+  let ready!: () => void;
+  let release!: () => void;
+  const requested = new Promise<void>((resolve) => {
+    ready = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/src/features/projects/components/ProjectDetail.tsx*', async (route) => {
+    ready();
+    await pending;
+    await route.continue();
+  });
+  try {
+    await page.goto('/en#projects');
+    const section = page.locator('#projects');
+    await section.getByRole('button', { name: /Show more projects/ }).click();
+    const trigger = section.getByRole('button', { name: 'Read about en Project 8' });
+    await trigger.click();
+    await requested;
+    // An activation remains the return destination across asynchronous module preparation.
+    await trigger.evaluate((element) => element.blur());
+    release();
+    const dialog = page.locator('[role="dialog"][aria-modal="true"]');
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+  } finally {
+    release();
+  }
+});

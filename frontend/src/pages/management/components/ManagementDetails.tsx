@@ -1,7 +1,8 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import type { DataTableColumn } from '@/shared/ui/DataTable';
-import { Icon } from '@/shared/ui/Icon';
+import { Icon, type IconName } from '@/shared/ui/Icon';
+import WarningModal from '@/shared/ui/WarningModal';
 import {
   InlineField,
   type InlineFieldCopy,
@@ -19,14 +20,19 @@ export type ManagementDetailColumn<T> = DataTableColumn<T> & {
 export function ManagementDetails<T extends object>({
   row,
   columns,
-  name,
+  icon,
   copy,
   onClose,
 }: {
   row: T;
   columns: ManagementDetailColumn<T>[];
-  name: string;
-  copy: { title: string; close: string; field: InlineFieldCopy };
+  icon: IconName;
+  copy: {
+    title: string;
+    close: string;
+    field: InlineFieldCopy;
+    save: { title: string; message: string; confirm: string; cancel: string };
+  };
   onClose: () => void;
 }) {
   const id = useId();
@@ -38,17 +44,48 @@ export function ManagementDetails<T extends object>({
     ) as Record<string, InlineFieldValue>;
   const [draft, setDraft] = useState(initial);
   const [saved, setSaved] = useState(initial);
+  const [confirmSave, setConfirmSave] = useState(false);
+  const body = useRef<HTMLDivElement>(null);
+  const saveButton = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const resume = useRef<{ scrollTop: number } | null>(null);
   const preview = { ...row, ...draft };
   const dirty = Object.keys(draft).some((field) => !Object.is(draft[field], saved[field]));
   const invalid = columns.some(
     (column) => column.editor?.(preview)?.validate?.(column.value(preview)) === false,
   );
+  if (confirmSave)
+    return (
+      <WarningModal
+        layout="prompt"
+        title={copy.save.title}
+        message={copy.save.message}
+        closeLabel={copy.close}
+        onClose={() => setConfirmSave(false)}
+        confirm={{
+          label: copy.save.confirm,
+          cancelLabel: copy.save.cancel,
+          variant: 'success',
+          onConfirm: () => {
+            setSaved(draft);
+            setConfirmSave(false);
+          },
+        }}
+      />
+    );
   return (
     <Modal
       show
       centered
       scrollable
       onHide={onClose}
+      onEntered={() => {
+        if (!resume.current) return;
+        if (body.current) body.current.scrollTop = resume.current.scrollTop;
+        const focus = saveButton.current?.disabled ? closeButton.current : saveButton.current;
+        focus?.focus({ preventScroll: true });
+        resume.current = null;
+      }}
       className={styles.detail}
       contentClassName={styles.detailContent}
       aria-labelledby={`${id}-detail-title`}
@@ -57,11 +94,11 @@ export function ManagementDetails<T extends object>({
     >
       <Modal.Header closeButton closeLabel={copy.close}>
         <Modal.Title id={`${id}-detail-title`}>
+          <Icon name={icon} />
           {copy.title}
-          <span className={styles.recordName}>{name}</span>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body ref={body}>
         <dl className={styles.details}>
           {columns.map((column) => {
             const editor = column.editor?.(preview);
@@ -94,6 +131,7 @@ export function ManagementDetails<T extends object>({
         <button
           className={`btn ${dirty ? 'btn-outline-danger' : 'btn-outline-secondary'} ${styles.tableAction} ${styles.detailAction} ${styles.closeAction}`}
           type="button"
+          ref={closeButton}
           onClick={onClose}
         >
           <Icon name="close" />
@@ -102,9 +140,13 @@ export function ManagementDetails<T extends object>({
         <button
           className={`btn ${dirty ? 'btn-success' : 'btn-outline-secondary'} ${styles.tableAction} ${styles.detailAction} ${styles.saveAction}`}
           type="button"
+          ref={saveButton}
           value="save"
           disabled={!dirty || invalid}
-          onClick={() => setSaved(draft)}
+          onClick={() => {
+            resume.current = { scrollTop: body.current?.scrollTop ?? 0 };
+            setConfirmSave(true);
+          }}
         >
           Save
         </button>

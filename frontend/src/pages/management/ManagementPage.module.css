@@ -343,18 +343,15 @@
   text-align: left;
 }
 .detail :global(.modal-title) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.recordName {
-  display: block;
-  margin-top: 4px;
-  max-height: min(120px, 20dvh);
-  overflow: auto;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.6;
+.detail :global(.modal-title .icon) {
+  flex-shrink: 0;
+  color: var(--accent);
 }
 .detail :global(.modal-header) {
   align-items: flex-start;

@@ -69,3 +69,101 @@
   background: var(--accent);
   color: var(--on-accent);
 }
+/* The badge stays inside the dialog bounds; the card starts beneath it. */
+.prompt :global(.modal-dialog) {
+  width: calc(100% - 24px);
+  max-width: 420px;
+  margin-inline: auto;
+}
+.prompt .content:global(.modal-content) {
+  isolation: isolate;
+  overflow: visible;
+  padding: 96px 24px 24px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.prompt .content::before {
+  content: '';
+  position: absolute;
+  inset: 38px 0 0;
+  z-index: -1;
+  border: 1px solid var(--dialog-border);
+  border-radius: 12px;
+  background: var(--control-surface);
+  box-shadow: 0 30px 100px var(--shadow-strong);
+}
+.badge {
+  position: absolute;
+  inset: 0 auto auto 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  transform: translateX(-50%);
+  border-radius: 16px;
+  background: var(--bs-warning);
+  color: #3a2b00;
+  font-size: 42px;
+  box-shadow: 0 6px 20px var(--shadow-subtle);
+}
+.prompt :global(.modal-header) {
+  padding: 0;
+}
+.prompt :global(.modal-title) {
+  font-size: 20px;
+  line-height: 1.4;
+  text-align: center;
+}
+.prompt .close {
+  position: absolute;
+  top: 44px;
+  right: 6px;
+}
+.prompt :global(.modal-body) {
+  padding: 16px 0;
+  text-align: center;
+}
+.prompt :global(.modal-body) p {
+  margin: 0;
+}
+.prompt :global(.modal-footer) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 0 0;
+}
+.prompt .action {
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 10px;
+}
+.prompt :global(.btn-primary) {
+  --bs-btn-bg: var(--accent);
+  --bs-btn-color: var(--on-accent);
+  --bs-btn-border-color: var(--accent);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--accent) 90%, var(--text));
+  --bs-btn-hover-color: var(--on-accent);
+  --bs-btn-hover-border-color: var(--accent);
+  --bs-btn-active-bg: var(--accent);
+  --bs-btn-active-color: var(--on-accent);
+  --bs-btn-active-border-color: var(--accent);
+}
+@media (max-height: 480px) {
+  .prompt .content:global(.modal-content) {
+    padding: 68px 16px 16px;
+  }
+  .prompt .content::before {
+    top: 28px;
+  }
+  .badge {
+    width: 56px;
+    height: 56px;
+    font-size: 32px;
+  }
+  .prompt .close {
+    top: 28px;
+  }
+}

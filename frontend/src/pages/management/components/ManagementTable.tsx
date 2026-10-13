@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { fullName } from '@/features/site';
+import { managementNavigation } from '@/features/account-menu';
 import {
   managementFilterSpecs,
   managementSortFields,
@@ -46,17 +47,31 @@ export function ManagementTable({
     managementSortFields[resource],
     managementFilterSpecs[resource],
   );
-  const [selected, setSelected] = useState<ManagementRow | null>(null);
   const scope = `${resource}/${accountId}/${locale}?${JSON.stringify(state)}`;
+  const [editing, setEditing] = useState<{
+    scope: string;
+    row: ManagementRow;
+    confirmed: boolean;
+  } | null>(null);
+  if (editing && editing.scope !== scope) setEditing(null);
   const selection = useDataTableSelection(scope);
   const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
   if (deletion && deletion.scope !== scope) setDeletion(null);
   const query = useManagementList(resource, state, locale, enabled, accountId);
   const nameField = resource === 'roles' ? 'role' : resource === 'users' ? 'email' : 'user';
-  const deleteUnavailable = !enabled || query.isFetching || query.isError;
+  const actionsUnavailable = !enabled || query.isFetching || query.isError;
   const selectedRows = (query.data?.items ?? []).filter((row) => selection.keys.includes(row.id));
   const openDelete = (rows: ManagementRow[]) => {
-    if (!deleteUnavailable && rows.length) setDeletion({ scope, rows });
+    if (!actionsUnavailable && rows.length) {
+      setEditing(null);
+      setDeletion({ scope, rows });
+    }
+  };
+  const openEdit = (row: ManagementRow) => {
+    if (!actionsUnavailable) {
+      setDeletion(null);
+      setEditing({ scope, row, confirmed: false });
+    }
   };
   const { columns, detailColumns } = useMemo(() => {
     const makeColumn = (
@@ -172,7 +187,7 @@ export function ManagementTable({
           value="delete"
           aria-label="Delete"
           title="Delete"
-          disabled={deleteUnavailable || !selectedRows.length}
+          disabled={actionsUnavailable || !selectedRows.length}
           onClick={() => openDelete(selectedRows)}
         >
           Del
@@ -214,18 +229,18 @@ export function ManagementTable({
               className={`btn btn-link btn-sm ${styles.tableAction} ${styles.editRow}`}
               type="button"
               value="edit"
-              disabled={deleteUnavailable}
+              disabled={actionsUnavailable}
               aria-label={t('management.editRow', {
                 name: rowValue(row, nameField),
               })}
               title={t('management.editRow', { name: rowValue(row, nameField) })}
-              onClick={() => setSelected(row)}
+              onClick={() => openEdit(row)}
             />
             <button
               className={`btn btn-link btn-sm ${styles.tableAction} ${styles.deleteRow}`}
               type="button"
               value="delete"
-              disabled={deleteUnavailable}
+              disabled={actionsUnavailable}
               onClick={() => openDelete([row])}
               aria-label={t('management.deleteRow', {
                 name: rowValue(row, nameField),
@@ -237,12 +252,29 @@ export function ManagementTable({
           </div>
         )}
       />
-      {selected && (
+      {editing?.scope === scope && !editing.confirmed && (
+        <WarningModal
+          layout="prompt"
+          title={t('management.editConfirmation')}
+          message={t('management.editTarget', { name: rowValue(editing.row, nameField) })}
+          closeLabel={t('management.close')}
+          onClose={() => setEditing(null)}
+          confirm={{
+            label: t('management.confirmEdit'),
+            cancelLabel: t('management.cancel'),
+            onConfirm: () =>
+              setEditing((previous) =>
+                previous?.scope === scope ? { ...previous, confirmed: true } : null,
+              ),
+          }}
+        />
+      )}
+      {editing?.scope === scope && editing.confirmed && (
         <ManagementDetails
-          key={selected.id}
-          row={selected}
+          key={editing.row.id}
+          row={editing.row}
           columns={detailColumns}
-          name={String(rowValue(selected, nameField))}
+          icon={managementNavigation.find((item) => item.resource === resource)!.icon}
           copy={{
             title: t('management.details'),
             close: t('management.close'),
@@ -252,8 +284,14 @@ export function ManagementTable({
               invalid: t('management.invalidField'),
               empty: '—',
             },
+            save: {
+              title: t('management.saveConfirmation'),
+              message: t('management.saveTarget', { name: rowValue(editing.row, nameField) }),
+              confirm: t('management.confirmSave'),
+              cancel: t('management.cancel'),
+            },
           }}
-          onClose={() => setSelected(null)}
+          onClose={() => setEditing(null)}
         />
       )}
       {deletion?.scope === scope && (

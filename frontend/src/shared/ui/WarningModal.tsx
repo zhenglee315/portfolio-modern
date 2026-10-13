@@ -11,16 +11,18 @@ export default function WarningModal({
   closeLabel,
   onClose,
   confirm,
+  layout = 'standard',
 }: {
   title: string;
   message: string;
   closeLabel: string;
   onClose: () => void;
+  layout?: 'standard' | 'prompt';
   confirm?: {
     label: string;
     cancelLabel: string;
     onConfirm: () => void;
-    variant?: 'primary' | 'danger';
+    variant?: 'primary' | 'danger' | 'success';
   };
 }) {
   const id = useId();
@@ -38,13 +40,18 @@ export default function WarningModal({
       onKeyDown={(event: KeyboardEvent<HTMLElement>) => cycleDialogTab(event, event.currentTarget)}
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-message`}
-      className={styles.dialog}
+      className={`${styles.dialog} ${layout === 'prompt' ? styles.prompt : ''}`}
       contentClassName={styles.content}
       backdropClassName={styles.backdrop}
     >
+      {layout === 'prompt' && confirm && (
+        <div className={styles.badge} aria-hidden="true">
+          <Icon name="warning" />
+        </div>
+      )}
       <Modal.Header>
         <Modal.Title as="h2" id={`${id}-title`}>
-          {confirm && (
+          {confirm && layout === 'standard' && (
             <Icon
               name="warning"
               className={`${confirm.variant === 'danger' ? 'text-danger' : 'text-warning'} me-2`}

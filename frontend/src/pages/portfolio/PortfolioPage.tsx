@@ -4,9 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { trimPortfolioCache } from '@/app/query-client';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
-import { AppearanceMenu, useAppearance } from '@/features/appearance';
+import { AppearanceMenu, AppearanceSettings, useAppearance } from '@/features/appearance';
 import { AccountMenu } from '@/features/account-menu';
-import { LanguageMenu } from '@/features/language';
+import { LanguageMenu, LanguageOptions } from '@/features/language';
 import { useAccountSession } from '@/features/auth/actions';
 import { OnlineVisitors, useOnlineVisitors } from '@/features/online-visitors';
 import { useLocaleSwitch } from './hooks/useLocaleSwitch';
@@ -281,6 +281,16 @@ function PortfolioContent({
                     onLogin={authNavigation.enter}
                     onLogout={logout}
                     onNavigate={(resource) => void navigate(`/${locale}/management/${resource}`)}
+                    preferences={{
+                      theme: <AppearanceSettings />,
+                      language: (
+                        <LanguageOptions
+                          locale={locale}
+                          busy={language.busy}
+                          onChange={(value) => void language.change(value)}
+                        />
+                      ),
+                    }}
                   />
                 )
               }

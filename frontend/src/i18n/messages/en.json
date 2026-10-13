@@ -249,6 +249,7 @@
   },
   "accountMenu": {
     "trigger": "Account settings",
+    "back": "Back to settings",
     "profile": "Profile",
     "platformManagement": "Platform management",
     "platformMonitoring": "Platform monitoring",

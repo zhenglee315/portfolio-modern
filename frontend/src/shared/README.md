@@ -143,9 +143,9 @@ Anchored placement writes position, tail variables, and orientation attributes. 
 
 With `placement="below-header"`, the first upper ref protects the shell's top edge. Subsequent horizontally overlapping guards publish `--floating-content-inset`; consumers add it to copy/close spacing and subtract it from the content height budget. This keeps the frame and tail near a header trigger while protecting the toolbar. Ordinary above/side placement retains its existing geometry.
 
-`useDisclosureFocus` 的 `surfaceRef` 包含 trigger 與面板；`initialRef` 指向實際可聚焦控制項。`onClose` 使用穩定 callback，避免每次更改 slider 或文案時重新啟動初始焦點。初始 rAF 執行前若焦點已改變，保留使用者的新焦點。Hook 不攔截 Tab，也不接管 Bootstrap 的 Escape、outside pointer 與關閉後焦點還原。
+`useDisclosureFocus` 的 `surfaceRef` 包含 trigger 與面板；`initialRef` 指向實際可聚焦控制項。`onClose` 使用穩定 callback，避免每次更改 slider 或文案時重新啟動初始焦點。可選第五個參數 `activationKey` 只在切換面板內容時重啟初始焦點，例如齒輪選單進入或返回主題／語言頁。初始 rAF 執行前若焦點已改變，保留使用者的新焦點。Hook 不攔截 Tab，也不接管 Bootstrap 的 Escape、outside pointer 與關閉後焦點還原。
 
-For `useDisclosureFocus`, the surface contains both trigger and panel, and the initial ref identifies a usable control. A stable close callback prevents ordinary value updates from restarting initial focus. If focus changes before the initial frame runs, the hook preserves the new focus. It leaves Tab, Escape, outside-pointer dismissal, and restoration to the owning dropdown.
+For `useDisclosureFocus`, the surface contains both trigger and panel, and the initial ref identifies a usable control. A stable close callback prevents ordinary value updates from restarting initial focus. An optional fifth activationKey restarts focus only when switching panel content, such as entering or returning from gear preferences. If focus changes before the initial frame runs, the hook preserves the new focus. It leaves Tab, Escape, outside-pointer dismissal, and restoration to the owning dropdown.
 
 `useHoverTooltip` 將 `triggerProps` 展開到按鈕，只有 `tooltipProps` 存在時才掛載 `PixelTooltip` 並傳入這組 props。只揭露描述的 click／tap 呼叫 `show()`；牛控制先呼叫 `close()`，再執行自己的動作。非 touch pointer 移入與 `:focus-visible` 開啟提示，開啟時才加上 `aria-describedby`。滑鼠離開延遲 150ms 關閉，讓 pointer 能移入提示窗；可見鍵盤焦點保留提示，touch 不套用 hover 離開。焦點移出且兩個區域都未 hover、外部 pointerdown、Escape、scroll、resize、window blur 或文件隱藏時關閉；關閉／卸載清理 timer 與 listener，焦點仍由原按鈕持有。
 

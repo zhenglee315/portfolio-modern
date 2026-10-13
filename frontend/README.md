@@ -567,9 +567,9 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.065 MB raw／365 KB gzip、CSS 330 KB raw／65 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.065 MB raw／365 KB gzip、CSS 330 KB raw／66 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
 
-Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.065 MB raw/365 KB gzip for JavaScript, 330 KB raw/65 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.065 MB raw/365 KB gzip for JavaScript, 330 KB raw/66 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
 
 手機載入目標：raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1。初始離屏 Map／Auth／Cow／detail 按需載入，API 不自動讀第 2 頁；地圖已鄰近 viewport 時才載入。
 
@@ -609,7 +609,7 @@ Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:loca
 
 預覽 SSR 不讀取私有資料或轉送 cookie；hydration 先驗證最新 SESSION，後端六支 `/api/management/portfolio/{site,journey,experiences,projects,skill-categories,skills}` 每次再次驗證有效帳號／角色及 is_manage_sites。未發布與停用擁有者可預覽，但公開 API 的可見性保持不變。DTO、ORM 查詢、固定六筆分頁及技能標籤驗證共用既有規格；preview 使用 credentials=include、no-store、独立 query key 和 meta.private。缺少網站／語言不回退。iframe 訊息只有在來源與 iframe window 都符合時才接受，Escape 先交內層 Modal 處理，再關閉預覽及恢復眼睛焦點。
 
-新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 330,000 raw／65,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
+新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 330,000 raw／66,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
 
 元件的完整使用手冊、Filter／checkbox／switch／button 配置與圖示見 [DataTable 套件 README](src/shared/ui/README.md)。
 
@@ -666,7 +666,7 @@ Role 主表固定使用上表的十三個英文標籤，Create、Read、Update�
 
 Role Actions 的十五項順序為：Role、Description、Default、Create、Read、Update、Delete、Manage Site、Manage Roles、Manage Users、Users、ID、Active、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
 
-Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 365,000／CSS 65,000 bytes，由建置驗證實際資產，未新增套件。
+Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 365,000／CSS 66,000 bytes，由建置驗證實際資產，未新增套件。
 
 | 設計要求                     | 核對結果                                                                                                     |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -762,13 +762,13 @@ Management content reuses `Breadcrumb` for Settings / the current management pag
 
 ## 帳號選單 / Account Menu
 
-`features/account-menu` 的 `AccountMenu(account,onOpen?,busy?,onLogin?,onLogout?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理、平台監控、用戶管理使用 `is_manage_sites`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
+`features/account-menu` 的 `AccountMenu(account,preferences,onOpen?,busy?,onLogin?,onLogout?,onNavigate?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理、平台監控、用戶管理使用 `is_manage_sites`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
 
 The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management, monitoring and user management to `is_manage_sites`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; Gear, the settings sidebar and the mobile drawer share managementNavigation in monitoring → platform → roles → users order; monitoring remains a scaffold without a route.
 
-登入與登出列已接上頁面現有轉場及 SESSION API；主題、語言與管理列保留選單框架。登入門圖示重用 `Icon pulse="chat"` 的 Heartbeat，支援既有暫停與減少動態政策。共用 disclosure hook 與 Bootstrap 處理初始焦點、鍵盤、Escape、外點和關閉焦點還原；44px 觸發器、主題 tokens 與限高捲動保留手機可用性。原本的 `AppearanceMenu`／`LanguageMenu` 仍用於帳號介面及專案詳情等已有操作的場景。
+主題、語言列會在同一個齒輪面板展開控制項。頁面透過必要的 `preferences={{ theme: <AppearanceSettings />, language: <LanguageOptions locale={locale} busy={busy} onChange={change} /> }}` 組合 feature 公開元件，不在 account-menu 內跨 feature 引用或重寫設定。外觀重用同一個 Provider、保存、換色動畫、speed／brightness／pause／reset；操作時面板保持開啟。語言重用同一組三語選項及鍵盤循環：首頁沿用 `useLocaleSwitch` 的資料準備流程、owner／query／hash；管理頁沿用受保護的路由載入，保留 resource／query／hash。返回按鈕或第一次 Escape 回到選單並聚焦原主題／語言列，第二次 Escape 關閉並還原齒輪焦點；外點或焦點離開亦可關閉。登入／登出沿用 SESSION 操作。原本的 `AppearanceMenu`／`LanguageMenu` 重用相同控制項，仍用於帳號介面及專案詳情。
 
-Sign-in and sign-out rows delegate to the existing page transition and SESSION API. Theme, language and management rows retain their presentation framework. Sign in reuses the existing chat Heartbeat decoration and motion policies. Shared disclosure focus and Bootstrap retain keyboard, Escape, outside dismissal and focus restoration. Theme tokens, the 44px trigger and bounded scrolling support small screens. Existing appearance/language controls remain available on their established account and detail surfaces.
+Theme and Language open controls inside the same gear panel. Required `preferences` slots let pages compose the public AppearanceSettings and LanguageOptions components without cross-feature imports. Appearance shares the existing provider, persistence, palette animation, speed, brightness, playback and reset; updates keep the panel open. Public locale changes reuse prepared data and preserve owner/query/hash; management changes reuse protected route loading and preserve resource/query/hash. Back or the first Escape restores the originating row; the second Escape closes and restores the gear. Outside pointer/focus also dismisses. Sign-in/out retain session actions; standalone AppearanceMenu and LanguageMenu reuse the same controls on their established surfaces.
 
 ## 語言元件規格 / Language Specifications
 

@@ -5,6 +5,7 @@ import { useEffect, type RefObject } from 'react';
  * @param surface Stable ref containing both the trigger and disclosure controls.
  * @param initial Stable ref to the owning disclosure's first or selected control.
  * @param onClose Stable callback; the owner retains toggle, Escape and focus-restoration policy.
+ * @param activationKey Optional panel identity; changing views restarts initial focus safely.
  * Scheduled focus preserves any focus change made after opening. The frame and document
  * listener are released when closed or unmounted.
  */
@@ -13,6 +14,7 @@ export function useDisclosureFocus(
   surface: RefObject<HTMLElement | null>,
   initial: RefObject<HTMLElement | null>,
   onClose: () => void,
+  activationKey?: string | null,
 ) {
   useEffect(() => {
     if (!open) return;
@@ -28,5 +30,5 @@ export function useDisclosureFocus(
       cancelAnimationFrame(frame);
       document.removeEventListener('focusin', closeOnBlur);
     };
-  }, [open, surface, initial, onClose]);
+  }, [open, surface, initial, onClose, activationKey]);
 }

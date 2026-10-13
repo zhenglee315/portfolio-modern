@@ -249,6 +249,7 @@
   },
   "accountMenu": {
     "trigger": "帳號設定",
+    "back": "返回設定選單",
     "profile": "個人檔案",
     "platformManagement": "平台管理",
     "platformMonitoring": "平台監控",

@@ -1,0 +1,29 @@
+.options :global(.dropdown-item) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-height: var(--control-size);
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 14px;
+}
+.options :global(.dropdown-item):hover,
+.options :global(.dropdown-item):focus-visible {
+  background: var(--control-hover);
+}
+.options :global(.dropdown-item)[aria-current='true'] {
+  color: var(--accent);
+}
+.check {
+  visibility: hidden;
+}
+.options [aria-current='true'] .check {
+  visibility: visible;
+  color: var(--accent);
+}

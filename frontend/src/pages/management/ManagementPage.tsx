@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { Link, useNavigate, useNavigation } from 'react-router';
+import { Link, useLocation, useNavigate, useNavigation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import type { Locale } from '@/i18n/config';
 import { AccountMenu, managementNavigation } from '@/features/account-menu';
-import { useAppearance } from '@/features/appearance';
+import { AppearanceSettings, useAppearance } from '@/features/appearance';
+import { LanguageOptions } from '@/features/language';
 import { useAccountSession, useAccessDeniedRedirect } from '@/features/auth/actions';
 import { canManage } from '@/features/auth/permissions';
 import type { ManagementResource } from '@/features/management';
@@ -33,6 +34,7 @@ export function ManagementPage({
   const root = useRef<HTMLDivElement>(null);
   const mounted = useHydrated();
   const navigate = useNavigate();
+  const routeLocation = useLocation();
   const navigation = useNavigation();
   const { session, signOut, logout } = useAccountSession(() => void navigate(`/${locale}`));
   const [compact, setCompact] = useState(false);
@@ -201,6 +203,26 @@ export function ManagementPage({
                 onLogin={() => void navigate(`/${locale}?view=login`)}
                 onLogout={logout}
                 onNavigate={(value) => void navigate(`/${locale}/management/${value}`)}
+                preferences={{
+                  theme: <AppearanceSettings />,
+                  language: (
+                    <LanguageOptions
+                      locale={locale}
+                      busy={navigation.state !== 'idle'}
+                      onChange={(value) => {
+                        if (value === locale) return;
+                        void navigate(
+                          {
+                            pathname: `/${value}/management/${resource}`,
+                            search: routeLocation.search,
+                            hash: routeLocation.hash,
+                          },
+                          { preventScrollReset: true },
+                        );
+                      }}
+                    />
+                  ),
+                }}
               />
             </div>
           </div>

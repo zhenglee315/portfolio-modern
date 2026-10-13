@@ -64,8 +64,8 @@ export async function verifyPublic(directory) {
     // Keep bounded headroom for settings controls and hash-dependent gzip variation between checkouts.
     jsGzip: 365_000,
     css: 330_000,
-    // Shared breadcrumb/entrance chunks and the settings layout reuse the existing animations.
-    cssGzip: 65_000,
+    // Shared settings controls and their responsive disclosures reuse the existing animations.
+    cssGzip: 66_000,
     fonts: 250_000,
     mascot: 1_250_000,
     map: 250_000,

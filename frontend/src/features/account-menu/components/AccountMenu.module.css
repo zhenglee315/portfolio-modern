@@ -96,3 +96,28 @@
   cursor: wait;
   opacity: 0.5;
 }
+.preferences:global(.dropdown-menu) {
+  width: min(300px, calc(100vw - 32px));
+  padding: 18px;
+}
+.preferenceHeading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.preferenceHeading > :global(.icon) {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+}
+.back {
+  flex-shrink: 0;
+}
+.back :global(.icon) {
+  width: 18px;
+  height: 18px;
+}

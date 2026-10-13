@@ -249,6 +249,7 @@
   },
   "accountMenu": {
     "trigger": "账号设置",
+    "back": "返回设置菜单",
     "profile": "个人档案",
     "platformManagement": "平台管理",
     "platformMonitoring": "平台监控",

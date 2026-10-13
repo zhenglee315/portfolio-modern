@@ -206,7 +206,6 @@ export function ManagementPage({
           </div>
           <div className={styles.heading}>
             <div>
-              <p className={styles.eyebrow}>{t('management.manage')}</p>
               <h1>{title}</h1>
               <p className={styles.description}>{t(`management.descriptions.${resource}`)}</p>
             </div>

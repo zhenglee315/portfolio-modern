@@ -266,7 +266,6 @@
     "collapseNavigation": "Collapse navigation",
     "expandNavigation": "Expand navigation",
     "openNavigation": "Open management navigation",
-    "manage": "Manage",
     "readonly": "Read-only",
     "defaultRequires": "Enable Active, Profile and Publish",
     "empty": "No matching records.",

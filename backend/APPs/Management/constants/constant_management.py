@@ -106,6 +106,7 @@ USER_FILTER_FIELDS = _filter_fields(
     ("createtime", "updatetime", "last_login"),
     ("site_id", "last_login"),
 )
+USER_FILTER_FIELDS["role"]["sets"] = True
 for field in ("id", "role_id", "site_id"):
     USER_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
 

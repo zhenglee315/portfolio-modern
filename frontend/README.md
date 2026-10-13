@@ -658,7 +658,7 @@ Role 主表固定使用上表的十三個英文標籤，Create、Read、Update�
 
 Role Actions 的十五項順序為：ID、Role、Users、Default、Create、Read、Update、Delete、Manage Site、Manage Users、Manage Roles、Active、Description、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
 
-Role 管理的 Role 欄設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 360,000／CSS 61,700 bytes，由建置驗證實際資產，未新增套件。
+Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 360,000／CSS 61,700 bytes，由建置驗證實際資產，未新增套件。
 
 | 設計要求                     | 核對結果                                                                                                      |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------- |

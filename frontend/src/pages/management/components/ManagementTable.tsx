@@ -84,7 +84,10 @@ export function ManagementTable({
         initiallyHidden: !visible[resource].includes(field),
         hideable: field !== 'id',
         filter: managementFilterSpecs[resource][field],
-        filterStyle: resource === 'roles' && field === 'role' ? 'dropdown-list' : undefined,
+        filterStyle:
+          (resource === 'roles' || resource === 'users') && field === 'role'
+            ? 'dropdown-list'
+            : undefined,
         render: booleanFields[resource].includes(field)
           ? (row) => {
               return (

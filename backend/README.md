@@ -234,6 +234,10 @@ Each request queries the database; this endpoint has no response-cache decorator
 
 The account and platform GETs share the role list's numbered envelope, pagination limits, typed column predicates and ordered sorting. Each layer uses one management file: resource query classes in module_management.py, query functions in parser_management.py, response classes in resp_management.py, and HTTP routes in views_management.py. Generic predicate validation and SQL application live in COMMON, with resource field capabilities and projection expressions supplied by Management. OpenAPI describes the shared query contract and typed response schemas. The frontend uses the existing /api proxy.
 
+User 的 `role` 與 Role 列表一樣支援 `in`／`not_in` 文字陣列，角色名稱比較不分大小寫；條件在 COUNT 與分頁前執行，供共用 Dropdown list filter 複選使用。
+
+The User `role` field supports the same case-insensitive `in`/`not_in` string arrays as the role list. Predicates apply before counting and pagination for the shared dropdown list filter.
+
 | Endpoint                | 條件欄位 / Predicate fields                             | 額外參數 / Additional query |
 | ----------------------- | ------------------------------------------------------- | --------------------------- |
 | `GET /management/users` | 下表全部回應欄位，包含 login_count／last_login 彙整欄位 | 無                          |

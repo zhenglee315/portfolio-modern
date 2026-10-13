@@ -526,7 +526,7 @@ export const filterSpecs = {
 } satisfies Record<string, DataTableFilterSpec>;
 ```
 
-宣告 UI 規格不會擴充 API 白名單。例如 User API 的 role 未宣告 sets，不能只改前端就送 in。
+宣告 UI 規格不會擴充 API 白名單；複選欄位必須在前後端都宣告 sets。Role／User 管理 API 的 role 均已支援 in／not_in。
 
 ### Calendar
 
@@ -551,7 +551,7 @@ export const filterSpecs = {
 
 ![彩色選項、Select／Deselect、搜尋、選取 check 與排序](data-table-docs/filter-dropdown.png)
 
-### A. 自動從已載入資料取選項：目前 Role 用法
+### A. 自動從已載入資料取選項：Role／User 管理的 Role 欄位
 
 <!-- example: dropdown -->
 

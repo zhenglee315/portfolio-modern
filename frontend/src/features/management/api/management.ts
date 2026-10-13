@@ -85,7 +85,8 @@ export const managementFilterSpecs = Object.fromEntries(
   ]),
 ) as Record<ManagementResource, Record<string, DataTableFilterSpec>>;
 managementFilterSpecs.sites.profile_name = { type: 'text', nullable: true };
-managementFilterSpecs.roles.role = { type: 'text', sets: true };
+for (const resource of ['roles', 'users'] as const)
+  managementFilterSpecs[resource].role = { type: 'text', sets: true };
 
 const schemas: {
   [Resource in ManagementResource]: z.ZodType<NumberedPage<ManagementRows[Resource]>>;

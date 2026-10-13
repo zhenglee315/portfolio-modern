@@ -628,7 +628,7 @@ A confirmed missing SESSION, false permission or SESSION HTTP 401/403 publishes 
 | 欄位及詳情 / Columns and details | Columns 只切換指定的主表欄位；其他完整資料由共用 ManagementDetails 呈現，API 字串保持純文字。布林欄位依欄位 renderer 呈現唯讀 checkbox 或 switch，缺資料 null 顯示破折號。 / Main-column visibility and shared plain-text record details; read-only status renderers and explicit missing values.  |
 | 主題 / Themes                    | Bootstrap table/forms/pagination 保留官方樣式；背景、表頭、列 hover、switch 與控制色透過既有語意 tokens 適應 mint／blue／amber／mist。 / Existing palette tokens adapt Bootstrap surfaces and hover states.                                                                                        |
 
-目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。三個管理表格的工具列右上方放置 Add／Del 按鈕，分別使用 Bootstrap plus-lg／trash icon；Del 使用與其他工具列按鈕相同的文字與邊框配色；hover／focus-visible／active 才以 field-error 和淡紅底提示刪除。可見字樣為 Del，aria-label／title 保留完整 Delete。Add 目前僅有外觀；工具列 Delete 使用本頁選取列，未選取或 loading／error 時停用，透過共用 ManagementTable 的 toolbar 插槽配置。每列 Actions 的 eye-fill 查看詳情，紅色 trash 只指定該列，與其他勾選無關。兩種刪除入口共用 WarningModal 的確認模式，顯示驚嘆號與「確定要刪除嗎？」、單筆名稱或批次筆數，以及取消／確定刪除。全選僅涵蓋本頁，不使用 API total 推測未載入列；query／頁碼／語言／資源／帳號變更會作廢舊的確認目標。取消、關閉或確認皆不修改資料／選取，不發送刪除 API、重查或成功提示；確認 callback 預留給後續 mutation。詳情 footer 新增 Edit（pencil-square），點擊後切換為綠色實心 Submit（check-lg）；關閉或重開會回到 Edit。目前只切換按鈕外觀，欄位維持唯讀，Submit 不提交資料，也不顯示儲存成功。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
+目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。三個管理表格的工具列右上方放置 Add／Del 按鈕，分別使用 Bootstrap plus-lg／trash icon；Del 使用與其他工具列按鈕相同的文字與邊框配色；hover／focus-visible／active 才以 field-error 和淡紅底提示刪除。可見字樣為 Del，aria-label／title 保留完整 Delete。Add 目前僅有外觀；工具列 Delete 使用本頁選取列，未選取或 loading／error 時停用，透過共用 ManagementTable 的 toolbar 插槽配置。每列 Actions 的 pencil-square Edit 開啟可逐格編輯的詳情，紅色 trash 只指定該列，與其他勾選無關。兩種刪除入口共用 WarningModal 的確認模式，顯示驚嘆號與「確定要刪除嗎？」、單筆名稱或批次筆數，以及取消／確定刪除。全選僅涵蓋本頁，不使用 API total 推測未載入列；query／頁碼／語言／資源／帳號變更會作廢舊的確認目標。取消、關閉或確認皆不修改資料／選取，不發送刪除 API、重查或成功提示；確認 callback 預留給後續 mutation。詳情 footer 使用 Close／Save（floppy）；Save 初始灰色停用，修改後亮綠、Close 變紅。可更新欄位使用 InlineField 點選編輯，系統／衍生資料保持唯讀；Save 只確認視窗內草稿，關閉重開回到原查詢資料，沒有更新 API 或儲存成功通知。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
 
 Only the three GETs are integrated. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
 
@@ -650,9 +650,11 @@ The platform table offers only ID, Account, Profile (checkbox), Publish (checkbo
 | User     | ID、Email、Role、Login、LastLogin、Updated、Active、Actions                                   |
 | Role     | ID、Role、Create、Read、Update、Delete、Site、Users、Roles、Default、Active、Updated、Actions |
 
-Actions 詳情順序由 `pages/management/model/management-view.fields.sites` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Edit／Submit 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
+Actions 全部使用 pencil-square Edit icon 開啟詳情。可編輯值點選後使用共用 InlineField 編輯，布林直接切換；ID、時間、統計與衍生資料保持唯讀。Save 初始灰色停用，有有效修改後亮綠，Close 變紅；還原值後恢復初始狀態。Save 只確認視窗內草稿，關閉重開回到 query 資料，不發送更新 API。欄位 editor 與 DTO 驗證集中於 management-edit，共享元件不擁有 management 規則。
 
-User 主表固定使用上表的八個英文標籤，以登入 Email 識別，不另列 Account。Email 使用逐欄 `truncate: false`，完整顯示並可換行；Details、勾選標籤與刪除確認也使用 Email。User API 直接讀取 `auth_user.email`，不返回公開網址 handle 或衍生帳號名稱。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的七個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十二項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取，ManagementDetails 只接受 row、columns、name、copy 與 onClose，擁有詳情視窗的 Edit／Submit 介面狀態；shared DataTable 仍不依賴任何 management 型別或 API。
+Actions 詳情順序由 `pages/management/model/management-view.fields.sites` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Save 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
+
+User 主表固定使用上表的八個英文標籤，以登入 Email 識別，不另列 Account。Email 使用逐欄 `truncate: false`，完整顯示並可換行；Details、勾選標籤與刪除確認也使用 Email。User API 直接讀取 `auth_user.email`，不返回公開網址 handle 或衍生帳號名稱。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的七個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十二項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取，ManagementDetails 只接受 row、columns、name、copy 與 onClose，擁有詳情視窗的本地草稿與 Save 狀態；shared DataTable 仍不依賴任何 management 型別或 API。
 
 Role 主表固定使用上表的十三個英文標籤，Create、Read、Update、Delete、Site、Users、Roles、Default、Active 共九個欄位均使用唯讀 toggle，直接呈現對應的角色旗標。主表 Users 是 `is_manage_users` 權限；Actions 的 Users 是 `user_count`，顯示使用此角色的帳號數。Columns 只切換主表的十二個資料欄位；Description、Created 與帳號數保留在詳情中。
 
@@ -660,18 +662,18 @@ Role Actions 的十五項順序為：ID、Role、Users、Default、Create、Read
 
 Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 360,000／CSS 61,700 bytes，由建置驗證實際資產，未新增套件。
 
-| 設計要求                     | 核對結果                                                                                                      |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 圖一：條件、搜尋、排序、清除 | 共用選單提供八種文字條件，搜尋／條件與排序採 Bootstrap icon，單欄清除不影響其他欄位                           |
-| 圖二：搜尋與複選清單         | 靜態／動態 options、Select／Deselect、選取勾號、長文字省略及 More 續頁                                        |
-| 圖三：彩色選項               | Role 欄套用穩定七色標籤；樣式由共用配置控制                                                                   |
-| 時間 Filter：日曆            | 所有日期欄位使用原生日曆；Equals／Does not equal／After／Before／Empty／Not empty，選日期後以整個 UTC 日篩選  |
-| 表格與 footer                | 指定短欄名、標題正下方置中、各容器均維持緊湊列高、自然高度、Total 與 selected 後綴                            |
-| 全選、欄位、匯出、分頁       | 本頁勾選、Columns All、Bootstrap icon 匯出及首／末頁按鈕維持共用元件                                          |
-| Actions 介面                 | 眼睛與紅色垃圾桶並排；單筆／勾選／全選本頁的 Delete 共用驚嘆號確認視窗，Edit 切換為綠色 Submit；尚無 mutation |
-| 後續更新規格                 | Default 條件與 transaction 順序保留；新增、提交、批次／單筆刪除均待後端整合                                   |
+| 設計要求                     | 核對結果                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 圖一：條件、搜尋、排序、清除 | 共用選單提供八種文字條件，搜尋／條件與排序採 Bootstrap icon，單欄清除不影響其他欄位                          |
+| 圖二：搜尋與複選清單         | 靜態／動態 options、Select／Deselect、選取勾號、長文字省略及 More 續頁                                       |
+| 圖三：彩色選項               | Role 欄套用穩定七色標籤；樣式由共用配置控制                                                                  |
+| 時間 Filter：日曆            | 所有日期欄位使用原生日曆；Equals／Does not equal／After／Before／Empty／Not empty，選日期後以整個 UTC 日篩選 |
+| 表格與 footer                | 指定短欄名、標題正下方置中、各容器均維持緊湊列高、自然高度、Total 與 selected 後綴                           |
+| 全選、欄位、匯出、分頁       | 本頁勾選、Columns All、Bootstrap icon 匯出及首／末頁按鈕維持共用元件                                         |
+| Actions 介面                 | Edit 與垃圾桶並排；詳情逐格編輯，dirty 時綠色 Save／紅色 Close；Delete 共用驚嘆號確認，尚無 mutation         |
+| 後續更新規格                 | Default 條件與 transaction 順序保留；新增、提交、批次／單筆刪除均待後端整合                                  |
 
-RWD 回歸會讓 Platform／User／Role 三頁各自在 320、375、390、480、640、768、820、1024、1280、1440、1920、2560px 寬度執行英文與繁體中文流程；不是按寬度輪流抽查其中一頁。檢查工具列、Add／Delete、footer、主表標題／內容置中、兩個列動作與詳情 Edit／Submit／重開重設，手機目標至少 44px。另外讓三頁分別在 390×844、844×390、820×1180、1180×820 的 coarse pointer 情境檢查四個主題、兩列自然高度、資料列 4px 內距、44px 按鈕、詳情視窗及日曆選單的 viewport 邊界。其他案例涵蓋 300px 桌面內嵌容器、長文字、多頁分頁與橫向短 viewport 的選單。寬表格保持原始列格式，手機可在表格內橫向捲動；文件本身不水平溢位。
+RWD 回歸會讓 Platform／User／Role 三頁各自在 320、375、390、480、640、768、820、1024、1280、1440、1920、2560px 寬度執行英文與繁體中文流程；不是按寬度輪流抽查其中一頁。檢查工具列、Add／Delete、footer、主表標題／內容置中、兩個列動作與詳情 InlineField／Save／重開重設，手機目標至少 44px。另外讓三頁分別在 390×844、844×390、820×1180、1180×820 的 coarse pointer 情境檢查四個主題、兩列自然高度、資料列 4px 內距、44px 按鈕、詳情視窗及日曆選單的 viewport 邊界。其他案例涵蓋 300px 桌面內嵌容器、長文字、多頁分頁與橫向短 viewport 的選單。寬表格保持原始列格式，手機可在表格內橫向捲動；文件本身不水平溢位。
 
 | 順序  | Actions 詳情欄位                                          |
 | ----- | --------------------------------------------------------- |

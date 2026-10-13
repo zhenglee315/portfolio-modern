@@ -21,7 +21,7 @@ DataTable 負責呈現與發出操作事件；頁面／feature 負責查詢、�
 9. [Filter 契約、URL 與後端](#9-filter-契約url-與後端)
 10. [分頁、Total 與本頁選取](#10-分頁total-與本頁選取)
 11. [Toolbar 與 Actions](#11-toolbar-與-actions)
-12. [Details、Edit／Submit 與刪除確認](#12-detailseditsubmit-與刪除確認)
+12. [Details、InlineField／Save 與刪除確認](#12-detailsinlinefieldsave-與刪除確認)
 13. [Export](#13-export)
 14. [Loading、Empty、Error／Retry](#14-loadingemptyerrorretry)
 15. [文案與多語系](#15-文案與多語系)
@@ -59,23 +59,23 @@ flowchart LR
 
 共享 UI 不引用 management、auth 或 i18n feature。`rowActions`、`toolbar` 與 `render` 是組合入口，其他頁面無須複製整張表格。
 
-| 功能                              | DataTable 提供             | owner 負責                                 |
-| --------------------------------- | -------------------------- | ------------------------------------------ |
-| 置中、ellipsis、自然高度、RWD     | ✓                          | 自訂 renderer 的內容                       |
-| 三欄排序、分頁與逐欄 Filter       | UI 與事件                  | API 執行完整查詢、COUNT 與排序             |
-| Columns 顯示／隱藏                | 本地呈現狀態               | 用 key 區隔不同表格                        |
-| 資料列選取                        | 傳 selection 即啟用        | 狀態與何時清除                             |
-| Copy／Excel／CSV／Print           | 傳 export 與匯出文案即啟用 | 可選的完整資料集載入                       |
-| Add、Del、Refresh、眼睛與單筆刪除 | toolbar／rowActions 插槽   | 按鈕、權限、回呼與 modal                   |
-| Details、Edit／Submit、刪除確認   | 不是 DataTable 內建 CRUD   | ManagementDetails／WarningModal 等頁面組合 |
+| 功能                                 | DataTable 提供             | owner 負責                                 |
+| ------------------------------------ | -------------------------- | ------------------------------------------ |
+| 置中、ellipsis、自然高度、RWD        | ✓                          | 自訂 renderer 的內容                       |
+| 三欄排序、分頁與逐欄 Filter          | UI 與事件                  | API 執行完整查詢、COUNT 與排序             |
+| Columns 顯示／隱藏                   | 本地呈現狀態               | 用 key 區隔不同表格                        |
+| 資料列選取                           | 傳 selection 即啟用        | 狀態與何時清除                             |
+| Copy／Excel／CSV／Print              | 傳 export 與匯出文案即啟用 | 可選的完整資料集載入                       |
+| Add、Del、Refresh、Edit 與單筆刪除   | toolbar／rowActions 插槽   | 按鈕、權限、回呼與 modal                   |
+| Details、InlineField／Save、刪除確認 | 不是 DataTable 內建 CRUD   | ManagementDetails／WarningModal 等頁面組合 |
 
-目前三張管理表的 **Add、Edit／Submit、Delete 是介面預覽**。Edit 只切換成 Submit；確認刪除只關閉 modal，沒有新增、更新或刪除 API 呼叫。
+目前三張管理表的 **Add、Save、Delete 是介面預覽**。Actions 使用 Edit icon 開啟可逐格編輯的詳情；Save 只確認視窗內的草稿，關閉重開恢復查詢資料。確認刪除只關閉 modal，沒有新增、更新或刪除 API 呼叫。
 
 ## 2. 快速開始：完整 API 範例
 
 以下範例放在 **page 層**，重用既有 User API、URL controller、selection 與文案 adapter。AppProviders 已提供 Router、QueryClient、i18n 與全站樣式。
 
-`enabled`／`accountId` 由已確認的 SESSION／權限流程提供；`onView` 由頁面開啟詳情。`Actions` 由 rowActions 新增，不要再放一個同名 column。
+`enabled`／`accountId` 由已確認的 SESSION／權限流程提供；`onEdit` 由頁面開啟詳情。`Actions` 由 rowActions 新增，不要再放一個同名 column。
 
 <!-- example: quickstart -->
 
@@ -92,6 +92,7 @@ import {
 import { useDataTableQuery, useDataTableSelection } from '@/shared/hooks/useDataTableQuery';
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
+import styles from '@/pages/management/ManagementPage.module.css';
 
 function utc(value: string) {
   return new Date(value).toISOString().slice(0, 19).replace('T', ' ').replaceAll('-', '.');
@@ -158,12 +159,12 @@ export function UsersTable({
   locale,
   accountId,
   enabled,
-  onView,
+  onEdit,
 }: {
   locale: Locale;
   accountId: number;
   enabled: boolean;
-  onView: (row: UserRow) => void;
+  onEdit: (row: UserRow) => void;
 }) {
   const { t } = useTranslation();
   const controller = useDataTableQuery(managementSortFields.users, managementFilterSpecs.users);
@@ -211,14 +212,13 @@ export function UsersTable({
       rowActions={(row) => (
         <button
           type="button"
-          className="btn btn-link btn-sm"
-          aria-label={t('management.viewRow', { name: row.email })}
-          title={t('management.viewRow', { name: row.email })}
+          className={`btn btn-link btn-sm ${styles.tableAction} ${styles.editRow}`}
+          value="edit"
+          aria-label={t('management.editRow', { name: row.email })}
+          title={t('management.editRow', { name: row.email })}
           disabled={busy || query.isError}
-          onClick={() => onView(row)}
-        >
-          <Icon name="eye" />
-        </button>
+          onClick={() => onEdit(row)}
+        ></button>
       )}
     />
   );
@@ -764,14 +764,13 @@ Refresh 只顯示 icon，保留 aria-label／title。現有 Add 保留 UI，Del 
     <div className="d-inline-flex align-items-center gap-1">
       <button
         type="button"
-        className="btn btn-link btn-sm"
+        className={`btn btn-link btn-sm ${styles.tableAction} ${styles.editRow}`}
+        value="edit"
         disabled={busy}
-        aria-label={`查看 ${row.account}`}
-        title={`查看 ${row.account}`}
-        onClick={() => onView(row)}
-      >
-        <Icon name="eye" />
-      </button>
+        aria-label={`編輯 ${row.account}`}
+        title={`編輯 ${row.account}`}
+        onClick={() => onEdit(row)}
+      />
       <button
         type="button"
         className="btn btn-link btn-sm"
@@ -802,21 +801,49 @@ trash 用 Bootstrap CSS mask，不傳不存在的 IconName：
 
 自訂按鈕均加 type=button，避免在 form 中誤提交；owner 判斷權限、loading／error 與 disabled。現有 toolbar Del 預設中性，只在 hover／focus 高亮刪除色；單筆 trash 與危險確認按鈕使用刪除語意色。
 
-## 12. Details、Edit／Submit 與刪除確認
+## 12. Details、InlineField／Save 與刪除確認
 
 | Details                                                   | 刪除確認                                                                |
 | --------------------------------------------------------- | ----------------------------------------------------------------------- |
 | ![左對齊詳情與右對齊 footer](data-table-docs/details.png) | ![警告 icon、目標、取消與確認](data-table-docs/delete-confirmation.png) |
 
-![Edit 改為帶 icon 的綠色 Submit](data-table-docs/edit-submit.png)
+![逐格編輯後 Save 變綠、Close 變紅](data-table-docs/edit-save.png)
 
-現有 [ManagementDetails](../../pages/management/components/ManagementDetails.tsx) 接收 row、columns、name、copy={title,close} 與 onClose：
+現有 [ManagementDetails](../../pages/management/components/ManagementDetails.tsx) 接收 row、columns、name、copy={title,close,field} 與 onClose；field 使用 InlineFieldCopy 注入逐格編輯文案：
 
 - 欄名／值／checkbox／switch 全部靠左；footer 靠右，Close 有 icon。
 - 可用另一組完整 columns，無須把所有資料放進列表。
-- Edit → Submit 切換 icon 與顏色，關閉後重開回 Edit。
+- Actions 的 Edit icon 開啟詳情；文字值點選後直接編輯，checkbox／switch 直接切換。
 - 它屬於 management page，不是 DataTable prop 或資料編輯引擎。
-- 現在不解鎖表單，Submit 沒有提交回呼，只是按鈕預覽。
+- Save 初始灰色停用；值與草稿基準不同時亮綠、Close 變紅。還原所有值後恢復初始狀態。無效值不能 Save。
+- Save 暫時只更新視窗內的草稿基準，不更動 query cache、不送 API；關閉重開使用原查詢資料。
+- ID、時間、登入次數、角色帳號數、角色啟用／作品集／翻譯存在狀態、語言 context 與組合的 Profile name 都是唯讀；不存在的網站／語言資料也保持唯讀，不能把 JOIN 的 null 當成可清空的實體欄位。
+- `ManagementDetailColumn<T>` 在 DataTableColumn 上加入 `editor(row)`；`model/management-edit.ts` 統一配置型別、既有 schema 驗證與唯讀欄位。共享 `InlineField` 不引用 management。
+
+```tsx
+import { useState } from 'react';
+import { InlineField, type InlineFieldValue } from '@/shared/ui/InlineField';
+
+function EditableEmail() {
+  const [email, setEmail] = useState<InlineFieldValue>('person@example.com');
+  return (
+    <InlineField
+      label="Email"
+      value={email}
+      onChange={setEmail}
+      editor={{ type: 'email', maxLength: 254 }}
+      copy={{
+        edit: (label) => `Edit ${label}`,
+        clear: (label) => `Clear ${label}`,
+        invalid: 'Invalid value',
+        empty: '—',
+      }}
+    />
+  );
+}
+```
+
+可用 type：text、email、url、number、multiline、boolean；布林預設 switch，`checkbox: true` 改 checkbox。`nullable: true` 支援 null，nullable 布林提供 Clear；validate 由 owner 注入，不在共享元件猜測業務規則。單行 Enter／多行 Ctrl+Enter 完成該格；Escape 還原該格，Tab／點選別處完成；Save 的 dirty／valid 狀態與持久化由視窗 owner 擁有。
 
 ```mermaid
 flowchart LR
@@ -981,17 +1008,18 @@ chip 色彩在 [DataTableColumnMenu.module.css](DataTableColumnMenu.module.css) 
 
 ![DataTable 常用圖示圖例](data-table-docs/icons.svg)
 
-| 操作                 | 現有圖示來源                                           |
-| -------------------- | ------------------------------------------------------ |
-| Export／Columns      | download／ui-checks CSS mask                           |
-| Excel                | file-earmark-spreadsheet-fill CSS mask                 |
-| 表頭 ↑／↓、Filter    | Icon 的 caretUpFill／caretDownFill、funnel／funnelFill |
-| 選單排序             | sort-up／sort-down CSS mask                            |
-| Refresh／View／Close | Icon 的 restart／eye／close                            |
-| Add／Submit／警告    | Icon 的 plus／check／warning，或現有 page mask         |
-| Delete／Edit         | trash／pencil-square CSS mask                          |
+| 操作              | 現有圖示來源                                           |
+| ----------------- | ------------------------------------------------------ |
+| Export／Columns   | download／ui-checks CSS mask                           |
+| Excel             | file-earmark-spreadsheet-fill CSS mask                 |
+| 表頭 ↑／↓、Filter | Icon 的 caretUpFill／caretDownFill、funnel／funnelFill |
+| 選單排序          | sort-up／sort-down CSS mask                            |
+| Refresh／Close    | Icon 的 restart／close                                 |
+| Add／警告         | Icon 的 plus／warning                                  |
+| Save              | floppy CSS mask                                        |
+| Delete／Edit      | trash／pencil-square CSS mask                          |
 
-Bootstrap 檔名不一定是 IconName。目前 Icon 沒有 trash／download 名稱；使用現有 mask，或在 [Icon.tsx](Icon.tsx) 集中擴充再引用。Icon-only button 必須有 aria-label，裝飾圖示不能取代名稱。
+Bootstrap 檔名不一定是 IconName。目前 Icon 沒有 trash／download／floppy／pencil-square 名稱；使用現有 mask，或在 [Icon.tsx](Icon.tsx) 集中擴充再引用。Icon-only button 必須有 aria-label，裝飾圖示不能取代名稱。
 
 圖例使用既有 Bootstrap Icons 的 SVG 形狀，附上 [MIT 授權文件](data-table-docs/LICENSE.bootstrap-icons.txt)。三張 SVG 圖例可直接修改；介面截圖應在 UI 更新時使用 synthetic fixtures 重新擷取。
 
@@ -1043,7 +1071,7 @@ Bootstrap 檔名不一定是 IconName。目前 Icon 沒有 trash／download 名�
 | 需要跨頁選取                   | 自訂 selection owner／scope，另設計目標資料與範圍      |
 | 頁面多捲軸                     | 檢查父層 min-width／固定高度，不覆寫成 overflow:scroll |
 | 筆數怪                         | total／pages 用 API COUNT，不能用 rows.length          |
-| Edit 轉 Submit 沒提交          | 現有流程是 UI 預覽，表單／mutation 由 owner 實作       |
+| Save 沒有更新 API              | Save 只確認視窗內草稿，後端更新由 owner 後續接入       |
 
 ## 18. 驗證與延伸閱讀
 
@@ -1058,7 +1086,7 @@ npm run check:docs
 
 - [共用組件總覽](../README.md#資料表--data-tables)
 - [ManagementTable：三張表的 query／toolbar／Actions](../../pages/management/components/ManagementTable.tsx)
-- [ManagementDetails：完整欄位與 Edit／Submit](../../pages/management/components/ManagementDetails.tsx)
+- [ManagementDetails：完整欄位與 InlineField／Save](../../pages/management/components/ManagementDetails.tsx)
 - [Management feature：API／schema／白名單](../../features/management/index.ts)
 - [Default 更新規則](../../../../docs/management-default-update.md)
 - [Frontend 完整規格](../../../README.md)

@@ -304,8 +304,8 @@
 .tableAction[value='edit']::before {
   mask-image: url('bootstrap-icons/icons/pencil-square.svg?no-inline');
 }
-.tableAction[value='submit']::before {
-  mask-image: url('bootstrap-icons/icons/check-lg.svg?no-inline');
+.tableAction[value='save']::before {
+  mask-image: url('bootstrap-icons/icons/floppy.svg?no-inline');
 }
 .refresh:hover,
 .refresh:focus-visible {
@@ -313,7 +313,7 @@
   border-color: var(--accent);
   background: var(--control-hover);
 }
-.view {
+.editRow {
   color: var(--accent);
 }
 .deleteRow {
@@ -324,8 +324,8 @@
   color: var(--field-error);
   background: color-mix(in srgb, var(--field-error) 12%, transparent);
 }
-.view:hover,
-.view:focus-visible {
+.editRow:hover,
+.editRow:focus-visible {
   background: var(--control-hover);
   color: var(--accent);
 }
@@ -346,6 +346,16 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.recordName {
+  display: block;
+  margin-top: 4px;
+  max-height: min(120px, 20dvh);
+  overflow: auto;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+}
 .detail :global(.modal-header) {
   align-items: flex-start;
 }
@@ -361,10 +371,17 @@
 }
 .details > div {
   display: grid;
+  align-items: center;
   grid-template-columns: minmax(120px, 36%) minmax(0, 1fr);
   gap: 14px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
+}
+.details > [data-editor='multiline'] {
+  align-items: start;
+}
+.details > [data-editor='multiline'] dt {
+  padding-top: 12px;
 }
 .details dt {
   color: var(--muted);
@@ -412,9 +429,28 @@
 .detail .detailAction {
   min-height: 44px;
 }
-.detail .detailAction[value='edit'] {
-  --bs-btn-color: var(--accent);
-  --bs-btn-border-color: var(--accent);
+.detail .saveAction:global(.btn-success) {
+  --bs-btn-bg: #81e4aa;
+  --bs-btn-color: #102a1d;
+  --bs-btn-border-color: #81e4aa;
+  --bs-btn-hover-bg: #9aeabb;
+  --bs-btn-hover-color: #102a1d;
+  --bs-btn-hover-border-color: #9aeabb;
+  --bs-btn-active-bg: #81e4aa;
+  --bs-btn-active-color: #102a1d;
+  --bs-btn-disabled-bg: #81e4aa;
+  --bs-btn-disabled-color: #102a1d;
+  --bs-btn-disabled-border-color: #81e4aa;
+}
+.detail .saveAction:disabled {
+  cursor: default;
+}
+.detail .closeAction:global(.btn-outline-danger) {
+  --bs-btn-color: var(--field-error);
+  --bs-btn-border-color: var(--field-error);
+  --bs-btn-hover-color: var(--field-error);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--field-error) 12%, transparent);
+  --bs-btn-hover-border-color: var(--field-error);
 }
 .drawer {
   --bs-offcanvas-bg: var(--sidebar-surface);

@@ -209,6 +209,8 @@ The shared usePageEntrance hook owns paired setup/cleanup and one startup/palett
 
 下表逐項涵蓋 `shared/ui` 的共用元件／Hook 匯出；型別、context 與時間常數另見各介面說明。場景道具拆件保持內部實作，呼叫端使用完整 `CowWorkspace` 及公開的角色插槽 `DeniedCowCharacter`。
 
+`InlineField`（[來源](ui/InlineField.tsx)）以點選值啟用文字／信箱／URL／數字／多行編輯，布林值直接使用 checkbox 或 switch。`InlineFieldValue` 是 string／number／boolean／null；`InlineFieldEditor` 設定 type、nullable、checkbox、maxLength 與 validate；`InlineFieldCopy` 注入 edit(label)、clear(label)、invalid、empty。`value`／`onChange` 由 owner 控制；元件不讀取資料、不保存草稿或呼叫 API。Enter 完成單行、Ctrl／Cmd+Enter 完成多行、Escape 還原該格，Tab 或點選別處完成編輯；輸入法組字不觸發完成。無效值透過 aria-invalid 與描述文案標示，焦點／點擊區至少 44px。
+
 This inventory covers shared component/hook exports in `shared/ui`. Types, context and timing constants are documented with their associated interfaces. Cow props remain internal; consumers use `CowWorkspace` and the public `DeniedCowCharacter` character slot.
 
 | 匯出與模組 / Export and module                                     | 用途、使用方式與邊界 / Purpose, usage and boundary                                                                                                                                                                                                                                                                                                                                                                |

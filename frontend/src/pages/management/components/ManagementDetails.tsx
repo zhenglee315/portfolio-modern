@@ -2,11 +2,21 @@ import { useId, useState, type KeyboardEvent } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import type { DataTableColumn } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
+import {
+  InlineField,
+  type InlineFieldCopy,
+  type InlineFieldEditor,
+  type InlineFieldValue,
+} from '@/shared/ui/InlineField';
 import { cycleDialogTab } from '@/shared/lib/focus';
 import styles from '../ManagementPage.module.css';
 
-/** Render configured record details; button preview state ends when the dialog closes. */
-export function ManagementDetails<T>({
+export type ManagementDetailColumn<T> = DataTableColumn<T> & {
+  editor?: (row: T) => InlineFieldEditor | undefined;
+};
+
+/** Keep editable drafts inside one dialog; query-owned records and backend data remain untouched. */
+export function ManagementDetails<T extends object>({
   row,
   columns,
   name,
@@ -14,13 +24,25 @@ export function ManagementDetails<T>({
   onClose,
 }: {
   row: T;
-  columns: DataTableColumn<T>[];
+  columns: ManagementDetailColumn<T>[];
   name: string;
-  copy: { title: string; close: string };
+  copy: { title: string; close: string; field: InlineFieldCopy };
   onClose: () => void;
 }) {
   const id = useId();
-  const [editing, setEditing] = useState(false);
+  const initial = () =>
+    Object.fromEntries(
+      columns
+        .filter((column) => column.editor?.(row))
+        .map((column) => [column.id, column.value(row)]),
+    ) as Record<string, InlineFieldValue>;
+  const [draft, setDraft] = useState(initial);
+  const [saved, setSaved] = useState(initial);
+  const preview = { ...row, ...draft };
+  const dirty = Object.keys(draft).some((field) => !Object.is(draft[field], saved[field]));
+  const invalid = columns.some(
+    (column) => column.editor?.(preview)?.validate?.(column.value(preview)) === false,
+  );
   return (
     <Modal
       show
@@ -30,26 +52,47 @@ export function ManagementDetails<T>({
       className={styles.detail}
       contentClassName={styles.detailContent}
       aria-labelledby={`${id}-detail-title`}
+      data-dirty={dirty}
       onKeyDown={(event: KeyboardEvent<HTMLElement>) => cycleDialogTab(event, event.currentTarget)}
     >
       <Modal.Header closeButton closeLabel={copy.close}>
         <Modal.Title id={`${id}-detail-title`}>
-          {copy.title} · {name}
+          {copy.title}
+          <span className={styles.recordName}>{name}</span>
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <dl className={styles.details}>
-          {columns.map((column) => (
-            <div key={column.id}>
-              <dt>{column.label}</dt>
-              <dd>{column.render ? column.render(row) : (column.value(row) ?? '—')}</dd>
-            </div>
-          ))}
+          {columns.map((column) => {
+            const editor = column.editor?.(preview);
+            return (
+              <div key={column.id} data-editor={editor?.type}>
+                <dt>{column.label}</dt>
+                <dd>
+                  {editor ? (
+                    <InlineField
+                      label={column.label}
+                      value={column.value(preview)}
+                      editor={editor}
+                      copy={copy.field}
+                      onChange={(value) =>
+                        setDraft((previous) => ({ ...previous, [column.id]: value }))
+                      }
+                    />
+                  ) : column.render ? (
+                    column.render(preview)
+                  ) : (
+                    (column.value(preview) ?? '—')
+                  )}
+                </dd>
+              </div>
+            );
+          })}
         </dl>
       </Modal.Body>
       <Modal.Footer>
         <button
-          className={`btn btn-outline-secondary ${styles.tableAction} ${styles.detailAction}`}
+          className={`btn ${dirty ? 'btn-outline-danger' : 'btn-outline-secondary'} ${styles.tableAction} ${styles.detailAction} ${styles.closeAction}`}
           type="button"
           onClick={onClose}
         >
@@ -57,12 +100,13 @@ export function ManagementDetails<T>({
           {copy.close}
         </button>
         <button
-          className={`btn ${editing ? 'btn-success' : 'btn-outline-secondary'} ${styles.tableAction} ${styles.detailAction}`}
+          className={`btn ${dirty ? 'btn-success' : 'btn-outline-secondary'} ${styles.tableAction} ${styles.detailAction} ${styles.saveAction}`}
           type="button"
-          value={editing ? 'submit' : 'edit'}
-          onClick={editing ? undefined : () => setEditing(true)}
+          value="save"
+          disabled={!dirty || invalid}
+          onClick={() => setSaved(draft)}
         >
-          {editing ? 'Submit' : 'Edit'}
+          Save
         </button>
       </Modal.Footer>
     </Modal>

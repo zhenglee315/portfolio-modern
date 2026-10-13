@@ -9,9 +9,10 @@ import {
   type ManagementResource,
   type ManagementRow,
 } from '@/features/management';
-import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
+import { DataTable } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
-import { ManagementDetails } from './ManagementDetails';
+import { ManagementDetails, type ManagementDetailColumn } from './ManagementDetails';
+import { managementEditor } from '../model/management-edit';
 import {
   fields,
   visible,
@@ -58,7 +59,10 @@ export function ManagementTable({
     if (!deleteUnavailable && rows.length) setDeletion({ scope, rows });
   };
   const { columns, detailColumns } = useMemo(() => {
-    const makeColumn = (field: string, override?: string): DataTableColumn<ManagementRow> => {
+    const makeColumn = (
+      field: string,
+      override?: string,
+    ): ManagementDetailColumn<ManagementRow> => {
       const label =
         override ||
         columnLabels[resource][field] ||
@@ -86,6 +90,7 @@ export function ManagementTable({
         hideable: field !== 'id',
         truncate: resource === 'users' && field === 'email' ? false : undefined,
         filter: managementFilterSpecs[resource][field],
+        editor: (row) => managementEditor(resource, field, row),
         filterStyle:
           (resource === 'roles' || resource === 'users') && field === 'role'
             ? 'dropdown-list'
@@ -206,16 +211,16 @@ export function ManagementTable({
         rowActions={(row) => (
           <div className={styles.rowActions}>
             <button
-              className={`btn btn-link btn-sm ${styles.view}`}
+              className={`btn btn-link btn-sm ${styles.tableAction} ${styles.editRow}`}
               type="button"
-              value="view"
-              aria-label={t('management.viewRow', {
+              value="edit"
+              disabled={deleteUnavailable}
+              aria-label={t('management.editRow', {
                 name: rowValue(row, nameField),
               })}
+              title={t('management.editRow', { name: rowValue(row, nameField) })}
               onClick={() => setSelected(row)}
-            >
-              <Icon name="eye" />
-            </button>
+            />
             <button
               className={`btn btn-link btn-sm ${styles.tableAction} ${styles.deleteRow}`}
               type="button"
@@ -238,7 +243,16 @@ export function ManagementTable({
           row={selected}
           columns={detailColumns}
           name={String(rowValue(selected, nameField))}
-          copy={{ title: t('management.details'), close: t('management.close') }}
+          copy={{
+            title: t('management.details'),
+            close: t('management.close'),
+            field: {
+              edit: (label) => t('management.editField', { label }),
+              clear: (label) => t('management.clearField', { label }),
+              invalid: t('management.invalidField'),
+              empty: '—',
+            },
+          }}
           onClose={() => setSelected(null)}
         />
       )}

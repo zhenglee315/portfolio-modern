@@ -5,7 +5,8 @@ import { useEffect, type RefObject } from 'react';
  * @param surface Stable ref containing both the trigger and disclosure controls.
  * @param initial Stable ref to the owning disclosure's first or selected control.
  * @param onClose Stable callback; the owner retains toggle, Escape and focus-restoration policy.
- * Scheduled focus and the document listener are released when closed or unmounted.
+ * Scheduled focus preserves any focus change made after opening. The frame and document
+ * listener are released when closed or unmounted.
  */
 export function useDisclosureFocus(
   open: boolean,
@@ -15,7 +16,10 @@ export function useDisclosureFocus(
 ) {
   useEffect(() => {
     if (!open) return;
-    const frame = requestAnimationFrame(() => initial.current?.focus());
+    const openingFocus = document.activeElement;
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement === openingFocus) initial.current?.focus();
+    });
     const closeOnBlur = (event: FocusEvent) => {
       if (event.target instanceof Node && !surface.current?.contains(event.target)) onClose();
     };

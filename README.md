@@ -178,7 +178,6 @@ Public APIs, per-site ownership/cache isolation, account sessions and login reco
 | python-socketio                                      | Socket.IO ASGI 組裝                                                      | Socket.IO ASGI assembly                                                                    |
 | HTTPX                                                | HTTP client 設定，執行依賴                                               | HTTP client configuration; runtime dependency                                              |
 | Black                                                | Python 排版，開發依賴                                                    | Python formatter; development dependency                                                   |
-| pytest                                               | 測試工具，開發依賴                                                       | Test runner; development dependency                                                        |
 | Docker                                               | 按需啟動外部服務、容器驗證或部署                                         | On-demand external services, container validation, or deployment                           |
 | React Router Framework Mode、React、TypeScript、Vite | 已初始化的前端路由、畫面與建置                                           | Initialized frontend routing, UI, and build tools                                          |
 | Bootstrap、React-Bootstrap、Bootstrap Icons          | 樣式、React 元件與 SVG 圖示                                              | Styles, React components, and SVG icons                                                    |
@@ -233,7 +232,6 @@ portfolio-modern/
 │   ├── public/                  # Unprocessed favicon and license files
 │   ├── scripts/                 # Accepted builds, artifact checks and preview
 │   ├── deploy/                  # Generic Nginx configuration example
-│   ├── tests/                    # Unit/component and browser verification
 │   ├── .env.example             # Public environment template
 │   ├── package.json / package-lock.json
 │   └── react-router.config.ts / vite.config.ts / tsconfig.json
@@ -296,7 +294,7 @@ A feature is a frontend module such as projects, skills or appearance. Keep its 
 | `src/i18n/`                     | 三語 UI 字典、語系設定與格式化文案；個人介紹等業務內容由 API 提供。 / Store UI dictionaries and locale helpers; profile content comes from the API.                                                                   |
 | `src/styles/`、`src/assets/`    | 統一設計 token／全域 CSS，以及由 bundler 處理的字型、地圖與插圖。 / Own design tokens, global CSS and bundled visual assets.                                                                                          |
 | `public/`                       | 直接複製進產物的 favicon 與授權檔；元件樣式放元件旁的 CSS Module。 / Copy static public files; keep component CSS Modules beside their components.                                                                    |
-| `scripts/`、`deploy/`、`tests/` | 建置與驗收工具、部署範例、單元／元件與瀏覽器測試。 / Maintain build tooling, deployment examples and automated verification.                                                                                          |
+| `scripts/`、`deploy/`           | 建置工具與部署範例。 / Maintain build tooling and deployment examples.                                                                                                                                                |
 
 功能模組的典型結構如下；只建立實際使用到的層，外觀或語言這類沒有 API 的模組不必建立空 `api/`。`schemas/` 是前端回應驗證與型別，`model/` 放純資料轉換與業務規則，`hooks/` 管理 React 狀態、副作用與查詢。
 
@@ -325,9 +323,9 @@ API 不全部塞進共用資料夾：`features/projects/api/` 擁有專案端點
 
 Feature API directories own endpoint semantics; `shared/api/` handles transport, timeouts, cancellation, errors and pagination infrastructure. Export feature interfaces through `index.ts`, coordinate features at page level, and keep shared code independent of features. Check existing interfaces before adding helpers. Document function, hook and CSS responsibilities, and update component/page specifications in the frontend guide in both languages.
 
-前端共用 hydration、帳號／登出回饋、拒絕轉址、背景、牛控制與載入指示器已有單一實作；管理頁拆分版面、表格 controller 與欄位／URL 模型。ESLint 自動納入實際 feature 目錄，阻擋反向依賴、自我匯入與循環，帳號選單只透過 auth 輕量公開入口取得身份／權限。`npm run check:docs` 檢查共用 README 是否列出公開契約，三語 key 與組合文案另由單元測試檢查；詳見[架構整合說明](frontend/README.md#架構檢查與整合--architecture-review-and-consolidation)。
+前端共用 hydration、帳號／登出回饋、拒絕轉址、背景、牛控制與載入指示器已有單一實作；管理頁拆分版面、表格 controller 與欄位／URL 模型。ESLint 自動納入實際 feature 目錄，阻擋反向依賴、自我匯入與循環，帳號選單只透過 auth 輕量公開入口取得身份／權限。`npm run check:docs` 檢查共用 README 是否列出公開契約，三語 key 與組合文案在維護時檢查；詳見[架構整合說明](frontend/README.md#架構檢查與整合--architecture-review-and-consolidation)。
 
-Hydration, account feedback, denied routing, backgrounds, cow controls and loading indicators have shared implementations. Management layout, interaction and URL/column models are separated. ESLint discovers features and rejects reverse dependencies, self imports and cycles; the account menu uses only auth's lightweight public contracts. Shared documentation and locale contracts are checked automatically; see the [architecture review](frontend/README.md#架構檢查與整合--architecture-review-and-consolidation).
+Hydration, account feedback, denied routing, backgrounds, cow controls and loading indicators have shared implementations. Management layout, interaction and URL/column models are separated. ESLint discovers features and rejects reverse dependencies, self imports and cycles; the account menu uses only auth's lightweight public contracts. Shared documentation is checked automatically; review locale contracts when updating translations; see the [architecture review](frontend/README.md#架構檢查與整合--architecture-review-and-consolidation).
 
 ## API 範圍 / API scope
 
@@ -454,9 +452,9 @@ cp .env.example .env.local
 npm run dev
 ```
 
-首次安裝才複製 `.env.example`，保留已有 `.env.local` 的個人設定。預設 browser proxy 與 SSR server target 都是後端 8080；若更換 API 位址，同時調整兩者。開發頁面位於 `http://127.0.0.1:5173`，支援 `/`、`/en`、`/zh-Hans`、`/zh-Hant` 及 `/:locale/:user`。`npm run check` 執行型別、lint、格式、單元測試與建置，建置不讀取作品集資料，SSR 執行時需要可用的 API。瀏覽器測試另需 `npx playwright install chromium`，然後依序執行 `npm run test:dev` 與 `npm run test:e2e`；兩套測試共用 4181 fixture API，須分開執行。
+首次安裝才複製 `.env.example`，保留已有 `.env.local` 的個人設定。預設 browser proxy 與 SSR server target 都是後端 8080；若更換 API 位址，同時調整兩者。開發頁面位於 `http://127.0.0.1:5173`，支援 `/`、`/en`、`/zh-Hans`、`/zh-Hant` 及 `/:locale/:user`。`npm run check` 執行型別、lint、格式、文件與建置，建置不讀取作品集資料，SSR 執行時需要可用的 API。本機測試工具集中於不提交的 `agent/` 資料夾。
 
-Copy the environment example only on first setup; preserve existing local settings. Both default API targets point to port 8080. Development runs on port 5173 with default and user URLs. Builds do not fetch portfolio content; the SSR runtime requires an available API. Install Chromium before running the development and production browser suites sequentially, since both manage the same fixture API port 4181.
+Copy the environment example only on first setup; preserve existing local settings. Both default API targets point to port 8080. Development runs on port 5173 with default and user URLs. Builds do not fetch portfolio content; the SSR runtime requires an available API. Local test tooling stays in the ignored `agent/` directory.
 
 ## 前後端正式部署 / Production Deployment
 
@@ -511,6 +509,6 @@ Adapt the Nginx example's root/upstreams. It forwards stripped API paths to Fast
 
 ### 驗證與發布 / Verification and Release
 
-後端執行 `uv run --locked pytest`；前端執行 `npm run check`，再依序跑 `npm run test:dev`／`npm run test:e2e`。瀏覽器測試使用隔離 fixture API 與暫時 port，結束後會釋放。正式驗收確認預設／個人三語網址、登入登出、跨作品集隔離、草稿不可見、HTTP 狀態及手機的按需載入。
+前端執行 `npm run check`，確認型別、lint、格式、文件與正式建置。測試工具與報告只保留於不提交的 `agent/`。正式驗收確認預設／個人三語網址、登入登出、跨作品集隔離、草稿不可見、HTTP 狀態及手機的按需載入。
 
-Run backend tests and frontend checks, followed by development/production browser suites sequentially. Browser tests manage isolated fixtures and temporary ports. Release acceptance covers default/individual locales, account sessions, isolation, draft visibility, real HTTP statuses and mobile demand loading.
+Run frontend checks for types, lint, formatting, documentation and production builds. Keep local test tooling and reports in the ignored `agent/` directory. Release acceptance covers default/individual locales, account sessions, isolation, draft visibility, real HTTP statuses and mobile demand loading.

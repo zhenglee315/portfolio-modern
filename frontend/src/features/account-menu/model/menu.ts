@@ -5,7 +5,6 @@ import type { IconName } from '@/shared/ui/Icon';
 type MenuItem = {
   key: string;
   icon: IconName;
-  resource?: ManagementPermissionResource;
   heartbeat?: boolean;
 };
 
@@ -13,12 +12,17 @@ const preferences: MenuItem[] = [
   { key: 'theme', icon: 'palette' },
   { key: 'language', icon: 'translate' },
 ];
-const management: MenuItem[] = [
-  { key: 'platformManagement', icon: 'dashboard', resource: 'sites' },
-  { key: 'platformMonitoring', icon: 'activity', resource: 'monitoring' },
-  { key: 'roleManagement', icon: 'shieldLock', resource: 'roles' },
-  { key: 'userManagement', icon: 'people', resource: 'users' },
-];
+/** One ordered navigation definition for Gear, settings sidebar and mobile drawer. */
+export const managementNavigation = [
+  { label: 'platformMonitoring', icon: 'activity', resource: 'monitoring' },
+  { label: 'platformManagement', icon: 'dashboard', resource: 'sites' },
+  { label: 'roleManagement', icon: 'shieldLock', resource: 'roles' },
+  { label: 'userManagement', icon: 'people', resource: 'users' },
+] as const satisfies readonly {
+  label: string;
+  icon: IconName;
+  resource: ManagementPermissionResource;
+}[];
 
 /** Describe ordered presentation groups using server-issued account permissions.
  * @param account Restored identity or null for a guest; no session lookup happens here.
@@ -30,7 +34,9 @@ export function accountMenuGroups(account: AuthUser | null): MenuItem[][] {
   if (!account) return [preferences, [{ key: 'signIn', icon: 'doorOpen', heartbeat: true }]];
   const groups: MenuItem[][] = [
     [{ key: 'profile', icon: 'personCircle' }],
-    management.filter((item) => !item.resource || canManage(account, item.resource)),
+    managementNavigation
+      .filter((item) => canManage(account, item.resource))
+      .map(({ label: key, icon }) => ({ key, icon })),
     preferences,
     [{ key: 'signOut', icon: 'boxArrowRight' }],
   ];

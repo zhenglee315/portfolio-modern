@@ -1,0 +1,273 @@
+/* Typed column editors float outside the horizontal table viewport and inherit its palette. */
+.root {
+  display: inline-flex;
+}
+.toggle:global(.btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--table-control-size, 44px);
+  min-height: var(--table-control-size, 44px);
+  padding: 4px;
+  color: var(--muted);
+  border: 0;
+  border-radius: 4px;
+}
+.toggle:global(.btn)::after {
+  display: none;
+}
+.toggle:global(.btn):hover,
+.toggle:global(.btn):focus-visible,
+.toggle.active {
+  color: var(--accent);
+  background: var(--control-hover);
+}
+.menu:global(.dropdown-menu) {
+  --bs-dropdown-bg: var(--panel2);
+  --bs-dropdown-color: var(--text);
+  --bs-dropdown-border-color: var(--border);
+  --bs-dropdown-link-color: var(--text);
+  --bs-dropdown-link-hover-color: var(--text);
+  --bs-dropdown-link-hover-bg: var(--control-hover);
+  --bs-dropdown-divider-bg: var(--border);
+  --bs-dropdown-link-disabled-color: var(--muted);
+  width: min(224px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  box-shadow: 0 10px 30px var(--shadow-medium);
+}
+.menu :global(.dropdown-item) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: 4px;
+  white-space: normal;
+  font-size: var(--table-font-size, 13px);
+}
+.menu :global(.dropdown-item) :global(.icon):last-child:not(:first-child) {
+  margin-left: auto;
+}
+/* Sorting follows the divider; compact mouse targets keep the lower group close together. */
+.menu :global(.dropdown-divider) {
+  margin-block: 4px;
+}
+.menu :global(.dropdown-divider) ~ :global(.dropdown-item) {
+  min-height: 32px;
+  padding-block: 4px;
+}
+@media (max-width: 640px), (any-pointer: coarse) {
+  .menu :global(.dropdown-divider) ~ :global(.dropdown-item) {
+    min-height: 44px;
+  }
+}
+.editor,
+.inputs {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.editor {
+  padding: 8px;
+}
+.menu :global(.form-control),
+.menu :global(.form-select) {
+  font-size: var(--table-font-size, 13px);
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  background-color: var(--panel);
+  border-color: var(--control-border);
+  color: var(--text);
+}
+.menu :global(.form-control:focus),
+.menu :global(.form-select:focus) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow-low);
+}
+.menu :global(.dropdown-item:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.menu small {
+  color: var(--muted);
+}
+.menu :global([role='alert']) {
+  color: var(--field-error);
+}
+.controlRow {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.controlRow > :global(.icon) {
+  width: 16px;
+  height: 16px;
+}
+.choices {
+  padding: 8px;
+}
+.choiceActions,
+.modes {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.choiceActions > button,
+.modes > button {
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+.choiceActions > button:disabled {
+  color: var(--muted);
+}
+.choiceActions > button:not(:disabled):hover,
+.modes > button:hover,
+.modes > button[aria-pressed='true'] {
+  background: var(--control-hover);
+  color: var(--accent);
+}
+.modes {
+  padding: 0 8px;
+}
+.modes > button {
+  flex: 1;
+}
+.choiceList {
+  max-height: min(308px, 38dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 8px;
+  scrollbar-gutter: stable;
+}
+.choiceList > p,
+.choiceList > div {
+  padding: 8px;
+  margin: 0;
+}
+.choiceList :global(.btn) {
+  min-height: 44px;
+  margin: 4px;
+}
+.choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px;
+  margin: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.choice:hover,
+.choice[data-checked] {
+  background: var(--control-hover);
+}
+.choice:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.choice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.choice > :global(.icon) {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.choiceLabel,
+.chip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--table-font-size, 13px);
+}
+.chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: #162026;
+}
+.chip[data-color='pink'] {
+  background: #f3cfe1;
+}
+.chip[data-color='cyan'] {
+  background: #c5e7e4;
+}
+.chip[data-color='violet'] {
+  background: #dcd5f0;
+}
+.chip[data-color='green'] {
+  background: #d0e7c4;
+}
+.chip[data-color='orange'] {
+  background: #f6d2a4;
+}
+.chip[data-color='red'] {
+  background: #f5d4d0;
+}
+.chip[data-color='blue'] {
+  background: #c7e6fa;
+}
+/* Bootstrap masks keep decoration out of the JavaScript payload. */
+.menuIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background: currentColor;
+  mask: var(--menu-icon) center / contain no-repeat;
+}
+.menuIcon[data-icon='search'] {
+  --menu-icon: url('bootstrap-icons/icons/search.svg?no-inline');
+}
+.menuIcon[data-icon='condition'] {
+  --menu-icon: url('bootstrap-icons/icons/input-cursor-text.svg?no-inline');
+}
+.menuIcon[data-icon='asc'] {
+  --menu-icon: url('bootstrap-icons/icons/sort-up.svg?no-inline');
+}
+.menuIcon[data-icon='desc'] {
+  --menu-icon: url('bootstrap-icons/icons/sort-down.svg?no-inline');
+}
+/* Native calendar selection inherits Bootstrap's light/dark form scheme. */
+.dateInput {
+  position: relative;
+  min-width: 0;
+}
+.dateInput input {
+  color-scheme: light;
+}
+.menu[data-bs-theme='dark'] .dateInput input {
+  color-scheme: dark;
+}
+.dateInput > .menuIcon {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.dateInput input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
+}
+.menuIcon[data-icon='calendar'] {
+  --menu-icon: url('bootstrap-icons/icons/calendar3.svg?no-inline');
+}

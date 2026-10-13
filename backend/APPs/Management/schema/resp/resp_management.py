@@ -101,15 +101,16 @@ class RespManagementSite(BaseModel):
     chat_title: str | None = Field(..., description="Localized contact-bubble title.")
     chat_title_sub: str | None = Field(..., description="Localized contact-bubble subtitle.")
     chat_content: str | None = Field(..., description="Localized contact-bubble copy with its original line breaks.")
+    createtime: datetime = Field(..., description="Owner account creation time in UTC ISO 8601.")
     updatetime: datetime = Field(
         ...,
         description="Owner account update time in UTC ISO 8601; this is not a portfolio content timestamp.",
     )
 
-    @field_validator("updatetime")
+    @field_validator("createtime", "updatetime")
     @classmethod
     def utc_timestamp(cls, value: datetime) -> datetime:
-        """Serialize the primary account's update time consistently, including owners without a site."""
+        """Serialize account timestamps consistently, including owners without a site."""
         return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 

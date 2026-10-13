@@ -73,6 +73,7 @@ export const managementSiteSchema = z.object({
   chat_title: z.string().nullable(),
   chat_title_sub: z.string().nullable(),
   chat_content: z.string().nullable(),
+  createtime: utcTimestampSchema,
   updatetime: utcTimestampSchema,
 });
 

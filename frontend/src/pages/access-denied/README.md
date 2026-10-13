@@ -72,16 +72,7 @@ smaller illustration. Portrait widths up to 900px stack and center the scene
 and copy; short portraits use tighter spacing. Short landscapes from 540–900px
 use two columns; narrower landscapes retain natural vertical scrolling.
 
-`tests/e2e/access-denied-responsive.spec.ts` covers phone, landscape, portrait
-tablet, short desktop and ultrawide sizes, including 1503×776, 3006×1552 and
-3840×2160. It checks viewport bounds, actual click targets, header
-menus, keyboard access, resizing, rotation and the shared login control row.
-
-```sh
-npx vitest run tests/unit/access-denied-scene.test.tsx tests/unit/auth-cow-scene.test.tsx tests/unit/auth-cow-welcome.test.tsx tests/unit/cow-workspace-motion.test.tsx
-npx playwright test tests/e2e/access-denied.spec.ts --workers=2
-npx playwright test tests/e2e/access-denied-responsive.spec.ts --workers=2
-```
+Check viewport bounds, click targets, header menus, keyboard access, resizing, rotation and the shared login control row on phones, tablets, short desktops and ultrawide screens. Local automated checks stay in the ignored root `agent/` directory.
 
 The pure finite ruler controller lives in `shared/lib/auth-transition`; this
 page no longer imports the portfolio page's internal background or controller.

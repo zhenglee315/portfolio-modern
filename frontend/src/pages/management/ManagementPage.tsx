@@ -1,19 +1,22 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate, useNavigation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import type { Locale } from '@/i18n/config';
-import { AccountMenu } from '@/features/account-menu';
-import { AppearanceMenu, useAppearance } from '@/features/appearance';
-import { LanguageMenu } from '@/features/language';
+import { AccountMenu, managementNavigation } from '@/features/account-menu';
+import { useAppearance } from '@/features/appearance';
 import { useAccountSession, useAccessDeniedRedirect } from '@/features/auth/actions';
 import { canManage } from '@/features/auth/permissions';
 import type { ManagementResource } from '@/features/management';
 import { Icon } from '@/shared/ui/Icon';
+import { Breadcrumb } from '@/shared/ui/Breadcrumb';
 import { LoadingIndicator } from '@/shared/ui/LoadingIndicator';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { useHydrated } from '@/shared/hooks/useHydrated';
-import { resources } from './model/management-view';
+import { usePageEntrance } from '@/shared/hooks/usePageEntrance';
+import BackgroundField from '@/shared/ui/background-field/BackgroundField';
+import { SectionBoundary } from '@/shared/ui/SectionBoundary';
+import entranceStyles from '@/shared/ui/PageEntrance.module.css';
 import { ManagementTable } from './components/ManagementTable';
 import styles from './ManagementPage.module.css';
 
@@ -26,7 +29,8 @@ export function ManagementPage({
   resource: ManagementResource;
 }) {
   const { t } = useTranslation();
-  const { settings } = useAppearance();
+  const { settings, motionPaused, subscribeThemeTransition } = useAppearance();
+  const root = useRef<HTMLDivElement>(null);
   const mounted = useHydrated();
   const navigate = useNavigate();
   const navigation = useNavigation();
@@ -36,6 +40,11 @@ export function ManagementPage({
   const drawerNavigation = useMediaQuery('(max-width: 1024px)');
   const allowed = session.isSuccess && canManage(session.data, resource);
   const denied = session.isSuccess && session.data !== undefined && !allowed;
+  usePageEntrance(root, {
+    paused: motionPaused,
+    subscribe: subscribeThemeTransition,
+    enabled: allowed && !signOut.isPending,
+  });
   useAccessDeniedRedirect({
     denied,
     destination: `/${locale}/access-denied`,
@@ -69,37 +78,81 @@ export function ManagementPage({
       </main>
     );
   }
-  const title = t(`accountMenu.${resources.find((item) => item.resource === resource)!.label}`);
+  const title = t(
+    `accountMenu.${managementNavigation.find((item) => item.resource === resource)!.label}`,
+  );
   const links = (
     <>
       <div className={styles.navCaption}>{t('management.workspace')}</div>
-      {resources
+      {managementNavigation
         .filter((item) => canManage(session.data, item.resource))
-        .map((item) => (
-          <Link
-            key={item.resource}
-            to={`/${locale}/management/${item.resource}`}
-            className={`${styles.navLink} ${resource === item.resource ? styles.selected : ''}`}
-            aria-current={resource === item.resource ? 'page' : undefined}
-            title={t(`accountMenu.${item.label}`)}
-            onClick={() => setDrawer(false)}
-          >
-            <Icon name={item.icon} />
-            <span>{t(`accountMenu.${item.label}`)}</span>
-          </Link>
-        ))}
+        .map((item) => {
+          const title = t(`accountMenu.${item.label}`);
+          const content = (
+            <>
+              <Icon name={item.icon} />
+              <span>{title}</span>
+            </>
+          );
+          const className = `${styles.navLink} ${resource === item.resource ? styles.selected : ''}`;
+          return item.resource === 'monitoring' ? (
+            <button
+              key={item.resource}
+              type="button"
+              className={className}
+              title={title}
+              onClick={() => setDrawer(false)}
+            >
+              {content}
+            </button>
+          ) : (
+            <Link
+              key={item.resource}
+              to={`/${locale}/management/${item.resource}`}
+              className={className}
+              aria-current={resource === item.resource ? 'page' : undefined}
+              title={title}
+              onClick={() => setDrawer(false)}
+            >
+              {content}
+            </Link>
+          );
+        })}
     </>
   );
   return (
     <div
-      className={`${styles.shell} ${compact ? styles.compact : ''}`}
+      ref={root}
+      className={`${styles.shell} ${entranceStyles.frame} ${compact ? styles.compact : ''}`}
       data-management-resource={resource}
       data-bs-theme={!mounted || settings.theme === 'mist' ? 'light' : 'dark'}
     >
+      <SectionBoundary
+        silent
+        resetKey="background"
+        message={t('ui.unavailable')}
+        retryLabel={t('ui.retry')}
+      >
+        <BackgroundField
+          copy={{ unavailable: t('ui.unavailable'), retry: t('ui.retry') }}
+          paused={motionPaused}
+          speed={settings.speed}
+          compact={compact}
+        />
+      </SectionBoundary>
       <a className="skip" href="#management-content">
         {t('ui.skip')}
       </a>
-      <aside className={styles.sidebar}>
+      <aside className={styles.sidebar} data-entrance-navigation>
+        <button
+          className={`btn ${styles.collapse}`}
+          type="button"
+          onClick={() => setCompact(!compact)}
+          aria-label={t(compact ? 'management.expandNavigation' : 'management.collapseNavigation')}
+          aria-expanded={!compact}
+        >
+          <Icon name={compact ? 'list' : 'collapse'} />
+        </button>
         <Link to={`/${locale}`} className={styles.brand} aria-label={t('management.backHome')}>
           <Icon name="dashboard" />
           <span>
@@ -117,52 +170,40 @@ export function ManagementPage({
         </Link>
       </aside>
       <div className={styles.main}>
-        <header className={styles.header}>
-          <button
-            className={`btn ${styles.collapse}`}
-            type="button"
-            onClick={() => setCompact(!compact)}
-            aria-label={t(
-              compact ? 'management.expandNavigation' : 'management.collapseNavigation',
-            )}
-            aria-expanded={!compact}
-          >
-            <Icon name={compact ? 'list' : 'collapse'} />
-          </button>
-          <button
-            className={`btn ${styles.mobileToggle}`}
-            type="button"
-            onClick={() => setDrawer(true)}
-            aria-label={t('management.openNavigation')}
-            aria-controls="management-navigation"
-            aria-expanded={drawer}
-          >
-            <Icon name="list" />
-          </button>
-          <span className={styles.headerLabel}>{t('management.workspace')}</span>
-          <div className={styles.controls}>
-            <AppearanceMenu />
-            <LanguageMenu
-              locale={locale}
-              busy={false}
-              onChange={(value) => void navigate(`/${value}/management/${resource}`)}
-            />
-            {session.data && (
-              <div className={styles.identity}>
-                <strong title={session.data.user}>{session.data.user}</strong>
-                <span title={session.data.role}>{session.data.role}</span>
-              </div>
-            )}
-            <AccountMenu
-              account={session.data ?? null}
-              busy={signOut.isPending || session.isFetching}
-              onLogin={() => void navigate(`/${locale}?view=login`)}
-              onLogout={logout}
-              onNavigate={(value) => void navigate(`/${locale}/management/${value}`)}
-            />
+        <main id="management-content" className={styles.content} data-entrance-content>
+          <div className={styles.contextRow}>
+            <button
+              className={`btn ${styles.mobileToggle}`}
+              type="button"
+              onClick={() => setDrawer(true)}
+              aria-label={t('management.openNavigation')}
+              aria-controls="management-navigation"
+              aria-expanded={drawer}
+            >
+              <Icon name="list" />
+            </button>
+            <div className={styles.breadcrumb}>
+              <Breadcrumb
+                label={t('breadcrumb.label')}
+                items={[{ label: t('breadcrumb.settings') }, { label: title }]}
+              />
+            </div>
+            <div className={styles.controls} data-management-controls>
+              {session.data && (
+                <div className={styles.identity}>
+                  <strong title={session.data.user}>{session.data.user}</strong>
+                  <span title={session.data.role}>{session.data.role}</span>
+                </div>
+              )}
+              <AccountMenu
+                account={session.data ?? null}
+                busy={signOut.isPending || session.isFetching}
+                onLogin={() => void navigate(`/${locale}?view=login`)}
+                onLogout={logout}
+                onNavigate={(value) => void navigate(`/${locale}/management/${value}`)}
+              />
+            </div>
           </div>
-        </header>
-        <main id="management-content" className={styles.content}>
           <div className={styles.heading}>
             <div>
               <p className={styles.eyebrow}>{t('management.manage')}</p>

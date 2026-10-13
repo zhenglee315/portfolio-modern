@@ -2,7 +2,7 @@ export {
   managementListParams,
   managementListQuery,
   managementSortFields,
-  managementFilterFields,
+  managementFilterSpecs,
   useManagementList,
   type ManagementSort,
   type ManagementListState,

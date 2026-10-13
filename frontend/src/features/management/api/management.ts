@@ -2,6 +2,7 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import type { z } from 'zod';
 import { localeSchema, type Locale } from '@/i18n/config';
 import { ApiError, requestJson, retryRead } from '@/shared/api/http';
+import { parseTableFilters, type DataTableFilterSpec } from '@/shared/lib/table-filter';
 import type { NumberedPage } from '@/shared/schemas/records';
 import {
   managementRolesSchema,
@@ -12,13 +13,7 @@ import {
 } from '../schemas/management';
 
 export type ManagementSort = { field: string; direction: 'asc' | 'desc' };
-export type ManagementListState = {
-  page: number;
-  size: number;
-  search: string;
-  sort: ManagementSort[];
-  filters: Record<string, string>;
-};
+export type ManagementListState = import('@/shared/lib/table-query').DataTableQueryState;
 
 export const managementSortFields = {
   roles: Object.keys(managementRolesSchema.shape.items.element.shape),
@@ -28,11 +23,69 @@ export const managementSortFields = {
   ),
 } satisfies Record<ManagementResource, string[]>;
 
-export const managementFilterFields = {
-  roles: ['is_active', 'is_default'],
-  users: ['is_active', 'role_is_active', 'has_site', 'role_id'],
-  sites: ['owner_is_active', 'has_site', 'is_published', 'is_default', 'has_translation'],
-} satisfies Record<ManagementResource, string[]>;
+const booleans = [
+  'is_create',
+  'is_read',
+  'is_update',
+  'is_delete',
+  'is_manage_sites',
+  'is_manage_users',
+  'is_manage_roles',
+  'is_default',
+  'is_active',
+  'role_is_active',
+  'owner_is_active',
+  'has_site',
+  'has_translation',
+  'is_published',
+];
+const numbers = ['id', 'role_id', 'site_id', 'login_count', 'user_count', 'copyright_year'];
+const dates = ['createtime', 'updatetime', 'last_login'];
+const boundedNumbers = ['id', 'role_id', 'site_id', 'copyright_year'];
+
+/** One capabilities map serves URL validation and every management column menu. */
+export const managementFilterSpecs = Object.fromEntries(
+  Object.entries({
+    roles: managementRolesSchema,
+    users: managementUsersSchema,
+    sites: managementSitesSchema,
+  }).map(([resource, schema]) => [
+    resource,
+    Object.fromEntries(
+      Object.entries(schema.shape.items.element.shape).map(([field, validator]) => {
+        const type = booleans.includes(field)
+          ? 'boolean'
+          : numbers.includes(field)
+            ? 'number'
+            : dates.includes(field)
+              ? 'date'
+              : 'text';
+        return [
+          field,
+          field === 'locale'
+            ? {
+                type: 'enum',
+                options: ['en', 'zh-Hans', 'zh-Hant'].map((value) => ({ value, label: value })),
+              }
+            : {
+                type,
+                nullable: validator.safeParse(null).success,
+                ...(type === 'number'
+                  ? {
+                      integer: true,
+                      ...(boundedNumbers.includes(field)
+                        ? { minimum: -2147483648, maximum: 2147483647 }
+                        : {}),
+                    }
+                  : {}),
+              },
+        ];
+      }),
+    ),
+  ]),
+) as Record<ManagementResource, Record<string, DataTableFilterSpec>>;
+managementFilterSpecs.sites.profile_name = { type: 'text', nullable: true };
+managementFilterSpecs.roles.role = { type: 'text', sets: true };
 
 const schemas: {
   [Resource in ManagementResource]: z.ZodType<NumberedPage<ManagementRows[Resource]>>;
@@ -44,7 +97,7 @@ const schemas: {
 
 /** Serialize the selected page controls without fetching or sorting browser-only subsets.
  * @param resource Endpoint whose filter and sort whitelist validates the request.
- * @param state Current server page, search, ordered sort criteria and optional filters.
+ * @param state Current server page, ordered sort criteria and typed column filters.
  * @param locale Current management language; only platform content queries use it on the wire.
  * @returns Canonical query parameters used for both the request and its cache identity.
  * @throws ApiError when controls violate the management GET contract.
@@ -65,10 +118,9 @@ export function managementListParams(
   )
     throw new ApiError('contract');
 
-  const search = state.search.trim();
-  if (Array.from(search).length > 200 || (search ? search.split(/\s+/u).length : 0) > 10)
-    throw new ApiError('contract');
-  const sort = state.sort.length ? state.sort : [{ field: 'id', direction: 'desc' }];
+  const filters = parseTableFilters(state.filters, managementFilterSpecs[resource]);
+  if (!filters || JSON.stringify(filters).length > 16384) throw new ApiError('contract');
+  const sort = state.sort;
   if (
     sort.length > 3 ||
     new Set(sort.map((item) => item.field)).size !== sort.length ||
@@ -81,29 +133,17 @@ export function managementListParams(
     throw new ApiError('contract');
 
   const params = new URLSearchParams({ page: String(state.page), size: String(state.size) });
-  if (search) params.set('search', search);
-  params.set('sort', sort.map((item) => `${item.field}:${item.direction}`).join(','));
+  if (sort.length)
+    params.set('sort', sort.map((item) => `${item.field}:${item.direction}`).join(','));
   if (resource === 'sites') params.set('locale', locale);
-  for (const [field, raw] of Object.entries(state.filters).sort(([a], [b]) => a.localeCompare(b))) {
-    if (!managementFilterFields[resource].includes(field)) throw new ApiError('contract');
-    if (raw === '') continue;
-    if (field === 'role_id') {
-      const value = Number(raw);
-      if (!/^\d+$/.test(raw) || !Number.isInteger(value) || value < 1 || value > 2147483647)
-        throw new ApiError('contract');
-      params.set(field, String(value));
-    } else {
-      const value = raw.trim().toLowerCase();
-      if (value !== 'true' && value !== 'false') throw new ApiError('contract');
-      params.set(field, value);
-    }
-  }
+  if (filters.length)
+    params.set('filters', JSON.stringify(filters.sort((a, b) => a.field.localeCompare(b.field))));
   return params;
 }
 
 /** Create one cancellable GET for the selected management resource and numbered page.
  * @param resource Resource row contract; requests never prefetch other resources or pages.
- * @param state Controlled list values; search, filters and sort run in the database.
+ * @param state Controlled list values; column filters and sort run in the database.
  * @param locale Current management language, included in cache identity for every resource.
  * @param accountId Session account identity isolating private records across account changes.
  * @param options Optional API origin for explicit read-only integration checks.

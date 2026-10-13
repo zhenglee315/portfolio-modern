@@ -1,21 +1,29 @@
-import { useCallback, useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react';
-import { useSearchParams } from 'react-router';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Modal from 'react-bootstrap/Modal';
 import type { Locale } from '@/i18n/config';
 import { fullName } from '@/features/site';
 import {
-  managementFilterFields,
+  managementFilterSpecs,
   managementSortFields,
   useManagementList,
-  type ManagementListState,
   type ManagementResource,
   type ManagementRow,
 } from '@/features/management';
-import { DataTable, type DataTableColumn, type DataTableCopy } from '@/shared/ui/DataTable';
+import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
-import { cycleDialogTab } from '@/shared/lib/focus';
-import { fields, visible, booleanFields, listState, rowValue } from '../model/management-view';
+import { ManagementDetails } from './ManagementDetails';
+import {
+  fields,
+  visible,
+  booleanFields,
+  columnLabels,
+  detailLabels,
+  rowValue,
+} from '../model/management-view';
+import { useDataTableQuery, useDataTableSelection } from '@/shared/hooks/useDataTableQuery';
+import { dataTableCopy } from '@/i18n/table-copy';
+import { BooleanCell } from '@/shared/ui/BooleanCell';
+import WarningModal from '@/shared/ui/WarningModal';
 import styles from '../ManagementPage.module.css';
 
 /** Own query controls and detail selection; server data stays only in the feature query cache. */
@@ -33,197 +41,157 @@ export function ManagementTable({
   accountId?: number;
 }) {
   const { t } = useTranslation();
-  const [params, setParams] = useSearchParams();
-  const state = useMemo(() => listState(resource, params), [resource, params]);
-  const [draft, setDraft] = useState({ committed: state.search, value: state.search });
-  // URL navigation resets the draft synchronously so Back cannot recommit an obsolete search.
-  if (draft.committed !== state.search) setDraft({ committed: state.search, value: state.search });
-  const search = draft.committed === state.search ? draft.value : state.search;
-  const [selected, setSelected] = useState<ManagementRow | null>(null);
-  const query = useManagementList(resource, state, locale, enabled, accountId);
-  const searchInvalid = search.trim().split(/\s+/).filter(Boolean).length > 10;
-  const id = useId();
-  const update = useCallback(
-    (changes: Partial<ManagementListState>, replace = false) => {
-      const next = { ...state, ...changes };
-      const values = new URLSearchParams({
-        page: String(next.page),
-        size: String(next.size),
-        sort: next.sort.map((item) => `${item.field}:${item.direction}`).join(','),
-      });
-      if (next.search) values.set('search', next.search);
-      Object.entries(next.filters).forEach(([key, value]) => {
-        if (value) values.set(key, value);
-      });
-      void setParams(values, { replace, preventScrollReset: true });
-    },
-    [state, setParams],
+  const { state, onPageChange, onSizeChange, onSortChange, onFiltersChange } = useDataTableQuery(
+    managementSortFields[resource],
+    managementFilterSpecs[resource],
   );
-  useEffect(() => {
-    if (searchInvalid || search.trim() === state.search) return;
-    const timer = setTimeout(() => {
-      const values = new URLSearchParams(params);
-      values.set('page', '1');
-      if (search.trim()) values.set('search', search.trim());
-      else values.delete('search');
-      void setParams(values, { replace: true, preventScrollReset: true });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search, searchInvalid, state.search, params, setParams]);
-  const columns = useMemo<DataTableColumn<ManagementRow>[]>(
-    () =>
-      [
-        ...visible[resource],
-        ...fields[resource].filter((field) => !visible[resource].includes(field)),
-      ]
-        .sort(
-          (left, right) =>
-            Number(booleanFields[resource].includes(left)) -
-            Number(booleanFields[resource].includes(right)),
-        )
-        .map((field) => ({
-          id: field,
-          label: t(
-            `management.fields.${resource === 'sites' && field === 'email' ? 'contact_email' : resource === 'sites' && field === 'updatetime' ? 'account_updatetime' : resource === 'roles' && field === 'is_default' ? 'default_role' : field}`,
-          ),
-          value: (row) => {
-            if (field !== 'profile_name' || !('has_translation' in row))
-              return rowValue(row, field);
-            if (!row.has_site) return t('management.noPortfolio');
-            if (!row.has_translation) return t('management.noTranslation');
-            return (
-              fullName({
-                firstName: (row.first_name ?? '').trim(),
-                familyName: (row.family_name ?? '').trim(),
-              }) ||
-              row.nick_name?.trim() ||
-              t('management.unnamedProfile')
-            );
-          },
-          sortable: managementSortFields[resource].includes(field),
-          initiallyHidden: !visible[resource].includes(field),
-          hideable: field !== 'id',
-          filter:
-            managementFilterFields[resource].includes(field) && field !== 'role_id'
-              ? {
-                  value: state.filters[field] ?? '',
-                  allLabel: t('management.all'),
-                  options: [
-                    { value: 'true', label: t('management.yes') },
-                    { value: 'false', label: t('management.no') },
-                  ],
-                  onChange: (value: string) =>
-                    update({ page: 1, filters: { ...state.filters, [field]: value } }),
-                }
-              : undefined,
-          render: ['createtime', 'updatetime', 'last_login'].includes(field)
+  const [selected, setSelected] = useState<ManagementRow | null>(null);
+  const scope = `${resource}/${accountId}/${locale}?${JSON.stringify(state)}`;
+  const selection = useDataTableSelection(scope);
+  const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
+  if (deletion && deletion.scope !== scope) setDeletion(null);
+  const query = useManagementList(resource, state, locale, enabled, accountId);
+  const deleteUnavailable = !enabled || query.isFetching || query.isError;
+  const selectedRows = (query.data?.items ?? []).filter((row) => selection.keys.includes(row.id));
+  const openDelete = (rows: ManagementRow[]) => {
+    if (!deleteUnavailable && rows.length) setDeletion({ scope, rows });
+  };
+  const { columns, detailColumns } = useMemo(() => {
+    const makeColumn = (field: string, override?: string): DataTableColumn<ManagementRow> => {
+      const label =
+        override ||
+        columnLabels[resource][field] ||
+        t(
+          `management.fields.${resource === 'sites' && field === 'email' ? 'contact_email' : resource === 'roles' && field === 'is_default' ? 'default_role' : field}`,
+        );
+      return {
+        id: field,
+        label,
+        value: (row) => {
+          if (field !== 'profile_name' || !('has_translation' in row)) return rowValue(row, field);
+          if (!row.has_site) return t('management.noPortfolio');
+          if (!row.has_translation) return t('management.noTranslation');
+          return (
+            fullName({
+              firstName: (row.first_name ?? '').trim(),
+              familyName: (row.family_name ?? '').trim(),
+            }) ||
+            row.nick_name?.trim() ||
+            t('management.unnamedProfile')
+          );
+        },
+        sortable: managementSortFields[resource].includes(field),
+        initiallyHidden: !visible[resource].includes(field),
+        hideable: field !== 'id',
+        filter: managementFilterSpecs[resource][field],
+        filterStyle: resource === 'roles' && field === 'role' ? 'dropdown-list' : undefined,
+        render: booleanFields[resource].includes(field)
+          ? (row) => {
+              return (
+                <BooleanCell
+                  value={rowValue(row, field) as boolean | null}
+                  label={label}
+                  rowId={row.id}
+                  readonly={t('management.readonly')}
+                  checkbox={
+                    resource === 'sites' &&
+                    ['has_site', 'is_published', 'has_translation'].includes(field)
+                  }
+                  unavailableReason={
+                    field === 'is_default' &&
+                    'owner_is_active' in row &&
+                    !(row.owner_is_active && row.has_site && row.is_published)
+                      ? t('management.defaultRequires')
+                      : undefined
+                  }
+                />
+              );
+            }
+          : ['createtime', 'updatetime', 'last_login'].includes(field)
             ? (row) => {
                 const value = rowValue(row, field);
                 return typeof value === 'string' ? (
                   <time dateTime={value} title={`${value} UTC`}>
-                    {new Intl.DateTimeFormat(locale, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                      timeZone: 'UTC',
-                    }).format(new Date(value))}
+                    {new Date(value)
+                      .toISOString()
+                      .slice(0, 19)
+                      .replaceAll('-', '.')
+                      .replace('T', ' ')}
                   </time>
                 ) : (
                   '—'
                 );
               }
             : undefined,
-        })),
-    [resource, locale, t, state.filters, update],
-  );
-  const copy: DataTableCopy = {
-    caption: title,
-    loading: t('ui.loading'),
-    empty: t('management.empty'),
-    error: t('management.loadError'),
-    retry: t('ui.retry'),
-    rowsPerPage: t('management.rowsPerPage'),
-    pagination: t('management.pagination'),
-    previous: t('management.previous'),
-    next: t('management.next'),
-    columns: t('management.columns'),
-    sorting: t('management.sorting'),
-    clearSort: t('management.clearSort'),
-    sortHint: t('management.sortHint'),
-    multiSort: t('management.multiSort'),
-    columnMenuLabel: (column) => t('management.columnMenu', { column }),
-    export: {
-      label: t('management.export.label'),
-      copy: t('management.export.copy'),
-      excel: t('management.export.excel'),
-      csv: t('management.export.csv'),
-      print: t('management.export.print'),
-      scope: t('management.export.scope'),
-      busy: t('management.export.busy'),
-      error: t('management.export.error'),
-      copied: t('management.export.copied'),
-    },
-    readonly: t('management.readonly'),
-    actions: t('management.actions'),
-    range: (from, to, total) => t('management.range', { from, to, total }),
-    pageLabel: (page) => t('management.pageLabel', { page }),
-    sortLabel: (column, direction) =>
-      t(
-        `management.${direction === 'none' ? 'removeSort' : direction === 'asc' ? 'sortAsc' : 'sortDesc'}`,
-        { column },
+      };
+    };
+    return {
+      columns: visible[resource].map((field) => makeColumn(field)),
+      detailColumns: fields[resource].map((field) =>
+        makeColumn(field, detailLabels[resource][field]),
       ),
-    direction: { asc: t('management.ascending'), desc: t('management.descending') },
+    };
+  }, [resource, t]);
+  const copy = {
+    ...dataTableCopy(t, title),
+    actions: columnLabels[resource].actions ?? t('management.actions'),
   };
   const toolbar = (
-    <form
-      className={styles.toolbar}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!searchInvalid) update({ page: 1, search: search.trim() });
-      }}
-    >
-      <label className={styles.search} htmlFor={`${id}-search`}>
-        <span className="visually-hidden">{t('management.search')}</span>
-        <input
-          id={`${id}-search`}
-          type="search"
-          className="form-control form-control-sm"
-          placeholder={t('management.searchPlaceholder')}
-          value={search}
-          maxLength={200}
-          aria-invalid={searchInvalid || undefined}
-          aria-describedby={searchInvalid ? `${id}-search-error` : undefined}
-          onChange={(event) => setDraft({ committed: state.search, value: event.target.value })}
-        />
-      </label>
+    <div className={styles.toolbar}>
       <button
         className={`btn btn-outline-secondary btn-sm ${styles.refresh}`}
         type="button"
         aria-label={t('management.refresh')}
+        title={t('management.refresh')}
         disabled={!enabled || query.isFetching}
         onClick={() => void query.refetch()}
       >
         <Icon name="restart" />
-        <span>{t('management.refresh')}</span>
       </button>
-      {searchInvalid && (
-        <span id={`${id}-search-error`} className={styles.searchError} role="alert">
-          {t('management.searchLimit')}
-        </span>
-      )}
-    </form>
+      <div className={styles.tableActions}>
+        <button
+          className={`btn btn-outline-secondary btn-sm ${styles.tableAction}`}
+          type="button"
+          value="add"
+        >
+          Add
+        </button>
+        <button
+          className={`btn btn-outline-secondary btn-sm ${styles.tableAction}`}
+          type="button"
+          value="delete"
+          aria-label="Delete"
+          title="Delete"
+          disabled={deleteUnavailable || !selectedRows.length}
+          onClick={() => openDelete(selectedRows)}
+        >
+          Del
+        </button>
+      </div>
+    </div>
   );
   return (
     <section className={styles.tablePanel} aria-label={title}>
       <DataTable
-        key={resource}
+        key={`${resource}/${accountId}/${locale}`}
         columns={columns}
         rows={query.data?.items ?? []}
         rowKey={(row) => row.id}
+        selection={{
+          ...selection,
+          allLabel: t('management.selectAll'),
+          rowLabel: (row) =>
+            t('management.selectRow', {
+              name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+            }),
+        }}
         page={query.data ?? { ...state, total: 0, pages: 0 }}
+        filters={state.filters}
+        onFiltersChange={onFiltersChange}
         sort={state.sort}
-        onSortChange={(sort) => update({ page: 1, sort })}
-        onPageChange={(page) => update({ page })}
-        onSizeChange={(size) => update({ page: 1, size })}
+        onSortChange={onSortChange}
+        onPageChange={onPageChange}
+        onSizeChange={onSizeChange}
         loading={!enabled || query.isFetching}
         error={query.isError}
         onRetry={() => void query.refetch()}
@@ -231,74 +199,64 @@ export function ManagementTable({
         toolbar={toolbar}
         export={{ filename: `management-${resource}-${locale}` }}
         rowActions={(row) => (
-          <button
-            className={`btn btn-link btn-sm ${styles.view}`}
-            type="button"
-            aria-label={t('management.viewRow', {
-              name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
-            })}
-            onClick={() => setSelected(row)}
-          >
-            <Icon name="eye" />
-          </button>
+          <div className={styles.rowActions}>
+            <button
+              className={`btn btn-link btn-sm ${styles.view}`}
+              type="button"
+              value="view"
+              aria-label={t('management.viewRow', {
+                name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+              })}
+              onClick={() => setSelected(row)}
+            >
+              <Icon name="eye" />
+            </button>
+            <button
+              className={`btn btn-link btn-sm ${styles.tableAction} ${styles.deleteRow}`}
+              type="button"
+              value="delete"
+              disabled={deleteUnavailable}
+              onClick={() => openDelete([row])}
+              aria-label={t('management.deleteRow', {
+                name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+              })}
+              title={t('management.deleteRow', {
+                name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+              })}
+            />
+          </div>
         )}
       />
       {selected && (
-        <Modal
-          show
-          centered
-          scrollable
-          onHide={() => setSelected(null)}
-          className={styles.detail}
-          contentClassName={styles.detailContent}
-          aria-labelledby={`${id}-detail-title`}
-          onKeyDown={(event: KeyboardEvent<HTMLElement>) =>
-            cycleDialogTab(event, event.currentTarget)
+        <ManagementDetails
+          key={selected.id}
+          row={selected}
+          columns={detailColumns}
+          name={String(rowValue(selected, resource === 'roles' ? 'role' : 'user'))}
+          copy={{ title: t('management.details'), close: t('management.close') }}
+          onClose={() => setSelected(null)}
+        />
+      )}
+      {deletion?.scope === scope && (
+        <WarningModal
+          title={t('management.deleteConfirmation')}
+          message={
+            deletion.rows.length === 1
+              ? t('management.deleteTarget', {
+                  name: rowValue(deletion.rows[0]!, resource === 'roles' ? 'role' : 'user'),
+                })
+              : t('management.deleteTargets', { count: deletion.rows.length })
           }
-        >
-          <Modal.Header closeButton closeLabel={t('management.close')}>
-            <Modal.Title id={`${id}-detail-title`}>
-              {t('management.details')} ·{' '}
-              {rowValue(selected, resource === 'roles' ? 'role' : 'user')}
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <dl className={styles.details}>
-              {columns.map((column) => {
-                const value = column.value(selected);
-                return (
-                  <div key={column.id}>
-                    <dt>{column.label}</dt>
-                    <dd>
-                      {typeof value === 'boolean' ? (
-                        <span className="form-check form-switch">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            role="switch"
-                            checked={value}
-                            disabled
-                            readOnly
-                            aria-label={`${column.label}: ${t(value ? 'management.yes' : 'management.no')}`}
-                          />
-                        </span>
-                      ) : column.render ? (
-                        column.render(selected)
-                      ) : (
-                        (value ?? '—')
-                      )}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-          </Modal.Body>
-          <Modal.Footer>
-            <button className="btn btn-outline-secondary" onClick={() => setSelected(null)}>
-              {t('management.close')}
-            </button>
-          </Modal.Footer>
-        </Modal>
+          closeLabel={t('management.close')}
+          onClose={() => setDeletion(null)}
+          confirm={{
+            label: t('management.confirmDelete'),
+            cancelLabel: t('management.cancel'),
+            variant: 'danger',
+            // UI preview only: the future mutation belongs here, never in WarningModal.
+            onConfirm: () => setDeletion(null),
+          }}
+        />
       )}
     </section>
   );

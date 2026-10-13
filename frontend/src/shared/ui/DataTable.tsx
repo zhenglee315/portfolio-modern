@@ -1,12 +1,29 @@
-import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
 import Dropdown from 'react-bootstrap/Dropdown';
 import { Icon } from './Icon';
 import { LoadingIndicator } from './LoadingIndicator';
+import { BooleanCell } from './BooleanCell';
+import { DataTableColumnMenu, type DataTableFilterCopy } from './DataTableColumnMenu';
+import type { DataTableChoice, DataTableChoicesSource } from './DataTableChoices';
+import type { DataTableFilter, DataTableFilterSpec } from '../lib/table-filter';
 import { tableCsv, tablePrintHtml, tableTsv, tableXlsx } from '../lib/table-export';
 import styles from './DataTable.module.css';
 
 export type DataTableSort = { field: string; direction: 'asc' | 'desc' };
+/** Controlled selection of the supplied page; owners clear keys when the query scope changes. */
+export type DataTableSelection<T> = {
+  keys: readonly (string | number)[];
+  onChange: (keys: (string | number)[]) => void;
+  allLabel: string;
+  rowLabel: (row: T) => string;
+};
 export type DataTableExport<T> = {
   filename: string;
   /** Omit to export this page; owners may explicitly load the selected server result instead. */
@@ -16,19 +33,23 @@ export type DataTableExport<T> = {
 export type DataTableColumn<T> = {
   id: string;
   label: string;
+  /** Optional accessible menu name for otherwise ambiguous headings. */
+  menuLabel?: string;
+  /** Strings use one-line ellipsis by default; renderers and export values remain untouched. */
+  truncate?: boolean;
+  textWidth?: number;
   value: (row: T) => string | number | boolean | null;
   sortable?: boolean;
   initiallyHidden?: boolean;
   /** Required identity columns stay visible regardless of picker or initial visibility. */
   hideable?: boolean;
   render?: (row: T) => ReactNode;
-  /** One owner-defined server choice; an empty value clears this column's filter. */
-  filter?: {
-    value: string;
-    allLabel: string;
-    options: { value: string; label: string }[];
-    onChange: (value: string) => void;
-  };
+  /** Declared query capabilities, independent of value/render. */
+  filter?: DataTableFilterSpec;
+  /** Dropdown list filter derives colored options from rows seen by this mounted table. Requires sets. */
+  filterStyle?: 'dropdown-list';
+  /** Optional owner-supplied choices; overrides the dropdown list's loaded-row source. */
+  choices?: DataTableChoicesSource;
 };
 
 export type DataTableCopy = {
@@ -39,17 +60,19 @@ export type DataTableCopy = {
   retry: string;
   rowsPerPage: string;
   pagination: string;
+  first: string;
   previous: string;
   next: string;
+  last: string;
   columns: string;
+  allColumns: string;
   sorting: string;
   clearSort: string;
-  sortHint: string;
-  multiSort: string;
+  filter: DataTableFilterCopy;
   readonly: string;
   actions: string;
   direction: { asc: string; desc: string };
-  range: (from: number, to: number, total: number) => string;
+  range: (from: number, to: number, total: number, selected: number) => string;
   pageLabel: (page: number) => string;
   sortLabel: (column: string, next: 'asc' | 'desc' | 'none') => string;
   columnMenuLabel?: (column: string) => string;
@@ -71,6 +94,8 @@ type Props<T> = {
   rows: T[];
   rowKey: (row: T) => string | number;
   page: { page: number; size: number; total: number; pages: number };
+  filters?: DataTableFilter[];
+  onFiltersChange?: (filters: DataTableFilter[]) => void;
   sort: DataTableSort[];
   onSortChange: (sort: DataTableSort[]) => void;
   onPageChange: (page: number) => void;
@@ -79,10 +104,30 @@ type Props<T> = {
   error?: boolean;
   onRetry?: () => void;
   rowActions?: (row: T) => ReactNode;
+  selection?: DataTableSelection<T>;
   toolbar?: ReactNode;
+  /** Natural row height by default; constrain only tables that need an internal vertical viewport. */
+  maxHeight?: CSSProperties['maxHeight'];
   export?: DataTableExport<T>;
   copy: DataTableCopy;
 };
+
+/** Keep native checked/mixed state consistent across row and column selectors. */
+function TableCheckbox({
+  mixed = false,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { mixed?: boolean }) {
+  return (
+    <input
+      {...props}
+      type="checkbox"
+      className="form-check-input"
+      ref={(input) => {
+        if (input) input.indeterminate = mixed;
+      }}
+    />
+  );
+}
 
 /** Download one generated document without opening an application or retaining its Blob URL. */
 function downloadTable(blob: Blob, filename: string) {
@@ -155,156 +200,56 @@ function pageButtons(page: number, pages: number): (number | 'gap-start' | 'gap-
   ];
 }
 
-/** Cycle one criterion or retain ordered Shift-click criteria without sorting the supplied rows. */
-function nextSort(sort: DataTableSort[], field: string, append: boolean): DataTableSort[] {
-  const current = sort.find((criterion) => criterion.field === field);
-  const direction = current?.direction === 'asc' ? 'desc' : current ? null : 'asc';
-  if (!append) return direction ? [{ field, direction }] : [];
-  if (current) {
-    return direction
-      ? sort.map((criterion) => (criterion.field === field ? { field, direction } : criterion))
-      : sort.filter((criterion) => criterion.field !== field);
-  }
-  return sort.length < 3 ? [...sort, { field, direction: 'asc' }] : sort;
-}
-
-/** Set an explicit menu criterion while respecting the same ordered three-column limit. */
+/** Toggle one direction while preserving other fields and the ordered three-column limit. */
 function setSortDirection(
   sort: DataTableSort[],
   field: string,
   direction: 'asc' | 'desc' | null,
-  append: boolean,
 ): DataTableSort[] {
-  if (!direction) return sort.filter((criterion) => criterion.field !== field);
-  if (!append) return [{ field, direction }];
-  if (sort.some((criterion) => criterion.field === field))
+  const current = sort.find((criterion) => criterion.field === field);
+  if (!direction || current?.direction === direction)
+    return current ? sort.filter((criterion) => criterion.field !== field) : sort;
+  if (current)
     return sort.map((criterion) => (criterion.field === field ? { field, direction } : criterion));
   return sort.length < 3 ? [...sort, { field, direction }] : sort;
 }
 
-/** Keep column choices outside the horizontal viewport while their owner controls server state. */
-function ColumnFilter<T>({
-  column,
-  sort,
-  multiSort,
-  onSortChange,
-  loading,
-  copy,
-}: {
-  column: DataTableColumn<T>;
-  sort: DataTableSort[];
-  multiSort: boolean;
-  onSortChange: (sort: DataTableSort[]) => void;
-  loading: boolean;
-  copy: DataTableCopy;
-}) {
-  const id = useId();
-  const toggle = useRef<HTMLButtonElement>(null);
-  const [show, setShow] = useState(false);
-  const [theme, setTheme] = useState<string>();
-  const filter = column.filter!;
-  const close = () => {
-    setShow(false);
-    toggle.current?.focus();
-  };
-  const chooseSort = (direction: 'asc' | 'desc' | null) => {
-    if (loading) return;
-    const next = setSortDirection(sort, column.id, direction, multiSort);
-    if (next !== sort) onSortChange(next);
-    close();
-  };
-  return (
-    <Dropdown
-      className={styles.columnFilter}
-      show={show}
-      autoClose="outside"
-      focusFirstItemOnShow="keyboard"
-      onToggle={(next) => {
-        if (next)
-          setTheme(
-            toggle.current?.closest('[data-bs-theme]')?.getAttribute('data-bs-theme') ?? undefined,
-          );
-        setShow(next);
-      }}
-    >
-      <Dropdown.Toggle
-        ref={toggle}
-        id={`${id}-toggle`}
-        variant="link"
-        className={`${styles.filterToggle} ${filter.value ? styles.filterActive : ''}`}
-        aria-label={copy.columnMenuLabel?.(column.label) ?? column.label}
-        aria-controls={show ? `${id}-menu` : undefined}
-      >
-        <Icon name={filter.value ? 'funnelFill' : 'funnel'} />
-      </Dropdown.Toggle>
-      {typeof document !== 'undefined' &&
-        createPortal(
-          <Dropdown.Menu
-            id={`${id}-menu`}
-            className={styles.filterMenu}
-            align="end"
-            data-bs-theme={theme}
-            aria-hidden={!show}
-            popperConfig={{
-              strategy: 'fixed',
-              modifiers: [
-                { name: 'preventOverflow', options: { padding: 8, altAxis: true, tether: false } },
-                { name: 'flip', options: { padding: 8 } },
-              ],
-            }}
-          >
-            {column.sortable && (
-              <>
-                {(['asc', 'desc'] as const).map((direction) => (
-                  <Dropdown.Item
-                    key={direction}
-                    as="button"
-                    type="button"
-                    disabled={loading}
-                    onClick={() => chooseSort(direction)}
-                  >
-                    <Icon name={direction === 'asc' ? 'caretUpFill' : 'caretDownFill'} />
-                    <span>{copy.sortLabel(column.label, direction)}</span>
-                  </Dropdown.Item>
-                ))}
-                <Dropdown.Item
-                  as="button"
-                  type="button"
-                  disabled={loading}
-                  onClick={() => chooseSort(null)}
-                >
-                  {copy.sortLabel(column.label, 'none')}
-                </Dropdown.Item>
-                <Dropdown.Divider />
-              </>
-            )}
-            <fieldset className={styles.filterChoices} disabled={loading}>
-              <legend className="visually-hidden">{column.label}</legend>
-              {[{ value: '', label: filter.allLabel }, ...filter.options].map((option) => (
-                <label className={`form-check ${styles.filterChoice}`} key={option.value}>
-                  <input
-                    className="form-check-input"
-                    type="radio"
-                    name={`${id}-filter`}
-                    value={option.value}
-                    checked={filter.value === option.value}
-                    onClick={() => {
-                      if (!loading && filter.value === option.value) close();
-                    }}
-                    onChange={() => {
-                      if (loading) return;
-                      filter.onChange(option.value);
-                      close();
-                    }}
-                  />
-                  <span className="form-check-label">{option.label}</span>
-                </label>
-              ))}
-            </fieldset>
-          </Dropdown.Menu>,
-          document.body,
-        )}
-    </Dropdown>
+/** Remember only loaded values so filtering cannot remove the choices needed to restore rows. */
+function loadedChoices<T>(
+  columns: DataTableColumn<T>[],
+  rows: T[],
+  previous: Record<string, DataTableChoice[]>,
+): Record<string, DataTableChoice[]> {
+  const colors = ['pink', 'cyan', 'violet', 'green', 'orange', 'red', 'blue'] as const;
+  return Object.fromEntries(
+    columns.flatMap((column) => {
+      const spec = column.filter;
+      if (
+        column.filterStyle !== 'dropdown-list' ||
+        column.choices ||
+        !spec ||
+        (spec.type !== 'text' && spec.type !== 'enum') ||
+        !spec.sets
+      )
+        return [];
+      const options = [...(previous[column.id] ?? [])];
+      const normalize = (value: string) => (spec.type === 'text' ? value.toLowerCase() : value);
+      const seen = new Set(options.map((option) => normalize(option.value)));
+      for (const row of rows) {
+        const value = column.value(row);
+        if (typeof value !== 'string' || !value || seen.has(normalize(value))) continue;
+        seen.add(normalize(value));
+        options.push({
+          value,
+          label:
+            spec.type === 'enum'
+              ? (spec.options.find((item) => item.value === value)?.label ?? value)
+              : value,
+          color: colors[options.length % colors.length],
+        });
+      }
+      return [[column.id, options]];
+    }),
   );
 }
 
@@ -318,6 +263,8 @@ export function DataTable<T>({
   rowKey,
   page,
   sort,
+  filters = [],
+  onFiltersChange,
   onSortChange,
   onPageChange,
   onSizeChange,
@@ -325,13 +272,20 @@ export function DataTable<T>({
   error = false,
   onRetry,
   rowActions,
+  selection,
   toolbar,
+  maxHeight,
   export: exportOptions,
   copy,
 }: Props<T>) {
-  const id = useId();
+  const [choiceCache, setChoiceCache] = useState(() => ({
+    rows,
+    columns,
+    options: loadedChoices(columns, rows, {}),
+  }));
+  if (choiceCache.rows !== rows || choiceCache.columns !== columns)
+    setChoiceCache({ rows, columns, options: loadedChoices(columns, rows, choiceCache.options) });
   const [visibility, setVisibility] = useState<Record<string, boolean>>({});
-  const [multiSort, setMultiSort] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportStatus, setExportStatus] = useState<'copied' | 'error' | null>(null);
   const exportController = useRef<AbortController | null>(null);
@@ -346,12 +300,15 @@ export function DataTable<T>({
   const visibleColumns = columns.filter(
     (column) => column.hideable === false || (visibility[column.id] ?? !column.initiallyHidden),
   );
+  const allColumnsVisible = columns.length > 0 && visibleColumns.length === columns.length;
+  const selectedKeys = rows.map(rowKey).filter((key) => selection?.keys.includes(key));
+  const allRowsSelected = rows.length > 0 && selectedKeys.length === rows.length;
   const first = rows.length ? (page.page - 1) * page.size + 1 : 0;
   const last = rows.length ? Math.min(first + rows.length - 1, page.total) : 0;
   const sizeOptions = [...new Set([6, 10, 25, 50, 100, page.size])].sort((a, b) => a - b);
-  const changeSort = (event: MouseEvent<HTMLButtonElement>, field: string) => {
+  const changeSort = (field: string, direction: 'asc' | 'desc' | null) => {
     if (loading) return;
-    const changed = nextSort(sort, field, event.shiftKey || multiSort);
+    const changed = setSortDirection(sort, field, direction);
     if (changed !== sort) onSortChange(changed);
   };
   const exportRows = async (kind: 'copy' | 'excel' | 'csv' | 'print') => {
@@ -403,6 +360,35 @@ export function DataTable<T>({
       }
     }
   };
+  const columnStyle = (column: DataTableColumn<T>): CSSProperties => {
+    const widths = [
+      ...(column.sortable ? ['var(--table-sort-width)'] : []),
+      ...(sort.some((item) => item.field === column.id) ? ['var(--table-rank-width)'] : []),
+      ...(column.filter && onFiltersChange ? ['var(--table-filter-width)'] : []),
+    ];
+    return {
+      '--table-header-tools': widths.length
+        ? `calc(${widths.join(' + ')} + ${widths.length + 1}px)`
+        : '0px',
+    } as CSSProperties;
+  };
+  const navigationButton = (
+    direction: 'first' | 'previous' | 'next' | 'last',
+    target: number,
+    unavailable: boolean,
+  ) => (
+    <li className={`page-item ${unavailable || loading ? 'disabled' : ''}`}>
+      <button
+        type="button"
+        className="page-link"
+        value={direction}
+        aria-label={copy[direction]}
+        title={copy[direction]}
+        disabled={unavailable || loading}
+        onClick={() => onPageChange(target)}
+      />
+    </li>
+  );
   return (
     <div className={styles.root}>
       <div className={styles.toolbar}>
@@ -425,6 +411,7 @@ export function DataTable<T>({
                     as="button"
                     type="button"
                     key={kind}
+                    value={kind}
                     onClick={() => void exportRows(kind)}
                   >
                     {copy.export![kind]}
@@ -450,14 +437,37 @@ export function DataTable<T>({
                 ],
               }}
             >
+              <label className={`form-check ${styles.columnChoice} ${styles.allColumns}`}>
+                <TableCheckbox
+                  checked={allColumnsVisible}
+                  mixed={visibleColumns.length > 0 && !allColumnsVisible}
+                  disabled={
+                    columns.length <= 1 || columns.every((column) => column.hideable === false)
+                  }
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    const retained =
+                      columns.find((column) => column.hideable === false)?.id ??
+                      visibleColumns[0]?.id ??
+                      columns[0]?.id;
+                    setVisibility(
+                      Object.fromEntries(
+                        columns.map((column) => [
+                          column.id,
+                          checked || column.hideable === false || column.id === retained,
+                        ]),
+                      ),
+                    );
+                  }}
+                />
+                <span className="form-check-label">{copy.allColumns}</span>
+              </label>
               {columns.map((column) => {
                 const checked =
                   column.hideable === false || (visibility[column.id] ?? !column.initiallyHidden);
                 return (
                   <label key={column.id} className={`form-check ${styles.columnChoice}`}>
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
+                    <TableCheckbox
                       checked={checked}
                       disabled={
                         column.hideable === false || (checked && visibleColumns.length === 1)
@@ -476,26 +486,21 @@ export function DataTable<T>({
             </Dropdown.Menu>
           </Dropdown>
         </div>
+        {onFiltersChange && filters.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            onClick={() => onFiltersChange([])}
+          >
+            {copy.filter.clearAll}
+          </button>
+        )}
         {toolbar && <div className={styles.toolbarSlot}>{toolbar}</div>}
         {exportStatus && copy.export && (
           <p className={styles.exportStatus} role={exportStatus === 'error' ? 'alert' : 'status'}>
             {copy.export[exportStatus]}
           </p>
         )}
-      </div>
-      <div className={styles.sortOptions}>
-        <p id={`${id}-sort-hint`} className={styles.hint}>
-          {copy.sortHint}
-        </p>
-        <label className={styles.multiSort}>
-          <input
-            type="checkbox"
-            className="form-check-input"
-            checked={multiSort}
-            onChange={(event) => setMultiSort(event.target.checked)}
-          />
-          <span>{copy.multiSort}</span>
-        </label>
       </div>
       {sort.length > 0 && (
         <div className={styles.sorting}>
@@ -517,8 +522,12 @@ export function DataTable<T>({
           </button>
         </div>
       )}
+      <div className={styles.feedback}>
+        {loading ? <LoadingIndicator label={copy.loading} /> : null}
+      </div>
       <div
         className={`table-responsive ${styles.scroll}`}
+        style={{ maxHeight }}
         role="region"
         aria-label={copy.caption}
         tabIndex={0}
@@ -530,14 +539,29 @@ export function DataTable<T>({
           <caption className="visually-hidden">{copy.caption}</caption>
           <thead>
             <tr>
+              {selection && (
+                <th scope="col" data-selection className={styles.selectionCell}>
+                  <label className={styles.selectionControl}>
+                    <TableCheckbox
+                      aria-label={selection.allLabel}
+                      checked={allRowsSelected}
+                      mixed={selectedKeys.length > 0 && !allRowsSelected}
+                      disabled={loading || error || !rows.length}
+                      onChange={(event) =>
+                        selection.onChange(event.target.checked ? rows.map(rowKey) : [])
+                      }
+                    />
+                  </label>
+                </th>
+              )}
               {visibleColumns.map((column) => {
                 const rank = sort.findIndex((criterion) => criterion.field === column.id);
                 const direction = sort[rank]?.direction;
-                const next = direction === 'asc' ? 'desc' : direction ? 'none' : 'asc';
                 return (
                   <th
                     key={column.id}
                     scope="col"
+                    style={columnStyle(column)}
                     aria-sort={
                       !direction
                         ? 'none'
@@ -549,55 +573,102 @@ export function DataTable<T>({
                     }
                   >
                     <div className={styles.headerContent}>
-                      {column.sortable ? (
-                        <button
-                          type="button"
-                          className={styles.sortButton}
-                          aria-label={copy.sortLabel(column.label, next)}
-                          aria-describedby={`${id}-sort-hint`}
-                          aria-disabled={loading}
-                          onClick={(event) => changeSort(event, column.id)}
-                        >
-                          <span>{column.label}</span>
-                          <span aria-hidden="true" className={styles.sortIcon}>
-                            <Icon
-                              name="caretUpFill"
-                              className={direction === 'asc' ? styles.sortSelected : undefined}
-                            />
-                            <Icon
-                              name="caretDownFill"
-                              className={direction === 'desc' ? styles.sortSelected : undefined}
-                            />
+                      <span data-column-title>{column.label}</span>
+                      <span className={styles.headerControls}>
+                        {column.sortable && (
+                          <span className={styles.sortIcon}>
+                            {(['asc', 'desc'] as const).map((target) => (
+                              <button
+                                key={target}
+                                type="button"
+                                className={styles.sortButton}
+                                aria-label={copy.sortLabel(column.label, target)}
+                                aria-pressed={direction === target}
+                                aria-disabled={loading || (!direction && sort.length >= 3)}
+                                title={copy.sortLabel(
+                                  column.label,
+                                  direction === target ? 'none' : target,
+                                )}
+                                onClick={() => changeSort(column.id, target)}
+                              >
+                                <Icon
+                                  name={target === 'asc' ? 'caretUpFill' : 'caretDownFill'}
+                                  className={direction === target ? styles.sortSelected : undefined}
+                                />
+                              </button>
+                            ))}
                           </span>
-                          {direction && (
-                            <span aria-hidden="true" className={`badge ${styles.rank}`}>
-                              {rank + 1}
-                            </span>
-                          )}
-                        </button>
-                      ) : (
-                        column.label
-                      )}
-                      {column.filter && (
-                        <ColumnFilter
-                          column={column}
-                          sort={sort}
-                          multiSort={multiSort}
-                          onSortChange={onSortChange}
-                          loading={loading}
-                          copy={copy}
-                        />
-                      )}
+                        )}
+                        {direction && (
+                          <span aria-hidden="true" className={`badge ${styles.rank}`}>
+                            {rank + 1}
+                          </span>
+                        )}
+                        {column.filter && onFiltersChange && (
+                          <DataTableColumnMenu
+                            column={
+                              choiceCache.options[column.id]
+                                ? {
+                                    ...column,
+                                    choices: {
+                                      options: choiceCache.options[column.id]!,
+                                      colored: true,
+                                    },
+                                  }
+                                : column
+                            }
+                            menuLabel={
+                              column.menuLabel ??
+                              (columns.some(
+                                (other) => other.id !== column.id && other.label === column.label,
+                              )
+                                ? `${column.label} (${copy.filter.typeLabels[column.filter.type]})`
+                                : column.label)
+                            }
+                            sort={sort}
+                            filters={filters}
+                            onFiltersChange={onFiltersChange}
+                            onSort={changeSort}
+                            loading={loading}
+                            copy={copy}
+                          />
+                        )}
+                      </span>
                     </div>
                   </th>
                 );
               })}
-              {rowActions && <th scope="col">{copy.actions}</th>}
+              {rowActions && (
+                <th scope="col" style={{ '--table-header-tools': '0px' } as CSSProperties}>
+                  <div className={styles.headerContent}>
+                    <span data-column-title>{copy.actions}</span>
+                    <span className={styles.headerControls} />
+                  </div>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={rowKey(row)} data-row-key={rowKey(row)}>
+                {selection && (
+                  <td data-selection className={styles.selectionCell}>
+                    <label className={styles.selectionControl}>
+                      <TableCheckbox
+                        aria-label={selection.rowLabel(row)}
+                        checked={selectedKeys.includes(rowKey(row))}
+                        disabled={loading || error}
+                        onChange={(event) =>
+                          selection.onChange(
+                            event.target.checked
+                              ? [...selectedKeys, rowKey(row)]
+                              : selectedKeys.filter((key) => key !== rowKey(row)),
+                          )
+                        }
+                      />
+                    </label>
+                  </td>
+                )}
                 {visibleColumns.map((column) => {
                   const value = column.value(row);
                   return (
@@ -605,17 +676,20 @@ export function DataTable<T>({
                       {column.render ? (
                         column.render(row)
                       ) : typeof value === 'boolean' ? (
-                        <div className={`form-check form-switch ${styles.switch}`}>
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            role="switch"
-                            checked={value}
-                            disabled
-                            aria-label={`${column.label}: ${rowKey(row)}; ${copy.readonly}`}
-                            title={copy.readonly}
-                          />
-                        </div>
+                        <BooleanCell
+                          value={value}
+                          label={column.label}
+                          rowId={rowKey(row)}
+                          readonly={copy.readonly}
+                        />
+                      ) : typeof value === 'string' && column.truncate !== false ? (
+                        <span
+                          className={styles.textCell}
+                          title={value}
+                          style={{ maxWidth: column.textWidth ?? 180 }}
+                        >
+                          {value}
+                        </span>
                       ) : (
                         (value ?? '—')
                       )}
@@ -629,27 +703,31 @@ export function DataTable<T>({
         </table>
       </div>
       <div className={styles.feedback} aria-live="polite" aria-atomic="true">
-        {loading ? (
-          <LoadingIndicator label={copy.loading} />
-        ) : error ? (
-          <div role="alert" className={styles.failure}>
-            <p>{copy.error}</p>
-            {onRetry && (
-              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onRetry}>
-                {copy.retry}
-              </button>
-            )}
-          </div>
-        ) : rows.length === 0 ? (
-          <p role="status">{copy.empty}</p>
-        ) : null}
+        {!loading &&
+          (error ? (
+            <div role="alert" className={styles.failure}>
+              <p>{copy.error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={onRetry}
+                >
+                  {copy.retry}
+                </button>
+              )}
+            </div>
+          ) : rows.length === 0 ? (
+            <p role="status">{copy.empty}</p>
+          ) : null)}
       </div>
       <div className={styles.footer}>
-        <p className={styles.range}>{copy.range(first, last, page.total)}</p>
+        <p className={styles.range}>{copy.range(first, last, page.total, selectedKeys.length)}</p>
         <label className={styles.size}>
           <span>{copy.rowsPerPage}</span>
           <select
             className="form-select form-select-sm"
+            style={{ '--table-size-digits': String(page.size).length } as CSSProperties}
             value={page.size}
             disabled={loading}
             onChange={(event) => onSizeChange(Number(event.target.value))}
@@ -663,17 +741,8 @@ export function DataTable<T>({
         </label>
         <nav aria-label={copy.pagination}>
           <ul className={`pagination pagination-sm ${styles.pagination}`}>
-            <li className={`page-item ${page.page <= 1 || loading ? 'disabled' : ''}`}>
-              <button
-                type="button"
-                className="page-link"
-                aria-label={copy.previous}
-                disabled={page.page <= 1 || loading}
-                onClick={() => onPageChange(Math.max(page.page - 1, 1))}
-              >
-                ‹
-              </button>
-            </li>
+            {navigationButton('first', 1, page.page <= 1)}
+            {navigationButton('previous', Math.max(page.page - 1, 1), page.page <= 1)}
             {pageButtons(page.page, page.pages).map((item) => (
               <li
                 key={item}
@@ -697,17 +766,12 @@ export function DataTable<T>({
                 )}
               </li>
             ))}
-            <li className={`page-item ${page.page >= page.pages || loading ? 'disabled' : ''}`}>
-              <button
-                type="button"
-                className="page-link"
-                aria-label={copy.next}
-                disabled={page.page >= page.pages || loading}
-                onClick={() => onPageChange(page.page + 1)}
-              >
-                ›
-              </button>
-            </li>
+            {navigationButton('next', page.page + 1, page.page >= page.pages)}
+            {navigationButton(
+              'last',
+              Math.max(page.pages, 1),
+              !page.pages || page.page === page.pages,
+            )}
           </ul>
         </nav>
       </div>

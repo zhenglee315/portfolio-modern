@@ -37,6 +37,7 @@ import { Breadcrumb } from '@/shared/ui/Breadcrumb';
 import { Navigation } from './components/Navigation';
 import { useSectionNavigation } from './hooks/useSectionNavigation';
 import styles from './PortfolioPage.module.css';
+import entranceStyles from '@/shared/ui/PageEntrance.module.css';
 import { useEntrance } from './hooks/useEntrance';
 import BackgroundField from '@/shared/ui/background-field/BackgroundField';
 import { useAuthTransition } from './hooks/useAuthTransition';
@@ -173,7 +174,7 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
   return (
     <div
       ref={root}
-      className={`${styles.frame} ${compact ? styles.compact : ''}`}
+      className={`${styles.frame} ${entranceStyles.frame} ${compact ? styles.compact : ''}`}
       data-auth-phase={auth.phase}
       data-auth-view={auth.isAuth}
       data-portfolio-user={context?.site?.user}
@@ -215,6 +216,7 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
         />
       </div>
       <main
+        data-entrance-content
         aria-busy={language.busy}
         className={styles.main}
         id="main-content"

@@ -36,7 +36,6 @@ const zones = [
     from: upperLayers,
     message: 'Feature modules cannot import application, route, or page modules.',
   },
-  { target: './src', from: './tests', message: 'Production modules cannot import test helpers.' },
   ...features.flatMap((feature) => [
     {
       target: `./src/features/${feature}`,
@@ -79,7 +78,7 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     plugins: { 'import-x': importX },
     settings: {

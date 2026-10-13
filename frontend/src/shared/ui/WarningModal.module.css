@@ -11,6 +11,7 @@
   box-shadow: 0 30px 100px var(--shadow-strong);
 }
 .dialog :global(.modal-header) {
+  align-items: flex-start;
   gap: 16px;
   padding: 8px;
 }
@@ -34,10 +35,21 @@
 .backdrop:global(.modal-backdrop.show) {
   opacity: 1;
 }
-.close {
+.close,
+.action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+.action {
+  min-height: var(--control-size);
+  gap: 8px;
+}
+.dialog :global(.btn-outline-secondary) {
+  --bs-btn-color: var(--text);
+  --bs-btn-border-color: var(--control-border);
+}
+.close {
   flex-shrink: 0;
   width: var(--control-size);
   height: var(--control-size);

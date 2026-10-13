@@ -1,0 +1,99 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1000"
+  height="428"
+  viewBox="0 0 1000 428"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">DataTable cell renderer styles</title>
+  <desc id="desc">
+    Illustration of text, checkbox, switch, toggle button and action buttons. Read-only BooleanCell
+    differs from controlled render callbacks.
+  </desc>
+  <rect width="1000" height="428" rx="10" fill="#111c20" />
+  <g font-family="Arial, sans-serif">
+    <text x="28" y="34" font-size="20" fill="#80d6ce" font-weight="700">
+      ROW DATA / RENDERER RECIPES
+    </text>
+    <text x="28" y="60" font-size="14" fill="#9eb3b7" font-weight="400">
+      Use value for data; use render for the presentation and callbacks.
+    </text>
+    <rect x="20" y="82" width="960" height="60" rx="5" fill="#152126" stroke="#365154" />
+    <text x="38" y="106" font-size="16" fill="#e4eeee" font-weight="600">Text</text>
+    <text x="38" y="126" font-size="12" fill="#9eb3b7" font-weight="400">value: string</text>
+    <text x="330" y="116" font-size="15" fill="#e4eeee" font-weight="400">
+      A long profile introduction…
+    </text>
+    <text x="666" y="116" font-size="13" fill="#9eb3b7" font-weight="400">hover → full value</text>
+    <rect x="20" y="146" width="960" height="60" rx="5" fill="#152126" stroke="#365154" />
+    <text x="38" y="170" font-size="16" fill="#e4eeee" font-weight="600">Checkbox</text>
+    <text x="38" y="190" font-size="12" fill="#9eb3b7" font-weight="400">BooleanCell checkbox</text>
+    <rect x="330" y="165" width="22" height="22" rx="5" fill="#111c20" stroke="#365154" />
+    <text x="366" y="181" font-size="13" fill="#9eb3b7" font-weight="400">false</text>
+    <rect x="478" y="165" width="22" height="22" rx="5" fill="#80d6ce" stroke="#365154" />
+    <g transform="translate(481 168) scale(1)" fill="#111c20" color="#111c20">
+      <path
+        d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"
+      />
+    </g>
+    <text x="514" y="181" font-size="13" fill="#9eb3b7" font-weight="400">true</text>
+    <text x="650" y="181" font-size="14" fill="#9eb3b7" font-weight="400">— null</text>
+    <rect x="20" y="210" width="960" height="60" rx="5" fill="#152126" stroke="#365154" />
+    <text x="38" y="234" font-size="16" fill="#e4eeee" font-weight="600">Switch / Toggle</text>
+    <text x="38" y="254" font-size="12" fill="#9eb3b7" font-weight="400">
+      BooleanCell or controlled input
+    </text>
+    <rect x="330" y="229" width="46" height="22" rx="11" fill="#111c20" stroke="#365154" />
+    <circle cx="341" cy="240" r="7" fill="#547173" />
+    <text x="390" y="245" font-size="13" fill="#9eb3b7" font-weight="400">false</text>
+    <rect x="478" y="229" width="46" height="22" rx="11" fill="#80d6ce" stroke="#365154" />
+    <circle cx="513" cy="240" r="7" fill="#111c20" />
+    <text x="538" y="245" font-size="13" fill="#9eb3b7" font-weight="400">true</text>
+    <text x="650" y="245" font-size="13" fill="#9eb3b7" font-weight="400">role="switch"</text>
+    <rect x="20" y="274" width="960" height="60" rx="5" fill="#152126" stroke="#365154" />
+    <text x="38" y="298" font-size="16" fill="#e4eeee" font-weight="600">Toggle button</text>
+    <text x="38" y="318" font-size="12" fill="#9eb3b7" font-weight="400">
+      button + aria-pressed
+    </text>
+    <rect x="330" y="286" width="102" height="36" rx="5" fill="#152126" stroke="#365154" />
+    <text x="350" y="309" font-size="14" fill="#e4eeee" font-weight="400">Normal</text>
+    <rect x="460" y="286" width="112" height="36" rx="5" fill="#80d6ce" stroke="#80d6ce" />
+    <text x="478" y="309" font-size="14" fill="#111c20" font-weight="400">Featured</text>
+    <text x="650" y="309" font-size="13" fill="#9eb3b7" font-weight="400">
+      aria-pressed: false / true
+    </text>
+    <rect x="20" y="338" width="960" height="60" rx="5" fill="#152126" stroke="#365154" />
+    <text x="38" y="362" font-size="16" fill="#e4eeee" font-weight="600">Button / Actions</text>
+    <text x="38" y="382" font-size="12" fill="#9eb3b7" font-weight="400">render or rowActions</text>
+    <rect x="330" y="350" width="90" height="36" rx="5" fill="#152126" stroke="#365154" />
+    <text x="350" y="373" font-size="14" fill="#e4eeee" font-weight="400">View</text>
+    <g transform="translate(460 356) scale(1.5)" fill="#80d6ce" color="#80d6ce">
+      <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0" />
+      <path
+        d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"
+      />
+    </g>
+    <g transform="translate(515 356) scale(1.5)" fill="#f19793" color="#f19793">
+      <path
+        d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"
+      />
+      <path
+        d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"
+      />
+    </g>
+    <g transform="translate(570 356) scale(1.5)" fill="#80d6ce" color="#80d6ce">
+      <path
+        d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"
+      />
+      <path
+        fill-rule="evenodd"
+        d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"
+      />
+    </g>
+    <text x="650" y="373" font-size="13" fill="#9eb3b7" font-weight="400">onClick → owner</text>
+    <text x="28" y="418" font-size="12" fill="#9eb3b7" font-weight="400">
+      Illustration only. BooleanCell is disabled; interactive renderers are controlled by the owner.
+    </text>
+  </g>
+</svg>

@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*", "tests/**/*", "*.ts", ".react-router/types/**/*"],
+  "include": ["src/**/*", "*.ts", ".react-router/types/**/*"],
   "exclude": ["node_modules", "build", "coverage", "test-results", "playwright-report"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],

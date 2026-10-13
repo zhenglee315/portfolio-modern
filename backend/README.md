@@ -55,7 +55,6 @@ backend/
 │   │   └── migrations/           # Alembic 環境與版本 / Alembic revisions
 │   ├── static/                   # 本機 Swagger／ReDoc 資產
 │   └── tools/                    # FastAPI、網路與 Socket.IO 組裝工具
-├── tests/                        # 測試 / tests
 ├── alembic.ini                   # migration 入口 / migration configuration
 ├── manage_fastapi.py            # API 啟動入口 / server entry point
 ├── pyproject.toml                # 依賴宣告 / dependency declarations
@@ -186,55 +185,72 @@ See the [frontend README](../frontend/README.md) for the React migration plan. I
 
 ## 角色管理列表 / Role Management List
 
+後端管理 API 權限管理尚待實作；目前狀態、各 API 對應旗標及驗收項目見 [權限待辦](../docs/management-permissions-todo.md)。本次檢查依使用者指示保留現有後端權限行為。
+
 `GET /management/roles` 每列是一個角色，沿用 `{items,total,pages,page,size}`，`items` 是有欄位名稱的物件陣列。前端透過既有代理呼叫 `/api/management/roles`。查詢由 `schema/parser/parser_management.py` 驗證，`module/module_management.py` 組合 SQL，`schema/resp/resp_management.py` 定義回應，`views_management.py` 提供 HTTP 介面；啟動時由現有路由探索機制載入。
 
 `GET /management/roles` returns one object per role in the shared numbered envelope. The frontend uses `/api/management/roles` through its existing proxy. The parser validates query values, the module builds ORM queries, the response schema defines serialization, and the CBV view supplies HTTP behavior. Existing route discovery registers the endpoint.
 
-| Query | 預設 / Default | 規則 / Rule |
-| --- | --- | --- |
-| `page` | `1` | 1–9007199254740991；超頁保留頁碼並回傳空 items / Out-of-range pages retain their requested number |
-| `size` | `6` | 1–100；不接受 all，公開 Portfolio 仍固定 6 / No full-fetch mode; public Portfolio remains fixed at 6 |
-| `search` | 空字串 / Empty | role、description 不分大小寫包含查找；各詞 AND、欄位間 OR；最多 200 字元、10 詞；`%`、`_` 按字面搜尋 / Case-insensitive literal terms, AND across terms and OR across fields |
-| `sort` | `id:desc` | 最多三個不同欄位，依順序優先，例如 `is_active:desc,user_count:desc,role:asc`；可用下表所有欄位 / Up to three ordered, distinct fields |
-| `is_active` | 未篩選 / Omitted | `true` 或 `false`，篩選角色狀態 / Filter role state |
-| `is_default` | 未篩選 / Omitted | `true` 或 `false`，篩選預設註冊角色 / Filter registration default |
+| Query     | 預設 / Default    | 規則 / Rule                                                                                                                                                   |
+| --------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page`    | `1`               | 1–9007199254740991；超頁保留頁碼並回傳空 items / Out-of-range pages retain their requested number                                                             |
+| `size`    | `6`               | 1–100；不接受 all，公開 Portfolio 仍固定 6 / No full-fetch mode; public Portfolio remains fixed at 6                                                          |
+| `filters` | `[]`              | JSON 陣列 `{field, operator, value?}`；每欄一個型別化條件，多欄 AND；文字不分大小寫，`%`、`_` 按字面搜尋 / Typed column predicates before counting and paging |
+| `sort`    | `updatetime:desc` | 最多三個不同欄位，依順序優先，例如 `is_active:desc,user_count:desc,role:asc`；可用下表所有欄位 / Up to three ordered, distinct fields                         |
 
-| 回應欄位 / Field | 來源 / Source | 用途 / Purpose |
-| --- | --- | --- |
-| `id` | `auth_role.id` | 角色識別及穩定排序 / Identity and sorting tie-breaker |
-| `role` | `auth_role.role` | 唯一角色名稱 / Unique role name |
-| `description` | `auth_role.description` | 角色說明，可為 null / Nullable description |
-| `is_create` | `auth_role.is_create` | 內容新增權限 / Create content |
-| `is_read` | `auth_role.is_read` | 內容管理讀取權限 / Read managed content |
-| `is_update` | `auth_role.is_update` | 內容修改權限 / Update content |
-| `is_delete` | `auth_role.is_delete` | 內容刪除權限 / Delete content |
-| `is_manage_sites` | `auth_role.is_manage_sites` | 網站管理權限 / Manage sites |
-| `is_manage_users` | `auth_role.is_manage_users` | 帳號管理權限 / Manage accounts |
-| `is_manage_roles` | `auth_role.is_manage_roles` | 角色管理權限 / Manage roles |
-| `is_default` | `auth_role.is_default` | 是否為新註冊帳號的預設角色 / Registration default |
-| `is_active` | `auth_role.is_active` | 是否允許所屬帳號登入 / Allow assigned accounts to sign in |
-| `createtime` | `auth_role.createtime` | UTC ISO 8601 建立時間 / Creation timestamp |
-| `updatetime` | `auth_role.updatetime` | UTC ISO 8601 修改時間 / Update timestamp |
-| `user_count` | `COUNT(auth_user.id)`，以 `auth_user.role_id` 分組 / Grouped by role_id | 全部關聯帳號數，包含停用帳號；無帳號回 0 / All assigned accounts, including inactive accounts |
+| 回應欄位 / Field  | 來源 / Source                                                           | 用途 / Purpose                                                                                |
+| ----------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `id`              | `auth_role.id`                                                          | 角色識別及穩定排序 / Identity and sorting tie-breaker                                         |
+| `role`            | `auth_role.role`                                                        | 唯一角色名稱 / Unique role name                                                               |
+| `description`     | `auth_role.description`                                                 | 角色說明，可為 null / Nullable description                                                    |
+| `is_create`       | `auth_role.is_create`                                                   | 內容新增權限 / Create content                                                                 |
+| `is_read`         | `auth_role.is_read`                                                     | 內容管理讀取權限 / Read managed content                                                       |
+| `is_update`       | `auth_role.is_update`                                                   | 內容修改權限 / Update content                                                                 |
+| `is_delete`       | `auth_role.is_delete`                                                   | 內容刪除權限 / Delete content                                                                 |
+| `is_manage_sites` | `auth_role.is_manage_sites`                                             | 網站管理權限 / Manage sites                                                                   |
+| `is_manage_users` | `auth_role.is_manage_users`                                             | 帳號管理權限 / Manage accounts                                                                |
+| `is_manage_roles` | `auth_role.is_manage_roles`                                             | 角色管理權限 / Manage roles                                                                   |
+| `is_default`      | `auth_role.is_default`                                                  | 是否為新註冊帳號的預設角色 / Registration default                                             |
+| `is_active`       | `auth_role.is_active`                                                   | 是否允許所屬帳號登入 / Allow assigned accounts to sign in                                     |
+| `createtime`      | `auth_role.createtime`                                                  | UTC ISO 8601 建立時間 / Creation timestamp                                                    |
+| `updatetime`      | `auth_role.updatetime`                                                  | UTC ISO 8601 修改時間 / Update timestamp                                                      |
+| `user_count`      | `COUNT(auth_user.id)`，以 `auth_user.role_id` 分組 / Grouped by role_id | 全部關聯帳號數，包含停用帳號；無帳號回 0 / All assigned accounts, including inactive accounts |
 
 查詢先彙整帳號數再 LEFT JOIN，避免同一角色重複出現。搜尋、篩選與排序都在資料庫執行，再分頁；`total` 是符合條件的完整筆數。各排序欄位 NULL 一律放最後，未指定 id 時補上 `id:asc`。空集合回 `total=0,pages=0,items=[]`。
 
 Counts are aggregated before a LEFT JOIN to preserve one role per row. Search, filtering and sorting run in the database before pagination; total counts all matches. Nulls sort last in both directions, and id:asc breaks ties unless id was explicitly sorted. Empty results use total=0, pages=0 and items=[].
 
-每次請求都查詢資料庫，這支 API 沒有套用回應快取 decorator。無效查詢回 400，detail 為 `INVALID_PAGE`、`INVALID_SIZE`、`INVALID_SEARCH`、`INVALID_SORT`、`INVALID_IS_ACTIVE` 或 `INVALID_IS_DEFAULT`；資料庫不可用回 `503 MANAGEMENT_DATABASE_UNAVAILABLE`。這個工作包只有讀取 API，依規劃尚未加權限 decorator；沿用現有 auth_role／auth_user，沒有新增表或 migration。
+Role／User／Platform 三支 GET 共用 `MANAGEMENT_DEFAULT_SORT=updatetime:desc`；省略 sort 時，最新更新的資料排在前面，同時間依 id:asc 穩定排序。提供 sort 時完全使用指定條件及既有 ID 補充排序；空字串仍回傳 INVALID_SORT。Role 使用 auth_role.updatetime，User／Platform 使用 auth_user.updatetime。
+
+All three GETs share MANAGEMENT_DEFAULT_SORT=updatetime:desc. Omitting sort returns the latest updated records first with ascending ID for equal timestamps. Explicit criteria retain their requested order and the existing ID tie-breaker; an empty sort remains INVALID_SORT. Roles use auth_role.updatetime, while users and platform owners use auth_user.updatetime.
+
+每次請求都查詢資料庫，這支 API 沒有套用回應快取 decorator。無效查詢回 400，detail 為 `INVALID_PAGE`、`INVALID_SIZE`、`INVALID_SORT`、`INVALID_FILTERS` 或 `INVALID_QUERY`；資料庫不可用回 `503 MANAGEMENT_DATABASE_UNAVAILABLE`。這個工作包只有讀取 API，依規劃尚未加權限 decorator；沿用現有 auth_role／auth_user，沒有新增表或 migration。
 
 Each request queries the database; this endpoint has no response-cache decorator. Invalid query values return 400 with the corresponding INVALID_* detail; unavailable storage returns 503 MANAGEMENT_DATABASE_UNAVAILABLE. This work package contains only the read API, with permission decorators deferred as planned. It reuses auth_role and auth_user without schema changes or migrations.
 
 ## 帳號與網站管理列表 / Account and Platform Lists
 
-`GET /management/users` 與 `GET /management/sites` 沿用角色列表的 `{items,total,pages,page,size}`、page=1、size=6（可調 1–100）、字面搜尋與最多三欄排序。每層集中於一個檔案：`module/module_management.py` 內的各資源類別共用 `ManagementListModule`，`schema/parser/parser_management.py` 內的各資源函式共用搜尋、排序、分頁驗證，`schema/resp/resp_management.py` 集中各資源返回類別，HTTP 介面集中於 `views_management.py`。description 沿用 Portfolio API 的分段說明與完整 JSON 範例。前端呼叫 `/api/management/users`、`/api/management/sites`。
+`GET /management/users` 與 `GET /management/sites` 沿用角色列表的 `{items,total,pages,page,size}`、page=1、size=6（可調 1–100）、型別化逐欄篩選與最多三欄排序。每層集中於一個檔案：`module/module_management.py` 內的各資源類別共用 `ManagementListModule`，`schema/parser/parser_management.py` 內的各資源函式共用欄位篩選、排序、分頁驗證，`schema/resp/resp_management.py` 集中各資源返回類別，HTTP 介面集中於 `views_management.py`。OpenAPI 說明共用條件契約並以 response schema 列出完整欄位。前端呼叫 `/api/management/users`、`/api/management/sites`。
 
-The account and platform GETs share the role list's numbered envelope, pagination limits, literal search and ordered sorting. Each layer uses one management file: resource query classes in module_management.py, query functions in parser_management.py, response classes in resp_management.py, and HTTP routes in views_management.py. Shared controls remain inside those files. OpenAPI uses the same sectioned descriptions and complete JSON examples as Portfolio. The frontend uses the existing /api proxy.
+The account and platform GETs share the role list's numbered envelope, pagination limits, typed column predicates and ordered sorting. Each layer uses one management file: resource query classes in module_management.py, query functions in parser_management.py, response classes in resp_management.py, and HTTP routes in views_management.py. Generic predicate validation and SQL application live in COMMON, with resource field capabilities and projection expressions supplied by Management. OpenAPI describes the shared query contract and typed response schemas. The frontend uses the existing /api proxy.
 
-| Endpoint | 搜尋欄位 / Search | 額外參數 / Additional query |
-| --- | --- | --- |
-| `GET /management/users` | `auth_user.user`、登入 `auth_user.email`、`auth_role.role` | `is_active`、`role_is_active`、`has_site`（true/false）；`role_id`（1–2147483647） |
-| `GET /management/sites` | `auth_user.user`、公開 `portfolio_site.email`、下表全部語言內容欄位 / All localized fields below | `locale=en\|zh-Hans\|zh-Hant`；`owner_is_active`、`has_site`、`is_published`、`is_default`、`has_translation`（true/false） |
+| Endpoint                | 條件欄位 / Predicate fields                             | 額外參數 / Additional query |
+| ----------------------- | ------------------------------------------------------- | --------------------------- |
+| `GET /management/users` | 下表全部回應欄位，包含 login_count／last_login 彙整欄位 | 無                          |
+| `GET /management/sites` | 下表全部回應欄位及 profile_name 組合名稱                | locale=en\|zh-Hans\|zh-Hant |
+
+共用驗證是 `COMMON/schema/parser/parser_column_filters.py::parse_column_filters`，SQL 引擎是 `COMMON/tools/storage/sqlalchemy/tools_column_filters.py::apply_column_filters`；資源只配置白名單、型別、nullable、enum options 及欄位 expression。文字支援 contains／not_contains／equals／not_equals／starts／ends／empty／not_empty；數字／日期支援 equals／not_equals／gt／gte／lt／lte／between，Between 兩界含邊界；布林與 enum 支援 equals／not_equals。nullable 欄位支援空值運算，false／0 不算 empty。文字 empty 忽略與 browser String.trim 相同的空白，否定條件排除 null。每個字串最多 200 Unicode 字元；所有 predicate 在 COUNT 和 LIMIT／OFFSET 前套用。日期接受 `YYYY-MM-DD` 日曆值，按整個 UTC 日篩選；Equals 使用含當日開始、不含次日開始的範圍，Does not equal 排除該日及 null，After 從次日開始，Before 不含選定當日。日期欄位均可使用 Empty／Not empty。既有含 timezone 的 ISO timestamp 保留精確比較並正規化為 UTC；between 仍要求兩個精確 timestamp，日曆 UI 僅呈現指定的六項條件。
+
+角色的 role 欄另外允許 in／not_in，value 為最多 100 個唯一字串。文字比對不分大小寫，重複大小寫變體、型別不合或超限值回 400；空 in 陣列匹配零筆，空 not_in 陣列匹配所有非 null 值。選項清單沿用分頁角色 GET，前端只在開啟選單或按 More 時讀取，不新增無上限的全表 API。
+
+```json
+[
+  { "field": "user", "operator": "contains", "value": "lee" },
+  { "field": "is_active", "operator": "equals", "value": false }
+]
+```
+
+上例 JSON 以 URLSearchParams 編碼在 filters 參數。舊 search 與散落的 boolean query 參數已移除，未知／過期 query keys 回 400 INVALID_QUERY；錯誤欄位、運算、型別、重複條件或反向範圍回 400 INVALID_FILTERS。profile_name 使用當前語言的姓名、漢字姓在前及 nickname fallback；無作品集／翻譯／名稱的提示文案不是可搜尋資料值。
 
 兩者都以帳號為根，每人一列，包含停用帳號與沒有網站的帳號。`id` 一律是 `auth_user.id`，`site_id` 才是網站 ID。User 的成功登入紀錄先彙整再 JOIN，避免重複列；Platform 只 JOIN 指定語言，缺翻譯時不丟棄帳號、不混用其他語言。網站缺失回 `has_site=false`、site_id 與網站欄位為 null；翻譯缺失回 `has_translation=false`、語言內容欄位為 null。`is_published=false`／`is_default=false` 僅篩選有網站且旗標為 false 的列，缺網站的 null 不算 false。
 
@@ -242,61 +258,62 @@ Both lists use one account per row, including inactive accounts and accounts wit
 
 ### User 返回欄位 / Account Response Fields
 
-| 欄位 / Field | 來源 / Source | 用途 / Purpose |
-| --- | --- | --- |
-| `id` | `auth_user.id` | 帳號識別 / Account identity |
-| `user` | `auth_user.user` | 公開帳號名稱 / Public handle |
-| `email` | `auth_user.email` | 登入信箱 / Login email |
-| `role_id` | `auth_user.role_id` | 指派角色識別 / Assigned role identity |
-| `role` | `auth_role.role` | 角色名稱 / Role name |
-| `is_active` | `auth_user.is_active` | 帳號狀態；false 為軟刪除 / Account state |
-| `role_is_active` | `auth_role.is_active` | 角色登入狀態 / Role login availability |
-| `site_id` | `portfolio_site.id` | 網站 ID，無網站為 null / Nullable portfolio identity |
-| `has_site` | `portfolio_site.id IS NOT NULL` | 是否已建立網站 / Portfolio presence |
-| `login_count` | `COUNT(record_login.id)`，按 user_id 分組 / Grouped by user_id | 成功登入總次數，無紀錄為 0 / Total successful sign-ins |
-| `last_login` | `MAX(record_login.logintime)`，按 user_id 分組 / Grouped by user_id | 最近成功登入，無紀錄為 null / Latest successful sign-in |
-| `createtime` | `auth_user.createtime` | UTC 帳號建立時間 / Account creation time |
-| `updatetime` | `auth_user.updatetime` | UTC 帳號修改時間 / Account update time |
+| 欄位 / Field     | 來源 / Source                                                       | 用途 / Purpose                                          |
+| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
+| `id`             | `auth_user.id`                                                      | 帳號識別 / Account identity                             |
+| `user`           | `auth_user.user`                                                    | 公開帳號名稱 / Public handle                            |
+| `email`          | `auth_user.email`                                                   | 登入信箱 / Login email                                  |
+| `role_id`        | `auth_user.role_id`                                                 | 指派角色識別 / Assigned role identity                   |
+| `role`           | `auth_role.role`                                                    | 角色名稱 / Role name                                    |
+| `is_active`      | `auth_user.is_active`                                               | 帳號狀態；false 為軟刪除 / Account state                |
+| `role_is_active` | `auth_role.is_active`                                               | 角色登入狀態 / Role login availability                  |
+| `site_id`        | `portfolio_site.id`                                                 | 網站 ID，無網站為 null / Nullable portfolio identity    |
+| `has_site`       | `portfolio_site.id IS NOT NULL`                                     | 是否已建立網站 / Portfolio presence                     |
+| `login_count`    | `COUNT(record_login.id)`，按 user_id 分組 / Grouped by user_id      | 成功登入總次數，無紀錄為 0 / Total successful sign-ins  |
+| `last_login`     | `MAX(record_login.logintime)`，按 user_id 分組 / Grouped by user_id | 最近成功登入，無紀錄為 null / Latest successful sign-in |
+| `createtime`     | `auth_user.createtime`                                              | UTC 帳號建立時間 / Account creation time                |
+| `updatetime`     | `auth_user.updatetime`                                              | UTC 帳號修改時間 / Account update time                  |
 
 ### Platform 返回欄位 / Platform Response Fields
 
-| 欄位 / Field | 來源 / Source | 用途 / Purpose |
-| --- | --- | --- |
-| `id` | `auth_user.id` | 每人一列的識別 / Person row identity |
-| `user` | `auth_user.user` | 擁有者帳號 / Owner handle |
-| `owner_is_active` | `auth_user.is_active` | 擁有者狀態 / Owner state |
-| `site_id` | `portfolio_site.id` | 網站識別 / Nullable portfolio identity |
-| `has_site` | `portfolio_site.id IS NOT NULL` | 網站是否存在 / Portfolio presence |
-| `is_published` | `portfolio_site.is_published` | 發布旗標；無網站為 null / Nullable publication flag |
-| `is_default` | `portfolio_site.is_default` | 預設首頁旗標；無網站為 null / Nullable homepage flag |
-| `copyright_year` | `portfolio_site.copyright_year` | 版權年份 / Copyright year |
-| `linkedin` | `portfolio_site.linkedin` | LinkedIn 連結 / LinkedIn URL |
-| `github` | `portfolio_site.github` | GitHub 連結 / GitHub URL |
-| `medium` | `portfolio_site.medium` | Medium 連結 / Medium URL |
-| `email` | `portfolio_site.email` | 公開聯絡信箱 / Public contact email |
-| `chat_icon` | `portfolio_site.chat_icon` | 聯絡氣泡圖示路徑 / Contact-bubble icon path |
-| `locale` | 查詢參數 / Requested locale | 管理語言 / Management language |
-| `has_translation` | `portfolio_site_locale.id IS NOT NULL`（指定 locale） / Selected locale | 指定語言內容是否存在 / Translation presence |
-| `brand_title` | `portfolio_site_locale.brand_title` | 品牌標題 / Brand title |
-| `brand_title_sub` | `portfolio_site_locale.brand_title_sub` | 品牌副標題 / Brand subtitle |
-| `first_name` | `portfolio_site_locale.first_name` | 名 / Given name |
-| `family_name` | `portfolio_site_locale.family_name` | 姓 / Family name |
-| `nick_name` | `portfolio_site_locale.nick_name` | 暱稱 / Nickname |
-| `profile_content` | `portfolio_site_locale.profile_content` | 個人介紹 / Profile introduction |
-| `edu_code` | `portfolio_site_locale.edu_code` | 教育簡稱 / Education abbreviation |
-| `program` | `portfolio_site_locale.program` | 教育課程 / Education program |
-| `intro_content` | `portfolio_site_locale.intro_content` | 名字上方介紹 / Introductory text |
-| `footer_content` | `portfolio_site_locale.footer_content` | 頁尾文案 / Footer text |
-| `chat_title` | `portfolio_site_locale.chat_title` | 聯絡氣泡標題 / Contact-bubble title |
-| `chat_title_sub` | `portfolio_site_locale.chat_title_sub` | 聯絡氣泡副標題 / Contact-bubble subtitle |
-| `chat_content` | `portfolio_site_locale.chat_content` | 聯絡氣泡文案 / Contact-bubble copy |
-| `updatetime` | `auth_user.updatetime` | 主表帳號的 UTC 更新時間；沒有網站也有值，並非網站內容修改時間 / Primary-account update time, including accounts without a portfolio; not a website-content timestamp |
+| 欄位 / Field      | 來源 / Source                                                           | 用途 / Purpose                                                                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`              | `auth_user.id`                                                          | 每人一列的識別 / Person row identity                                                                                                                                 |
+| `user`            | `auth_user.user`                                                        | 擁有者帳號 / Owner handle                                                                                                                                            |
+| `owner_is_active` | `auth_user.is_active`                                                   | 擁有者狀態 / Owner state                                                                                                                                             |
+| `site_id`         | `portfolio_site.id`                                                     | 網站識別 / Nullable portfolio identity                                                                                                                               |
+| `has_site`        | `portfolio_site.id IS NOT NULL`                                         | 網站是否存在 / Portfolio presence                                                                                                                                    |
+| `is_published`    | `portfolio_site.is_published`                                           | 發布旗標；無網站為 null / Nullable publication flag                                                                                                                  |
+| `is_default`      | `portfolio_site.is_default`                                             | 預設首頁旗標；無網站為 null / Nullable homepage flag                                                                                                                 |
+| `copyright_year`  | `portfolio_site.copyright_year`                                         | 版權年份 / Copyright year                                                                                                                                            |
+| `linkedin`        | `portfolio_site.linkedin`                                               | LinkedIn 連結 / LinkedIn URL                                                                                                                                         |
+| `github`          | `portfolio_site.github`                                                 | GitHub 連結 / GitHub URL                                                                                                                                             |
+| `medium`          | `portfolio_site.medium`                                                 | Medium 連結 / Medium URL                                                                                                                                             |
+| `email`           | `portfolio_site.email`                                                  | 公開聯絡信箱 / Public contact email                                                                                                                                  |
+| `chat_icon`       | `portfolio_site.chat_icon`                                              | 聯絡氣泡圖示路徑 / Contact-bubble icon path                                                                                                                          |
+| `locale`          | 查詢參數 / Requested locale                                             | 管理語言 / Management language                                                                                                                                       |
+| `has_translation` | `portfolio_site_locale.id IS NOT NULL`（指定 locale） / Selected locale | 指定語言內容是否存在 / Translation presence                                                                                                                          |
+| `brand_title`     | `portfolio_site_locale.brand_title`                                     | 品牌標題 / Brand title                                                                                                                                               |
+| `brand_title_sub` | `portfolio_site_locale.brand_title_sub`                                 | 品牌副標題 / Brand subtitle                                                                                                                                          |
+| `first_name`      | `portfolio_site_locale.first_name`                                      | 名 / Given name                                                                                                                                                      |
+| `family_name`     | `portfolio_site_locale.family_name`                                     | 姓 / Family name                                                                                                                                                     |
+| `nick_name`       | `portfolio_site_locale.nick_name`                                       | 暱稱 / Nickname                                                                                                                                                      |
+| `profile_content` | `portfolio_site_locale.profile_content`                                 | 個人介紹 / Profile introduction                                                                                                                                      |
+| `edu_code`        | `portfolio_site_locale.edu_code`                                        | 教育簡稱 / Education abbreviation                                                                                                                                    |
+| `program`         | `portfolio_site_locale.program`                                         | 教育課程 / Education program                                                                                                                                         |
+| `intro_content`   | `portfolio_site_locale.intro_content`                                   | 名字上方介紹 / Introductory text                                                                                                                                     |
+| `footer_content`  | `portfolio_site_locale.footer_content`                                  | 頁尾文案 / Footer text                                                                                                                                               |
+| `chat_title`      | `portfolio_site_locale.chat_title`                                      | 聯絡氣泡標題 / Contact-bubble title                                                                                                                                  |
+| `chat_title_sub`  | `portfolio_site_locale.chat_title_sub`                                  | 聯絡氣泡副標題 / Contact-bubble subtitle                                                                                                                             |
+| `chat_content`    | `portfolio_site_locale.chat_content`                                    | 聯絡氣泡文案 / Contact-bubble copy                                                                                                                                   |
+| `createtime`      | `auth_user.createtime`                                                  | 主表帳號的 UTC 建立時間；沒有網站也有值 / Primary-account creation time, including accounts without a portfolio                                                      |
+| `updatetime`      | `auth_user.updatetime`                                                  | 主表帳號的 UTC 更新時間；沒有網站也有值，並非網站內容修改時間 / Primary-account update time, including accounts without a portfolio; not a website-content timestamp |
 
-以上語言欄位都使用請求的 locale。Platform 的 `updatetime` 使用這張一人一列列表的主表 `auth_user.updatetime`，前端顯示為「帳號更新時間」；網站表沒有建立／修改時間，因此這不是網站設定或翻譯內容的修改時間。User 不選取也不返回密碼；Platform 的 email 是公開聯絡信箱，User 的 email 是登入信箱。全部 User 欄位可排序，Platform 除固定請求值 locale 之外的欄位都可排序，名稱直接對應 response 欄位。
+以上語言欄位都使用請求的 locale。Platform 的 `createtime`／`updatetime` 使用主表 `auth_user` 的 UTC 建立／更新時間，前端顯示為 Created／Updated；網站表沒有建立／修改時間，因此這不是網站設定或翻譯內容的修改時間。User 不選取也不返回密碼；Platform 的 email 是公開聯絡信箱，User 的 email 是登入信箱。全部 User 欄位可排序，Platform 除固定請求值 locale 之外的欄位都可排序，名稱直接對應 response 欄位。
 
-Localized fields use only the requested locale. Platform `updatetime` is the primary account's UTC update timestamp, displayed as "Account updated" even when no portfolio exists. Portfolio and translation tables do not store update times, so this field does not describe website-content changes. User queries never select password data. Platform email is public contact information, while User email is the login address. Every User response field is sortable; every Platform response field except the constant requested locale is sortable.
+Localized fields use only the requested locale. Platform `createtime` and `updatetime` are the primary account's UTC creation/update timestamps, displayed as Created/Updated even when no portfolio exists. Portfolio and translation tables do not store these timestamps, so they do not describe website-content changes. User queries never select password data. Platform email is public contact information, while User email is the login address. Every User response field is sortable; every Platform response field except the constant requested locale is sortable.
 
-三支管理列表都不使用快取 decorator、不另外設定 `Cache-Control`，權限 decorator 依原規劃後補；沒有新增表或 migration。共用無效查詢回 400 `INVALID_PAGE`／`INVALID_SIZE`／`INVALID_SEARCH`／`INVALID_SORT`。User 篩選錯誤回 `INVALID_IS_ACTIVE`／`INVALID_ROLE_IS_ACTIVE`／`INVALID_HAS_SITE`／`INVALID_ROLE_ID`；Platform 回 `INVALID_OWNER_IS_ACTIVE`／`INVALID_HAS_SITE`／`INVALID_IS_PUBLISHED`／`INVALID_IS_DEFAULT`／`INVALID_HAS_TRANSLATION`／`INVALID_LOCALE`。資料庫錯誤統一回 `503 MANAGEMENT_DATABASE_UNAVAILABLE`。
+三支管理列表都不使用快取 decorator、不另外設定 Cache-Control，權限 decorator 依原規劃後補；沒有新增表或 migration。無效查詢回 400 INVALID_PAGE／INVALID_SIZE／INVALID_SORT／INVALID_FILTERS／INVALID_QUERY，無效語言回 INVALID_LOCALE。資料庫錯誤統一回 503 MANAGEMENT_DATABASE_UNAVAILABLE。
 
 All three lists omit response-cache decorators and additional Cache-Control settings. Permission decorators remain deferred as planned, and no migration is required. Invalid queries return the corresponding INVALID_* error with status 400; database failures return 503 MANAGEMENT_DATABASE_UNAVAILABLE.
 
@@ -337,7 +354,7 @@ For SQLite, a relative `DATABASE.META.name` uses `DB_CONF["sqlite"]` in `SYSTEM/
 | `fastapi-pagination`                                               | 四種集合共用的 ORM 頁碼分頁工具 / Shared ORM numbered pagination for all four collections                                  |
 | `pydantic`, `pydantic-settings`, `pyyaml`, `httpx`                 | 資料與設定驗證、YAML 讀取及 HTTP client 設定 / Data and settings validation, YAML loading, and HTTP client settings        |
 | `jinja2`                                                           | 已宣告的模板依賴；目前文件頁使用本機靜態資產。 / Declared template dependency; current docs pages use local static assets. |
-| `black`, `pytest`                                                  | 開發依賴：排版與測試 / Development dependencies: formatting and tests                                                      |
+| `black`                                                            | 開發依賴：排版 / Development dependency: formatting                                                                        |
 
 ## 安裝與本機操作 / Installation and Local Workflow
 
@@ -408,26 +425,14 @@ curl -fsS 'http://127.0.0.1:8080/portfolio/projects?locale=en&page=1&size=6'
 
 A new database has no portfolio content; `/portfolio/site?locale=en` returns 404 without a published default site in that locale. After creating your own content, use this endpoint to verify the profile. The generated `backend` console script still points to the `src/backend` sample and does not start the API; use `manage_fastapi.py`. This entry point passes an instantiated ASGI application to Uvicorn, so keep `SERVER.worker: 1`. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload. Multiple workers or reload require an importable application factory.
 
-### 5. 回歸檢查與常見問題 / Regression Checks and Troubleshooting
-
-完整回歸測試涵蓋 Portfolio、CBV、共用 SQLAlchemy／Redis 工具，以及現行單一非同步 `ConnectionManager` 的 session、transaction、SQLite 外鍵、設定驗證、資源回收與 lifespan。測試使用隔離設定、記憶體或 pytest 暫存 SQLite，Redis client 僅作 lazy 註冊與關閉；不讀取本機 YAML、不連線實際 Redis／PostgreSQL，也不使用現有作品集資料庫。
-
-The full regression suite covers Portfolio, CBVs, shared SQLAlchemy/Redis tools, and the current single asynchronous `ConnectionManager`: sessions, transactions, SQLite foreign keys, configuration validation, cleanup, and application lifespan. Tests use isolated settings and memory or pytest-temporary SQLite. Redis clients are registered and closed lazily; tests do not load local YAML, contact real Redis/PostgreSQL, or access the existing portfolio database.
-
-```bash
-uv run --locked pytest -q tests
-```
-
-`tests/test_database_core.py` 只驗證目前支援的單一 async database 與 cache registry，不保留已移除的同步、多資料庫或通用 storage API 假設。新增功能時應更新對應契約測試；改動設定、資源生命週期或 migration 時，須確認所有既有測試仍通過。需要指定測試暫存位置時，可加 `--basetemp=/path/to/test-scratch`；此資料夾專供 pytest，執行時可能被清空，不應指向任何正式資料目錄。
-
-`tests/test_database_core.py` verifies only the supported single async database and cache registry, without obsolete synchronous, multi-database, or general storage API assumptions. Add contract coverage when extending functionality, and retain the full suite when changing configuration, resource lifecycles, or migrations. To choose a test scratch location, add `--basetemp=/path/to/test-scratch`. Pytest may clear this dedicated directory, so it must never point to a production data directory.
+### 5. 常見問題 / Troubleshooting
 
 | 現象 / Symptom                                        | 處理方式 / Resolution                                                                                                                                                                       |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SECURITY.secret_key` 驗證失敗 / Key validation fails | 保持非空字串；正式環境使用私有金鑰檔案，不依賴尚未實作的環境變數覆寫。 / Configure a nonempty string; production uses a private key file rather than unsupported environment overrides.     |
 | Redis connection refused                              | 確認服務正在執行，並以 YAML 的 host／port 執行 `redis-cli ... ping`。 / Start Redis and ping the configured host and port.                                                                  |
 | `no such table`                                       | 在 `backend/` 執行 `uv run --locked alembic upgrade head`，確認 API 與 migration 使用同一份設定。 / Apply migrations from `backend/` and ensure API and migrations share the configuration. |
-| `/portfolio/site` 回 404 / returns 404 | 尚無對應語言的已發布首頁；建立自己的作品集內容並確認發布狀態與語言。 / Create your own portfolio content and verify that a default site is published in the requested locale. |
+| `/portfolio/site` 回 404 / returns 404                | 尚無對應語言的已發布首頁；建立自己的作品集內容並確認發布狀態與語言。 / Create your own portfolio content and verify that a default site is published in the requested locale.               |
 
 ## 分頁與技能方法索引 / Pagination and Skill Reference
 

@@ -51,8 +51,6 @@ The tools below are installed. The manifest and lockfile record exact dependenci
 | Zod                                           | 外部資料的執行期驗證與型別推導 / Runtime validation and inferred types                                                                                |
 | i18next、react-i18next                        | 固定 UI 三語字典與 React Provider / UI dictionaries and React integration                                                                             |
 | ESLint、typescript-eslint、import-x、Prettier | 型別語法、Hooks、依賴邊界與一致排版 / Typed syntax, Hooks, import boundaries, and formatting                                                          |
-| Vitest、React Testing Library                 | 純邏輯、資料契約與元件行為測試 / Logic, contract, and component behavior tests                                                                        |
-| Playwright                                    | Chromium 瀏覽器驗證，可後續增加其他瀏覽器 / Chromium checks, extensible to other browsers                                                             |
 | sirv                                          | Node SSR runtime 的靜態資產服務 / Static assets within the Node SSR runtime                                                                           |
 
 React、Vite 與其他工具安裝為專案依賴。Node.js 與 npm 是本機準備事項；安裝 npm 套件不代表已啟動 FastAPI、資料庫或 Redis。日常可直接在本機開發，Docker 按實際服務或部署需要使用。
@@ -94,9 +92,9 @@ Query identity includes the public selector or resolved Site, locale, resource, 
 
 ## 目錄分層 / Directory Layout
 
-目錄圖只呈現主要分層，個別檔案與功能內部分工在後續章節說明。React Router 的 `appDirectory` 已設為 `src`，框架根入口與路由設定放在此處；`src/app` 則是本專案的應用組裝層。目錄依實際責任建立，單元與元件測試可與程式放在一起。[官方目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)
+目錄圖只呈現主要分層，個別檔案與功能內部分工在後續章節說明。React Router 的 `appDirectory` 已設為 `src`，框架根入口與路由設定放在此處；`src/app` 則是本專案的應用組裝層。目錄依實際責任建立；測試工具集中於根目錄的 `agent/`，不提交到版本控制。[官方目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)
 
-This tree shows the main layers rather than every implementation file. React Router's application directory is configured as `src`; `src/app` is the project's assembly layer. Create directories as needed and colocate unit and component tests with their implementation.
+This tree shows the main layers rather than every implementation file. React Router's application directory is configured as `src`; `src/app` is the project's assembly layer. Create directories as needed. Local test tooling stays in the ignored root `agent/` directory.
 
 ```text
 frontend/
@@ -108,37 +106,34 @@ frontend/
 ├── scripts/                       # Build acceptance, preview and public-output checks
 ├── deploy/                        # Generic Node SSR/static/API hosting example
 ├── public/                        # Stable public paths and asset license notices
-├── src/
-│   ├── root.tsx                   # Root layout and providers
-│   ├── routes.ts                  # URL-to-route-module mapping
-│   ├── app/                       # Application assembly and providers
-│   ├── routes/                    # Route modules, loaders, metadata
-│   ├── pages/                     # Complete page composition
-│   ├── features/
-│   │   ├── site/
-│   │   ├── journey/
-│   │   ├── experiences/
-│   │   ├── projects/
-│   │   ├── skills/
-│   │   ├── online-visitors/
-│   │   ├── auth/
-│   │   ├── account-menu/
-│   │   ├── management/
-│   │   ├── appearance/
-│   │   └── language/
-│   ├── shared/
-│   │   ├── README.md             # Shared contracts, consumers and usage examples
-│   │   ├── api/                   # HTTP transport and common errors
-│   │   ├── schemas/               # Common record, career and numbered-page contracts
-│   │   ├── ui/                    # States, collection/tag disclosure, PixelBubble and PixelTooltip
-│   │   ├── hooks/                 # General interaction hooks
-│   │   └── lib/                   # General pure functions
-│   ├── i18n/                      # Fixed UI dictionaries and locale utilities
-│   ├── styles/                    # Base styles, themes, design tokens
-│   └── assets/                    # Imported fonts, icons, maps, images
-└── tests/
-    ├── unit/                      # Baseline unit and component tests
-    └── e2e/                       # Browser scenarios
+└── src/
+    ├── root.tsx                   # Root layout and providers
+    ├── routes.ts                  # URL-to-route-module mapping
+    ├── app/                       # Application assembly and providers
+    ├── routes/                    # Route modules, loaders, metadata
+    ├── pages/                     # Complete page composition
+    ├── features/
+    │   ├── site/
+    │   ├── journey/
+    │   ├── experiences/
+    │   ├── projects/
+    │   ├── skills/
+    │   ├── online-visitors/
+    │   ├── auth/
+    │   ├── account-menu/
+    │   ├── management/
+    │   ├── appearance/
+    │   └── language/
+    ├── shared/
+    │   ├── README.md             # Shared contracts, consumers and usage examples
+    │   ├── api/                   # HTTP transport and common errors
+    │   ├── schemas/               # Common record, career and numbered-page contracts
+    │   ├── ui/                    # States, collection/tag disclosure, PixelBubble and PixelTooltip
+    │   ├── hooks/                 # General interaction hooks
+    │   └── lib/                   # General pure functions
+    ├── i18n/                      # Fixed UI dictionaries and locale utilities
+    ├── styles/                    # Base styles, themes, design tokens
+    └── assets/                    # Imported fonts, icons, maps, images
 ```
 
 各 feature 依實際責任建立 api、schemas、model、hooks、components，透過 index.ts 公開介面。沒有 API 的 appearance／language 不建立空 API 層；正式建置與公開產物檢查放 scripts，通用 hosting 範例放 deploy。
@@ -198,9 +193,9 @@ See [`src/shared/README.md`](src/shared/README.md) for shared contracts, consume
 
 各 feature 的薄 API wrapper 仍保留 endpoint 與 schema 責任，transport／分頁已由共用層處理。相似但擁有不同 scroll／動畫生命週期的 page Hook 保留各自 owner；不為少量形似程式新增通用狀態框架。QueryClient 是遠端資料唯一來源，URL 是表格操作狀態來源，React state 只保留輸入草稿及局部互動。
 
-`npm run check:docs` 以 TypeScript AST 檢查 shared 匯出契約是否列入共用 README，並納入 `npm run check`。`i18n-contract.test.ts` 檢查三語 leaf key 一致、固定 `t('key')` 均有定義，以及牛／匯出組合文案不顯示原始 key。新增動態翻譯 key 時應另測組合結果。
+`npm run check:docs` 以 TypeScript AST 檢查 shared 匯出契約是否列入共用 README，並納入 `npm run check`。三語 leaf key、動態組合文案與實際互動仍須在維護時檢查。
 
-Shared implementations now own hydration, account/session logout feedback, permission warning/replace routing, viewport backgrounds and finite entrance timing. Management composition, table interaction and URL/column metadata have separate modules. Reusable UI receives translated copy, and DataTable uses the shared loader. Domain API wrappers retain endpoint/schema ownership; independent interaction lifecycles retain their own owners. QueryClient remains the server-data source, URL state controls the table and local state holds drafts/disclosure. `check:docs` indexes shared exports against the guide; translation contract tests verify locale parity, literal keys and composed vocabulary.
+Shared implementations now own hydration, account/session logout feedback, permission warning/replace routing, viewport backgrounds and finite entrance timing. Management composition, table interaction and URL/column metadata have separate modules. Reusable UI receives translated copy, and DataTable uses the shared loader. Domain API wrappers retain endpoint/schema ownership; independent interaction lifecycles retain their own owners. QueryClient remains the server-data source, URL state controls the table and local state holds drafts/disclosure. `check:docs` indexes shared exports against the guide; verify locale parity, literal keys and composed vocabulary when maintaining translations.
 
 ### 功能內部分工 / Feature Structure
 
@@ -483,24 +478,21 @@ cp .env.example .env.local
 npm run dev
 ```
 
-首次安裝才複製 `.env.example`，不要覆寫已有的 `.env.local`。先依[後端安裝步驟](../backend/README.md)啟動 8080 API；要顯示完整作品集或正式建置，需完成三語內容匯入。開發網址為 `http://127.0.0.1:5173`；dev server 使用固定 port，若已被占用會停止。API 無法使用時各區呈現載入失敗／重試，保留有效快取。第一次安裝或更新 Playwright 後，執行 `npx playwright install chromium` 下載測試瀏覽器；Linux CI 可使用 `npx playwright install --with-deps chromium`。
+首次安裝才複製 `.env.example`，不要覆寫已有的 `.env.local`。先依[後端安裝步驟](../backend/README.md)啟動 8080 API；要顯示完整作品集或正式建置，需完成三語內容匯入。開發網址為 `http://127.0.0.1:5173`；dev server 使用固定 port，若已被占用會停止。API 無法使用時各區呈現載入失敗／重試，保留有效快取。
 
-Copy the example only on first setup and preserve existing local settings. Start the backend on port 8080; complete locale data import for a full portfolio or production build. Development runs on fixed port 5173. API failures have independent retry feedback and retain valid cached data. Install Chromium after first setup or a Playwright update; Linux CI can also install its system dependencies with `--with-deps`.
+Copy the example only on first setup and preserve existing local settings. Start the backend on port 8080; complete locale data import for a full portfolio or production build. Development runs on fixed port 5173. API failures have independent retry feedback and retain valid cached data.
 
-| 指令 / Command                            | 目的 / Purpose                                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `npm ci`                                  | 依鎖定檔重新安裝 / Reinstall locked dependencies                                                 |
-| `npm run dev`                             | 本機開發與 HMR / Development with hot module replacement                                         |
-| `npm run typecheck`                       | 產生路由型別並執行 TypeScript 檢查 / Generate route types and check TypeScript                   |
-| `npm run lint`                            | 程式、Hooks 與依賴邊界檢查 / Code, Hooks, and import rules                                       |
-| `npm run format` / `npm run format:check` | 排版／排版檢查 / Format or check formatting                                                      |
-| `npm run test` / `npm run test:watch`     | 單元與元件測試／持續監看 / Unit and component tests or watch mode                                |
-| `npm run test:e2e`                        | 自動建置、啟動 Node SSR 與執行 Chromium 測試 / Build, preview, and run Chromium scenarios        |
-| `npm run test:dev`                        | 重新轉換相依並驗證實際 dev server / Check the real dev server with fresh dependency optimization |
-| `npm run build`                           | client／server 正式建置 / Production client and server build                                     |
-| `npm run verify:public`                   | 公開檔案與資產預算檢查 / Check deliverable files and asset budgets                               |
-| `npm run preview`                         | 啟動既有 Node SSR，預設 port 5173 / Start the existing Node build on port 5173                   |
-| `npm run check`                           | 型別、lint、格式、單元測試及建置 / Types, lint, formatting, unit tests, and build                |
+| 指令 / Command                            | 目的 / Purpose                                                                 |
+| ----------------------------------------- | ------------------------------------------------------------------------------ |
+| `npm ci`                                  | 依鎖定檔重新安裝 / Reinstall locked dependencies                               |
+| `npm run dev`                             | 本機開發與 HMR / Development with hot module replacement                       |
+| `npm run typecheck`                       | 產生路由型別並執行 TypeScript 檢查 / Generate route types and check TypeScript |
+| `npm run lint`                            | 程式、Hooks 與依賴邊界檢查 / Code, Hooks, and import rules                     |
+| `npm run format` / `npm run format:check` | 排版／排版檢查 / Format or check formatting                                    |
+| `npm run build`                           | client／server 正式建置 / Production client and server build                   |
+| `npm run verify:public`                   | 公開檔案與資產預算檢查 / Check deliverable files and asset budgets             |
+| `npm run preview`                         | 啟動既有 Node SSR，預設 port 5173 / Start the existing Node build on port 5173 |
+| `npm run check`                           | 型別、lint、格式、文件及建置 / Types, lint, formatting, docs, and build        |
 
 ### 開發相依載入 / Development Dependency Loading
 
@@ -508,9 +500,9 @@ React Router 的開發與正式模式都在 Node 中渲染頁面；dev module ru
 
 React Router renders both development and production pages in Node. Its development module runner differs from the production bundler. Keep `ssr.noExternal` for component transformation and pre-bundle the component dependency trees through `ssr.optimizeDeps.include` to convert the Node-selected CommonJS dependencies. Excluding React and React DOM from SSR optimization preserves the renderer's shared React instance.
 
-瀏覽器 optimizer 在啟動時掃描 root／route entries，包含懶載入元件；已使用的 Dropdown／Offcanvas／Modal 集中於 `vite.config.ts` 的 `bootstrapComponents`，兩個 optimizer 重用同一清單。新增 React-Bootstrap 互動元件時同步更新此清單，避免操作後才重新轉換相依。`npm run test:dev` 使用獨立 port 5174 與合成 API，強制重新轉換快取，驗證四 URL、hydration、下拉選單、手機導覽、Modal 及分頁，並檢查 runtime／console errors；建置後的 preview 另由 `test:e2e` 驗證。
+瀏覽器 optimizer 在啟動時掃描 root／route entries，包含懶載入元件；已使用的 Dropdown／Offcanvas／Modal 集中於 `vite.config.ts` 的 `bootstrapComponents`，兩個 optimizer 重用同一清單。新增 React-Bootstrap 互動元件時同步更新此清單，避免操作後才重新轉換相依。
 
-Browser optimization scans root and route entries, including lazy components, before initial loading. Both optimizers reuse `bootstrapComponents`; extend this list when introducing another interactive React-Bootstrap component. `test:dev` manages port 5174 and a synthetic API, forces dependency optimization and checks all four URLs, hydration, dropdowns, mobile navigation, lazy dialogs and pagination with runtime/console error assertions. `test:e2e` independently verifies the production preview.
+Browser optimization scans root and route entries, including lazy components, before initial loading. Both optimizers reuse `bootstrapComponents`; extend this list when introducing another interactive React-Bootstrap component.
 
 See [Vite dependency optimization](https://vite.dev/config/dep-optimization-options) and [SSR options](https://vite.dev/config/ssr-options) for the configuration boundaries.
 
@@ -557,34 +549,17 @@ Deploy public client assets and the private Node server build. The Node runtime 
 
 Public SSR resolves content on each request without rebuilding frontend code. Queries remain fresh for one minute; inactive browser data expires after five minutes with a six-identity public-cache cap. Category previews seed skill page one, and changed previews reset obsolete owner continuations. Identity/count/page checks detect common changes without claiming a shared database transaction across APIs.
 
-Vitest 涵蓋六契約、日期、HTTP timeout／取消、頁碼與 label 一致性、locale staging、地圖、播放及偏好，並驗證登入導覽／轉場、表單、驗證碼占位、牛控制與 tooltip 生命週期；Playwright 使用合成公開 fixtures 驗證default／個人 URL、分頁、對話框、切語言／取消、fault、RWD／四色、鍵盤、無 JavaScript 和建置故障保留。 `*-parity.spec.ts` 對照實際版型、paint 與互動：四邊／導覽進場時序、光暈與慢 chunk、短 viewport、三語／四色、手機／平板／桌面至 4K、選單內距／焦點、對話框技能與流程、聯絡漸層及 Journey 鍵盤／overflow。開發 runtime 與正式 preview 分開執行；宣告的測試範圍不等同當次執行結果。目前儲存庫未配置 CI workflow，使用下列本機指令執行檢查；瀏覽器測試的合成 API 僅用於驗證，正式 runtime 需連接真實後端。
+專案主體保留型別、lint、格式、共用文件與正式建置檢查；執行 `npm run check`。測試腳本、fixtures、Vitest／Playwright 設定、造資料工具及壓測報告集中於根目錄的 `agent/`，已排除於 Git，不隨專案提交。
 
-Vitest covers contracts, dates, bounded HTTP failures/cancellation, pagination consistency, locale staging, map/playback and preferences, plus auth navigation/transitions, forms, verification-code placeholders, cow controls and tooltip lifecycles. Chromium verifies dynamic SSR delivery, interactions, faults, responsive layouts, keyboard behavior, JavaScript-disabled content and artifact preservation. Parity tests inspect visible geometry, paint and behavior: entrance timing, halo/slow chunks, short viewports, three languages/four themes, mobile/tablet/desktop through 4K, menu padding/focus, detail skills/flow, contact surfaces and Journey keyboard/overflow boundaries. Development runtime and production preview are exercised separately; declared coverage does not claim that a particular run passed. The repository currently has no CI workflow; run the local checks below. Synthetic test APIs are verification fixtures; production resolves its real configured backend.
+Run `npm run check` for types, lint, formatting, shared documentation and production builds. Local tests, fixtures, test-runner configuration, seeding tools and load reports are kept in the ignored root `agent/` directory.
 
-真 API 驗證是額外的只讀模式：在 shell 設定 `PORTFOLIO_API_SMOKE_TARGET` 為你的公開 API origin 後，執行 `npm run test`（六 endpoint／所有續頁）及 `npm run test:e2e -- live.spec.ts`（三語 SSR 交付及實際分頁）。未設定時跳過 live checks；一般測試不需要你的後端，也不停止服務。`npm run verify:public` 可重跑公開產物檢查。
+後端管理 API 權限尚待實作，依既有規劃記錄於 [權限待辦](../docs/management-permissions-todo.md)。
 
-For optional read-only live verification, set `PORTFOLIO_API_SMOKE_TARGET` in the shell, then run the unit suite for all endpoint/pages and `npm run test:e2e -- live.spec.ts` for three-language browser integration. Live checks are skipped when unset; normal tests do not depend on or stop a personal backend. `npm run verify:public` reruns public-output inspection.
+Backend management permissions remain planned separately; see the [permission TODO](../docs/management-permissions-todo.md).
 
-管理列表的真 API 測試使用同一個 origin，透過正式 query／Zod 驗證三支 GET，並比對瀏覽器表格與 `/api/management/*` 的實際回應。測試涵蓋搜尋、布林篩選、多欄排序、頁碼／size 與網站語系；不新增或修改資料，也不攔截管理 API 回應。先啟動後端，再從 `frontend/` 執行：
+原始碼、CSS、字典、字型／地圖／圖片及授權、建置 scripts、deploy 範例與必要工具設定隨功能提交。本機測試工具、依賴、環境及可重建產物不提交；`.react-router` 由 typecheck／dev／build 產生，正式產物由 build 產生。
 
-Management live tests use the same origin to validate the three GETs through production query options/schemas and compare rendered rows with real proxy responses. They cover search, boolean filters, priority sorting, pagination/page size and site languages without writes or mocked management responses. Start the backend, then run from `frontend/`:
-
-```bash
-PORTFOLIO_API_SMOKE_TARGET=http://127.0.0.1:8080 npm run test -- tests/unit/management-live-api.test.ts
-PORTFOLIO_API_SMOKE_TARGET=http://127.0.0.1:8080 npm run test:e2e -- management-live.spec.ts
-```
-
-從乾淨 checkout 執行 typecheck、lint、format:check、unit checks，再依序執行 test:dev 與 test:e2e。兩套瀏覽器測試共用管理的 fixture API 4181，暫用開發 5174／SSR preview 4173，結束後自動關閉；日常服務維持 5173。build 不含固定 fixture 內容，正式部署用私有 API_SERVER_TARGET 連接真實後端。
-
-Generate route types and run lint, formatting and unit checks, then run development and production browser suites sequentially. Tests temporarily own fixture API 4181, development 5174 and SSR preview 4173 and close them afterward. Normal operation remains on port 5173. Builds contain no frozen fixture content; production resolves the configured private API origin.
-
-開發瀏覽器測試固定使用兩個 worker，每項測試上限 60 秒，為冷載入模組與多尺寸畫面矩陣保留時間。操作伺服器先渲染的按鈕前，測試以預設 fixture 的 client-only 在線數更新確認 hydration，避免把尚未掛上事件的靜態畫面當成可互動頁面；覆寫 heartbeat 的測試使用自己的就緒條件。
-
-Development browser checks use two workers and a 60-second per-test budget for cold module loading and viewport matrices. Before interacting with server-rendered controls, tests confirm hydration through the default fixture's client-only online-count update. Tests that override heartbeat use their own readiness condition.
-
-原始碼、CSS、字典、字型／地圖／圖片及授權、測試 fixtures、scripts、deploy 範例與工具設定必須隨功能提交。`.gitignore` 僅排除依賴、本機環境及可重建產物；`.react-router` 由 typecheck／dev／build 產生，`build/client` 由正式 build 產生，測試瀏覽器由 Playwright 安裝。使用者不需要取得其他開發者的 `node_modules` 或環境檔；重建所需輸入與安裝指令在本儲存庫中。
-
-Commit every source, style, locale, asset/license, fixture, script, deployment example and tool configuration with its feature. Ignore dependencies, local settings and reproducible output. Route types regenerate through framework commands, dynamic delivery uses the client and server builds, and Playwright installs its browser separately.
+Commit source, styles, locales, assets/licenses, build scripts, deployment examples and required configuration. Exclude local test tooling, dependencies, environment files and reproducible output. Framework commands regenerate route types; production builds generate runtime artifacts.
 
 ### 載入與資產預算 / Loading and Asset Budgets
 
@@ -592,17 +567,13 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.05 MB raw／350 KB gzip、CSS 330 KB raw／60 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.05 MB raw／360 KB gzip、CSS 330 KB raw／61.7 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
 
-Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.05 MB raw/350 KB gzip for JavaScript, 330 KB raw/60 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. Output exceeding a ceiling is rejected.
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.05 MB raw/360 KB gzip for JavaScript, 330 KB raw/61.7 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
 
-低端手機的可重現情境由 `tests/e2e/mobile-performance.spec.ts` 驗證：Chromium 360×800、冷快取、6 倍 CPU 降速、下載 1.6Mbps／上傳 0.75Mbps／延遲 150ms，合成作品集各集合 100 筆並有完整介紹。預算是 raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1；初始離屏 Map／Auth／Cow／detail 不下載，API 不自動讀第 2 頁。短介紹使地圖已進入 viewport 時，需求觸發的 lazy chunk 另計。
+手機載入目標：raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1。初始離屏 Map／Auth／Cow／detail 按需載入，API 不自動讀第 2 頁；地圖已鄰近 viewport 時才載入。
 
-The mobile performance test uses a cold Chromium 360×800 viewport with 6× CPU throttling, 1.6Mbps download, 0.75Mbps upload and 150ms latency. Its synthetic portfolio contains 100 records per collection and a full introduction. Budgets are ≤200KiB raw HTML, ≤250KiB initial base JavaScript gzip, LCP ≤2.5s and CLS ≤0.1, with no offscreen heavy chunks or automatic page-two reads. A map already near the viewport on a short profile is a demand-triggered lazy resource.
-
-2026-10-11 本機模擬量測：HTML 90.2KiB、初始 JS gzip 219.0KiB、首屏總傳輸 469.4KiB、LCP 1.336 秒、CLS 0.00082、初始 JS heap 16.6MiB，並通過按需續頁檢查。操作事件最大觀測 duration 是 128ms，這不是正式 INP 指標；量測附在測試結果。這些是實驗室樣本，不表示已在實體低端手機測得同樣結果。Nginx 正式配置壓縮 HTML，Node preview 的 raw HTML 量測保留較大的傳輸條件。
-
-The local 2026-10-11 laboratory sample measured 90.2KiB HTML, 219.0KiB initial JavaScript gzip, 469.4KiB total initial transfer, 1.336s LCP, 0.00082 CLS and 16.6MiB initial JavaScript heap, with demand continuation passing. The maximum observed interaction event duration was 128ms, which is not a formal INP measurement; test attachments retain the measurements. These measurements do not claim physical-device results. Production Nginx compresses documents; Node preview retains the larger raw-document transfer.
+Mobile loading targets: ≤200KiB raw HTML, ≤250KiB initial base JavaScript gzip, LCP ≤2.5s and CLS ≤0.1. Offscreen heavy features load on demand, and APIs do not automatically read page two. A map near the viewport can load as a demanded resource.
 
 帳號牛場景使用獨立的大型 `scene-sprite.svg`，只在帳號畫面載入；目前不列入聯絡吉祥物的檔名預算。延後下載已降低首頁資源需求，SVG 素材大小仍有後續精簡空間。三語 UI 字典也仍共同載入，並未按語言分 chunk。
 
@@ -634,11 +605,13 @@ The account cow uses a separate large `scene-sprite.svg`, requested only by the 
 
 ## 管理列表與通用 DataTable / Management Lists and Shared DataTable
 
+元件的完整使用手冊、Filter／checkbox／switch／button 配置與圖示見 [DataTable 套件 README](src/shared/ui/README.md)。
+
 管理入口由右上角 `AccountMenu` 的 Platform／User／Role management 開啟 `/:locale/management/sites|users|roles`；page 擁有跨 feature 協作，使用同一個 [`shared/ui/DataTable.tsx`](src/shared/ui/DataTable.tsx)。完整 props、型別與範例集中於[共用組件 README](src/shared/README.md#資料表--data-tables)。DataTable 在專案內自行開發，使用現有 React／Bootstrap，沒有新增表格套件或依賴。
 
 The gear's management actions open dedicated locale routes, composed by the page with one project-owned DataTable. Its props, types and usage example live in the shared guide. The component uses existing React/Bootstrap dependencies without adding a table package.
 
-`routes/management.clientLoader` 在每次瀏覽器進入及 hydration 先重新確認 SESSION，通過後才載入 `ManagementPage` 與讀取列表；SSR／首次 hydration 只顯示中性 LoadingIndicator，不包含身份、管理外框或表格。`auth/permissions.canManage` 要求明確 `true`，供齒輪選單、sidebar 與表格 gate 共用：Platform／User management 保留既有 `is_manage_sites` 規則，Role management 使用 `is_manage_roles`。Platform monitoring 仍只有選單項目，沒有實際 route。
+`routes/management.clientLoader` 在每次瀏覽器進入及 hydration 先重新確認 SESSION，通過後才載入 `ManagementPage` 與讀取列表；SSR／首次 hydration 只顯示中性 LoadingIndicator，不包含身份、管理外框或表格。`auth/permissions.canManage` 要求明確 `true`，供齒輪選單、sidebar 與表格 gate 共用：Platform／User management 保留既有 `is_manage_sites` 規則，Role management 使用 `is_manage_roles`。Settings 齒輪選單、桌面 sidebar 與手機 drawer 共用 `managementNavigation`，依序為 Platform monitoring、Platform management、Role management、User management；監控仍為介面入口，沒有實際 route。
 
 The management route's hydrating `clientLoader` freshly checks browser SESSION before loading `ManagementPage` or reading lists. SSR and initial hydration contain only a neutral LoadingIndicator, with no identity, management shell or table. The account menu, sidebar and table gate share strict-true `auth/permissions.canManage`: platform/user management retain `is_manage_sites`, while roles use `is_manage_roles`. Monitoring remains a menu item without a route.
 
@@ -646,30 +619,73 @@ The management route's hydrating `clientLoader` freshly checks browser SESSION b
 
 A confirmed missing SESSION, false permission or SESSION HTTP 401/403 publishes a warning before replacing the URL with localized Access denied. Network, service or schema failures withhold management and offer explicit retry rather than using old rights. A mounted page also synchronously hides its shell, rows and details when identity is unknown, errored, revoked or signing out. Pending navigation pauses the old table query so private-cache cleanup cannot trigger another read; the loader owns the destination decision and the old page does not redirect an allowed destination.
 
-| 介面 / Surface                   | 規格 / Specification                                                                                                                                                                                                                                                                     |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ManagementPage`                 | 桌面使用可收合 sidebar；1024px 以下手機／平板改用 Offcanvas。頁首長帳號截斷並保留 title，480px 以下詳情欄位上下排列；水平捲動由 table viewport 擁有。 / Desktop sidebar, tablet/mobile drawer, bounded account labels, stacked phone details and table-owned horizontal scrolling.       |
-| `DataTable`                      | 用 props 接收欄位、rowKey、資料、copy、排序、分頁與 callbacks；不 fetch、不引用業務 feature/i18n，不在前端重排當頁資料。可注入 toolbar 與 rowActions。 / Controlled reusable presentation with injected toolbar/actions; no domain reads, localization dependency or client row sorting. |
-| `features/management`            | Zod 驗證角色 15／帳號 13／網站 28 欄位；共用 HTTP transport 與 TanStack Query，契約維持 items/total/pages/page/size，size 支援 1–100。 / Domain-specific validated DTOs with adjustable numbered pages.                                                                                  |
-| 查詢控制 / Query controls        | 搜尋 300ms debounce；搜尋、篩選、size 或排序變更回第 1 頁。普通點擊切換單欄排序，Shift 或勾選多欄排序依序最多三欄；URL 保留狀態，Back／Forward 同步搜尋輸入。 / Debounced search, filter/page reset, touch/keyboard ordered sorting and history-aware URL state.                         |
-| 欄位及詳情 / Columns and details | 常用欄位預設顯示，其餘可從 Columns 開啟；詳情 Modal 呈現所有欄位，API 字串保持純文字。布林欄位使用唯讀 switch，缺資料 null 顯示破折號。 / Column chooser and a complete plain-text detail dialog; read-only switches and explicit missing values.                                        |
-| 主題 / Themes                    | Bootstrap table/forms/pagination 保留官方樣式；背景、表頭、列 hover、switch 與控制色透過既有語意 tokens 適應 mint／blue／amber／mist。 / Existing palette tokens adapt Bootstrap surfaces and hover states.                                                                              |
+| 介面 / Surface                   | 規格 / Specification                                                                                                                                                                                                                                                                               |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ManagementPage`                 | 桌面使用可收合 sidebar；1024px 以下手機／平板改用 Offcanvas。頁首長帳號截斷並保留 title，480px 以下詳情欄位上下排列；水平捲動由 table viewport 擁有。 / Desktop sidebar, tablet/mobile drawer, bounded account labels, stacked phone details and table-owned horizontal scrolling.                 |
+| `DataTable`                      | 用 props 接收欄位、rowKey、資料、copy、排序、分頁與 callbacks；不 fetch、不引用業務 feature/i18n，不在前端重排當頁資料。可注入 toolbar 與 rowActions。 / Controlled reusable presentation with injected toolbar/actions; no domain reads, localization dependency or client row sorting.           |
+| `features/management`            | Zod 驗證角色 15／帳號 13／網站 30 欄位；共用 HTTP transport 與 TanStack Query，契約維持 items/total/pages/page/size，size 支援 1–100。 / Domain-specific validated DTOs with adjustable numbered pages.                                                                                            |
+| 查詢控制 / Query controls        | 逐欄文字／數字／日期 300ms debounce，Enter 立即套用；篩選、size 或排序變更回第 1 頁。直接點擊 ↑／↓ 選擇方向，同方向再點取消該欄；依點擊順序最多三欄；URL 保留狀態，Back／Forward 同步搜尋輸入。 / Debounced search, filter/page reset, touch/keyboard ordered sorting and history-aware URL state. |
+| 欄位及詳情 / Columns and details | Columns 只切換指定的主表欄位；其他完整資料由共用 ManagementDetails 呈現，API 字串保持純文字。布林欄位依欄位 renderer 呈現唯讀 checkbox 或 switch，缺資料 null 顯示破折號。 / Main-column visibility and shared plain-text record details; read-only status renderers and explicit missing values.  |
+| 主題 / Themes                    | Bootstrap table/forms/pagination 保留官方樣式；背景、表頭、列 hover、switch 與控制色透過既有語意 tokens 適應 mint／blue／amber／mist。 / Existing palette tokens adapt Bootstrap surfaces and hover states.                                                                                        |
 
-目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
+目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。三個管理表格的工具列右上方放置 Add／Del 按鈕，分別使用 Bootstrap plus-lg／trash icon；Del 使用與其他工具列按鈕相同的文字與邊框配色；hover／focus-visible／active 才以 field-error 和淡紅底提示刪除。可見字樣為 Del，aria-label／title 保留完整 Delete。Add 目前僅有外觀；工具列 Delete 使用本頁選取列，未選取或 loading／error 時停用，透過共用 ManagementTable 的 toolbar 插槽配置。每列 Actions 的 eye-fill 查看詳情，紅色 trash 只指定該列，與其他勾選無關。兩種刪除入口共用 WarningModal 的確認模式，顯示驚嘆號與「確定要刪除嗎？」、單筆名稱或批次筆數，以及取消／確定刪除。全選僅涵蓋本頁，不使用 API total 推測未載入列；query／頁碼／語言／資源／帳號變更會作廢舊的確認目標。取消、關閉或確認皆不修改資料／選取，不發送刪除 API、重查或成功提示；確認 callback 預留給後續 mutation。詳情 footer 新增 Edit（pencil-square），點擊後切換為綠色實心 Submit（check-lg）；關閉或重開會回到 Edit。目前只切換按鈕外觀，欄位維持唯讀，Submit 不提交資料，也不顯示儲存成功。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
 
 Only the three GETs are integrated. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
 
-預設欄位以可辨識的名稱及管理狀態為主，`id`／`site_id`／`role_id` 留在欄位選單與詳情，不預設顯示。使用者表不提供數字角色 ID 輸入框，角色名稱可透過全域搜尋查找；API 與 URL 的 `role_id` 條件仍支援。初次進入不顯示隱含的 ID 排序摘要，實際 API 預設順序維持不變。
+三個管理頁沒有前端排序條件時，`managementListParams` 省略 API 的 sort，由後端統一使用 `updatetime:desc`，同時間以 `id:asc` 穩定分頁。有條件時依點擊優先順序傳送，首次進入與取消全部排序後都不預選箭頭。URL 的 `sort=` 是 UI 狀態，API 不傳空 sort。
 
-| 頁面     | 預設欄位                                                                       |
-| -------- | ------------------------------------------------------------------------------ |
-| Platform | 帳號、個人名稱、品牌、已有作品集、已發布、預設首頁、擁有者啟用、已有此語言內容 |
-| User     | 帳號、登入信箱、角色名稱、啟用、角色啟用、已有作品集、登入次數、最近登入       |
-| Role     | 角色名稱、說明、啟用、預設註冊角色、帳號數                                     |
+Without frontend sort criteria, managementListParams omits sort so all three backend lists use updatetime:desc with ascending ID for equal timestamps. Explicit criteria preserve click priority. Initial entry and clearing all sorts leave arrows unselected; a URL sort= records UI state without sending an empty API parameter.
 
-「個人名稱」是 presentation 欄位，組合當前語言的 `first_name`／`family_name`，缺姓名時使用 `nick_name`，沿用公開頁漢字姓名的姓在前規則。沒有作品集、沒有當前語言內容、沒有設定名稱時分別顯示明確文字，不回退其他語言。此欄不可排序，不增加 API 欄位或資料表；品牌保留 `brand_title` 的既有語意。
+共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。舊上方全表搜尋、單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；長字串單行省略，hover 原生 title 查看完整內容，詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable loading 位於工具列／排序摘要下方、表頭上方的中央區域，載入完成後收起；錯誤與空資料提示保留在表格下方。
 
-Default columns identify rows by account/profile/role names and management state. Technical IDs remain available through the column chooser/details. Profile name is a non-sortable presentation value derived only from the selected language's name/nickname fields, reusing public name ordering and explicit missing-content labels. It adds no API/database field. Row identity remains the server ID via `rowKey` and `data-row-key`; default database ordering is unchanged, with no implicit ID badge on first entry.
+三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。後續批次更新操作尚未串接。
+
+平台表格只提供 ID、Account、Profile（checkbox）、Publish（checkbox）、Default（toggle）、Active（toggle）、Updated、Actions 這八個欄位。Columns 只切換主表的七個資料欄位，其他完整資料集中在 Actions 詳情。Profile checkbox 對應 `has_site`，Active 對應 `owner_is_active`；Default 僅在 Active、Profile 與 Publish 皆為 true 時符合設定資格，不符合時淡化並提供原因提示。目前控制項維持唯讀；後續更新規則記錄於 [Default 更新規格](../docs/management-default-update.md)。
+
+The platform table offers only ID, Account, Profile (checkbox), Publish (checkbox), Default (switch), Active (switch), Updated and Actions in every locale. Columns toggles the seven data columns; Actions presents the complete record separately. Default eligibility requires an active owner with an existing, published portfolio; ineligible controls are dimmed and explain the requirement. Controls remain read-only pending the update integration described in the [Default update specification](../docs/management-default-update.md).
+
+| 頁面     | 預設欄位                                                                                      |
+| -------- | --------------------------------------------------------------------------------------------- |
+| Platform | ID、Account、Profile、Publish、Default、Active、Updated、Actions                              |
+| User     | ID、Account、Email、Role、Login、LastLogin、Updated、Active、Actions                          |
+| Role     | ID、Role、Create、Read、Update、Delete、Site、Users、Roles、Default、Active、Updated、Actions |
+
+Actions 詳情順序由 `pages/management/model/management-view.fields.sites` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Edit／Submit 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
+
+User 主表固定使用上表的九個英文標籤。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的八個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十三項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取，ManagementDetails 只接受 row、columns、name、copy 與 onClose，擁有詳情視窗的 Edit／Submit 介面狀態；shared DataTable 仍不依賴任何 management 型別或 API。
+
+Role 主表固定使用上表的十三個英文標籤，Create、Read、Update、Delete、Site、Users、Roles、Default、Active 共九個欄位均使用唯讀 toggle，直接呈現對應的角色旗標。主表 Users 是 `is_manage_users` 權限；Actions 的 Users 是 `user_count`，顯示使用此角色的帳號數。Columns 只切換主表的十二個資料欄位；Description、Created 與帳號數保留在詳情中。
+
+Role Actions 的十五項順序為：ID、Role、Users、Default、Create、Read、Update、Delete、Manage Site、Manage Users、Manage Roles、Active、Description、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
+
+Role 管理的 Role 欄設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 360,000／CSS 61,700 bytes，由建置驗證實際資產，未新增套件。
+
+| 設計要求                     | 核對結果                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 圖一：條件、搜尋、排序、清除 | 共用選單提供八種文字條件，搜尋／條件與排序採 Bootstrap icon，單欄清除不影響其他欄位                           |
+| 圖二：搜尋與複選清單         | 靜態／動態 options、Select／Deselect、選取勾號、長文字省略及 More 續頁                                        |
+| 圖三：彩色選項               | Role 欄套用穩定七色標籤；樣式由共用配置控制                                                                   |
+| 時間 Filter：日曆            | 所有日期欄位使用原生日曆；Equals／Does not equal／After／Before／Empty／Not empty，選日期後以整個 UTC 日篩選  |
+| 表格與 footer                | 指定短欄名、標題正下方置中、各容器均維持緊湊列高、自然高度、Total 與 selected 後綴                            |
+| 全選、欄位、匯出、分頁       | 本頁勾選、Columns All、Bootstrap icon 匯出及首／末頁按鈕維持共用元件                                          |
+| Actions 介面                 | 眼睛與紅色垃圾桶並排；單筆／勾選／全選本頁的 Delete 共用驚嘆號確認視窗，Edit 切換為綠色 Submit；尚無 mutation |
+| 後續更新規格                 | Default 條件與 transaction 順序保留；新增、提交、批次／單筆刪除均待後端整合                                   |
+
+RWD 回歸會讓 Platform／User／Role 三頁各自在 320、375、390、480、640、768、820、1024、1280、1440、1920、2560px 寬度執行英文與繁體中文流程；不是按寬度輪流抽查其中一頁。檢查工具列、Add／Delete、footer、主表標題／內容置中、兩個列動作與詳情 Edit／Submit／重開重設，手機目標至少 44px。另外讓三頁分別在 390×844、844×390、820×1180、1180×820 的 coarse pointer 情境檢查四個主題、兩列自然高度、資料列 4px 內距、44px 按鈕、詳情視窗及日曆選單的 viewport 邊界。其他案例涵蓋 300px 桌面內嵌容器、長文字、多頁分頁與橫向短 viewport 的選單。寬表格保持原始列格式，手機可在表格內橫向捲動；文件本身不水平溢位。
+
+| 順序  | Actions 詳情欄位                                          |
+| ----- | --------------------------------------------------------- |
+| 1–6   | ID、Account、First name、Family name、Nickname、Education |
+| 7–10  | Profile name、Profile data、Brand、Brand Subtitle         |
+| 11–14 | Publish、Translation、Default、Active                     |
+| 15–19 | Program、Language、Copyright、Introduction、Footer        |
+| 20–23 | Email、LinkedIn、GitHub、Medium                           |
+| 24–27 | Chat icon、Chat title、Chat subtitle、Chat content        |
+| 28–31 | Profile introduction、Website ID、Created、Updated        |
+
+Profile name 是詳情的 presentation 欄位，組合當前語言的 `first_name`／`family_name`，缺姓名時使用 `nick_name`，沿用公開頁漢字姓名的姓在前規則。沒有作品集、沒有當前語言內容、沒有設定名稱時分別顯示明確文字，不回退其他語言。此欄不可排序，不增加 API 欄位或資料表。所有狀態 renderer 在表格與詳情共用；`value(row)` 保留原始 boolean／null，供匯出使用。Created／Updated 使用 `auth_user.createtime`／`auth_user.updatetime`，即帳號建立／更新時間，並以 UTC 呈現；列表 API 已提供兩個真實欄位，網站與翻譯表沒有獨立時間欄。
+
+The complete 31-field Actions record follows the configured order independently of table visibility. Its Profile name is a non-sortable presentation value derived only from the selected language's name/nickname fields, reusing public name ordering and explicit missing-content labels. Status renderers are shared by table cells and details while exports keep primitive values. Created and Updated are genuine account timestamps supplied by the list API; no database migration is required. Display uses YYYY.MM.DD HH:mm:ss in UTC with 24-hour hours and seconds, while API/export timestamps retain ISO values.
 
 若三支管理 GET 都回 `404`，先確認後端目前程序是否已載入新路由；`/openapi.json` 應列出 `/management/sites`、`/management/users`、`/management/roles`。目前 `manage_fastapi.py` 在啟動時建立路由，新增後端路由後須重啟該開發服務，前端再按 Refresh。
 
@@ -679,13 +695,9 @@ If all three management GETs return `404`, check whether the running backend has
 
 Management queries are isolated by account, resource, language and query controls, and marked private to exclude them from server/staging hydration. Identity replacement, changed SESSION management permissions and sign-out cancel and remove private resource reads while preserving public caches. DTOs are not stored in localStorage. This is a frontend SESSION gate; backend API permission dependencies remain unchanged and planned separately.
 
-RWD 測試涵蓋 320／375／390／768／820／1024／1280／1920px、中英文標籤、300px 桌面嵌入容器、360px 高的橫向畫面、長帳號及詳情、全部欄位、十四頁分頁、觸控排序及抽屜跨斷點切換。一般 fixture 模式可從 `frontend/` 執行：
+管理頁面支援手機、平板及桌面；維護時檢查中英文標籤、短橫向畫面、長帳號與詳情、全部欄位、分頁、觸控排序及抽屜跨斷點切換。
 
-Responsive checks cover phone/tablet/desktop widths, English/Chinese labels, narrow desktop embeds, short landscape screens, long content, full column sets, pagination, touch sorting and drawer transitions across breakpoints. Run with the standard fixture backend:
-
-```bash
-npm run test:e2e -- management-responsive.spec.ts management.spec.ts
-```
+Management layouts support phone, tablet and desktop widths. Check localized labels, short landscape screens, long content, full column sets, pagination, touch sorting and drawer transitions across breakpoints.
 
 ## 集合與標籤規格 / Collection and Tag Specifications
 
@@ -726,17 +738,25 @@ Each feature owns one selection scope spanning its preview and expanded history.
 
 `SkillCategoryRow` seeds an independent owner cache from embedded page one. The collapsed prefix and More control fit within 75% of the tag container. Only spare capacity with all loaded tags fitting triggers another page; filling the preview stops automatic reads, and a complete fitting list needs no More control. Expansion and remaining continuation stay explicit, resizing reuses cache, and owner keys include locale/type/size. Invalid owners or inconsistent labels provide local recovery; shared UI owns no API.
 
+Settings 的三個管理頁直接使用首頁同一個 BackgroundField、usePageEntrance 與 PageEntrance 樣式：格線、脈衝、ruler、pointer glow、主題重播及 motion policy 全部共用。移除整條 title bar，麵包屑與 account 控件位於內容內，Settings 不重複呈現主題與語言按鈕，沿用全站偏好；桌面收合按鈕位於固定側欄，手機／平板以內容內的 drawer 按鈕導覽。側欄及選取列使用首頁的 sidebar／selection tokens，rail 寬度與內容 gutter 沿用全站設定；平板 drawer 的 rail offset 為 0。不額外查詢公開 Site 或複製背景 controller。
+
+The three settings management pages reuse the public page’s BackgroundField, usePageEntrance and PageEntrance styles, including grid/pulses, rulers, pointer halo, palette replay and motion policy. There is no title bar: breadcrumbs and account controls sit inside the content; settings inherits global preferences without duplicate theme/language buttons, the desktop collapse control sits in the fixed sidebar, and tablet/mobile navigation opens from the content. Shared sidebar/selection tokens and rail/gutter sizes preserve the public styling. Drawer layouts use a zero rail offset. No public Site fetch or duplicate background controller is introduced.
+
 ## 麵包屑 / Breadcrumb
 
 Overview 標語上方透過 `ProfileOverview.breadcrumb` slot 注入共用 `Breadcrumb`，依序顯示「首頁 / 公開 Site 的 user / 總覽」。首頁連結回目前語系的 default；帳號連結使用 `#overview` 保留目前路徑及 `site_id`，身份取自 Site DTO，不使用 SESSION，也不額外讀 API。
 
 The Overview breadcrumb shows Home / the public Site user / Overview above the introduction eyebrow. The page injects the shared component through ProfileOverview's breadcrumb slot. Home returns to the current locale's default portfolio; the account fragment retains the current path and Site ID. Identity comes from the existing public Site DTO without another API read.
 
+管理頁內容上方使用相同 `Breadcrumb` 顯示「設定 / 目前管理頁」，反映 Settings 選單的入口。設定為導覽分類；最後一項沿用當前管理頁標題並標示 aria-current=page，切換資源與語系時同步更新。760px 以下在內容設定按鈕下方換列；不新增路由或資料查詢。
+
+Management content reuses `Breadcrumb` for Settings / the current management page. Settings names the entry category; the current item shares the localized page title and aria-current=page. Resource and locale navigation update the path together. Below 760px, the breadcrumb wraps below the content's settings controls. No additional route or data read is introduced.
+
 ## 帳號選單 / Account Menu
 
-`features/account-menu` 的 `AccountMenu(account,onOpen?,busy?,onLogin?,onLogout?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理、平台監控、用戶管理使用 `is_manage_sites`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`accountMenuGroups` 集中列順序與圖示，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
+`features/account-menu` 的 `AccountMenu(account,onOpen?,busy?,onLogin?,onLogout?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理、平台監控、用戶管理使用 `is_manage_sites`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
 
-The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management, monitoring and user management to `is_manage_sites`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; monitoring has no route yet.
+The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management, monitoring and user management to `is_manage_sites`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; Gear, the settings sidebar and the mobile drawer share managementNavigation in monitoring → platform → roles → users order; monitoring remains a scaffold without a route.
 
 登入與登出列已接上頁面現有轉場及 SESSION API；主題、語言與管理列保留選單框架。登入門圖示重用 `Icon pulse="chat"` 的 Heartbeat，支援既有暫停與減少動態政策。共用 disclosure hook 與 Bootstrap 處理初始焦點、鍵盤、Escape、外點和關閉焦點還原；44px 觸發器、主題 tokens 與限高捲動保留手機可用性。原本的 `AppearanceMenu`／`LanguageMenu` 仍用於帳號介面及專案詳情等已有操作的場景。
 
@@ -838,9 +858,9 @@ Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，
 
 `BackgroundField(paused,speed,compact,copy)` is an eager, noninteractive page shell with no API dependency. Four edges, a static grid fallback and the pointer halo do not wait for a lazy chunk. Optional `BackgroundSignals(paused,speed)` measures viewport geometry, caps allocation at 400 crosses/six pulses and releases observers, timers, frames and Web Animations on rebuild/unmount. Shared appearance intensity and hidden/reduced/paused policies control scheduling. A fixed radial-gradient halo uses mouse/fine-pointer events with one coalesced paint per frame and no idle loop; viewport exit, blur, touch or suspension hides it. Slow or failed signals do not block the halo.
 
-`useEntrance(root,ready,reveal,paused,subscribe)` 重用 page 的 `createEntrance(surface)` 管理初次進場與主題重播：上下框線 650ms、左右 ruler 650ms＋100ms 延遲、signals 淡入 800ms；內容沿用原本淡入節奏，450ms＋750ms 延遲，左側 rail／手機 header 450ms＋800ms 延遲。prepare 設定原有 data-entering marker 與 `--entrance-play-state:paused`，replay 僅將同一組 CSS 動畫釋放為 running；1400ms 後清理 marker／變數。初次進場完成才提出一次聯絡介紹；主題重播沒有聯絡 callback，也不重新掛載 component。初次 hidden／reduced-motion／pause 立即完成，恢復時不重播；主題重播只因 hidden／reduced-motion 取消，背景 Pause 不阻擋它。較晚到達的 API 僅補上初次聯絡介紹，不重啟四邊或導覽；手動聯絡操作優先。SSR／無 JavaScript 保持可讀，裝飾失敗不影響資料與操作。
+`useEntrance(root,ready,reveal,paused,subscribe)` 重用共用的 `usePageEntrance`／`createEntrance(surface)` 管理初次進場與主題重播：上下框線 650ms、左右 ruler 650ms＋100ms 延遲、signals 淡入 800ms；內容沿用原本淡入節奏，450ms＋750ms 延遲，左側 rail／手機 header 450ms＋800ms 延遲。prepare 設定原有 data-entering marker 與 `--entrance-play-state:paused`，replay 僅將同一組 CSS 動畫釋放為 running；1400ms 後清理 marker／變數。初次進場完成才提出一次聯絡介紹；主題重播沒有聯絡 callback，也不重新掛載 component。初次 hidden／reduced-motion／pause 立即完成，恢復時不重播；主題重播只因 hidden／reduced-motion 取消，背景 Pause 不阻擋它。較晚到達的 API 僅補上初次聯絡介紹，不重啟四邊或導覽；手動聯絡操作優先。SSR／無 JavaScript 保持可讀，裝飾失敗不影響資料與操作。
 
-`useEntrance(root,ready,reveal,paused,subscribe)` reuses the page-owned `createEntrance(surface)` for startup and palette replays. Upper/lower edges take 650ms, side rulers add a 100ms delay, signals fade over 800ms, content retains its original entrance cadence over 450ms after 750ms, and rail/mobile header runs 450ms after 800ms. Prepare sets the existing data-entering marker and `--entrance-play-state:paused`; replay releases the same CSS animations to running. The 1400ms deadline removes both marker and variable. Only startup supplies the one-shot contact callback; palette playback does not remount components or offer contact. Hidden/reduced/paused policies immediately finish startup without replay on resume; palette replay cancels for hidden/reduced motion while background pause leaves it operational. Late API data may offer initial contact but does not restart the frame/navigation. Manual interaction takes priority, SSR/no-JavaScript content remains readable and decoration failures leave operations usable.
+`useEntrance(root,ready,reveal,paused,subscribe)` adapts the shared `usePageEntrance`/`createEntrance(surface)` for startup and palette replays. Upper/lower edges take 650ms, side rulers add a 100ms delay, signals fade over 800ms, content retains its original entrance cadence over 450ms after 750ms, and rail/mobile header runs 450ms after 800ms. Prepare sets the existing data-entering marker and `--entrance-play-state:paused`; replay releases the same CSS animations to running. The 1400ms deadline removes both marker and variable. Only startup supplies the one-shot contact callback; palette playback does not remount components or offer contact. Hidden/reduced/paused policies immediately finish startup without replay on resume; palette replay cancels for hidden/reduced motion while background pause leaves it operational. Late API data may offer initial contact but does not restart the frame/navigation. Manual interaction takes priority, SSR/no-JavaScript content remains readable and decoration failures leave operations usable.
 
 ## 官方參考 / Official References
 
@@ -852,7 +872,6 @@ Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，
 - [React Router：模式選擇](https://reactrouter.com/start/modes)、[路由設定](https://reactrouter.com/start/framework/routing)、[目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)、[SSR](https://reactrouter.com/start/framework/rendering)與[程式碼分割](https://reactrouter.com/explanation/code-splitting)
 - [TanStack Query：query keys](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys)與[初始資料](https://tanstack.com/query/latest/docs/framework/react/guides/initial-query-data)
 - [ESLint](https://eslint.org/docs/latest/use/getting-started)、[Prettier](https://prettier.io/docs/install)
-- [Vitest](https://vitest.dev/guide/)、[React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)、[Playwright](https://playwright.dev/docs/intro)
 
 - [Bootstrap](https://getbootstrap.com/docs/5.3/getting-started/introduction/)、[React-Bootstrap](https://react-bootstrap.github.io/docs/getting-started/introduction/)與[Bootstrap Icons](https://icons.getbootstrap.com/)
 - [Zod](https://zod.dev/)與[react-i18next](https://react.i18next.com/getting-started)

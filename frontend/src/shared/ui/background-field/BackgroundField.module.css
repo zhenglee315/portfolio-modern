@@ -169,7 +169,7 @@
 @media (max-width: 760px) {
   .field,
   .field[data-compact='true'] {
-    inset: 64px 0 0;
+    inset: var(--field-mobile-top, 64px) 0 0;
   }
   .frame {
     height: 6px;

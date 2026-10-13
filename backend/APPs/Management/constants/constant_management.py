@@ -3,12 +3,10 @@
 from SYSTEM.constants import AUTH_PERMISSION_FIELDS
 
 MANAGEMENT_DEFAULT_SIZE = 6
+MANAGEMENT_DEFAULT_SORT = "updatetime:desc"
 MANAGEMENT_MAX_SIZE = 100
 MANAGEMENT_MAX_PAGE = 9007199254740991
-MANAGEMENT_MAX_ID = 2147483647
 MANAGEMENT_MAX_SORT_FIELDS = 3
-MANAGEMENT_MAX_SEARCH_LENGTH = 200
-MANAGEMENT_MAX_SEARCH_TERMS = 10
 
 ROLE_COLUMNS = (
     "id",
@@ -72,21 +70,54 @@ SITE_SORT_FIELDS = (
     *SITE_COLUMNS,
     "has_translation",
     *SITE_LOCALE_COLUMNS,
+    "createtime",
     "updatetime",
 )
 
-__all__ = (
-    "MANAGEMENT_DEFAULT_SIZE",
-    "MANAGEMENT_MAX_SIZE",
-    "MANAGEMENT_MAX_PAGE",
-    "MANAGEMENT_MAX_ID",
-    "MANAGEMENT_MAX_SORT_FIELDS",
-    "MANAGEMENT_MAX_SEARCH_LENGTH",
-    "MANAGEMENT_MAX_SEARCH_TERMS",
-    "ROLE_COLUMNS",
-    "ROLE_SORT_FIELDS",
-    "USER_SORT_FIELDS",
-    "SITE_COLUMNS",
-    "SITE_LOCALE_COLUMNS",
-    "SITE_SORT_FIELDS",
+
+# Filter metadata describes data, independently of checkbox/switch presentation.
+def _filter_fields(names, booleans=(), numbers=(), dates=(), nullable=()):
+    return {
+        name: {
+            "type": (
+                "boolean" if name in booleans else "number" if name in numbers else "date" if name in dates else "text"
+            ),
+            "nullable": name in nullable,
+        }
+        for name in names
+    }
+
+
+ROLE_FILTER_FIELDS = _filter_fields(
+    ROLE_SORT_FIELDS,
+    (*AUTH_PERMISSION_FIELDS, "is_active", "is_default"),
+    ("id", "user_count"),
+    ("createtime", "updatetime"),
+    ("description",),
 )
+ROLE_FILTER_FIELDS["role"]["sets"] = True
+for field in ("id",):
+    ROLE_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
+
+USER_FILTER_FIELDS = _filter_fields(
+    USER_SORT_FIELDS,
+    ("is_active", "role_is_active", "has_site"),
+    ("id", "role_id", "site_id", "login_count"),
+    ("createtime", "updatetime", "last_login"),
+    ("site_id", "last_login"),
+)
+for field in ("id", "role_id", "site_id"):
+    USER_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
+
+SITE_FILTER_FIELDS = _filter_fields(
+    (*SITE_SORT_FIELDS, "profile_name", "locale"),
+    ("owner_is_active", "has_site", "is_published", "is_default", "has_translation"),
+    ("id", "site_id", "copyright_year"),
+    ("createtime", "updatetime"),
+    ("site_id", *SITE_COLUMNS, *SITE_LOCALE_COLUMNS, "profile_name"),
+)
+for field in ("id", "site_id", "copyright_year"):
+    SITE_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
+
+SITE_FILTER_FIELDS["locale"] = {"type": "enum", "options": ("en", "zh-Hans", "zh-Hant")}
+__all__ = tuple(name for name in globals() if name.isupper())

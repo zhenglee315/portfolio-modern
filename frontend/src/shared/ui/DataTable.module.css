@@ -6,6 +6,10 @@
   max-width: 100%;
   color: var(--text);
   --table-control-size: 36px;
+  --table-sort-width: 10px;
+  --table-filter-width: 14px;
+  --table-rank-width: 10px;
+  --table-header-height: 20px;
   --bs-border-color: var(--border);
   --bs-body-color: var(--text);
   --bs-body-bg: var(--panel);
@@ -13,7 +17,6 @@
   --bs-tertiary-bg: var(--panel2);
 }
 .toolbar,
-.sortOptions,
 .sorting,
 .footer {
   display: flex;
@@ -36,31 +39,10 @@
   min-width: 0;
   max-width: 100%;
 }
-.hint,
 .range {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
-}
-.hint {
-  flex: 1 1 220px;
-}
-.sortOptions {
-  padding-bottom: 12px;
-}
-.multiSort {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: var(--table-control-size);
-  margin: 0;
-  font-size: 12px;
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-.multiSort :global(.form-check-input) {
-  flex-shrink: 0;
-  margin: 0;
 }
 .root :global(.btn),
 .root :global(.form-control),
@@ -81,7 +63,12 @@
   min-width: 0;
   max-width: 100%;
 }
-.exportPicker :global(.dropdown-toggle) {
+.exportPicker :global(.dropdown-toggle),
+.columnPicker :global(.dropdown-toggle) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   white-space: normal;
 }
 .exportStatus {
@@ -111,19 +98,54 @@
   --bs-btn-disabled-color: var(--muted);
   --bs-btn-disabled-border-color: var(--border);
 }
-.columnPicker :global(.dropdown-toggle) {
-  white-space: normal;
-}
 .columnMenu:global(.dropdown-menu) {
+  --bs-dropdown-font-size: var(--table-font-size, 13px);
   --bs-dropdown-bg: var(--panel2);
   --bs-dropdown-color: var(--text);
   --bs-dropdown-border-color: var(--border);
-  width: min(280px, 100cqw, calc(100vw - 32px));
+  width: max-content;
+  min-width: 0;
+  max-width: min(100cqw, calc(100vw - 32px));
   max-height: min(320px, calc(100dvh - 120px));
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px 16px;
   box-shadow: 0 10px 30px var(--shadow-medium);
+}
+.exportMenu:global(.dropdown-menu) {
+  --table-menu-width: 180px;
+}
+/* Local Bootstrap SVG masks inherit the menu color without adding SVG paths to JavaScript. */
+.exportMenu :global(.dropdown-item)::before,
+.exportPicker :global(.dropdown-toggle)::before,
+.columnPicker :global(.dropdown-toggle)::before,
+.pagination :global(button[value])::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+.exportPicker :global(.dropdown-toggle)::before {
+  mask-image: url('bootstrap-icons/icons/download.svg?no-inline');
+}
+.columnPicker :global(.dropdown-toggle)::before {
+  mask-image: url('bootstrap-icons/icons/ui-checks.svg?no-inline');
+}
+.exportMenu [value='copy']::before {
+  mask-image: url('bootstrap-icons/icons/copy.svg?no-inline');
+}
+.exportMenu [value='excel']::before {
+  mask-image: url('bootstrap-icons/icons/file-earmark-spreadsheet-fill.svg?no-inline');
+}
+.exportMenu [value='csv']::before {
+  mask-image: url('bootstrap-icons/icons/filetype-csv.svg?no-inline');
+}
+.exportMenu [value='print']::before {
+  mask-image: url('bootstrap-icons/icons/printer.svg?no-inline');
 }
 .columnChoice:global(.form-check) {
   display: flex;
@@ -139,11 +161,19 @@
   flex-shrink: 0;
   margin: 0;
 }
+.allColumns {
+  position: sticky;
+  top: -12px;
+  z-index: 1;
+  background: var(--panel2);
+  border-bottom: 1px solid var(--border);
+}
 .root :global(.form-check-input) {
   background-color: var(--panel);
   border-color: var(--control-border);
 }
-.root :global(.form-check-input:checked) {
+.root :global(.form-check-input:checked),
+.root :global(.form-check-input:indeterminate) {
   background-color: var(--accent);
   border-color: var(--accent);
 }
@@ -192,12 +222,21 @@
 }
 /* Horizontal overflow belongs to the table viewport, never to the management page or document. */
 .scroll {
+  position: relative;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
+  overflow: auto;
   overscroll-behavior-x: contain;
+}
+/* Bootstrap keeps hidden captions in table flow; place the accessible name outside row geometry. */
+.table > caption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0 !important;
 }
 .table:global(.table) {
   --bs-table-bg: var(--panel);
@@ -210,14 +249,24 @@
   width: max-content;
   min-width: 100%;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--table-font-size, 13px);
 }
 .table > thead {
   --bs-table-bg: var(--panel2);
 }
 .table > :global(:not(caption)) > * > * {
-  padding: 14px 16px;
+  padding: 10px 8px;
   text-align: center;
+  vertical-align: middle;
+}
+/* Compact body rows retain the controls' native desktop/touch target sizes. */
+.table > tbody > tr > td {
+  padding: 4px 8px;
+}
+/* Only the viewport draws the bottom edge; internal row separators remain intact. */
+.table > tbody > tr:last-child > *,
+.table:has(> tbody:empty) > thead > tr:last-child > * {
+  border-bottom-width: 0;
 }
 .table th {
   white-space: nowrap;
@@ -231,9 +280,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: var(--table-control-size);
-  min-width: var(--table-control-size);
+  min-height: 10px;
+  min-width: var(--table-sort-width);
   padding: 0;
   border: 0;
   background: transparent;
@@ -255,7 +303,7 @@
   gap: 0;
   color: var(--muted);
 }
-.sortIcon > :global(.icon) {
+.sortIcon :global(.icon) {
   width: 12px;
   height: 10px;
   font-size: 12px;
@@ -265,36 +313,48 @@
   color: var(--accent);
   filter: drop-shadow(0 0 3px var(--glow-medium));
 }
+/* Equal side tracks keep the title center directly over the data, independent of tools. */
 .headerContent {
+  display: grid;
+  grid-template-columns: var(--table-header-tools) max-content var(--table-header-tools);
+  justify-content: center;
+  align-items: center;
+  min-height: var(--table-header-height);
+}
+.headerContent > [data-column-title] {
+  grid-column: 2;
+  line-height: 20px;
+}
+.headerControls {
+  grid-column: 3;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 1px;
+  padding-inline-start: 2px;
+  width: var(--table-header-tools);
 }
-.columnFilter {
-  display: inline-flex;
-  flex-shrink: 0;
+.table .headerControls :global(.btn) {
+  min-width: var(--table-filter-width);
+  min-height: 20px;
+  width: var(--table-filter-width);
+  padding: 0;
 }
-.filterToggle:global(.btn) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  color: var(--muted);
-  border: 0;
-  border-radius: 4px;
+.headerControls :global(.icon) {
+  width: 10px;
+  height: 10px;
 }
-.filterToggle:global(.btn)::after {
-  display: none;
+.headerControls .sortIcon :global(.icon) {
+  width: 8px;
+  height: 8px;
 }
-.filterToggle:global(.btn):hover,
-.filterToggle:global(.btn):focus-visible,
-.filterToggle.filterActive {
-  color: var(--accent);
-  background: var(--control-hover);
+.textCell {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-inline: auto;
 }
 /* Portalled Bootstrap menus inherit the palette from document tokens and copy native form theme. */
-.filterMenu:global(.dropdown-menu),
 .exportMenu:global(.dropdown-menu) {
   --bs-dropdown-bg: var(--panel2);
   --bs-dropdown-color: var(--text);
@@ -306,14 +366,13 @@
   --bs-dropdown-link-active-bg: var(--control-hover);
   --bs-dropdown-link-disabled-color: var(--muted);
   --bs-dropdown-divider-bg: var(--border);
-  width: min(288px, calc(100vw - 16px));
+  width: min(var(--table-menu-width, 288px), calc(100vw - 16px));
   max-height: min(400px, calc(100dvh - 16px));
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 8px;
   box-shadow: 0 10px 30px var(--shadow-medium);
 }
-.filterMenu :global(.dropdown-item),
 .exportMenu :global(.dropdown-item) {
   display: flex;
   align-items: center;
@@ -323,65 +382,28 @@
   border-radius: 4px;
   white-space: normal;
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: var(--table-font-size, 13px);
 }
-.filterMenu :global(.dropdown-item[aria-disabled='true']) {
-  color: var(--muted);
-  cursor: wait;
-}
-.filterMenu :global(.dropdown-item:focus-visible),
 .exportMenu :global(.dropdown-item:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 .exportMenu :global(.dropdown-header) {
   color: var(--muted);
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.4;
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.filterChoices {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.filterChoice:global(.form-check) {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  margin: 0;
-  padding: 8px;
-  border-radius: 4px;
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-.filterChoice:global(.form-check):hover,
-.filterChoice:global(.form-check):focus-within {
-  background: var(--control-hover);
-}
-.filterChoice:global(.form-check) :global(.form-check-input) {
-  float: none;
-  flex-shrink: 0;
-  margin: 0;
-  background-color: var(--panel);
-  border-color: var(--control-border);
-}
-.filterChoice:global(.form-check) :global(.form-check-input:checked) {
-  background-color: var(--accent);
-  border-color: var(--accent);
-}
-.filterChoice:global(.form-check) :global(.form-check-input:focus) {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--glow-low);
-}
 .rank {
-  min-width: 18px;
-  padding: 3px 5px;
+  min-width: var(--table-rank-width);
+  width: var(--table-rank-width);
+  padding: 2px 0;
+  font-size: 9px;
 }
-.switch:global(.form-check) {
+/* Status values are read-only; callers choose checkbox/switch and inject availability copy. */
+.boolean:global(.form-check) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -389,22 +411,47 @@
   margin: 0;
   padding: 0;
 }
-.switch :global(.form-check-input) {
+.boolean :global(.form-check-input) {
   float: none;
   margin: 0;
-  /* CSS gradients keep the Bootstrap knob readable through every semantic palette. */
+  opacity: 0.85;
+  background-color: var(--panel);
+  border-color: var(--control-border);
+}
+.boolean :global(.form-check-input:checked) {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+.boolean:global(.form-switch) :global(.form-check-input) {
   --bs-form-switch-bg: radial-gradient(circle, var(--muted) 0 52%, transparent 54%);
   background-size: 50% 100%;
 }
-.switch :global(.form-check-input:checked) {
+.boolean:global(.form-switch) :global(.form-check-input:checked) {
   --bs-form-switch-bg: radial-gradient(circle, var(--on-accent) 0 52%, transparent 54%);
 }
-.switch :global(.form-check-input:disabled) {
-  opacity: 0.85;
-  cursor: default;
+.boolean[data-unavailable] :global(.form-check-input) {
+  opacity: 0.35;
 }
+
 .actions {
   white-space: nowrap;
+}
+/* The leading selector has a compact cell and a full control-size pointer target. */
+.table .selectionCell {
+  width: 1%;
+  padding: 4px;
+  vertical-align: middle;
+}
+.selectionControl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--table-control-size);
+  min-height: var(--table-control-size);
+  cursor: pointer;
+}
+.selectionControl :global(.form-check-input) {
+  margin: 0;
 }
 .actions :global(button),
 .actions :global(a) {
@@ -457,7 +504,12 @@
   overflow-wrap: anywhere;
 }
 .size select {
-  width: 76px;
+  width: calc(var(--table-size-digits, 3) * 1ch + 3rem);
+  min-width: 44px;
+  padding-inline: 6px;
+  text-align: center;
+  text-align-last: center;
+  background-position: right 6px center;
   flex-shrink: 0;
 }
 .pagination:global(.pagination) {
@@ -486,21 +538,41 @@
   min-width: var(--table-control-size);
   min-height: var(--table-control-size);
 }
+.pagination [value='first']::before {
+  mask-image: url('bootstrap-icons/icons/chevron-double-left.svg?no-inline');
+}
+.pagination [value='previous']::before {
+  mask-image: url('bootstrap-icons/icons/chevron-left.svg?no-inline');
+}
+.pagination [value='next']::before {
+  mask-image: url('bootstrap-icons/icons/chevron-right.svg?no-inline');
+}
+.pagination [value='last']::before {
+  mask-image: url('bootstrap-icons/icons/chevron-double-right.svg?no-inline');
+}
 /* Compact presentation follows the allocated panel width, including narrow desktop embeds. */
 @container data-table (max-width: 640px) {
   .toolbar,
-  .sortOptions,
   .sorting,
   .footer,
   .scroll,
   .feedback {
     --table-control-size: 44px;
+    --table-sort-width: 44px;
+    --table-filter-width: 44px;
   }
   .toolbarSlot {
     flex-basis: 100%;
   }
-  .multiSort {
-    flex-basis: 100%;
+  .scroll {
+    --table-header-height: 88px;
+  }
+  .table .headerControls :global(.btn) {
+    min-height: 44px;
+  }
+  .sortButton {
+    min-width: var(--table-control-size);
+    min-height: var(--table-control-size);
   }
   .footer {
     justify-content: space-between;
@@ -518,12 +590,19 @@
   .pagination :global(.page-link) {
     border-radius: 4px;
   }
-  .table > :global(:not(caption)) > * > * {
-    padding: 10px 12px;
-  }
 }
 @media (any-pointer: coarse) {
   .root {
     --table-control-size: 44px;
+    --table-sort-width: 44px;
+    --table-filter-width: 44px;
+    --table-header-height: 88px;
+  }
+  .table .headerControls :global(.btn) {
+    min-height: 44px;
+  }
+  .sortButton {
+    min-width: var(--table-control-size);
+    min-height: var(--table-control-size);
   }
 }

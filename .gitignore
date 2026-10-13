@@ -1,7 +1,5 @@
 /agent/
 *test*.py
-# Keep the maintained test suite while ignoring ad hoc test scripts.
-!/backend/tests/**
 /test/
 # macOS Finder metadata.
 .DS_Store

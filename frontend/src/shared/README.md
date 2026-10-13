@@ -141,9 +141,9 @@ Anchored placement writes position, tail variables, and orientation attributes. 
 
 With `placement="below-header"`, the first upper ref protects the shell's top edge. Subsequent horizontally overlapping guards publish `--floating-content-inset`; consumers add it to copy/close spacing and subtract it from the content height budget. This keeps the frame and tail near a header trigger while protecting the toolbar. Ordinary above/side placement retains its existing geometry.
 
-`useDisclosureFocus` 的 `surfaceRef` 包含 trigger 與面板；`initialRef` 指向實際可聚焦控制項。`onClose` 使用穩定 callback，避免每次更改 slider 或文案時重新啟動初始焦點。Hook 不攔截 Tab，也不接管 Bootstrap 的 Escape、outside pointer 與關閉後焦點還原。
+`useDisclosureFocus` 的 `surfaceRef` 包含 trigger 與面板；`initialRef` 指向實際可聚焦控制項。`onClose` 使用穩定 callback，避免每次更改 slider 或文案時重新啟動初始焦點。初始 rAF 執行前若焦點已改變，保留使用者的新焦點。Hook 不攔截 Tab，也不接管 Bootstrap 的 Escape、outside pointer 與關閉後焦點還原。
 
-For `useDisclosureFocus`, the surface contains both trigger and panel, and the initial ref identifies a usable control. A stable close callback prevents ordinary value updates from restarting initial focus. The hook leaves Tab, Escape, outside-pointer dismissal, and restoration to the owning dropdown.
+For `useDisclosureFocus`, the surface contains both trigger and panel, and the initial ref identifies a usable control. A stable close callback prevents ordinary value updates from restarting initial focus. If focus changes before the initial frame runs, the hook preserves the new focus. It leaves Tab, Escape, outside-pointer dismissal, and restoration to the owning dropdown.
 
 `useHoverTooltip` 將 `triggerProps` 展開到按鈕，只有 `tooltipProps` 存在時才掛載 `PixelTooltip` 並傳入這組 props。只揭露描述的 click／tap 呼叫 `show()`；牛控制先呼叫 `close()`，再執行自己的動作。非 touch pointer 移入與 `:focus-visible` 開啟提示，開啟時才加上 `aria-describedby`。滑鼠離開延遲 150ms 關閉，讓 pointer 能移入提示窗；可見鍵盤焦點保留提示，touch 不套用 hover 離開。焦點移出且兩個區域都未 hover、外部 pointerdown、Escape、scroll、resize、window blur 或文件隱藏時關閉；關閉／卸載清理 timer 與 listener，焦點仍由原按鈕持有。
 
@@ -195,6 +195,14 @@ export function AnchoredNotice({
 
 ## 共用 UI / Shared UI
 
+[`usePageEntrance`](hooks/usePageEntrance.ts) 接收 root 與 `{paused,subscribe,enabled?,ready?,onReady?}`，共用首次進場與主題 prepare／replay／cancel 生命週期。enabled 預設 true，ready 預設 true，onReady 可省略；業務 callback 由 owner 提供，最多觸發一次，較晚 ready 不重播畫面。disabled／卸載清理 marker、訂閱與 timer；pause 結束初次進場，恢復不重播。shared 不引用 appearance feature，subscribe 接收結構化的階段字串。
+
+[`createEntrance`](lib/entrance.ts) 的 prepare／play／cancel／dispose 與同模組 `entranceTiming.durationMs=1400` 管理同一個有限時序；[`PageEntrance.module.css`](ui/PageEntrance.module.css) 的 frame class 及 data-entrance-content／data-entrance-navigation 標記共用內容、側欄及手機導覽的 keyframes。首頁與 Settings 使用同一份 controller、Hook、樣式及 BackgroundField，首頁的聯絡 callback 留在頁面薄 adapter。
+
+The shared usePageEntrance hook owns paired setup/cleanup and one startup/palette timeline with optional owner readiness. createEntrance supplies finite playback operations and entranceTiming fixes the 1400ms deadline. PageEntrance styles consume content/navigation markers without replacing DOM. Public and settings pages share these implementations; the public page alone supplies its contact callback.
+
+`BackgroundField` 的幾何沿用 `--rail-width`／`--rail-compact-width`；`--field-mobile-top` 預設 64px 對應首頁固定手機導覽，沒有頂欄的 Settings 注入 0px，平板 drawer 版面把 rail 寬度設為 0px。不另外產生動畫、格線或滑鼠追蹤器。
+
 `Breadcrumb(label,items)` 只呈現 owner 傳入的階層、原生連結與可選圖示；最後一項標示 `aria-current="page"`，分隔符不加入讀屏文案。版面支援長名稱換行，文案、網址與資料讀取留在使用它的頁面。
 
 `Breadcrumb(label,items)` renders injected ancestors, native links and optional icons. The final item uses `aria-current="page"`, separators are decorative, and long names wrap. Its owning page supplies copy and destinations; the shared component performs no data reads.
@@ -208,7 +216,7 @@ This inventory covers shared component/hook exports in `shared/ui`. Types, conte
 | [`BackgroundField`](ui/background-field/BackgroundField.tsx)       | `paused`、`speed`、`compact` 與 `copy: { unavailable, retry }`；共用背景／視差光暈，裝飾 `BackgroundSignals` 另 lazy 載入。 / Shared viewport decoration with injected failure copy and a lazy bounded signal controller.                                                                                                                                                                                         |
 | [`Breadcrumb`](ui/Breadcrumb.tsx)                                  | 注入 `label`、`items` 的祖先 link／圖示；最後項目使用 aria-current。 / Injected page ancestry without route or data ownership.                                                                                                                                                                                                                                                                                    |
 | [`LoadingIndicator`](ui/LoadingIndicator.tsx)                      | `LoadingIndicatorProps` 接收 `label`、可選 `size`／`className`；共用 SVG 載入及 reduced-motion。 / Injected status copy and bounded SVG loading decoration.                                                                                                                                                                                                                                                       |
-| [`WarningModal`](ui/WarningModal.tsx)                              | 注入 title、message、closeLabel、onClose；呼叫端以掛載控制開關，所有關閉入口共用 onClose。 / Mount-controlled warning dialog with injected copy and a single close callback.                                                                                                                                                                                                                                      |
+| [`WarningModal`](ui/WarningModal.tsx)                              | 注入 title、message、closeLabel、onClose；可選 confirm: { label, cancelLabel, onConfirm, variant? } 開啟確認模式，variant 為 primary／danger。 / Mount-controlled warning or confirmation dialog with injected copy and callbacks.                                                                                                                                                                                |
 | [`CowControl`](ui/cow-workspace/CowControl.tsx)                    | 注入 IconName、label、text、pressed、onClick，共用 44px 按鈕及 tooltip 清理。 / Shared button and tooltip lifecycle.                                                                                                                                                                                                                                                                                              |
 | [`CowMotionControls`](ui/cow-workspace/CowMotionControls.tsx)      | 注入 `controls`、`copy: CowMotionCopy` 及可選 `eyes`；不讀語系／帳號。 / Reuse motion controls with translated copy.                                                                                                                                                                                                                                                                                              |
 | [`useCowMotionControls`](ui/cow-workspace/useCowMotionControls.ts) | `active?` 控制動態，回傳 motion、preferences、toggle；暫停不覆寫個別偏好。 / Shared playback and independent preferences.                                                                                                                                                                                                                                                                                         |
@@ -251,9 +259,15 @@ Customize `PixelBubble` through its background, padding, backdrop, tail-step, an
 
 ## 資料表 / Data Tables
 
+完整使用教學、各種 Filter／row renderer、圖示與截圖請見 [DataTable 元件套件 README](ui/README.md)。本節保留共用契約索引與規格。
+
 [`DataTable<T>`](ui/DataTable.tsx) 是通用、受控的 Bootstrap 資料表。必填 props 是 `columns: DataTableColumn<T>[]`、`rows: T[]`、`rowKey(row)`、`page: { page, size, total, pages }`、`sort: DataTableSort[]`、`onSortChange(sort)`、`onPageChange(page)`、`onSizeChange(size)` 及 `copy: DataTableCopy`。可傳 `loading`、`error`、`onRetry()`、`toolbar: ReactNode` 與 `rowActions(row)`；`toolbar` 在欄位選單的同一列呈現 owner 的搜尋／篩選／更新控制，寬度不足時換行，事件及查詢狀態仍由 owner 擁有。`rowActions` 新增操作欄，文案使用 `copy.actions`。Rows 必須是 feature 已驗證的**當頁**資料，metadata 沿用 API 回應；元件不 fetch、不追加其他頁、不在瀏覽器排序，也不引用 i18n。
 
 `DataTable<T>` is a controlled Bootstrap table. Required props provide typed columns, the current validated page, stable row keys, five-field paging metadata, controlled sort state, callbacks and injected copy. Optional loading/error/retry props present query feedback. A `toolbar` ReactNode composes owner-controlled search, filters or refresh beside the column chooser, with responsive wrapping; `rowActions(row)` adds an action column. The component performs no fetching, continuation, client sorting or locale lookup.
+
+可選的 `selection: DataTableSelection<T>` 接收 `keys`、`onChange(keys)`、`allLabel` 與 `rowLabel(row)`，在最左側加入資料列 checkbox 與表頭全選。全選只涵蓋傳入的本頁 rows；部分選取顯示原生 indeterminate，取消全選清除本頁選取。選取欄不列入 Columns 或匯出，也不改變資料欄位；loading、error 或空頁時停用對應控制。Owner 擁有選取狀態及查詢切換時的清除規則。
+
+Optional `selection: DataTableSelection<T>` injects controlled keys, an onChange callback and accessible labels. Its leading checkboxes select only the supplied page, with a mixed header state for partial selection. Selection controls are excluded from Columns and exports and never mutate row values. Loading/error states disable selection; an empty page disables the header. Owners define when query navigation clears selection.
 
 外層以 `data-bs-theme="light|dark"` 控制 Bootstrap 原生控件配色；ManagementPage 將 mist 對應 light、其餘主題對應 dark，先保持 SSR／初次 hydration 一致，再套用瀏覽器偏好。共用元件不訂閱 appearance feature。
 
@@ -263,65 +277,110 @@ The owner supplies Bootstrap's light/dark mode on an ancestor. ManagementPage ma
 
 Columns supply unique IDs, labels and primitive value accessors. Optional sortability, initial visibility and render callbacks customize presentation. Default cells show disabled read-only boolean switches and a dash for null, never raw HTML. Visibility affects presentation alone; hidden sorted columns remain in the ordering summary. The last visible column cannot be hidden. A React key creates a fresh visibility scope for a different table.
 
-一般點擊／鍵盤啟用標題依序切換升冪、降冪、取消，並改成單欄排序；勾選多欄排序或按住 Shift，可以依點擊順序累積最多三欄、調整方向或移除其中一欄，手機直接點選即可操作。`sort` 的每項是 `{ field, direction: 'asc' | 'desc' }`，欄位 ID 必須對應後端排序白名單；feature 序列化成 querystring 並在排序／size／search／filter 改變時回第一頁。元件保留 API row 順序，單欄提供 `aria-sort`，多欄提供順位及摘要；page buttons 只呈現首尾與鄰近頁，不依 total 建立大量 DOM。
+欄位選單頂部提供 `copy.allColumns` 文案的 All checkbox，勾選顯示所有欄位，取消只保留 `hideable=false` 的必要欄位；沒有必要欄位時保留一個原本可見的欄位。部分欄位顯示時使用原生 indeterminate 狀態。All 與個別欄位顯示只修改本地 visibility，不發 API 請求或改變排序；All 固定在選單頂部，長清單捲動後仍可使用。
 
-Normal header activation cycles ascending, descending and removal with one criterion. Shift activation or the explicit multi-column checkbox retains up to three ordered criteria, including on touch devices. Features map column IDs to backend allowlists, serialize query parameters and reset the page after sort, size, search or filter changes. Single-column ARIA sorting, visible ranks and an ordering summary explain the controlled order. Pagination renders only bounded neighboring pages.
+Columns 選單以 max-content 依最長欄名與 checkbox／內距決定自然寬度，沒有固定 280px 或 Bootstrap 最小寬度；上限仍受 DataTable 容器及 viewport 限制，長欄名可換行。All、必要欄位與長清單捲動維持相同操作。
 
-Owner 必須保留 `onSortChange([])` 的空排序狀態，讓欄位標題下一次可重新進入升冪。ManagementPage 以 URL `sort=` 記錄清除排序；首次進入且缺少 sort 時顯示 ID 降冪排序。API 層仍提供穩定的 ID 降冪預設順序，畫面上的排序狀態不會被查詢預設值覆蓋。
+The Columns menu sizes to its longest label plus checkbox/spacing, bounded by the table container and viewport. It has no fixed 280px width or Bootstrap minimum; long labels can wrap while All and required-column behavior remain intact.
 
-Owners must preserve the empty sort array emitted on removal so the next activation can enter ascending order. ManagementPage stores that explicit reset as `sort=` in the URL; an absent parameter displays the initial ID-descending criterion. Transport defaults maintain stable ID-descending database pagination without exposing an implicit technical sorting label or replacing the controlled UI state.
+逐欄搜尋由 `DataTableColumn.filter: DataTableFilterSpec` 宣告能力，與 checkbox／toggle／其他 renderer 分開。`text` 提供 Contains、Does not contain、Equals、Does not equal、Starts、Ends、Empty、Not empty；`number`／`date` 提供等於、不等於、大小比較及 Between，nullable 才加入空值條件；`boolean` 使用 Yes／No，`enum` 注入 options。Number 可設定 integer／minimum／maximum。不同欄位以 AND 組合，每欄一個條件，`DataTableFilter` 以唯一 field ID 識別，允許相同顯示標題；`menuLabel` 可指定較明確的選單名稱，同名標題預設附加已翻譯的型別。
 
-排序標題在 loading 時使用 `aria-disabled` 並阻擋事件，保留目前鍵盤焦點；資料回來後可繼續按 Enter／Shift+Enter，不需重新 Tab 回欄位。其他分頁與資料查詢控件沿用原生 disabled。
+`DataTableColumn.filterStyle: 'dropdown-list'` 啟用 **Dropdown list filter**：配合 `filter: { type: 'text', sets: true }`（也支援 sets enum）即可由欄位 value 自動取得 DataTable 已載入資料的不同值，略過空值、文字不分大小寫去重。已出現的選項在同一個 DataTable mount 中保留，讓篩選後仍能改選；未載入頁面不會推測或額外發 API，跨 resource／account／locale 等資料範圍由 owner 使用 key 重建。新值依序配置七色 pastel chip，篩選與排序不改色，超過七種循環使用；原始資料不加入色碼。上方小字 Select(N) 顯示搜尋符合的選項數，Deselect(N) 顯示其中已選數（搜尋為空時包含目前 predicate 的全部選取值）；搜尋時按鈕僅選取／取消符合的值，保留搜尋外已選值，搜尋為空時 Deselect 清除整欄條件，包含網址帶入而尚未載入的選取。搜尋 debounce 300ms 且只縮小清單，不修改表格查詢。預設無勾選代表不限制資料，選取透過 in predicate 篩選，取消最後一個值移除條件並還原資料。搜尋下方是彩色標籤及選取 check，divider 以下為共用 Sort Ascending／Sort Descending／Clear sort；不加 Condition 切換或 Clear filter 項目。
 
-Sort headings retain keyboard focus during loading with `aria-disabled` and guarded activation. Once the response arrives, Enter/Shift+Enter can continue sorting without tabbing back to the heading; paging and other query controls retain native disabled behavior.
+`DataTableChoices`、`DataTableChoice`、`DataTableChoicePage`、`DataTableChoicesSource` 仍提供 owner 注入的 `choices: { options, colored: true }` 或 `choices: { load(search, page, signal), colored: true }`，也可覆寫 Dropdown list filter 的資料來源；省略 colored 使用一般清單。一般 choices 模式預設全選，Values／Condition 可切換文字運算，Deselect 全部 emit 空 in 陣列（零筆），Select 全部清除 predicate；與 Dropdown list filter 的明確選取模式分開。動態來源只在選單開啟時載入，More 讀下一頁；Escape／關閉／來源切換取消未完成載入，文案由 `DataTableFilterCopy` 注入。
 
-`DataTableCopy` 的所有字串與函式由 locale adapter 注入：`caption`、`loading`、`empty`、`error`、`retry`、`rowsPerPage`、`pagination`、`previous`、`next`、`columns`、`sorting`、`clearSort`、`sortHint`、`multiSort`、`readonly`、`actions`；`direction` 為 `{ asc, desc }`；`range(from, to, total)`、`pageLabel(page)` 及 `sortLabel(column, next)` 提供動態文案，`next` 是 `asc`／`desc`／`none`。空頁的 from／to 為 0。`loading` 停用資料查詢控制並顯示 status，錯誤提供 alert 及可選重試；已傳入 rows 保留，由 feature 決定何時使用有效 cache。`DataTable.module.css` 以 `--panel`、`--panel2`、`--text`、`--border`、`--control-hover` 橋接 Bootstrap 變數；row hover 隨主題更新，寬表格只在自身 viewport 水平捲動。
+複選使用 `in`／`not_in` 字串陣列，只允許宣告 sets 的文字或 enum 欄位；`tableFilterMaxValues` 為 100。空的 in 陣列代表不選任何值，清除條件才是全選；not_in 保留未明列值的選取狀態，避免分頁未載入選項消失。文字比較不分大小寫，拒絕重複值；否定運算排除 null，未知欄位與型別不合一樣拒絕。選項標籤支援省略號與 hover 全文，固定的七色 pastel chip 保持深色文字對比，顏色依 value 穩定配置，也可由 `DataTableChoice.color` 指定。原始 API／匯出資料不加入色碼。
 
-All copy is injected, including captions, query feedback, navigation, column controls, ordering hints, read-only semantics and dynamic range/page/sort labels. Loading disables query controls; errors provide an optional local retry. Supplied rows remain visible, with cache retention owned by the feature. Semantic application tokens bridge Bootstrap variables for every theme and row hover. Wide tables scroll within their own viewport.
+`filters`／`onFiltersChange` 是受控 props；宣告 filter 的欄位會顯示 icon。`DataTableColumnMenu` 組合條件、型別輸入、單欄清除與排序，選單寬度為 224px，窄 viewport 保留左右各 8px，篩選輸入維持至少 44px 高度；divider 下方三個排序項目使用 4px 上下內距與桌面 32px 高度，窄螢幕／觸控維持 44px 點擊區；頁面不需要自行組選單；`DataTableFilterCopy` 注入完整文案。文字／數字／日期輸入 debounce 300ms，Enter 立即套用，布林／選項自動套用；讀取中仍可修改篩選並由 owner 取消舊請求。條件 icon 高亮，Escape 關閉並復原焦點。隱藏欄位保留條件，表格工具列提供清除全部篩選。
 
-RWD 依**元件容器寬度**處理：根節點是 `data-table` inline-size container，640px 以下搜尋／工具列換行、排序模式獨立一列、分頁與筆數控制分列，頁碼按鈕可換行。資料仍保持一列一筆，寬欄位保留在表格自己的水平捲動區；不縮小字體或把頁面本身撐寬。窄容器或 coarse pointer 裝置的主要控件至少 44px，長排序摘要與欄位標籤可以換行；欄位選單寬高受容器與 viewport 限制。Owner 注入的 toolbar 可使用同名 `@container data-table (max-width: 640px)`，應避免固定最小寬度超出父容器；外層 flex／grid item 要允許 `min-width: 0`。
+日期欄位自動使用瀏覽器原生日曆（`input type=date`），點擊欄位即開啟 picker，calendar 裝飾使用 Bootstrap icon 並繼承 light／dark form scheme。選單僅提供 Equals、Does not equal、After、Before、Empty、Not empty；不要求輸入時分秒。選定值以 `YYYY-MM-DD` 傳給 owner，以 UTC 日界計算：Equals 為 `start <= value < nextDay`，Does not equal 排除整天及 null，After 為 `value >= nextDay`，Before 為 `value < start`。Empty／Not empty 對所有日期欄位開放。現有 ISO timestamp 書籤與 transport 的精確比較仍可讀取，開啟選單不自行改寫既有條件；日期範圍的舊 API 能力保留，新的 UI 依指定六項條件呈現。日曆可選 0001-01-01 至 9999-12-30，確保次日邊界有效。
+
+純契約位於 `lib/table-filter.ts`：`TableFilterOperator`、`DataTableFilterSpec`、`DataTableFilter`、`filterOperators(spec)`、`parseTableFilters(raw, fields)`。未知欄位、型別不符、重複條件、反向範圍與超限文字都會拒絕；文字最多 200 個 Unicode 字元，不切成多個搜尋詞。null 使用 Empty，false／0 是實際值；否定運算排除 null。資料篩選、總數與分頁由使用端的完整資料來源處理，DataTable 不篩選當頁 rows。
+
+共用 URL 狀態是 `DataTableQueryState`；`readTableQuery(params, sortable, fields, initialSize?)` 正規化書籤，`writeTableQuery(state)` 序列化穩定的 filters 順序。`useDataTableQuery(sortable, fields, initialSize?)` 接上 React Router，回傳 state 與排序／篩選／翻頁／size callbacks；條件或 size 變更回第一頁，Back／Forward 復原條件。未使用 Router 的表格仍可直接傳入受控 props。`useDataTableSelection(scope)` 共用選取狀態與 scope 切換清除，scope 應包含資源、帳號、語言與查詢。翻譯以 `i18n/table-copy.dataTableCopy(t, caption)` 一次取得，不需要每頁重寫文案物件。
+
+所有表頭與資料格水平、垂直置中；表頭以等寬左右區域讓標題中心對齊資料，功能圖示集中於右側。所有欄位（包含 Actions）共用相同表頭布局、高度與文字行高，欄名與控制項在所有尺寸維持同列，避免因是否有排序／filter 而上下錯位。桌面排序圖示 8px、filter 圖示 10px，箭頭／filter 按鈕寬 10px／14px，間距 1px；手機／觸控保留 44px 目標，寬欄透過表格內的水平捲動查看。字串預設單行 ellipsis，native title 在 hover 顯示完整文字；`textWidth` 可設定上限（預設 180px），`truncate=false` 關閉。自訂 renderer、詳情與匯出沿用完整原文。
+
+表格高度預設依資料列自然伸縮，不保留固定高度或強制顯示捲軸。水平捲動只在欄位總寬超出容器時出現；可選 `maxHeight` 接受 CSS 高度（例如 `480` 或 `'60dvh'`），超過限制才啟用內部垂直捲動。隱藏 caption 使用 absolute 並清除負 margin，保留表格無障礙名稱但不佔排版高度；最末資料列不再畫底線，空表格的表頭亦同，底部只由 viewport 外框畫一條線。
+
+The table grows to its rows by default. Horizontal scrolling appears only when columns exceed the container. Optional `maxHeight` accepts a CSS height and enables vertical scrolling only above that limit. The accessible caption is positioned outside row flow without a negative margin. The final body row, or the header of an empty table, omits its bottom border; the viewport supplies the single outer edge.
+
+分頁以 Bootstrap Icons 的 chevron-double-left／chevron-left／chevron-right／chevron-double-right 呈現第一頁、上一頁、下一頁與最後一頁。圖示使用本地 CSS mask，名稱由 copy 注入；空頁、單頁、loading 與首尾邊界停用適當按鈕，不讀取中間頁。
+
+每頁筆數下拉選單依目前數值的位數調整寬度，保留至少 44px 寬及數字／箭頭間距；左右內距一致，數字在整個選單框內置中，6、10、100 都使用相同對齊方式。
+
+`BooleanCell({ value, label, rowId, readonly, checkbox?, unavailableReason? })` 共用唯讀布林狀態呈現，預設為 switch，傳入 `checkbox=true` 改為 checkbox；`null` 顯示「—」。`unavailableReason` 由頁面決定並提供文案，讓不符合條件的控制淡化，同時提供 title 與讀屏說明。DataTable 的預設布林 cell 與管理詳情共用此元件；個別欄位仍透過 `render(row)` 選擇呈現。
+
+每個可排序欄位提供獨立的 ↑／↓ 按鈕；點擊指定升冪／降冪，再次點擊同方向會取消該欄排序。其他欄位保留，依初次加入的順序最多累積三欄；修改方向保留原順位，取消後重新加入則排在最後。不需要多欄排序模式或 Shift。`sort` 的每項是 `{ field, direction: 'asc' | 'desc' }`，欄位 ID 對應後端白名單。搜尋、篩選、排序或 size 變更回第一頁。元件只呈現 API 的列順序；按鈕以 `aria-pressed` 表示選取方向，表頭保留 `aria-sort`，摘要顯示順位。達三欄上限時，其他欄的箭頭使用 `aria-disabled`，不替換既有排序。
+
+Each sortable column has independent ascending/descending buttons. Activate a direction again to cancel only that column. Other criteria remain in first-selection order, up to three fields, without a mode checkbox or modifier key. Direction changes retain priority; removing and re-adding a field moves it to the end. Buttons expose aria-pressed, headers retain aria-sort and the summary shows priority. At capacity, unselected columns are aria-disabled rather than replacing selected criteria. Features serialize the controlled state and request the selected server page; DataTable never reorders local rows.
+
+Owner 必須保留 `onSortChange([])` 的空排序狀態，讓下一次箭頭點擊能直接選取指定方向。ManagementPage 以 URL `sort=` 記錄清除排序；首次進入且缺少 sort 時，箭頭維持未選取。API 層仍提供穩定的 ID 降冪預設順序，畫面上的排序狀態不會被查詢預設值覆蓋。
+
+Owners must preserve the empty sort array emitted on removal so the next activation can enter ascending order. ManagementPage stores that explicit reset as `sort=` in the URL; an absent parameter leaves both arrows unselected. Transport defaults maintain stable ID-descending database pagination without exposing an implicit technical sorting label or replacing the controlled UI state.
+
+排序標題在 loading 時使用 `aria-disabled` 並阻擋事件，保留目前鍵盤焦點；資料回來後可繼續按 Enter／Space，不需重新 Tab 回欄位。其他分頁與資料查詢控件沿用原生 disabled。
+
+Sort headings retain keyboard focus during loading with `aria-disabled` and guarded activation. Once the response arrives, Enter/Space can continue sorting without tabbing back to the heading; paging and other query controls retain native disabled behavior.
+
+`DataTableCopy` 的所有字串與函式由 locale adapter 注入：`caption`、`loading`、`empty`、`error`、`retry`、`rowsPerPage`、`pagination`、`first`、`previous`、`next`、`last`、`columns`、`sorting`、`clearSort`、`readonly`、`actions`；`direction` 為 `{ asc, desc }`；`range(from, to, total, selected)`、`pageLabel(page)` 及 `sortLabel(column, next)` 提供動態文案，`next` 是 `asc`／`desc`／`none`。空頁的 from／to 為 0；selected 是本頁實際選取數，不包含未顯示的 keys。管理頁左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，選取數大於 0 時接上 `, N rows selected`（單筆使用 row），其他語言由 copy 本地化。`loading` 停用資料查詢控制，並在工具列／排序摘要下方、表頭上方置中顯示共用 LoadingIndicator；結束後收起該區，不保留空白高度。錯誤提供 alert 及可選重試；已傳入 rows 保留，由 feature 決定何時使用有效 cache。`DataTable.module.css` 以 `--panel`、`--panel2`、`--text`、`--border`、`--control-hover` 橋接 Bootstrap 變數；row hover 隨主題更新，寬表格只在自身 viewport 水平捲動。
+
+All copy is injected, including captions, query feedback, navigation, column controls, ordering hints, read-only semantics and dynamic range/page/sort labels. Loading disables query controls and centers the shared indicator below the toolbar/sort summary and above the table header; its region collapses when loading ends. Errors provide an optional local retry. Supplied rows remain visible, with cache retention owned by the feature. Semantic application tokens bridge Bootstrap variables for every theme and row hover. Wide tables scroll within their own viewport.
+
+資料列使用緊湊的 `4px 8px` cell padding；表頭沿用原本間距。操作按鈕保留桌面的 36px 與手機／觸控的 44px 點擊範圍，列高由內容與控制項決定，不設定固定高度。
+
+RWD 依**元件容器寬度**處理：根節點是 `data-table` inline-size container，640px 以下工具列換行、分頁與筆數控制分列，頁碼按鈕可換行；表頭標題與功能在同列置中，箭頭保留上下排列與各自 44px 觸控範圍。資料仍保持一列一筆，寬欄位保留在表格自己的水平捲動區；不縮小字體或把頁面本身撐寬。窄容器或 coarse pointer 裝置的主要控件至少 44px，長排序摘要與欄位標籤可以換行；欄位選單寬高受容器與 viewport 限制。Owner 注入的 toolbar 可使用同名 `@container data-table (max-width: 640px)`，應避免固定最小寬度超出父容器；外層 flex／grid item 要允許 `min-width: 0`。
 
 Responsive behavior follows the allocated component width through a named `data-table` inline-size container. At 640px or less, controls and page buttons wrap while wide rows scroll only inside the table. Primary controls use at least 44px targets in compact containers or with coarse pointers. Long ordering labels wrap, and the column menu is bounded by available container/viewport dimensions. Injected toolbars may reuse the named container query; parent flex/grid items must permit shrinking with `min-width: 0`.
 
 ```tsx
-import {
-  DataTable,
-  type DataTableColumn,
-  type DataTableCopy,
-  type DataTableSort,
-} from '@/shared/ui/DataTable';
-
-type Item = { id: number; label: string; active: boolean };
+const filterSpecs = {
+  id: { type: 'number', integer: true },
+  name: { type: 'text' },
+  active: { type: 'boolean' },
+} satisfies Record<string, DataTableFilterSpec>;
 const columns: DataTableColumn<Item>[] = [
-  { id: 'id', label: 'ID', value: (row) => row.id, sortable: true },
-  { id: 'label', label: 'Name', value: (row) => row.label, sortable: true },
-  { id: 'active', label: 'Active', value: (row) => row.active, sortable: true },
+  { id: 'id', label: 'ID', value: (row) => row.id, sortable: true, filter: filterSpecs.id },
+  { id: 'name', label: 'Name', value: (row) => row.name, sortable: true, filter: filterSpecs.name },
+  {
+    id: 'active',
+    label: 'Active',
+    value: (row) => row.active,
+    sortable: true,
+    filter: filterSpecs.active,
+  },
 ];
 
-/** The feature supplies a validated page and connects callbacks to its query state. */
-export function ItemsTable(props: {
-  records: { items: Item[]; page: number; size: number; total: number; pages: number };
-  sort: DataTableSort[];
-  copy: DataTableCopy;
-  onSortChange: (sort: DataTableSort[]) => void;
-  onPageChange: (page: number) => void;
-  onSizeChange: (size: number) => void;
-}) {
+function ItemsTable() {
+  const { t } = useTranslation();
+  const table = useDataTableQuery(['id', 'name', 'active'], filterSpecs);
+  const selection = useDataTableSelection(JSON.stringify(table.state));
+  const query = useItemsList(table.state); // Feature supplies schema, endpoint and validated page.
   return (
     <DataTable
       columns={columns}
-      rows={props.records.items}
+      rows={query.data?.items ?? []}
       rowKey={(row) => row.id}
-      page={props.records}
-      sort={props.sort}
-      copy={props.copy}
-      onSortChange={props.onSortChange}
-      onPageChange={props.onPageChange}
-      onSizeChange={props.onSizeChange}
+      page={query.data ?? { ...table.state, total: 0, pages: 0 }}
+      sort={table.state.sort}
+      filters={table.state.filters}
+      onSortChange={table.onSortChange}
+      onFiltersChange={table.onFiltersChange}
+      onPageChange={table.onPageChange}
+      onSizeChange={table.onSizeChange}
+      selection={{ ...selection, allLabel: t('management.selectAll'), rowLabel: (row) => row.name }}
+      loading={query.isFetching}
+      error={query.isError}
+      onRetry={() => void query.refetch()}
+      copy={dataTableCopy(t, 'Items')}
     />
   );
 }
 ```
+
+此範例只需替換 Item、columns 和 feature 的 `useItemsList`；filterSpecs／columns 宣告於元件外以保持穩定。若資料受帳號／語言限制，selection scope 應加上相同身份資訊。匯出及 rowActions 按需求注入，不需要另做一份 DataTable。匯入 `DataTable`／`DataTableColumn`、`DataTableFilterSpec`、`useDataTableQuery`／`useDataTableSelection` 與 `dataTableCopy` 的實際模組路徑如上。
+
+`WarningModal` 未傳 confirm 時維持原有提示模式；確認模式沿用 Bootstrap 的 dialog、aria-modal、標題／說明關聯，呈現驚嘆號 icon、取消與確認按鈕，預設聚焦取消，Escape／backdrop／右上關閉皆呼叫 onClose，確認僅呼叫 onConfirm。variant=danger 使用固定的 Bootstrap 紅色 icon／確認按鈕；控件最小高度 44px，Modal body 可捲動，Bootstrap 擁有焦點圈限及還原。元件不讀取選取列、不 fetch、不執行刪除或自行顯示成功，owner 提供列名／筆數與實際操作。
 
 ## 浮動通知 / Floating Notifications
 
@@ -425,7 +484,7 @@ For a successful-authentication welcome, `AuthCowScene` composes existing primit
 3. 外部資料先由 schema 驗證，型別從契約推導；衍生值直接計算，不再保存一份需要同步的 state。 / Validate external input, derive types, and avoid duplicate derived state.
 4. 透過 props、callbacks 與 CSS tokens 表達合理差異；不要讓 shared 接收 feature 名稱以切換業務分支。 / Express supported variation through props, callbacks, and tokens rather than feature-name branches.
 5. 異步、observer、listener 與 timer 在取消／卸載時清理；過期 callback 不得更新已失效的畫面。 / Clean up async resources and guard stale callbacks.
-6. 共用流程有變更時檢查實際使用者；資料契約／非同步邊界使用 `tests/unit`，跨元件的焦點、RWD 與特效使用 `tests/e2e`。 / Validate real consumers with contract/lifecycle unit checks and browser interaction checks.
+6. 共用流程有變更時檢查實際使用者；資料契約、非同步邊界、跨元件焦點、RWD 與特效均須檢查；本機測試工具放根目錄的 `agent/`，不提交。 / Check contracts, lifecycle boundaries, focus, responsive layouts and effects; keep local test tooling in the ignored root `agent/` directory.
 7. 新增或修改公開能力時同步本文件與必要的[元件／頁面規格](../../README.md)，說明實際介面和限制。 / Keep shared and component/page specifications aligned with the implemented interface.
 
 ## 共用契約補充與文件檢查 / Contract Inventory and Documentation Check
@@ -435,6 +494,8 @@ For a successful-authentication welcome, `AuthCowScene` composes existing primit
 `lib/auth-transition.ts` 提供 `AuthTransitionPhase`、`authTransitionTiming`、`authTransitionStyle`、`authTransitionImmediateStyle` 及 `createAuthTransition(onPhase)`。Controller 只管理 CSS 階段與有限時鐘，提供 open／back／finish／dispose／getPhase；帳號與 Access denied 的 owner 各自處理 scroll、是否自動進場及清理。`lib/background-signals.ts` 的 `SignalGeometry`／`signalGeometry(width,height)` 是純幾何計算，最多 400 個十字。
 
 共用匯出工具位於 `lib/table-export.ts`。`TableExportCell`／`TableExportMatrix` 是已投影的可見欄位矩陣；`tableCsv`／`tableTsv` 處理 escaping 與 spreadsheet formula 前綴，`tableXlsx` 產生離線 workbook bytes，`tablePrintHtml` 產生已 escape 的列印 HTML。`DataTableExport<T>` 的 filename 由 owner 提供，未指定 loadRows 時只匯出當頁可見欄位，含非 hideable 的 ID，不匯出動作或隱藏欄位。選擇 copy／CSV／Excel／print 才產生內容；loadRows 的取消、Blob URL 與 print iframe 由元件清理。`DataTableCopy.export` 文案由呼叫端注入，資料表不讀帳號或 i18n。
+
+Export 按鈕使用 Bootstrap Icons 的 download，Columns 按鈕使用 ui-checks，圖示與文字置中並保留 6px 間距。Export 選單寬度為 180px，上限隨 viewport 縮小；範圍說明可換行。Copy／Excel／CSV／Print 分別使用 Bootstrap Icons 的 copy、file-earmark-spreadsheet-fill、filetype-csv、printer。SVG 以本地靜態檔案及 CSS mask 呈現，沿用文字顏色並保持裝飾圖示不影響操作的無障礙名稱。
 
 傳输／scope 公開契約：`ApiErrorKind` 分類可重試、HTTP、JSON 解析及契約失敗；`errorCode` 只接受有界的後端代碼，不顯示 raw body。`PortfolioProvider` 注入公開 selector／已解析身份，`usePortfolioContext` 讀取同一 scope；`observeViewport` 回傳 observer 清理函式。牛的 `CowWorkspaceMotionOptions`／`CowWorkspacePhase` 定義 motion、pointer scope 與姿勢；具體生命週期見牛場景指南。
 

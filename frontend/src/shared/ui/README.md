@@ -245,18 +245,18 @@ export function UsersTable({
 
 ### 選用
 
-| Prop            | 預設／型別                | 使用方式                                    |
-| --------------- | ------------------------- | ------------------------------------------- |
-| filters         | `[]`／`DataTableFilter[]` | 每欄一個條件，不同欄 AND 組合               |
-| onFiltersChange | callback                  | 與 column.filter 一起使用才出現 Filter icon |
-| selection       | `DataTableSelection<T>`   | 最左側的本頁選取／全選                      |
-| rowActions      | `(row: T) => ReactNode`   | 在最後加 Actions 欄                         |
-| toolbar         | `ReactNode`               | Refresh、Add、Del 與 owner 的其他操作       |
-| export          | `DataTableExport<T>`      | filename 與可選 loadRows(signal)            |
-| loading         | `false`                   | 表頭上方 Loading，限制查詢／選取控制        |
-| error           | `false`                   | 錯誤呈現，不自行清空已傳入的有效 rows       |
-| onRetry         | `() => void`              | 有提供才顯示 Retry                          |
-| maxHeight       | 可省略的 CSS 高度         | 如 `480`／`'60dvh'`，超過限制才內部垂直捲動 |
+| Prop            | 預設／型別                | 使用方式                                         |
+| --------------- | ------------------------- | ------------------------------------------------ |
+| filters         | `[]`／`DataTableFilter[]` | 每欄一個條件，不同欄 AND 組合                    |
+| onFiltersChange | callback                  | 與 column.filter 一起使用才出現 Filter icon      |
+| selection       | `DataTableSelection<T>`   | 最左側的本頁選取／全選                           |
+| rowActions      | `(row: T) => ReactNode`   | 在最後加 Actions 欄                              |
+| toolbar         | `ReactNode`               | Refresh、Add、Del 與 owner 的其他操作            |
+| export          | `DataTableExport<T>`      | filename 與可選 loadRows(signal)                 |
+| loading         | `false`                   | 首次載入在表頭上方；已有資料時覆蓋表格，保留尺寸 |
+| error           | `false`                   | 錯誤呈現，不自行清空已傳入的有效 rows            |
+| onRetry         | `() => void`              | 有提供才顯示 Retry                               |
+| maxHeight       | 可省略的 CSS 高度         | 如 `480`／`'60dvh'`，超過限制才內部垂直捲動      |
 
 自訂 toolbar、render、rowActions 內的 disabled／權限由 owner 明確傳入，不會自動套到所有 ReactNode。
 
@@ -920,12 +920,14 @@ readPage 固定本次 Filter／Sort／權限範圍，驗證回應並傳遞 Abort
 
 ## 14. Loading、Empty、Error／Retry
 
-| 狀態                       | 顯示與操作                                                                |
-| -------------------------- | ------------------------------------------------------------------------- |
-| loading=true               | LoadingIndicator 在 toolbar／排序摘要下、表頭上方；結束收起，不留空白高度 |
-| error=true，不在 loading   | alert 與 copy.error；有 onRetry 才有 Retry                                |
-| rows=[]，無 loading／error | copy.empty，from／to 為 0                                                 |
-| 已有 rows 再讀取           | feature 決定是否保留 cache，DataTable 呈現傳入資料                        |
+換頁時，owner 應保留上一筆成功查詢的 rows 與分頁 metadata，並傳入 `loading=true`。目前 `useManagementList` 使用 TanStack Query 的 `placeholderData`，只在相同登入身份、resource 與 locale 內保留前頁；資料仍由 query cache 擁有，不另存一份 rows。共享 DataTable 保留排版、在上方覆蓋既有 LoadingIndicator，隱藏且停用舊列，避免空陣列造成先收縮再展開。新資料提交至 DOM 後，以 160ms 淡入顯示；reduced motion 直接顯示。新頁筆數不同時，依完成後的內容調整高度，沒有固定為最大頁高或全表預載。
+
+| 狀態                       | 顯示與操作                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------- |
+| loading=true，無 rows      | LoadingIndicator 在 toolbar／排序摘要下、表頭上方；結束收起，不留空白高度                |
+| error=true，不在 loading   | alert 與 copy.error；有 onRetry 才有 Retry                                               |
+| rows=[]，無 loading／error | copy.empty，from／to 為 0                                                                |
+| 已有 rows 再讀取           | 保留傳入 rows 的排版尺寸，LoadingIndicator 覆蓋表格上方；舊內容暫時隱藏且 tbody 為 inert |
 
 Filter 輸入在列表請求中可繼續編輯，owner 可取消舊請求。排序、分頁、匯出、選取依狀態限制；自訂操作由 owner 控制。
 

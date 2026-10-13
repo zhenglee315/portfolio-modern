@@ -636,7 +636,7 @@ Only the three GETs are integrated. Entry reads one page of the selected resourc
 
 Without frontend sort criteria, managementListParams omits sort so all three backend lists use updatetime:desc with ascending ID for equal timestamps. Explicit criteria preserve click priority. Initial entry and clearing all sorts leave arrows unselected; a URL sort= records UI state without sending an empty API parameter.
 
-共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。舊上方全表搜尋、單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；字串預設單行省略，hover 原生 title 查看完整內容；欄位可用 `truncate: false` 保留全文並換行，User 的 Email 已套用。詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable loading 位於工具列／排序摘要下方、表頭上方的中央區域，載入完成後收起；錯誤與空資料提示保留在表格下方。
+共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。舊上方全表搜尋、單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；字串預設單行省略，hover 原生 title 查看完整內容；欄位可用 `truncate: false` 保留全文並換行，User 的 Email 已套用。詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable 首次 loading 位於工具列／排序摘要下方、表頭上方。換頁、排序與篩選期間，`useManagementList` 只在相同身份／資源／語言內保留 query 的前頁資料與分頁資訊，表格維持尺寸並由既有 loading 動畫覆蓋；舊列隱藏且停用，新頁 DOM 完成後淡入，reduced motion 直接顯示。錯誤與空資料提示保留在表格下方。
 
 三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。後續批次更新操作尚未串接。
 

@@ -305,6 +305,7 @@ export function DataTable<T>({
   const allRowsSelected = rows.length > 0 && selectedKeys.length === rows.length;
   const first = rows.length ? (page.page - 1) * page.size + 1 : 0;
   const last = rows.length ? Math.min(first + rows.length - 1, page.total) : 0;
+  const pendingRows = loading && rows.length > 0;
   const sizeOptions = [...new Set([6, 10, 25, 50, 100, page.size])].sort((a, b) => a - b);
   const changeSort = (field: string, direction: 'asc' | 'desc' | null) => {
     if (loading) return;
@@ -522,185 +523,189 @@ export function DataTable<T>({
           </button>
         </div>
       )}
-      <div className={styles.feedback}>
-        {loading ? <LoadingIndicator label={copy.loading} /> : null}
-      </div>
-      <div
-        className={`table-responsive ${styles.scroll}`}
-        style={{ maxHeight }}
-        role="region"
-        aria-label={copy.caption}
-        tabIndex={0}
-      >
-        <table
-          className={`table table-striped table-hover align-middle ${styles.table}`}
-          aria-busy={loading}
+      <div className={styles.viewport} data-pending={pendingRows} data-ready={!loading && !error}>
+        <div className={`${styles.feedback} ${pendingRows ? styles.loadingOverlay : ''}`}>
+          {loading ? <LoadingIndicator label={copy.loading} /> : null}
+        </div>
+        <div
+          className={`table-responsive ${styles.scroll}`}
+          style={{ maxHeight }}
+          role="region"
+          aria-label={copy.caption}
+          tabIndex={0}
         >
-          <caption className="visually-hidden">{copy.caption}</caption>
-          <thead>
-            <tr>
-              {selection && (
-                <th scope="col" data-selection className={styles.selectionCell}>
-                  <label className={styles.selectionControl}>
-                    <TableCheckbox
-                      aria-label={selection.allLabel}
-                      checked={allRowsSelected}
-                      mixed={selectedKeys.length > 0 && !allRowsSelected}
-                      disabled={loading || error || !rows.length}
-                      onChange={(event) =>
-                        selection.onChange(event.target.checked ? rows.map(rowKey) : [])
-                      }
-                    />
-                  </label>
-                </th>
-              )}
-              {visibleColumns.map((column) => {
-                const rank = sort.findIndex((criterion) => criterion.field === column.id);
-                const direction = sort[rank]?.direction;
-                return (
-                  <th
-                    key={column.id}
-                    scope="col"
-                    style={columnStyle(column)}
-                    aria-sort={
-                      !direction
-                        ? 'none'
-                        : sort.length > 1
-                          ? 'other'
-                          : direction === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                    }
-                  >
-                    <div className={styles.headerContent}>
-                      <span data-column-title>{column.label}</span>
-                      <span className={styles.headerControls}>
-                        {column.sortable && (
-                          <span className={styles.sortIcon}>
-                            {(['asc', 'desc'] as const).map((target) => (
-                              <button
-                                key={target}
-                                type="button"
-                                className={styles.sortButton}
-                                aria-label={copy.sortLabel(column.label, target)}
-                                aria-pressed={direction === target}
-                                aria-disabled={loading || (!direction && sort.length >= 3)}
-                                title={copy.sortLabel(
-                                  column.label,
-                                  direction === target ? 'none' : target,
-                                )}
-                                onClick={() => changeSort(column.id, target)}
-                              >
-                                <Icon
-                                  name={target === 'asc' ? 'caretUpFill' : 'caretDownFill'}
-                                  className={direction === target ? styles.sortSelected : undefined}
-                                />
-                              </button>
-                            ))}
-                          </span>
-                        )}
-                        {direction && (
-                          <span aria-hidden="true" className={`badge ${styles.rank}`}>
-                            {rank + 1}
-                          </span>
-                        )}
-                        {column.filter && onFiltersChange && (
-                          <DataTableColumnMenu
-                            column={
-                              choiceCache.options[column.id]
-                                ? {
-                                    ...column,
-                                    choices: {
-                                      options: choiceCache.options[column.id]!,
-                                      colored: true,
-                                    },
-                                  }
-                                : column
-                            }
-                            menuLabel={
-                              column.menuLabel ??
-                              (columns.some(
-                                (other) => other.id !== column.id && other.label === column.label,
-                              )
-                                ? `${column.label} (${copy.filter.typeLabels[column.filter.type]})`
-                                : column.label)
-                            }
-                            sort={sort}
-                            filters={filters}
-                            onFiltersChange={onFiltersChange}
-                            onSort={changeSort}
-                            loading={loading}
-                            copy={copy}
-                          />
-                        )}
-                      </span>
-                    </div>
-                  </th>
-                );
-              })}
-              {rowActions && (
-                <th scope="col" style={{ '--table-header-tools': '0px' } as CSSProperties}>
-                  <div className={styles.headerContent}>
-                    <span data-column-title>{copy.actions}</span>
-                    <span className={styles.headerControls} />
-                  </div>
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={rowKey(row)} data-row-key={rowKey(row)}>
+          <table
+            className={`table table-striped table-hover align-middle ${styles.table}`}
+            aria-busy={loading}
+          >
+            <caption className="visually-hidden">{copy.caption}</caption>
+            <thead>
+              <tr>
                 {selection && (
-                  <td data-selection className={styles.selectionCell}>
+                  <th scope="col" data-selection className={styles.selectionCell}>
                     <label className={styles.selectionControl}>
                       <TableCheckbox
-                        aria-label={selection.rowLabel(row)}
-                        checked={selectedKeys.includes(rowKey(row))}
-                        disabled={loading || error}
+                        aria-label={selection.allLabel}
+                        checked={allRowsSelected}
+                        mixed={selectedKeys.length > 0 && !allRowsSelected}
+                        disabled={loading || error || !rows.length}
                         onChange={(event) =>
-                          selection.onChange(
-                            event.target.checked
-                              ? [...selectedKeys, rowKey(row)]
-                              : selectedKeys.filter((key) => key !== rowKey(row)),
-                          )
+                          selection.onChange(event.target.checked ? rows.map(rowKey) : [])
                         }
                       />
                     </label>
-                  </td>
+                  </th>
                 )}
                 {visibleColumns.map((column) => {
-                  const value = column.value(row);
+                  const rank = sort.findIndex((criterion) => criterion.field === column.id);
+                  const direction = sort[rank]?.direction;
                   return (
-                    <td key={column.id} className={styles.cell}>
-                      {column.render ? (
-                        column.render(row)
-                      ) : typeof value === 'boolean' ? (
-                        <BooleanCell
-                          value={value}
-                          label={column.label}
-                          rowId={rowKey(row)}
-                          readonly={copy.readonly}
-                        />
-                      ) : typeof value === 'string' && column.truncate !== false ? (
-                        <span
-                          className={styles.textCell}
-                          title={value}
-                          style={{ maxWidth: column.textWidth ?? 180 }}
-                        >
-                          {value}
+                    <th
+                      key={column.id}
+                      scope="col"
+                      style={columnStyle(column)}
+                      aria-sort={
+                        !direction
+                          ? 'none'
+                          : sort.length > 1
+                            ? 'other'
+                            : direction === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                      }
+                    >
+                      <div className={styles.headerContent}>
+                        <span data-column-title>{column.label}</span>
+                        <span className={styles.headerControls}>
+                          {column.sortable && (
+                            <span className={styles.sortIcon}>
+                              {(['asc', 'desc'] as const).map((target) => (
+                                <button
+                                  key={target}
+                                  type="button"
+                                  className={styles.sortButton}
+                                  aria-label={copy.sortLabel(column.label, target)}
+                                  aria-pressed={direction === target}
+                                  aria-disabled={loading || (!direction && sort.length >= 3)}
+                                  title={copy.sortLabel(
+                                    column.label,
+                                    direction === target ? 'none' : target,
+                                  )}
+                                  onClick={() => changeSort(column.id, target)}
+                                >
+                                  <Icon
+                                    name={target === 'asc' ? 'caretUpFill' : 'caretDownFill'}
+                                    className={
+                                      direction === target ? styles.sortSelected : undefined
+                                    }
+                                  />
+                                </button>
+                              ))}
+                            </span>
+                          )}
+                          {direction && (
+                            <span aria-hidden="true" className={`badge ${styles.rank}`}>
+                              {rank + 1}
+                            </span>
+                          )}
+                          {column.filter && onFiltersChange && (
+                            <DataTableColumnMenu
+                              column={
+                                choiceCache.options[column.id]
+                                  ? {
+                                      ...column,
+                                      choices: {
+                                        options: choiceCache.options[column.id]!,
+                                        colored: true,
+                                      },
+                                    }
+                                  : column
+                              }
+                              menuLabel={
+                                column.menuLabel ??
+                                (columns.some(
+                                  (other) => other.id !== column.id && other.label === column.label,
+                                )
+                                  ? `${column.label} (${copy.filter.typeLabels[column.filter.type]})`
+                                  : column.label)
+                              }
+                              sort={sort}
+                              filters={filters}
+                              onFiltersChange={onFiltersChange}
+                              onSort={changeSort}
+                              loading={loading}
+                              copy={copy}
+                            />
+                          )}
                         </span>
-                      ) : (
-                        (value ?? '—')
-                      )}
-                    </td>
+                      </div>
+                    </th>
                   );
                 })}
-                {rowActions && <td className={styles.actions}>{rowActions(row)}</td>}
+                {rowActions && (
+                  <th scope="col" style={{ '--table-header-tools': '0px' } as CSSProperties}>
+                    <div className={styles.headerContent}>
+                      <span data-column-title>{copy.actions}</span>
+                      <span className={styles.headerControls} />
+                    </div>
+                  </th>
+                )}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody aria-hidden={loading || undefined} inert={loading}>
+              {rows.map((row) => (
+                <tr key={rowKey(row)} data-row-key={rowKey(row)}>
+                  {selection && (
+                    <td data-selection className={styles.selectionCell}>
+                      <label className={styles.selectionControl}>
+                        <TableCheckbox
+                          aria-label={selection.rowLabel(row)}
+                          checked={selectedKeys.includes(rowKey(row))}
+                          disabled={loading || error}
+                          onChange={(event) =>
+                            selection.onChange(
+                              event.target.checked
+                                ? [...selectedKeys, rowKey(row)]
+                                : selectedKeys.filter((key) => key !== rowKey(row)),
+                            )
+                          }
+                        />
+                      </label>
+                    </td>
+                  )}
+                  {visibleColumns.map((column) => {
+                    const value = column.value(row);
+                    return (
+                      <td key={column.id} className={styles.cell}>
+                        {column.render ? (
+                          column.render(row)
+                        ) : typeof value === 'boolean' ? (
+                          <BooleanCell
+                            value={value}
+                            label={column.label}
+                            rowId={rowKey(row)}
+                            readonly={copy.readonly}
+                          />
+                        ) : typeof value === 'string' && column.truncate !== false ? (
+                          <span
+                            className={styles.textCell}
+                            title={value}
+                            style={{ maxWidth: column.textWidth ?? 180 }}
+                          >
+                            {value}
+                          </span>
+                        ) : (
+                          (value ?? '—')
+                        )}
+                      </td>
+                    );
+                  })}
+                  {rowActions && <td className={styles.actions}>{rowActions(row)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
       <div className={styles.feedback} aria-live="polite" aria-atomic="true">
         {!loading &&

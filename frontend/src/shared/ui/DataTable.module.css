@@ -220,6 +220,49 @@
   line-height: 1.5;
   text-align: start;
 }
+/* Pending rows keep their measured layout while the shared indicator covers the upper viewport. */
+.viewport {
+  position: relative;
+  min-width: 0;
+}
+.viewport[data-pending='true'] .table {
+  opacity: 0;
+}
+.viewport[data-ready='true'] tbody {
+  animation: rows-reveal 160ms ease-out;
+}
+.feedback.loadingOverlay {
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px;
+}
+.loadingOverlay > :global([role='status']) {
+  height: 100%;
+  max-height: 112px;
+  grid-template-rows: minmax(0, 1fr);
+}
+.loadingOverlay :global(svg) {
+  height: 100%;
+}
+@keyframes rows-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .viewport[data-ready='true'] tbody {
+    animation: none;
+  }
+}
 /* Horizontal overflow belongs to the table viewport, never to the management page or document. */
 .scroll {
   position: relative;

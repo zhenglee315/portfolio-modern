@@ -186,7 +186,7 @@ export function managementListQuery<R extends ManagementResource>(
 
 /** Subscribe after browser/session readiness; changing controls loads only the requested page.
  * @param enabled The page's browser/session lifecycle gate; disabled observers never send reads.
- * @returns Query-owned records and loading/error state without copying stale resource rows.
+ * @returns Query-owned records, retaining the last page during a read within the same private scope.
  */
 export function useManagementList<R extends ManagementResource>(
   resource: R,
@@ -195,5 +195,14 @@ export function useManagementList<R extends ManagementResource>(
   enabled = true,
   accountId?: number,
 ) {
-  return useQuery({ ...managementListQuery(resource, state, locale, accountId), enabled });
+  const options = managementListQuery(resource, state, locale, accountId);
+  return useQuery({
+    ...options,
+    enabled,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey.length === options.queryKey.length &&
+      previousQuery.queryKey.slice(0, -1).every((value, index) => value === options.queryKey[index])
+        ? previous
+        : undefined,
+  });
 }

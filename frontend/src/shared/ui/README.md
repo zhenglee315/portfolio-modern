@@ -468,7 +468,7 @@ const sort = [
 
 sort=[] 表示前端未指定，DataTable 不自行排序 rows。現有三支 management GET 此時使用 **updatetime 降序**，同時間以 ID 升序穩定排序；這是後端規則，不是通用元件的預設。URL controller 在排序改變時回第一頁。
 
-底部排序項目為桌面 32px／上下 padding 4px，窄螢幕／觸控保留至少 44px 點擊區。排序摘要顯示順位；loading 保留表頭的鍵盤焦點但阻擋排序事件。
+篩選條件、輸入框、Clear filter 與底部排序項目統一為桌面 32px／上下 padding 4px，窄螢幕／觸控保留至少 44px 點擊區。排序摘要顯示順位；loading 保留表頭的鍵盤焦點但阻擋排序事件。
 
 ### Columns
 
@@ -1008,7 +1008,7 @@ Bootstrap 檔名不一定是 IconName。目前 Icon 沒有 trash／download 名�
 - 寬表格只在自身 viewport 水平捲動，不撐寬整頁。
 - 根節點是 data-table inline-size container，640px 以下 toolbar／footer／頁碼換行。
 - 窄容器或 coarse pointer 的主要控制保留至少 44px 點擊區。
-- Filter menu 最大寬 224px，viewport 左右至少 8px，短畫面可捲動。
+- Filter menu 依內容自適應，常規寬度 184–208px，viewport 左右至少 8px，短畫面可捲動。
 - 外層 flex／grid item 允許 min-width:0，自訂 toolbar 避免固定大 min-width。
 
 ```css

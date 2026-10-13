@@ -813,6 +813,7 @@ trash 用 Bootstrap CSS mask，不傳不存在的 IconName：
 
 - 欄名／值／checkbox／switch 全部靠左；footer 靠右，Close 有 icon。
 - 可用另一組完整 columns，無須把所有資料放進列表。
+- 三張管理表的詳情順序集中於 `model/management-view.ts` 的 `fields`：Platform 先基本資料／品牌內容，再聯絡社群、聊天、頁尾與發布設定；Role 先名稱／描述，再預設與權限；User 先 Email／Role。唯讀資訊接在可編輯欄位後，Active／Created／Updated 固定為最後三項；User 的 Role active 緊接在 Active 前。
 - Actions 的 Edit icon 開啟詳情；文字值點選後直接編輯，checkbox／switch 直接切換。
 - 它屬於 management page，不是 DataTable prop 或資料編輯引擎。
 - Save 初始灰色停用；值與草稿基準不同時亮綠、Close 變紅。還原所有值後恢復初始狀態。無效值不能 Save。

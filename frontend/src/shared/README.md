@@ -74,6 +74,8 @@ export function useItems(locale: string) {
 
 `context/portfolio.tsx` 的公開介面提供已解析的 `site_id`／`user` 和原始 public selector；完整 DTO 留在各 feature query cache。`usePortfolioScope(enabled?)` 統一 subsection 的 Site 與 demand guard：協調中的頁面必須先解析 Site，獨立 feature 則維持原有 default 讀取。共用層不引用 Site feature，更不把 SESSION 帶入公開 owner 選擇。
 
+`PortfolioAccess`（`api/portfolio.ts`）定義 public／preview 讀取模式；`portfolioTransport(access?)` 為 preview 提供 management/portfolio 前綴、credentials=include 與 cache=no-store。`portfolioKey` 與 `cancelPortfolioQueries` 接受可選 access；`portfolioQuery`／`numberedQuery` 的 options.access 與 PortfolioProvider 的 access 共享相同來源。preview query 使用獨立的 portfolio-preview 前綴和 meta.private=true，不能進入 SSR dehydration；public 預設、身份與分頁契約維持原樣。
+
 The context interface exposes resolved ownership and the original Site selector; feature caches retain complete DTOs. `usePortfolioScope(enabled?)` shares the Site/demand guard: coordinated pages wait for Site resolution, then send only its ID for content reads, while standalone features retain their default-read behavior. Locale staging infers that ID from cached Site metadata and cannot capture another default portfolio while a named Site remains unresolved. The context imports no domain feature and never selects public ownership from session identity.
 
 SSR loader 與切語言 staging 共用 `app/query-client.ts` 的 `withIsolatedQueryClient(work, signal?)`。Callback 在 cache 清理前複製 snapshot；取消會停止讀取，已取消的工作不能提交結果，成功／失敗都解除 listener 並清空臨時 cache。瀏覽器跨頁的 QueryClient 持續存在，由個別 owner 的取消與公開 identity 上限管理。

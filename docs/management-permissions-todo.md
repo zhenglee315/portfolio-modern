@@ -20,4 +20,6 @@
 - [ ] 新增三支 API 的匿名、權限不足、允許存取、停用、權限撤回與儲存失敗回歸測試。
 - [ ] 後續 Add、Submit、單筆刪除與批次刪除接上 API 時，也在後端執行對應的寫入權限及資料範圍檢查。
 
-目前 Add／Submit／Del 仍依原需求提供介面與按鈕切換；確認刪除的 modal 尚不執行資料庫刪除。
+目前 Add／Save／Del 仍提供介面及本地草稿；確認刪除的 modal 尚不執行資料庫刪除。
+
+2026-10-14：新增六支管理員 Portfolio preview GET，已各自套用有效 SESSION／帳號角色啟用／最新 is_manage_sites 權限檢查與 private, no-store。這次只涵蓋 preview 讀取，原有三支管理列表及後續寫入權限仍按上方待辦處理。

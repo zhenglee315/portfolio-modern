@@ -27,7 +27,7 @@ export function ExperiencesSection({
   const query = useExperiences(locale, enabled);
   const collection = usePagedCollection(
     query,
-    experiencesQuery(locale, undefined, context?.site?.site_id).queryKey,
+    experiencesQuery(locale, undefined, context?.site?.site_id, context?.access).queryKey,
     locked,
   );
   const { records, total, invalid } = collection;

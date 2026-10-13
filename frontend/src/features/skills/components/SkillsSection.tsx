@@ -31,15 +31,17 @@ export function SkillsSection({
   const query = useCategories(locale, enabled);
   const collection = usePagedCollection(
     query,
-    categoriesQuery(locale, undefined, siteId).queryKey,
+    categoriesQuery(locale, undefined, siteId, context?.access).queryKey,
     locked,
   );
   const copy = queryCopy(t, query.error, !!query.data);
   const { onLoadMore } = collection;
   const reload = () => {
-    client.removeQueries({ queryKey: [...portfolioKey(locale, { site_id: siteId }), 'skills'] });
+    client.removeQueries({
+      queryKey: [...portfolioKey(locale, { site_id: siteId }, context?.access), 'skills'],
+    });
     void client.resetQueries({
-      queryKey: categoriesQuery(locale, undefined, siteId).queryKey,
+      queryKey: categoriesQuery(locale, undefined, siteId, context?.access).queryKey,
       exact: true,
     });
   };

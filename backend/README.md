@@ -8,6 +8,12 @@ This directory contains the FastAPI backend for the personal profile system. `AP
 
 Six Portfolio read APIs, three management lists for sites/accounts/roles, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Administration write APIs and Portfolio write APIs are not implemented yet.
 
+## 管理員 Portfolio 預覽
+
+`APPs/Management/views_portfolio_preview.py` 提供 `/management/portfolio/site`、`journey`、`experiences`、`projects`、`skill-categories`、`skills` 六支 GET。每次透過既有 AuthSessionModule 讀取目前有效帳號與角色，再要求 is_manage_sites=true；未登入／停用管理員回 401，沒有管理權限回 403，儲存不可用回 503。必須明確指定 site_id，不以帳號 id 或 default 推測；可讀取未發布及停用用戶的網站，缺少網站／語言回 404。公開 Portfolio 的發布條件維持不變。
+
+所有預覽 DTO 與資料查詢共用 APPs/Portfolio；四個集合仍為 page／size=6，Skills 仍使用 ownerType=category／ownerId。預覽不掛 public cache decorator，成功及已處理錯誤使用 private, no-store／Vary: Cookie。這些端點只讀取，不改資料庫；管理員 SESSION 依既有機制刷新。原有三支管理列表的權限工作仍保留於管理權限待辦。
+
 ## 目錄結構 / Directory Layout
 
 下列是目前的主要檔案與資料夾；省略 package 標記、靜態資產細項與虛擬環境。

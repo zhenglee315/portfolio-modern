@@ -18,6 +18,7 @@ export function useAuthNavigation({
   open,
   back,
   dismissContact,
+  enabled = true,
 }: {
   locale: Locale;
   active: boolean;
@@ -25,6 +26,7 @@ export function useAuthNavigation({
   open: () => void;
   back: () => void;
   dismissContact: () => void;
+  enabled?: boolean;
 }) {
   const owner = useId();
   const sequence = useRef(0);
@@ -45,6 +47,7 @@ export function useAuthNavigation({
   }, [dismissContact, open]);
 
   const enter = useCallback(() => {
+    if (!enabled) return;
     if (!loginRequested()) {
       const url = new URL(window.location.href);
       url.searchParams.set('view', 'login');
@@ -54,7 +57,7 @@ export function useAuthNavigation({
       window.history.pushState({ ...window.history.state, [entryKey]: id }, '', url);
     }
     start();
-  }, [owner, start]);
+  }, [owner, start, enabled]);
 
   const leave = useCallback(() => {
     const marker: unknown = window.history.state?.[entryKey];
@@ -74,6 +77,7 @@ export function useAuthNavigation({
   }, [back]);
 
   useEffect(() => {
+    if (!enabled) return;
     const sync = () => {
       if (loginRequested()) start();
       else back();
@@ -81,7 +85,7 @@ export function useAuthNavigation({
     sync();
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
-  }, [locale, start, back]);
+  }, [locale, start, back, enabled]);
 
   useEffect(() => {
     // The mobile drawer must release its own body lock before this surface acquires it.

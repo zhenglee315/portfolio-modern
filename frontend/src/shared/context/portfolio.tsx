@@ -1,9 +1,10 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { PortfolioSiteSelector } from '@/shared/api/portfolio';
+import type { PortfolioAccess, PortfolioSiteSelector } from '@/shared/api/portfolio';
 
 type PortfolioContextValue = {
   selector: PortfolioSiteSelector;
   site?: { site_id: number; user: string };
+  access?: PortfolioAccess;
 };
 const PortfolioContext = createContext<PortfolioContextValue | undefined>(undefined);
 
@@ -11,10 +12,13 @@ const PortfolioContext = createContext<PortfolioContextValue | undefined>(undefi
 export function PortfolioProvider({
   selector,
   site,
+  access = 'public',
   children,
 }: PortfolioContextValue & { children: ReactNode }) {
   return (
-    <PortfolioContext.Provider value={{ selector, site }}>{children}</PortfolioContext.Provider>
+    <PortfolioContext.Provider value={{ selector, site, access }}>
+      {children}
+    </PortfolioContext.Provider>
   );
 }
 
@@ -32,6 +36,7 @@ export function usePortfolioScope(enabled = true) {
   const context = usePortfolioContext();
   return {
     siteId: context?.site?.site_id,
+    access: context?.access,
     enabled: enabled && (!context || !!context.site),
   };
 }

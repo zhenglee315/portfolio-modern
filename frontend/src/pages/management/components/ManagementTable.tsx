@@ -13,6 +13,7 @@ import {
 import { DataTable } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
 import { ManagementDetails, type ManagementDetailColumn } from './ManagementDetails';
+import PortfolioPreview from './PortfolioPreview';
 import { managementEditor } from '../model/management-edit';
 import {
   fields,
@@ -54,6 +55,10 @@ export function ManagementTable({
     confirmed: boolean;
   } | null>(null);
   if (editing && editing.scope !== scope) setEditing(null);
+  const [preview, setPreview] = useState<{ scope: string; siteId: number; user: string } | null>(
+    null,
+  );
+  if (preview && preview.scope !== scope) setPreview(null);
   const selection = useDataTableSelection(scope);
   const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
   if (deletion && deletion.scope !== scope) setDeletion(null);
@@ -64,12 +69,14 @@ export function ManagementTable({
   const openDelete = (rows: ManagementRow[]) => {
     if (!actionsUnavailable && rows.length) {
       setEditing(null);
+      setPreview(null);
       setDeletion({ scope, rows });
     }
   };
   const openEdit = (row: ManagementRow) => {
     if (!actionsUnavailable) {
       setDeletion(null);
+      setPreview(null);
       setEditing({ scope, row, confirmed: false });
     }
   };
@@ -225,6 +232,32 @@ export function ManagementTable({
         export={{ filename: `management-${resource}-${locale}` }}
         rowActions={(row) => (
           <div className={styles.rowActions}>
+            {resource === 'sites' && (
+              <button
+                className={`btn btn-link btn-sm ${styles.editRow}`}
+                type="button"
+                value="preview"
+                aria-label={t('management.previewRow', { name: rowValue(row, nameField) })}
+                title={t('management.previewRow', { name: rowValue(row, nameField) })}
+                disabled={
+                  actionsUnavailable || !('has_translation' in row && row.has_site && row.site_id)
+                }
+                onClick={() => {
+                  if (
+                    !actionsUnavailable &&
+                    'has_translation' in row &&
+                    row.has_site &&
+                    row.site_id
+                  ) {
+                    setEditing(null);
+                    setDeletion(null);
+                    setPreview({ scope, siteId: row.site_id, user: row.user });
+                  }
+                }}
+              >
+                <Icon name="eye" />
+              </button>
+            )}
             <button
               className={`btn btn-link btn-sm ${styles.tableAction} ${styles.editRow}`}
               type="button"
@@ -252,6 +285,14 @@ export function ManagementTable({
           </div>
         )}
       />
+      {preview?.scope === scope && (
+        <PortfolioPreview
+          locale={locale}
+          siteId={preview.siteId}
+          user={preview.user}
+          onClose={() => setPreview(null)}
+        />
+      )}
       {editing?.scope === scope && !editing.confirmed && (
         <WarningModal
           layout="prompt"

@@ -6,6 +6,19 @@ import { requestJson } from './http';
 export type PortfolioSiteSelector =
   { user?: string; site_id?: never } | { user?: never; site_id?: number };
 
+export type PortfolioAccess = 'public' | 'preview';
+
+/** Select protected transport without changing public portfolio reads. */
+export function portfolioTransport(access: PortfolioAccess = 'public') {
+  return access === 'preview'
+    ? {
+        prefix: 'management/portfolio',
+        credentials: 'include' as const,
+        cache: 'no-store' as const,
+      }
+    : { prefix: 'portfolio' };
+}
+
 /** Keep selector lookups separate from pinned site content in every query cache. */
 export function portfolioIdentity(selector: PortfolioSiteSelector = {}) {
   if (selector.site_id !== undefined) return `site:${selector.site_id}`;
@@ -13,8 +26,16 @@ export function portfolioIdentity(selector: PortfolioSiteSelector = {}) {
 }
 
 /** Share the public identity and language prefix across domain queries and cancellation. */
-export function portfolioKey(locale: string, selector: PortfolioSiteSelector = {}) {
-  return ['portfolio', portfolioIdentity(selector), locale] as const;
+export function portfolioKey(
+  locale: string,
+  selector: PortfolioSiteSelector = {},
+  access: PortfolioAccess = 'public',
+) {
+  return [
+    access === 'preview' ? 'portfolio-preview' : 'portfolio',
+    portfolioIdentity(selector),
+    locale,
+  ] as const;
 }
 
 /** Pin content requests to a Site; an omitted ID retains the legacy public default.
@@ -43,18 +64,23 @@ export function portfolioQuery<T>(
   options: {
     baseUrl?: string;
     validate?: (value: T) => void;
+    access?: PortfolioAccess;
   } = {},
 ) {
   const selector = request.resource === 'site' ? request.selector : { site_id: request.siteId };
+  const transport = portfolioTransport(options.access);
   return queryOptions({
-    queryKey: [...portfolioKey(locale, selector), request.resource] as const,
+    queryKey: [...portfolioKey(locale, selector, options.access), request.resource] as const,
+    meta: options.access === 'preview' ? { private: true } : undefined,
     queryFn: async ({ signal }) => {
       const params = portfolioContentParams(locale, selector?.site_id);
       if (request.resource === 'site' && request.selector?.user !== undefined)
         params.set('user', request.selector.user);
-      const value = await requestJson(`portfolio/${request.resource}?${params}`, schema, {
+      const value = await requestJson(`${transport.prefix}/${request.resource}?${params}`, schema, {
         signal,
         baseUrl: options.baseUrl,
+        credentials: transport.credentials,
+        cache: transport.cache,
       });
       options.validate?.(value);
       return value;
@@ -73,10 +99,11 @@ export async function cancelPortfolioQueries(
   locale: string,
   selector: PortfolioSiteSelector = {},
   siteId?: number,
+  access: PortfolioAccess = 'public',
 ) {
-  const keys = [portfolioKey(locale, selector)];
+  const keys = [portfolioKey(locale, selector, access)];
   if (siteId !== undefined) {
-    const content = portfolioKey(locale, { site_id: siteId });
+    const content = portfolioKey(locale, { site_id: siteId }, access);
     if (content[1] !== keys[0]![1]) keys.push(content);
   }
   await Promise.all(keys.map((queryKey) => client.cancelQueries({ queryKey })));

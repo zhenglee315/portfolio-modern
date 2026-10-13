@@ -1,4 +1,13 @@
 /* Portfolio frame follows the legacy rail and 760px mobile breakpoint. */
+.embedded {
+  --rail-width: 0px;
+  --rail-compact-width: 0px;
+  --field-mobile-top: 0px;
+}
+.embedded .main {
+  margin-left: 0;
+  padding-top: 0;
+}
 .main {
   position: relative;
   margin-left: var(--rail-width);

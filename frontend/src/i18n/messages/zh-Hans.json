@@ -431,7 +431,10 @@
       "sortAscending": "升序排序",
       "sortDescending": "降序排序",
       "clearSort": "清除排序"
-    }
+    },
+    "previewTitle": "Portfolio 预览",
+    "previewRow": "预览“{{name}}”",
+    "previewDenied": "需要平台管理权限才能预览 Portfolio。"
   },
   "accessDenied": {
     "eyebrow": "访问受限",

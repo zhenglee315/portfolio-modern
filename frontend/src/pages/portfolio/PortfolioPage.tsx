@@ -29,6 +29,7 @@ import {
   cancelPortfolioQueries,
   portfolioIdentity,
   type PortfolioSiteSelector,
+  type PortfolioAccess,
 } from '@/shared/api/portfolio';
 import { useSectionDemand } from '@/shared/hooks/useSectionDemand';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
@@ -54,15 +55,18 @@ export function PortfolioPage({
   nowMonth,
   selector,
   site: initialSite,
+  embedded = false,
 }: {
   locale: Locale;
   nowMonth: string;
   selector: PortfolioSiteSelector;
   site?: Site;
+  embedded?: boolean;
 }) {
   const client = useQueryClient();
   const { t } = useTranslation();
-  const site = useSite(locale, selector, initialSite);
+  const access: PortfolioAccess = embedded ? 'preview' : 'public';
+  const site = useSite(locale, selector, initialSite, access);
   const siteId = site.data?.site_id;
   useEffect(() => {
     trimPortfolioCache(client, [
@@ -70,24 +74,33 @@ export function PortfolioPage({
       ...(siteId !== undefined ? [portfolioIdentity({ site_id: siteId })] : []),
     ]);
     return () => {
-      void cancelPortfolioQueries(client, locale, selector, siteId);
+      void cancelPortfolioQueries(client, locale, selector, siteId, access);
     };
-  }, [client, locale, selector, siteId]);
+  }, [client, locale, selector, siteId, access]);
   if (site.error instanceof ApiError && site.error.status === 404)
     return <SectionState message={t('ui.unavailable')} />;
   return (
-    <PortfolioProvider selector={selector} site={site.data}>
+    <PortfolioProvider selector={selector} site={site.data} access={access}>
       <PortfolioContent
         key={`${portfolioIdentity(selector)}:${siteId ?? 'pending'}`}
         locale={locale}
         nowMonth={nowMonth}
+        embedded={embedded}
       />
     </PortfolioProvider>
   );
 }
 
 /** Compose independent feature boundaries; the page owns cross-domain coordination. */
-function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: string }) {
+function PortfolioContent({
+  locale,
+  nowMonth,
+  embedded,
+}: {
+  locale: Locale;
+  nowMonth: string;
+  embedded: boolean;
+}) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { session, signOut, logout } = useAccountSession();
@@ -105,11 +118,12 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
     open: auth.open,
     back: auth.back,
     dismissContact: contact.dismiss,
+    enabled: !embedded,
   });
   const context = usePortfolioContext();
   const identity = `${context?.site?.site_id ?? 'pending'}:${locale}`;
   const language = useLocaleSwitch(locale, context?.selector, context?.site?.site_id);
-  const localeControl = (
+  const localeControl = !embedded && (
     <LanguageMenu
       locale={locale}
       busy={language.busy}
@@ -118,16 +132,16 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
     />
   );
   const site = useSite(locale);
-  const onlineVisitors = useOnlineVisitors();
+  const onlineVisitors = useOnlineVisitors(!embedded);
   useEntrance(
     root,
     !!site.data,
-    contact.reveal,
+    embedded ? contact.dismiss : contact.reveal,
     appearance.motionPaused,
     appearance.subscribeThemeTransition,
     !auth.isAuth,
   );
-  const navigation = useSectionNavigation(identity, !auth.isAuth);
+  const navigation = useSectionNavigation(identity, !auth.isAuth && !embedded);
   const journeyEnabled = useSectionDemand(
     'journey',
     identity,
@@ -174,7 +188,7 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
   return (
     <div
       ref={root}
-      className={`${styles.frame} ${entranceStyles.frame} ${compact ? styles.compact : ''}`}
+      className={`${styles.frame} ${entranceStyles.frame} ${compact ? styles.compact : ''} ${embedded ? styles.embedded : ''}`}
       data-auth-phase={auth.phase}
       data-auth-view={auth.isAuth}
       data-portfolio-user={context?.site?.user}
@@ -202,19 +216,25 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
       >
         {t('ui.skip')}
       </a>
-      <div className={styles.navSurface} inert={auth.isAuth} aria-hidden={auth.isAuth || undefined}>
-        <Navigation
-          endpoints={stops?.length ? `${stops[0]?.city} → ${final?.city}` : undefined}
-          site={site.data}
-          onContact={site.data ? contact.toggle : undefined}
-          contactOpen={contact.state.open}
-          onOpen={contact.dismiss}
-          active={navigation.active}
-          compact={compact}
-          onCompact={() => setCompact((value) => !value)}
-          onNavigate={navigation.navigate}
-        />
-      </div>
+      {!embedded && (
+        <div
+          className={styles.navSurface}
+          inert={auth.isAuth}
+          aria-hidden={auth.isAuth || undefined}
+        >
+          <Navigation
+            endpoints={stops?.length ? `${stops[0]?.city} → ${final?.city}` : undefined}
+            site={site.data}
+            onContact={site.data ? contact.toggle : undefined}
+            contactOpen={contact.state.open}
+            onOpen={contact.dismiss}
+            active={navigation.active}
+            compact={compact}
+            onCompact={() => setCompact((value) => !value)}
+            onNavigate={navigation.navigate}
+          />
+        </div>
+      )}
       <main
         data-entrance-content
         aria-busy={language.busy}
@@ -232,6 +252,7 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
             <ProfileOverview
               locale={locale}
               breadcrumb={
+                !embedded &&
                 site.data && (
                   <Breadcrumb
                     label={t('breadcrumb.label')}
@@ -247,19 +268,30 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
               tenure={tenure}
               summaryPending={journey.data === undefined}
               leadingControls={
-                <OnlineVisitors data={onlineVisitors.data} failed={onlineVisitors.isError} />
+                !embedded && (
+                  <OnlineVisitors data={onlineVisitors.data} failed={onlineVisitors.isError} />
+                )
               }
               controls={
-                <AccountMenu
-                  account={session.data ?? null}
-                  onOpen={contact.dismiss}
-                  busy={signOut.isPending || (session.data === undefined && session.isFetching)}
-                  onLogin={authNavigation.enter}
-                  onLogout={logout}
-                  onNavigate={(resource) => void navigate(`/${locale}/management/${resource}`)}
-                />
+                !embedded && (
+                  <AccountMenu
+                    account={session.data ?? null}
+                    onOpen={contact.dismiss}
+                    busy={signOut.isPending || (session.data === undefined && session.isFetching)}
+                    onLogin={authNavigation.enter}
+                    onLogout={logout}
+                    onNavigate={(resource) => void navigate(`/${locale}/management/${resource}`)}
+                  />
+                )
               }
-              onExplore={() => navigation.navigate('projects')}
+              onExplore={() =>
+                embedded
+                  ? document.getElementById('projects')?.scrollIntoView({
+                      block: 'start',
+                      behavior: appearance.reducedMotion ? 'instant' : 'smooth',
+                    })
+                  : navigation.navigate('projects')
+              }
             />
           </SectionBoundary>
         </section>
@@ -343,11 +375,13 @@ function PortfolioContent({ locale, nowMonth }: { locale: Locale; nowMonth: stri
           </SectionBoundary>
         </div>
       )}
-      <ContactIntroduction
-        site={site.data}
-        disclosure={contact}
-        protectedControls={profileControls}
-      />
+      {!embedded && (
+        <ContactIntroduction
+          site={site.data}
+          disclosure={contact}
+          protectedControls={profileControls}
+        />
+      )}
     </div>
   );
 }

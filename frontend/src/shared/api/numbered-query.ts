@@ -6,7 +6,12 @@ import {
 } from '@tanstack/react-query';
 import type { z } from 'zod';
 import { ApiError, requestJson } from './http';
-import { portfolioKey, portfolioContentParams } from './portfolio';
+import {
+  portfolioKey,
+  portfolioContentParams,
+  portfolioTransport,
+  type PortfolioAccess,
+} from './portfolio';
 import { pageSize, type NumberedPage } from '@/shared/schemas/records';
 
 /** Reject inconsistent append results while retaining the last validated collection. */
@@ -40,18 +45,21 @@ export function numberedQuery<T extends { id: string | number }>(
     baseUrl?: string;
     siteId?: number;
     ownerId?: string;
+    access?: PortfolioAccess;
     validate?: (value: NumberedPage<T>, client: QueryClient, previous: NumberedPage<T>[]) => void;
   } = {},
 ) {
   const queryKey = [
-    ...portfolioKey(locale, { site_id: options.siteId }),
+    ...portfolioKey(locale, { site_id: options.siteId }, options.access),
     resource,
     options.ownerId ?? '',
     pageSize,
     options.ownerId ? 'category' : '',
   ] as const;
+  const transport = portfolioTransport(options.access);
   return infiniteQueryOptions({
     queryKey,
+    meta: options.access === 'preview' ? { private: true } : undefined,
     initialPageParam: 1,
     queryFn: async ({ pageParam, signal, client }) => {
       const params = portfolioContentParams(locale, options.siteId);
@@ -61,9 +69,11 @@ export function numberedQuery<T extends { id: string | number }>(
         params.set('ownerType', 'category');
         params.set('ownerId', options.ownerId);
       }
-      const result = await requestJson(`portfolio/${resource}?${params}`, schema, {
+      const result = await requestJson(`${transport.prefix}/${resource}?${params}`, schema, {
         signal,
         baseUrl: options.baseUrl,
+        credentials: transport.credentials,
+        cache: transport.cache,
       });
       const cached = client.getQueryData<InfiniteData<NumberedPage<T>>>(queryKey);
       const previous = cached?.pages.filter((page) => page.page < pageParam) ?? [];

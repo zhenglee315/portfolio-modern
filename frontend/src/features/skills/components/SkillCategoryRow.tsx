@@ -34,7 +34,7 @@ export function SkillCategoryRow({
   const query = useOwnerSkills(locale, category, updatedAt);
   const collection = usePagedCollection(
     query,
-    skillsQuery(locale, category.id, undefined, context?.site?.site_id).queryKey,
+    skillsQuery(locale, category.id, undefined, context?.site?.site_id, context?.access).queryKey,
     locked,
   );
   const missing = query.error instanceof ApiError && query.error.status === 404;

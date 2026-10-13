@@ -34,7 +34,7 @@ export function ProjectsSection({
   const query = useProjects(locale, enabled);
   const collection = usePagedCollection(
     query,
-    projectsQuery(locale, undefined, context?.site?.site_id).queryKey,
+    projectsQuery(locale, undefined, context?.site?.site_id, context?.access).queryKey,
     locked,
   );
   const copy = queryCopy(t, query.error, !!query.data);

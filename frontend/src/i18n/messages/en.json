@@ -431,7 +431,10 @@
       "sortAscending": "Sort Ascending",
       "sortDescending": "Sort Descending",
       "clearSort": "Clear sort"
-    }
+    },
+    "previewTitle": "Portfolio preview",
+    "previewRow": "Preview {{name}}",
+    "previewDenied": "Portfolio preview requires platform management permission."
   },
   "accessDenied": {
     "eyebrow": "Restricted access",

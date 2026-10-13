@@ -6,6 +6,7 @@ const interactiveSelector = [
   'input:not([type="hidden"])',
   'select',
   'textarea',
+  'iframe',
   '[tabindex]',
   '[contenteditable]:not([contenteditable="false"])',
 ].join(',');

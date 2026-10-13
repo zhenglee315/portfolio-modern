@@ -23,12 +23,12 @@ export function onlineVisitorsQuery() {
  * Polling is browser-only and stops while hidden; Query owns timers, cancellation and retries.
  * A 45-second interval also keeps a visible visitor within the backend's 60-second window.
  */
-export function useOnlineVisitors() {
+export function useOnlineVisitors(enabled = true) {
   const visible = useDocumentVisible();
   return useQuery({
     ...onlineVisitorsQuery(),
-    enabled: typeof window !== 'undefined' && visible,
-    refetchInterval: visible ? refreshIntervalMs : false,
+    enabled: enabled && typeof window !== 'undefined' && visible,
+    refetchInterval: enabled && visible ? refreshIntervalMs : false,
     refetchIntervalInBackground: false,
   });
 }

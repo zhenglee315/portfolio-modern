@@ -917,6 +917,14 @@ export function DeleteDialog({
 />
 ```
 
+### Platform portfolio 預覽
+
+Platform 專用 Preview 眼睛位於 Edit 左側，使用 [PortfolioPreview](../../pages/management/components/PortfolioPreview.tsx)。XXL 最大 1920px，手機保留 8px 邊距；只有 iframe 文件捲動，管理頁路由、表格分頁／勾選與捲動位置不變。內容使用既有 PortfolioPage，沒有 Navigation menu，其他 portfolio 區段與樣式共用正常網頁。沒有網站時按鈕停用；未發布／停用擁有者由受保護 preview API 讀取；缺翻譯不回退其他帳號或語言。預覽自身的專案 Modal、分頁與技能展開維持原有流程。User／Role 不加這個入口。
+
+| 桌面 XXL                                                                | 手機預覽                                                                    |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ![沿用完整 portfolio 區段與背景](data-table-docs/portfolio-preview.png) | ![無導覽欄的手機版 portfolio](data-table-docs/portfolio-preview-mobile.png) |
+
 ## 13. Export
 
 ```tsx

@@ -29,7 +29,6 @@ export const managementRoleSchema = z.object({
 /** Validate one account without exposing authentication credentials or duplicating role rows. */
 export const managementUserSchema = z.object({
   id: recordIdSchema,
-  user: z.string().min(3).max(32),
   email: z.string().max(254),
   role_id: recordIdSchema,
   role: z.string().min(1).max(64),

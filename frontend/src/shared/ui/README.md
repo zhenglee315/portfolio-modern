@@ -107,17 +107,11 @@ const columns: DataTableColumn<UserRow>[] = [
     filter: managementFilterSpecs.users.id,
   },
   {
-    id: 'user',
-    label: 'Account',
-    value: (row) => row.user,
-    sortable: true,
-    filter: managementFilterSpecs.users.user,
-  },
-  {
     id: 'email',
     label: 'Email',
     value: (row) => row.email,
     sortable: true,
+    truncate: false,
     filter: managementFilterSpecs.users.email,
   },
   {
@@ -198,7 +192,7 @@ export function UsersTable({
       selection={{
         ...selection,
         allLabel: t('management.selectAll'),
-        rowLabel: (row) => t('management.selectRow', { name: row.user }),
+        rowLabel: (row) => t('management.selectRow', { name: row.email }),
       }}
       copy={copy}
       export={{ filename: `users-${locale}` }}
@@ -218,8 +212,8 @@ export function UsersTable({
         <button
           type="button"
           className="btn btn-link btn-sm"
-          aria-label={t('management.viewRow', { name: row.user })}
-          title={t('management.viewRow', { name: row.user })}
+          aria-label={t('management.viewRow', { name: row.email })}
+          title={t('management.viewRow', { name: row.email })}
           disabled={busy || query.isError}
           onClick={() => onView(row)}
         >
@@ -311,6 +305,8 @@ const descriptionColumn: DataTableColumn<Item> = {
 ```
 
 自訂 render 不會自動套用字串 ellipsis／title，請在自己的 wrapper 設定。不要在 `render(row)` 函式直接呼叫 Hook；有狀態的 cell 應封裝為 component，再回傳 `<YourCell row={row} />`。
+
+`truncate` 按欄位設定，不影響其他欄位。上方 User 範例的 Email 使用 `truncate: false`，完整顯示 API 的登入信箱，空間不足時可換行；省略此設定的其他字串欄位仍使用預設單行省略。User 主表、Details 與列操作名稱都以 Email 識別，沒有額外生成的 Account 欄位。
 
 ## 5. Row data：checkbox、switch、toggle、button
 
@@ -644,7 +640,7 @@ load 回 `{ items, page, pages, total }`，每個 item 需要 value／label。�
 
 ```ts
 const filters = [
-  { field: 'user', operator: 'contains', value: 'alex' },
+  { field: 'email', operator: 'contains', value: 'alex' },
   { field: 'is_active', operator: 'equals', value: false },
   { field: 'login_count', operator: 'between', value: [0, 10] },
 ] satisfies DataTableFilter[];

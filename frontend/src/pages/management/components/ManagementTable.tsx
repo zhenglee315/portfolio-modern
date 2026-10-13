@@ -51,6 +51,7 @@ export function ManagementTable({
   const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
   if (deletion && deletion.scope !== scope) setDeletion(null);
   const query = useManagementList(resource, state, locale, enabled, accountId);
+  const nameField = resource === 'roles' ? 'role' : resource === 'users' ? 'email' : 'user';
   const deleteUnavailable = !enabled || query.isFetching || query.isError;
   const selectedRows = (query.data?.items ?? []).filter((row) => selection.keys.includes(row.id));
   const openDelete = (rows: ManagementRow[]) => {
@@ -83,6 +84,7 @@ export function ManagementTable({
         sortable: managementSortFields[resource].includes(field),
         initiallyHidden: !visible[resource].includes(field),
         hideable: field !== 'id',
+        truncate: resource === 'users' && field === 'email' ? false : undefined,
         filter: managementFilterSpecs[resource][field],
         filterStyle:
           (resource === 'roles' || resource === 'users') && field === 'role'
@@ -185,7 +187,7 @@ export function ManagementTable({
           allLabel: t('management.selectAll'),
           rowLabel: (row) =>
             t('management.selectRow', {
-              name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+              name: rowValue(row, nameField),
             }),
         }}
         page={query.data ?? { ...state, total: 0, pages: 0 }}
@@ -208,7 +210,7 @@ export function ManagementTable({
               type="button"
               value="view"
               aria-label={t('management.viewRow', {
-                name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+                name: rowValue(row, nameField),
               })}
               onClick={() => setSelected(row)}
             >
@@ -221,10 +223,10 @@ export function ManagementTable({
               disabled={deleteUnavailable}
               onClick={() => openDelete([row])}
               aria-label={t('management.deleteRow', {
-                name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+                name: rowValue(row, nameField),
               })}
               title={t('management.deleteRow', {
-                name: rowValue(row, resource === 'roles' ? 'role' : 'user'),
+                name: rowValue(row, nameField),
               })}
             />
           </div>
@@ -235,7 +237,7 @@ export function ManagementTable({
           key={selected.id}
           row={selected}
           columns={detailColumns}
-          name={String(rowValue(selected, resource === 'roles' ? 'role' : 'user'))}
+          name={String(rowValue(selected, nameField))}
           copy={{ title: t('management.details'), close: t('management.close') }}
           onClose={() => setSelected(null)}
         />
@@ -246,7 +248,7 @@ export function ManagementTable({
           message={
             deletion.rows.length === 1
               ? t('management.deleteTarget', {
-                  name: rowValue(deletion.rows[0]!, resource === 'roles' ? 'role' : 'user'),
+                  name: rowValue(deletion.rows[0]!, nameField),
                 })
               : t('management.deleteTargets', { count: deletion.rows.length })
           }

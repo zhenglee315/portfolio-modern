@@ -249,7 +249,7 @@ The User `role` field supports the same case-insensitive `in`/`not_in` string ar
 
 ```json
 [
-  { "field": "user", "operator": "contains", "value": "lee" },
+  { "field": "email", "operator": "contains", "value": "lee" },
   { "field": "is_active", "operator": "equals", "value": false }
 ]
 ```
@@ -262,10 +262,13 @@ Both lists use one account per row, including inactive accounts and accounts wit
 
 ### User 返回欄位 / Account Response Fields
 
+User 列表直接讀取登入信箱，不返回或從 Email 推導 Account／`user`；排序及篩選白名單也不包含 `user`。資料庫的公開作品集 handle 仍由公開網址、身份 API 與 Platform 管理使用，沒有更動資料表或既有資料。
+
+The User list reads the stored login email directly and neither returns nor derives an Account/`user` field. Its sort and filter allowlists exclude `user`. Public portfolio handles remain available to public URLs, identity APIs and Platform management; database columns and existing records are unchanged.
+
 | 欄位 / Field     | 來源 / Source                                                       | 用途 / Purpose                                          |
 | ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------- |
 | `id`             | `auth_user.id`                                                      | 帳號識別 / Account identity                             |
-| `user`           | `auth_user.user`                                                    | 公開帳號名稱 / Public handle                            |
 | `email`          | `auth_user.email`                                                   | 登入信箱 / Login email                                  |
 | `role_id`        | `auth_user.role_id`                                                 | 指派角色識別 / Assigned role identity                   |
 | `role`           | `auth_role.role`                                                    | 角色名稱 / Role name                                    |

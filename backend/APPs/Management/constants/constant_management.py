@@ -22,7 +22,6 @@ ROLE_SORT_FIELDS = (*ROLE_COLUMNS, "user_count")
 
 USER_SORT_FIELDS = (
     "id",
-    "user",
     "email",
     "role_id",
     "role",

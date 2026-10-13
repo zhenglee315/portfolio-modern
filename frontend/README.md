@@ -636,7 +636,7 @@ Only the three GETs are integrated. Entry reads one page of the selected resourc
 
 Without frontend sort criteria, managementListParams omits sort so all three backend lists use updatetime:desc with ascending ID for equal timestamps. Explicit criteria preserve click priority. Initial entry and clearing all sorts leave arrows unselected; a URL sort= records UI state without sending an empty API parameter.
 
-共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。舊上方全表搜尋、單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；長字串單行省略，hover 原生 title 查看完整內容，詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable loading 位於工具列／排序摘要下方、表頭上方的中央區域，載入完成後收起；錯誤與空資料提示保留在表格下方。
+共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。舊上方全表搜尋、單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；字串預設單行省略，hover 原生 title 查看完整內容；欄位可用 `truncate: false` 保留全文並換行，User 的 Email 已套用。詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable loading 位於工具列／排序摘要下方、表頭上方的中央區域，載入完成後收起；錯誤與空資料提示保留在表格下方。
 
 三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。後續批次更新操作尚未串接。
 
@@ -647,12 +647,12 @@ The platform table offers only ID, Account, Profile (checkbox), Publish (checkbo
 | 頁面     | 預設欄位                                                                                      |
 | -------- | --------------------------------------------------------------------------------------------- |
 | Platform | ID、Account、Profile、Publish、Default、Active、Updated、Actions                              |
-| User     | ID、Account、Email、Role、Login、LastLogin、Updated、Active、Actions                          |
+| User     | ID、Email、Role、Login、LastLogin、Updated、Active、Actions                                   |
 | Role     | ID、Role、Create、Read、Update、Delete、Site、Users、Roles、Default、Active、Updated、Actions |
 
 Actions 詳情順序由 `pages/management/model/management-view.fields.sites` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Edit／Submit 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
 
-User 主表固定使用上表的九個英文標籤。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的八個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十三項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取，ManagementDetails 只接受 row、columns、name、copy 與 onClose，擁有詳情視窗的 Edit／Submit 介面狀態；shared DataTable 仍不依賴任何 management 型別或 API。
+User 主表固定使用上表的八個英文標籤，以登入 Email 識別，不另列 Account。Email 使用逐欄 `truncate: false`，完整顯示並可換行；Details、勾選標籤與刪除確認也使用 Email。User API 直接讀取 `auth_user.email`，不返回公開網址 handle 或衍生帳號名稱。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的七個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十二項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取，ManagementDetails 只接受 row、columns、name、copy 與 onClose，擁有詳情視窗的 Edit／Submit 介面狀態；shared DataTable 仍不依賴任何 management 型別或 API。
 
 Role 主表固定使用上表的十三個英文標籤，Create、Read、Update、Delete、Site、Users、Roles、Default、Active 共九個欄位均使用唯讀 toggle，直接呈現對應的角色旗標。主表 Users 是 `is_manage_users` 權限；Actions 的 Users 是 `user_count`，顯示使用此角色的帳號數。Columns 只切換主表的十二個資料欄位；Description、Created 與帳號數保留在詳情中。
 

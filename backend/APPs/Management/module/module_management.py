@@ -110,7 +110,7 @@ class ManagementUsersModule(ManagementListModule):
         """
         Select account identity, assigned role, optional website and successful-login statistics.
 
-        :return: Shared page envelope with thirteen named fields per account.
+        :return: Shared page envelope with twelve named fields per account, identified by login email.
         :raises HTTPException: Storage is unavailable; database internals are not returned.
 
                                                                                                ♂ ZhengLee 2026.10.12
@@ -126,7 +126,6 @@ class ManagementUsersModule(ManagementListModule):
         )
         columns = {
             "id": AuthUser.id,
-            "user": AuthUser.user,
             "email": AuthUser.email,
             "role_id": AuthUser.role_id,
             "role": AuthRole.role.label("role"),

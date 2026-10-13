@@ -43,7 +43,6 @@ class RespManagementUser(BaseModel):
     """Expose one account with its role, optional website and successful sign-in statistics."""
 
     id: int = Field(..., gt=0, description="Account primary key.")
-    user: str = Field(..., min_length=3, max_length=32, description="Unique public account handle.")
     email: str = Field(..., max_length=254, description="Account login email, independent of public contact email.")
     role_id: int = Field(..., gt=0, description="Assigned role primary key.")
     role: str = Field(..., min_length=1, max_length=64, description="Assigned role name.")

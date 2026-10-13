@@ -31,7 +31,6 @@ export const fields: Record<ManagementResource, string[]> = {
   ],
   users: [
     'id',
-    'user',
     'email',
     'role',
     'login_count',
@@ -93,7 +92,7 @@ export const visible: Record<ManagementResource, string[]> = {
     'is_active',
     'updatetime',
   ],
-  users: ['id', 'user', 'email', 'role', 'login_count', 'last_login', 'updatetime', 'is_active'],
+  users: ['id', 'email', 'role', 'login_count', 'last_login', 'updatetime', 'is_active'],
   sites: ['id', 'user', 'has_site', 'is_published', 'is_default', 'owner_is_active', 'updatetime'],
 } satisfies ManagementFields;
 
@@ -116,7 +115,6 @@ export const columnLabels: Record<ManagementResource, Record<string, string>> = 
   },
   users: {
     id: 'ID',
-    user: 'Account',
     email: 'Email',
     role: 'Role',
     login_count: 'Login',

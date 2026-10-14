@@ -213,6 +213,14 @@ The shared usePageEntrance hook owns paired setup/cleanup and one startup/palett
 
 `Breadcrumb(label,items)` renders injected ancestors, native links and optional icons. The final item uses `aria-current="page"`, separators are decorative, and long names wrap. Its owning page supplies copy and destinations; the shared component performs no data reads.
 
+`SidebarRail`、`SidebarLinks`、`SidebarDrawer`（[來源](ui/SidebarNavigation.tsx)）是首頁與 Settings 共用的導航模組。SidebarRail 接收 compact／onCompact、收合與展開文案、brand、可選 brandLink(to,label)、leading／trailing、children 與 footer；drawerAt 選擇 phone（760px）或 tablet（1024px）的桌面側欄隱藏條件。兩邊共用 32px 雙箭頭控制、180 度旋轉、80px 收合寬度、至少 48px 的項目列高、8px 列間距及 18px 圖示；品牌與文字保持 DOM 並以 max-width、opacity、visibility 收合，不切換成漢堡圖示。
+
+`SidebarNavigationItem` 提供 id、label、icon、可選 href／to／onSelect、current 與 ordinal。SidebarLinks 接收 items、label、active 與 compact，統一 anchor／Router link／button 的排版；compact 狀態的 tooltip 透過 body portal 呈現，沿用 useAnchoredPanel，在 Escape、resize、blur 或側欄捲動時關閉並保留原項目焦點。呼叫端決定權限、排序、網址與翻譯，shared 不取得 SESSION 或 Site 資料。
+
+SidebarDrawer 接收 id、open、onClose、label、closeLabel、children、footer 與可選 headerOffset（0 或 64px），共用 250px Offcanvas、關閉圖示、transition 與 cycleDialogTab。首頁保留 64px 固定頂欄避讓；Settings 從畫面頂端開啟，標題只提供無障礙名稱，不顯示 Management 字樣。兩邊的 mobile trigger 都使用共用 icon-button。
+
+Public and settings navigation share one rail, item list and drawer implementation. Owners supply branding, translated labels, destinations and permission-filtered items. Collapse rotates the same double chevrons and animates existing labels; row spacing, icons and compact tooltips are shared. Only the responsive breakpoint and fixed-header offset differ between the two page layouts.
+
 下表逐項涵蓋 `shared/ui` 的共用元件／Hook 匯出；型別、context 與時間常數另見各介面說明。場景道具拆件保持內部實作，呼叫端使用完整 `CowWorkspace` 及公開的角色插槽 `DeniedCowCharacter`。
 
 `InlineField`（[來源](ui/InlineField.tsx)）以點選值啟用文字／信箱／URL／數字／多行編輯，布林值直接使用 checkbox 或 switch。`InlineFieldValue` 是 string／number／boolean／null；`InlineFieldEditor` 設定 type、nullable、checkbox、maxLength 與 validate；`InlineFieldCopy` 注入 edit(label)、clear(label)、invalid、empty。`value`／`onChange` 由 owner 控制；元件不讀取資料、不保存草稿或呼叫 API。Enter 完成單行、Ctrl／Cmd+Enter 完成多行、Escape 還原該格，Tab 或點選別處完成編輯；輸入法組字不觸發完成。無效值透過 aria-invalid 與描述文案標示，焦點／點擊區至少 44px。

@@ -18,6 +18,8 @@ import 'bootstrap/dist/css/bootstrap.css';
 import '@/assets/fonts/fonts.css';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
+// Both public and settings routes use this stylesheet; load it once in the root artifact.
+import '@/shared/ui/SidebarNavigation.css';
 
 /** Resolve the shared language contract for server and browser loaders. */
 function getLocaleData(params: { locale?: string }) {

@@ -21,106 +21,6 @@
   --bs-secondary-color: var(--muted);
   --bs-tertiary-bg: var(--panel2);
 }
-.sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: var(--rail-width);
-  z-index: 30;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 38px 24px 26px;
-  background: var(--sidebar-surface);
-  border-right: 1px solid var(--border);
-  transition:
-    width var(--duration-drawer) var(--ease-drawer),
-    padding var(--duration-drawer) var(--ease-drawer);
-}
-.sidebar > * {
-  flex-shrink: 0;
-}
-.brand {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 0 10px 22px;
-  text-decoration: none;
-  color: var(--accent);
-  font-size: 15px;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-}
-.brand > :global(.icon) {
-  font-size: 28px;
-}
-.brand small {
-  display: block;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  margin-top: 4px;
-}
-.navCaption {
-  color: var(--muted);
-  padding: 0 12px 12px;
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-.navLink {
-  width: 100%;
-  background: transparent;
-  text-align: start;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid transparent;
-  min-height: 46px;
-  margin-bottom: 6px;
-  padding: 11px 12px;
-  border-radius: var(--radius-card);
-  color: var(--nav-text);
-  font-size: 14px;
-  text-decoration: none;
-}
-.navLink > :global(.icon) {
-  font-size: 18px;
-  flex-shrink: 0;
-}
-.navLink:hover,
-.navLink:focus-visible {
-  color: var(--accent);
-  background: var(--selection-surface);
-  border-color: var(--selection-border);
-}
-.selected,
-.selected:hover {
-  background: var(--selection-surface);
-  border-color: var(--selection-border);
-  color: var(--accent);
-}
-.backHome {
-  margin-top: auto;
-}
-.compact .sidebar {
-  width: var(--rail-compact-width);
-  padding-inline: 12px;
-}
-.compact .brand {
-  padding-inline: 10px;
-}
-.compact .brand span:not(:global(.icon)),
-.compact .navLink > span:not(:global(.icon)),
-.compact .navCaption {
-  display: none;
-}
-.compact .navLink {
-  justify-content: center;
-}
 .main {
   position: relative;
   min-width: 0;
@@ -164,39 +64,8 @@
   color: var(--muted);
   font-size: 11px;
 }
-.collapse,
-.mobileToggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  min-height: 36px;
-  padding: 6px;
-  color: var(--text);
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
 .mobileToggle {
   display: none;
-}
-.collapse {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  width: var(--control-size);
-  min-height: var(--control-size);
-}
-.compact .collapse {
-  right: calc((var(--rail-compact-width) - var(--control-size)) / 2);
-}
-.collapse:hover,
-.collapse:focus-visible {
-  color: var(--accent);
-  background: var(--selection-surface);
 }
 .content {
   padding: 36px var(--page-gutter) 48px;
@@ -351,8 +220,7 @@
 .details dd :global(.form-check) {
   justify-content: flex-start;
 }
-.detail :global(.btn-close),
-.drawer :global(.btn-close) {
+.detail :global(.btn-close) {
   flex-shrink: 0;
 }
 .details {
@@ -400,12 +268,10 @@
 .details :global(.form-switch .form-check-input:checked) {
   --bs-form-switch-bg: radial-gradient(circle, var(--on-accent) 0 52%, transparent 54%);
 }
-.detail :global(.btn-close),
-.drawer :global(.btn-close) {
+.detail :global(.btn-close) {
   opacity: 0.75;
 }
-:global(html:not([data-theme='mist'])) .detail :global(.btn-close),
-:global(html:not([data-theme='mist'])) .drawer :global(.btn-close) {
+:global(html:not([data-theme='mist'])) .detail :global(.btn-close) {
   filter: invert(1);
 }
 .detail :global(.btn-outline-secondary) {
@@ -441,17 +307,8 @@
   --bs-btn-hover-bg: color-mix(in srgb, var(--field-error) 12%, transparent);
   --bs-btn-hover-border-color: var(--field-error);
 }
-.drawer {
-  --bs-offcanvas-bg: var(--sidebar-surface);
-  --bs-offcanvas-color: var(--text);
-  --bs-offcanvas-border-color: var(--border);
-  --bs-offcanvas-width: min(300px, calc(100vw - 24px));
-}
 /* The table owns horizontal scrolling; the document stays bounded on narrow screens. */
 @media (max-width: 1100px) {
-  .sidebar {
-    padding-inline: 17px;
-  }
   .controls {
     gap: 6px;
   }
@@ -463,8 +320,6 @@
     --rail-width: 0px;
     --rail-compact-width: 0px;
   }
-  .sidebar,
-  .collapse,
   .identity {
     display: none;
   }
@@ -502,8 +357,7 @@
     grid-template-columns: minmax(90px, 38%) minmax(0, 1fr);
   }
   .detail :global(.btn),
-  .detail :global(.btn-close),
-  .drawer :global(.btn-close) {
+  .detail :global(.btn-close) {
     min-width: 44px;
     min-height: 44px;
   }
@@ -515,11 +369,31 @@
   }
 }
 @media (any-pointer: coarse) {
-  .collapse,
   .detail :global(.btn),
-  .detail :global(.btn-close),
-  .drawer :global(.btn-close) {
+  .detail :global(.btn-close) {
     min-width: 44px;
     min-height: 44px;
   }
+}
+
+/* The shared header keeps its icon visible while the wordmark collapses. */
+.brandIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  color: var(--accent);
+}
+.brandIcon :global(.icon) {
+  width: 28px;
+  height: 28px;
+}
+.brandText {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-decoration: none;
 }

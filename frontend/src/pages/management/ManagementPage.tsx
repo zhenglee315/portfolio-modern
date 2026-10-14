@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useNavigation } from 'react-router';
+import { useLocation, useNavigate, useNavigation } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import Offcanvas from 'react-bootstrap/Offcanvas';
 import type { Locale } from '@/i18n/config';
 import { AccountMenu, managementNavigation } from '@/features/account-menu';
 import { AppearanceSettings, useAppearance } from '@/features/appearance';
@@ -10,6 +9,7 @@ import { useAccountSession, useAccessDeniedRedirect } from '@/features/auth/acti
 import { canManage } from '@/features/auth/permissions';
 import type { ManagementResource } from '@/features/management';
 import { Icon } from '@/shared/ui/Icon';
+import { SidebarRail, SidebarLinks, SidebarDrawer } from '@/shared/ui/SidebarNavigation';
 import { Breadcrumb } from '@/shared/ui/Breadcrumb';
 import { LoadingIndicator } from '@/shared/ui/LoadingIndicator';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
@@ -83,45 +83,24 @@ export function ManagementPage({
   const title = t(
     `accountMenu.${managementNavigation.find((item) => item.resource === resource)!.label}`,
   );
-  const links = (
-    <>
-      <div className={styles.navCaption}>{t('management.workspace')}</div>
-      {managementNavigation
-        .filter((item) => canManage(session.data, item.resource))
-        .map((item) => {
-          const title = t(`accountMenu.${item.label}`);
-          const content = (
-            <>
-              <Icon name={item.icon} />
-              <span>{title}</span>
-            </>
-          );
-          const className = `${styles.navLink} ${resource === item.resource ? styles.selected : ''}`;
-          return item.resource === 'monitoring' ? (
-            <button
-              key={item.resource}
-              type="button"
-              className={className}
-              title={title}
-              onClick={() => setDrawer(false)}
-            >
-              {content}
-            </button>
-          ) : (
-            <Link
-              key={item.resource}
-              to={`/${locale}/management/${item.resource}`}
-              className={className}
-              aria-current={resource === item.resource ? 'page' : undefined}
-              title={title}
-              onClick={() => setDrawer(false)}
-            >
-              {content}
-            </Link>
-          );
-        })}
-    </>
-  );
+  const items = managementNavigation
+    .filter((item) => canManage(session.data, item.resource))
+    .map((item) => ({
+      id: item.resource,
+      label: t(`accountMenu.${item.label}`),
+      icon: item.icon,
+      to: item.resource === 'monitoring' ? undefined : `/${locale}/management/${item.resource}`,
+      onSelect: () => setDrawer(false),
+    }));
+  const home = [
+    {
+      id: 'home',
+      label: t('management.backHome'),
+      icon: 'home' as const,
+      to: `/${locale}`,
+      onSelect: () => setDrawer(false),
+    },
+  ];
   return (
     <div
       ref={root}
@@ -145,37 +124,39 @@ export function ManagementPage({
       <a className="skip" href="#management-content">
         {t('ui.skip')}
       </a>
-      <aside className={styles.sidebar} data-entrance-navigation>
-        <button
-          className={`btn ${styles.collapse}`}
-          type="button"
-          onClick={() => setCompact(!compact)}
-          aria-label={t(compact ? 'management.expandNavigation' : 'management.collapseNavigation')}
-          aria-expanded={!compact}
-        >
-          <Icon name={compact ? 'list' : 'collapse'} />
-        </button>
-        <Link to={`/${locale}`} className={styles.brand} aria-label={t('management.backHome')}>
-          <Icon name="dashboard" />
-          <span>
-            PORTFOLIO<small>{t('management.workspace')}</small>
+      <SidebarRail
+        compact={compact}
+        onCompact={() => setCompact((value) => !value)}
+        collapseLabel={t('management.collapseNavigation')}
+        expandLabel={t('management.expandNavigation')}
+        drawerAt="tablet"
+        brand={<span className={styles.brandText}>PORTFOLIO</span>}
+        brandLink={{ to: `/${locale}`, label: t('management.backHome') }}
+        leading={
+          <span className={styles.brandIcon} aria-hidden>
+            <Icon name="dashboard" />
           </span>
-        </Link>
-        <nav aria-label={t('management.navigation')}>{links}</nav>
-        <Link
-          to={`/${locale}`}
-          className={`${styles.navLink} ${styles.backHome}`}
-          title={t('management.backHome')}
-        >
-          <Icon name="home" />
-          <span>{t('management.backHome')}</span>
-        </Link>
-      </aside>
+        }
+        footer={
+          <SidebarLinks
+            items={home}
+            label={t('management.backHome')}
+            compact={compact && !drawerNavigation}
+          />
+        }
+      >
+        <SidebarLinks
+          items={items}
+          label={t('management.navigation')}
+          active={resource}
+          compact={compact && !drawerNavigation}
+        />
+      </SidebarRail>
       <div className={styles.main}>
         <main id="management-content" className={styles.content} data-entrance-content>
           <div className={styles.contextRow}>
             <button
-              className={`btn ${styles.mobileToggle}`}
+              className={`icon-button ${styles.mobileToggle}`}
               type="button"
               onClick={() => setDrawer(true)}
               aria-label={t('management.openNavigation')}
@@ -243,26 +224,16 @@ export function ManagementPage({
           />
         </main>
       </div>
-      <Offcanvas
-        show={drawer && drawerNavigation}
-        onHide={() => setDrawer(false)}
+      <SidebarDrawer
         id="management-navigation"
-        className={styles.drawer}
-        aria-labelledby="management-navigation-title"
+        open={drawer && drawerNavigation}
+        onClose={() => setDrawer(false)}
+        label={t('management.workspace')}
+        closeLabel={t('management.close')}
+        footer={<SidebarLinks items={home} label={t('management.backHome')} />}
       >
-        <Offcanvas.Header closeButton closeLabel={t('management.close')}>
-          <Offcanvas.Title id="management-navigation-title">
-            {t('management.workspace')}
-          </Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body>
-          <nav aria-label={t('management.navigation')}>{links}</nav>
-          <Link to={`/${locale}`} className={styles.navLink}>
-            <Icon name="home" />
-            {t('management.backHome')}
-          </Link>
-        </Offcanvas.Body>
-      </Offcanvas>
+        <SidebarLinks items={items} label={t('management.navigation')} active={resource} />
+      </SidebarDrawer>
     </div>
   );
 }

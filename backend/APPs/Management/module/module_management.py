@@ -175,6 +175,7 @@ class ManagementSitesModule(ManagementListModule):
         columns = {
             "id": AuthUser.id,
             "user": AuthUser.user,
+            "owner_email": AuthUser.email.label("owner_email"),
             "owner_is_active": AuthUser.is_active.label("owner_is_active"),
             "site_id": PortfolioSite.id.label("site_id"),
             "has_site": PortfolioSite.id.is_not(None).label("has_site"),

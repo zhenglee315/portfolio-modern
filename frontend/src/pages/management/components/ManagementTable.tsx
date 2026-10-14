@@ -52,7 +52,6 @@ export function ManagementTable({
   const [editing, setEditing] = useState<{
     scope: string;
     row: ManagementRow;
-    confirmed: boolean;
   } | null>(null);
   if (editing && editing.scope !== scope) setEditing(null);
   const [preview, setPreview] = useState<{ scope: string; siteId: number; user: string } | null>(
@@ -63,7 +62,7 @@ export function ManagementTable({
   const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
   if (deletion && deletion.scope !== scope) setDeletion(null);
   const query = useManagementList(resource, state, locale, enabled, accountId);
-  const nameField = resource === 'roles' ? 'role' : resource === 'users' ? 'email' : 'user';
+  const nameField = resource === 'roles' ? 'role' : resource === 'users' ? 'email' : 'owner_email';
   const actionsUnavailable = !enabled || query.isFetching || query.isError;
   const selectedRows = (query.data?.items ?? []).filter((row) => selection.keys.includes(row.id));
   const openDelete = (rows: ManagementRow[]) => {
@@ -77,7 +76,7 @@ export function ManagementTable({
     if (!actionsUnavailable) {
       setDeletion(null);
       setPreview(null);
-      setEditing({ scope, row, confirmed: false });
+      setEditing({ scope, row });
     }
   };
   const { columns, detailColumns } = useMemo(() => {
@@ -110,7 +109,10 @@ export function ManagementTable({
         sortable: managementSortFields[resource].includes(field),
         initiallyHidden: !visible[resource].includes(field),
         hideable: field !== 'id',
-        truncate: resource === 'users' && field === 'email' ? false : undefined,
+        truncate:
+          field === 'owner_email' || (resource === 'users' && field === 'email')
+            ? false
+            : undefined,
         filter: managementFilterSpecs[resource][field],
         editor: (row) => managementEditor(resource, field, row),
         filterStyle:
@@ -293,24 +295,7 @@ export function ManagementTable({
           onClose={() => setPreview(null)}
         />
       )}
-      {editing?.scope === scope && !editing.confirmed && (
-        <WarningModal
-          layout="prompt"
-          title={t('management.editConfirmation')}
-          message={t('management.editTarget', { name: rowValue(editing.row, nameField) })}
-          closeLabel={t('management.close')}
-          onClose={() => setEditing(null)}
-          confirm={{
-            label: t('management.confirmEdit'),
-            cancelLabel: t('management.cancel'),
-            onConfirm: () =>
-              setEditing((previous) =>
-                previous?.scope === scope ? { ...previous, confirmed: true } : null,
-              ),
-          }}
-        />
-      )}
-      {editing?.scope === scope && editing.confirmed && (
+      {editing?.scope === scope && (
         <ManagementDetails
           key={editing.row.id}
           row={editing.row}

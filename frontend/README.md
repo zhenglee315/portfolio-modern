@@ -634,7 +634,7 @@ A confirmed missing SESSION, false permission or SESSION HTTP 401/403 publishes 
 | 欄位及詳情 / Columns and details | Columns 只切換指定的主表欄位；其他完整資料由共用 ManagementDetails 呈現，API 字串保持純文字。布林欄位依欄位 renderer 呈現唯讀 checkbox 或 switch，缺資料 null 顯示破折號。 / Main-column visibility and shared plain-text record details; read-only status renderers and explicit missing values.  |
 | 主題 / Themes                    | Bootstrap table/forms/pagination 保留官方樣式；背景、表頭、列 hover、switch 與控制色透過既有語意 tokens 適應 mint／blue／amber／mist。 / Existing palette tokens adapt Bootstrap surfaces and hover states.                                                                                        |
 
-目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。三個管理表格的工具列右上方放置 Add／Del 按鈕，分別使用 Bootstrap plus-lg／trash icon；Del 使用與其他工具列按鈕相同的文字與邊框配色；hover／focus-visible／active 才以 field-error 和淡紅底提示刪除。可見字樣為 Del，aria-label／title 保留完整 Delete。Add 目前僅有外觀；工具列 Delete 使用本頁選取列，未選取或 loading／error 時停用，透過共用 ManagementTable 的 toolbar 插槽配置。每列 Actions 的 pencil-square Edit 先使用共用 WarningModal 的 prompt 版型確認，接受後開啟可逐格編輯的詳情，紅色 trash 只指定該列，與其他勾選無關。兩種刪除入口共用 WarningModal 的確認模式，顯示驚嘆號與「確定要刪除嗎？」、單筆名稱或批次筆數，以及取消／確定刪除。全選僅涵蓋本頁，不使用 API total 推測未載入列；query／頁碼／語言／資源／帳號變更會作廢舊的確認目標。取消、關閉或確認皆不修改資料／選取，不發送刪除 API、重查或成功提示；確認 callback 預留給後續 mutation。詳情 footer 使用 Close／Save（floppy）；Save 初始灰色停用，修改後亮綠、Close 變紅。可更新欄位使用 InlineField 點選編輯，系統／衍生資料保持唯讀；Save 先以同樣的突出警告圖示／置中文案確認，取消保留草稿與捲動位置，接受後只確認視窗內草稿，關閉重開回到原查詢資料，沒有更新 API 或儲存成功通知。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
+目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。三個管理表格的工具列右上方放置 Add／Del 按鈕，分別使用 Bootstrap plus-lg／trash icon；Del 使用與其他工具列按鈕相同的文字與邊框配色；hover／focus-visible／active 才以 field-error 和淡紅底提示刪除。可見字樣為 Del，aria-label／title 保留完整 Delete。Add 目前僅有外觀；工具列 Delete 使用本頁選取列，未選取或 loading／error 時停用，透過共用 ManagementTable 的 toolbar 插槽配置。每列 Actions 的 pencil-square Edit 直接開啟可逐格編輯的詳情，紅色 trash 只指定該列，與其他勾選無關。兩種刪除入口共用 WarningModal 的確認模式，顯示驚嘆號與「確定要刪除嗎？」、單筆名稱或批次筆數，以及取消／確定刪除。全選僅涵蓋本頁，不使用 API total 推測未載入列；query／頁碼／語言／資源／帳號變更會作廢舊的確認目標。取消、關閉或確認皆不修改資料／選取，不發送刪除 API、重查或成功提示；確認 callback 預留給後續 mutation。詳情 footer 使用 Close／Save（floppy）；Save 初始灰色停用，修改後亮綠、Close 變紅。可更新欄位使用 InlineField 點選編輯，系統／衍生資料保持唯讀；Save 先以同樣的突出警告圖示／置中文案確認，取消保留草稿與捲動位置，接受後只確認視窗內草稿，關閉重開回到原查詢資料，沒有更新 API 或儲存成功通知。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
 
 Only the three GETs are integrated. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
 
@@ -646,19 +646,19 @@ Without frontend sort criteria, managementListParams omits sort so all three bac
 
 三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。後續批次更新操作尚未串接。
 
-平台表格只提供 ID、Account、Profile（checkbox）、Publish（checkbox）、Default（toggle）、Active（toggle）、Updated、Actions 這八個欄位。Columns 只切換主表的七個資料欄位，其他完整資料集中在 Actions 詳情。Profile checkbox 對應 `has_site`，Active 對應 `owner_is_active`；Default 僅在 Active、Profile 與 Publish 皆為 true 時符合設定資格，不符合時淡化並提供原因提示。目前控制項維持唯讀；後續更新規則記錄於 [Default 更新規格](../docs/management-default-update.md)。
+平台表格只提供 ID、Email、Profile（checkbox）、Publish（checkbox）、Default（toggle）、Active（toggle）、Updated、Actions 這八個欄位。Email 使用 `owner_email`，直接讀取 `auth_user.email`，全文顯示且在詳情永遠唯讀；作品集網址代號 `user` 僅供原公開路由與預覽使用。公開聯絡信箱 `email` 在詳情標示為 Contact email，可獨立編輯。Columns 只切換主表的七個資料欄位，其他完整資料集中在 Actions 詳情。Profile checkbox 對應 `has_site`，Active 對應 `owner_is_active`；Default 僅在 Active、Profile 與 Publish 皆為 true 時符合設定資格，不符合時淡化並提供原因提示。目前主表控制項維持唯讀；後續更新規則記錄於 [Default 更新規格](../docs/management-default-update.md)。
 
-The platform table offers only ID, Account, Profile (checkbox), Publish (checkbox), Default (switch), Active (switch), Updated and Actions in every locale. Columns toggles the seven data columns; Actions presents the complete record separately. Default eligibility requires an active owner with an existing, published portfolio; ineligible controls are dimmed and explain the requirement. Controls remain read-only pending the update integration described in the [Default update specification](../docs/management-default-update.md).
+The platform table offers only ID, Email, Profile (checkbox), Publish (checkbox), Default (switch), Active (switch), Updated and Actions in every locale. Email uses owner_email read directly from auth_user.email; the complete login address is read-only in Details. The public contact address remains editable as Contact email. Public handles remain available to routing and preview. Columns toggles the seven data columns; Actions presents the complete record separately. Default eligibility requires an active owner with an existing, published portfolio; ineligible controls are dimmed and explain the requirement. Table controls remain read-only pending the update integration described in the [Default update specification](../docs/management-default-update.md).
 
 | 頁面     | 預設欄位                                                                                      |
 | -------- | --------------------------------------------------------------------------------------------- |
-| Platform | ID、Account、Profile、Publish、Default、Active、Updated、Actions                              |
+| Platform | ID、Email、Profile、Publish、Default、Active、Updated、Actions                                |
 | User     | ID、Email、Role、Login、LastLogin、Updated、Active、Actions                                   |
 | Role     | ID、Role、Create、Read、Update、Delete、Site、Users、Roles、Default、Active、Updated、Actions |
 
-Actions 全部使用 pencil-square Edit icon 開啟編輯確認，接受後進入詳情。Details 標題移除名稱副標，沿用 managementNavigation 的 Platform dashboard／Role shieldLock／User people 圖示。可編輯值點選後使用共用 InlineField 編輯，布林直接切換；ID、時間、統計與衍生資料保持唯讀。Save 初始灰色停用，有有效修改後亮綠，Close 變紅；還原值後恢復初始狀態。Save 先開啟儲存確認，取消保留草稿並恢復位置，接受後只確認視窗內草稿，關閉重開回到 query 資料，不發送更新 API。欄位 editor 與 DTO 驗證集中於 management-edit，共享元件不擁有 management 規則。
+Actions 全部使用 pencil-square Edit icon 直接進入詳情。Details 標題移除名稱副標，沿用 managementNavigation 的 Platform dashboard／Role shieldLock／User people 圖示。可編輯值點選後使用共用 InlineField 編輯，布林直接切換；登入 Email、ID、時間、統計與衍生資料保持唯讀。Save 初始灰色停用，有有效修改後亮綠，Close 變紅；還原值後恢復初始狀態。只有按下 Save 才開啟儲存確認，取消保留草稿並恢復位置，接受後只確認視窗內草稿，關閉重開回到 query 資料，不發送更新 API。欄位 editor 與 DTO 驗證集中於 management-edit，共享元件不擁有 management 規則。
 
-三頁 Actions 詳情順序由 `pages/management/model/management-view.fields` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。可編輯欄位依用途放在上方：Platform 為基本資料／品牌內容、聯絡社群、聊天、頁尾與發布設定；Role 為名稱／描述、預設與權限；User 為 Email／Role。唯讀資訊放在後段，Active、Created、Updated 固定為最後三項；User 的 Role active 位於 Active 前。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Save 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
+三頁 Actions 詳情順序由 `pages/management/model/management-view.fields` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。Platform／User 先顯示唯讀登入 Email，方便識別；接著 Platform 為基本資料／品牌內容、聯絡社群、聊天、頁尾與發布設定，User 為 Role。Role 管理先名稱／描述、預設與權限。其他唯讀資訊放在後段，Active、Created、Updated 固定為最後三項；User 的 Role active 位於 Active 前。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Save 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
 
 User 主表固定使用上表的八個英文標籤，以登入 Email 識別，不另列 Account。Email 使用逐欄 `truncate: false`，完整顯示並可換行；Details、勾選標籤與刪除確認也使用 Email。User API 直接讀取 `auth_user.email`，不返回公開網址 handle 或衍生帳號名稱。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的七個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十二項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取，ManagementDetails 只接受 row、columns、icon、copy 與 onClose，擁有詳情視窗的本地草稿與 Save 確認狀態；shared DataTable 仍不依賴任何 management 型別或 API。
 
@@ -681,15 +681,15 @@ Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，�
 
 RWD 回歸會讓 Platform／User／Role 三頁各自在 320、375、390、480、640、768、820、1024、1280、1440、1920、2560px 寬度執行英文與繁體中文流程；不是按寬度輪流抽查其中一頁。檢查工具列、Add／Delete、footer、主表標題／內容置中、兩個列動作與詳情 InlineField／Save／重開重設，手機目標至少 44px。另外讓三頁分別在 390×844、844×390、820×1180、1180×820 的 coarse pointer 情境檢查四個主題、兩列自然高度、資料列 4px 內距、44px 按鈕、詳情視窗及日曆選單的 viewport 邊界。其他案例涵蓋 300px 桌面內嵌容器、長文字、多頁分頁與橫向短 viewport 的選單。寬表格保持原始列格式，手機可在表格內橫向捲動；文件本身不水平溢位。
 
-| 順序  | Actions 詳情欄位                                          |
-| ----- | --------------------------------------------------------- |
-| 1–6   | ID、Account、First name、Family name、Nickname、Education |
-| 7–10  | Profile name、Profile data、Brand、Brand Subtitle         |
-| 11–14 | Publish、Translation、Default、Active                     |
-| 15–19 | Program、Language、Copyright、Introduction、Footer        |
-| 20–23 | Email、LinkedIn、GitHub、Medium                           |
-| 24–27 | Chat icon、Chat title、Chat subtitle、Chat content        |
-| 28–31 | Profile introduction、Website ID、Created、Updated        |
+| 順序  | Actions 詳情欄位                                        |
+| ----- | ------------------------------------------------------- |
+| 1–6   | ID、Email、First name、Family name、Nickname、Education |
+| 7–10  | Profile name、Profile data、Brand、Brand Subtitle       |
+| 11–14 | Publish、Translation、Default、Active                   |
+| 15–19 | Program、Language、Copyright、Introduction、Footer      |
+| 20–23 | Email、LinkedIn、GitHub、Medium                         |
+| 24–27 | Chat icon、Chat title、Chat subtitle、Chat content      |
+| 28–31 | Profile introduction、Website ID、Created、Updated      |
 
 Profile name 是詳情的 presentation 欄位，組合當前語言的 `first_name`／`family_name`，缺姓名時使用 `nick_name`，沿用公開頁漢字姓名的姓在前規則。沒有作品集、沒有當前語言內容、沒有設定名稱時分別顯示明確文字，不回退其他語言。此欄不可排序，不增加 API 欄位或資料表。所有狀態 renderer 在表格與詳情共用；`value(row)` 保留原始 boolean／null，供匯出使用。Created／Updated 使用 `auth_user.createtime`／`auth_user.updatetime`，即帳號建立／更新時間，並以 UTC 呈現；列表 API 已提供兩個真實欄位，網站與翻譯表沒有獨立時間欄。
 

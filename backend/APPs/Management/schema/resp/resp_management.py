@@ -73,7 +73,8 @@ class RespManagementSite(BaseModel):
     """Keep the account ID as row identity even when no portfolio or translation exists."""
 
     id: int = Field(..., gt=0, description="Owner account ID; stable identity for this person-based row.")
-    user: str = Field(..., description="Owner's public account handle.")
+    user: str = Field(..., description="Public portfolio URL handle; independent of login email.")
+    owner_email: str = Field(..., max_length=254, description="Read-only login email, independent of contact email.")
     owner_is_active: bool = Field(..., description="Owner account state; independent of role login availability.")
     site_id: int | None = Field(..., description="Portfolio ID; null when this person has no portfolio.")
     has_site: bool = Field(..., description="Whether the owner has created a portfolio.")

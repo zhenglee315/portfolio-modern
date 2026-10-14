@@ -45,7 +45,7 @@ export const fields: Record<ManagementResource, string[]> = {
     'updatetime',
   ],
   sites: [
-    'user',
+    'owner_email',
     'first_name',
     'family_name',
     'nick_name',
@@ -94,7 +94,15 @@ export const visible: Record<ManagementResource, string[]> = {
     'updatetime',
   ],
   users: ['id', 'email', 'role', 'login_count', 'last_login', 'updatetime', 'is_active'],
-  sites: ['id', 'user', 'has_site', 'is_published', 'is_default', 'owner_is_active', 'updatetime'],
+  sites: [
+    'id',
+    'owner_email',
+    'has_site',
+    'is_published',
+    'is_default',
+    'owner_is_active',
+    'updatetime',
+  ],
 } satisfies ManagementFields;
 
 /** Requested headings are independent of DTO field names and management language. */
@@ -126,7 +134,7 @@ export const columnLabels: Record<ManagementResource, Record<string, string>> = 
   },
   sites: {
     id: 'ID',
-    user: 'Account',
+    owner_email: 'Email',
     has_site: 'Profile',
     is_published: 'Publish',
     is_default: 'Default',
@@ -153,7 +161,7 @@ const platformDetailLabels: Record<string, string> = {
   copyright_year: 'Copyright',
   intro_content: 'Introduction',
   footer_content: 'Footer',
-  email: 'Email',
+  email: 'Contact email',
   linkedin: 'LinkedIn',
   github: 'GitHub',
   medium: 'Medium',

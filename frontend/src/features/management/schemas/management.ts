@@ -46,6 +46,7 @@ export const managementUserSchema = z.object({
 export const managementSiteSchema = z.object({
   id: recordIdSchema,
   user: z.string(),
+  owner_email: managementUserSchema.shape.email,
   owner_is_active: z.boolean(),
   site_id: recordIdSchema.nullable(),
   has_site: z.boolean(),

@@ -63,6 +63,7 @@ SITE_LOCALE_COLUMNS = (
 SITE_SORT_FIELDS = (
     "id",
     "user",
+    "owner_email",
     "owner_is_active",
     "site_id",
     "has_site",

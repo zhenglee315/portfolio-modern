@@ -809,20 +809,19 @@ trash 用 Bootstrap CSS mask，不傳不存在的 IconName：
 
 ![逐格編輯後 Save 變綠、Close 變紅](data-table-docs/edit-save.png)
 
-| Actions 編輯確認                                                       | Save 儲存確認                                                          |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| ![頂部警告圖示、取消與開始編輯](data-table-docs/edit-confirmation.png) | ![取消保留草稿，確認才接受修改](data-table-docs/save-confirmation.png) |
+![Save 才顯示確認，取消保留草稿](data-table-docs/save-confirmation.png)
 
 現有 [ManagementDetails](../../pages/management/components/ManagementDetails.tsx) 接收 row、columns、icon、copy={title,close,field,save} 與 onClose；field 使用 InlineFieldCopy 注入逐格編輯文案，save={title,message,confirm,cancel} 提供儲存確認文案：
 
 - 欄名／值／checkbox／switch 全部靠左；footer 靠右，Close 有 icon。
 - 可用另一組完整 columns，無須把所有資料放進列表。
-- 三張管理表的詳情順序集中於 `model/management-view.ts` 的 `fields`：Platform 先基本資料／品牌內容，再聯絡社群、聊天、頁尾與發布設定；Role 先名稱／描述，再預設與權限；User 先 Email／Role。唯讀資訊接在可編輯欄位後，Active／Created／Updated 固定為最後三項；User 的 Role active 緊接在 Active 前。
-- Actions 的 Edit icon 先開啟「確定要編輯嗎？」確認；取消／×／Escape 回到表格，確認後才開啟詳情。Details 標題不顯示副標；icon 由既有 managementNavigation 提供 Platform 的 dashboard、Role 的 shieldLock、User 的 people。文字值點選後直接編輯，checkbox／switch 直接切換。
+- 三張管理表的詳情順序集中於 `model/management-view.ts` 的 `fields`：Platform／User 先顯示唯讀登入 Email；Platform 接著基本資料／品牌內容，再聯絡社群、聊天、頁尾與發布設定；User 接著 Role。Role 管理先名稱／描述，再預設與權限。其他唯讀資訊接在可編輯欄位後，Active／Created／Updated 固定為最後三項；User 的 Role active 緊接在 Active 前。
+- Actions 的 Edit icon 直接開啟詳情，不先顯示確認。Details 標題不顯示副標；icon 由既有 managementNavigation 提供 Platform 的 dashboard、Role 的 shieldLock、User 的 people。文字值點選後直接編輯，checkbox／switch 直接切換。
 - 它屬於 management page，不是 DataTable prop 或資料編輯引擎。
 - Save 初始灰色停用；值與草稿基準不同時亮綠、Close 變紅。還原所有值後恢復初始狀態。無效值不能 Save。
 - Save 開啟「確定儲存變更？」確認；取消／×／Escape 保留所有草稿，回到原捲動位置及 Save 焦點。確認才更新視窗內的草稿基準，不更動 query cache、不送 API；關閉重開使用原查詢資料。一次只掛載一個 Modal，切換確認時由 ManagementDetails 保留草稿。
 - ID、時間、登入次數、角色帳號數、角色啟用／作品集／翻譯存在狀態、語言 context 與組合的 Profile name 都是唯讀；不存在的網站／語言資料也保持唯讀，不能把 JOIN 的 null 當成可清空的實體欄位。
+- 帳號的登入 Email 永遠唯讀：User 使用 `email`，Platform 使用直接來自 `auth_user.email` 的 `owner_email`。Platform 不再將作品集網址代號顯示為 Account；公開聯絡信箱仍使用 `email`，詳情標示為 Contact email，可獨立編輯。
 - `ManagementDetailColumn<T>` 在 DataTableColumn 上加入 `editor(row)`；`model/management-edit.ts` 統一配置型別、既有 schema 驗證與唯讀欄位。共享 `InlineField` 不引用 management。
 
 ```tsx

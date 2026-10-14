@@ -8,7 +8,6 @@ import {
   type ManagementRow,
 } from '@/features/management';
 import type { InlineFieldEditor } from '@/shared/ui/InlineField';
-import { publicUserSchema } from '@/shared/schemas/portfolio';
 
 const schemas = {
   roles: managementRoleSchema,
@@ -55,16 +54,18 @@ export function managementEditor(
     field === 'id' ||
     field.endsWith('_id') ||
     spec.type === 'date' ||
-    derived.has(field)
+    derived.has(field) ||
+    (resource === 'users' && field === 'email') ||
+    (resource === 'sites' && ['owner_email', 'user'].includes(field))
   )
     return;
   const shape: Record<string, z.ZodType> = schemas[resource].shape;
-  const response = resource === 'sites' && field === 'user' ? publicUserSchema : shape[field];
+  const response = shape[field];
   if (!response) return;
   if (
     resource === 'sites' &&
     'has_translation' in row &&
-    !['user', 'owner_is_active'].includes(field) &&
+    field !== 'owner_is_active' &&
     (!row.has_site || (!siteFields.has(field) && !row.has_translation))
   )
     return;

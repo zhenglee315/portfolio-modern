@@ -132,7 +132,7 @@ export function ManagementTable({
                   readonly={t('management.readonly')}
                   checkbox={
                     resource === 'sites' &&
-                    ['has_site', 'is_published', 'has_translation'].includes(field)
+                    ['has_site', 'has_profile', 'is_published', 'has_translation'].includes(field)
                   }
                   unavailableReason={
                     field === 'is_default' &&

@@ -37,6 +37,7 @@ const booleans = [
   'role_is_active',
   'owner_is_active',
   'has_site',
+  'has_profile',
   'has_translation',
   'is_published',
 ];

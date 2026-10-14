@@ -83,7 +83,7 @@ class ManagementSites:
         path,
         summary="Query Management Platform Sites",
         description=_COLUMN_QUERY_DESCRIPTION
-        + " locale is en/zh-Hans/zh-Hant, default en; there is no language fallback. profile_name predicates use the selected language's full name or nickname, excluding presentation placeholders.",
+        + " locale is en/zh-Hans/zh-Hant, default en; there is no language fallback. has_profile checks for a career with the requested active-language translation using EXISTS; has_site only indicates website presence. profile_name predicates use the selected language's full name or nickname, excluding presentation placeholders.",
         response_model=RespManagementSites,
         responses={400: {"description": "Invalid management query."}, 503: {"description": "Storage unavailable."}},
     )

@@ -78,6 +78,9 @@ class RespManagementSite(BaseModel):
     owner_is_active: bool = Field(..., description="Owner account state; independent of role login availability.")
     site_id: int | None = Field(..., description="Portfolio ID; null when this person has no portfolio.")
     has_site: bool = Field(..., description="Whether the owner has created a portfolio.")
+    has_profile: bool = Field(
+        ..., description="Whether this site has a work or education record in the requested active language."
+    )
     is_published: bool | None = Field(..., description="Publication flag; null when no portfolio exists.")
     is_default: bool | None = Field(..., description="Default homepage flag; null when no portfolio exists.")
     copyright_year: int | None = Field(..., description="Portfolio copyright year; null without a portfolio.")

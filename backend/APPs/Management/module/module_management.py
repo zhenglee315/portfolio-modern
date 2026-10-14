@@ -6,7 +6,16 @@ from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 from COMMON.schema.resp import RespRecords
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.models import AuthRole, AuthUser, PortfolioSite, PortfolioSiteLocale, RecordLogin
+from SYSTEM.models import (
+    AuthRole,
+    AuthUser,
+    PortfolioCareer,
+    PortfolioCareerLocale,
+    PortfolioLocale,
+    PortfolioSite,
+    PortfolioSiteLocale,
+    RecordLogin,
+)
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import HTTPException
@@ -187,6 +196,19 @@ class ManagementSitesModule(ManagementListModule):
 
                                                                                                ♂ ZhengLee 2026.10.12
         """
+        has_profile = (
+            select(literal(1))
+            .select_from(PortfolioCareer)
+            .join(PortfolioCareerLocale, PortfolioCareerLocale.career_id == PortfolioCareer.id)
+            .join(PortfolioLocale, PortfolioLocale.code == PortfolioCareerLocale.locale)
+            .where(
+                PortfolioCareer.site_id == PortfolioSite.id,
+                PortfolioCareerLocale.locale == self.locale,
+                PortfolioLocale.is_active.is_(True),
+            )
+            .correlate(PortfolioSite)
+            .exists()
+        )
         columns = {
             "id": AuthUser.id,
             "user": AuthUser.user,
@@ -194,6 +216,7 @@ class ManagementSitesModule(ManagementListModule):
             "owner_is_active": AuthUser.is_active.label("owner_is_active"),
             "site_id": PortfolioSite.id.label("site_id"),
             "has_site": PortfolioSite.id.is_not(None).label("has_site"),
+            "has_profile": has_profile.label("has_profile"),
             **{name: getattr(PortfolioSite, name) for name in SITE_COLUMNS},
             "locale": literal(self.locale).label("locale"),
             "has_translation": PortfolioSiteLocale.id.is_not(None).label("has_translation"),

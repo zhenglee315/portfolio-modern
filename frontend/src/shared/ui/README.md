@@ -59,6 +59,8 @@ flowchart LR
 
 共享 UI 不引用 management、auth 或 i18n feature。`rowActions`、`toolbar` 與 `render` 是組合入口，其他頁面無須複製整張表格。
 
+Platform 的 Profile checkbox 直接呈現 API `has_profile`：指定啟用語言下至少有一筆工作或教育經歷。後端使用關聯 EXISTS，只傳存在與否；網站存在或有基本介紹不代表有履歷。`has_site` 則單獨表示網站存在，Details 標示為 Website exists，預覽與編輯的可用性仍以此欄位判斷。兩個存在旗標皆唯讀；Profile 的搜尋、排序與 filter 使用 has_profile。
+
 | 功能                                 | DataTable 提供             | owner 負責                                 |
 | ------------------------------------ | -------------------------- | ------------------------------------------ |
 | 置中、ellipsis、自然高度、RWD        | ✓                          | 自訂 renderer 的內容                       |

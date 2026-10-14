@@ -268,7 +268,7 @@
     "expandNavigation": "展開導覽",
     "openNavigation": "開啟管理導覽",
     "readonly": "唯讀",
-    "defaultRequires": "需啟用 Active、Profile、Publish",
+    "defaultRequires": "需啟用 Active、Publish，並已建立網站",
     "empty": "沒有符合條件的資料。",
     "loadError": "無法載入資料，請再試一次。",
     "rowsPerPage": "每頁筆數",

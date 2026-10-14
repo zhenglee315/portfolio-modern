@@ -67,6 +67,7 @@ SITE_SORT_FIELDS = (
     "owner_is_active",
     "site_id",
     "has_site",
+    "has_profile",
     *SITE_COLUMNS,
     "has_translation",
     *SITE_LOCALE_COLUMNS,
@@ -112,7 +113,7 @@ for field in ("id", "role_id", "site_id"):
 
 SITE_FILTER_FIELDS = _filter_fields(
     (*SITE_SORT_FIELDS, "profile_name", "locale"),
-    ("owner_is_active", "has_site", "is_published", "is_default", "has_translation"),
+    ("owner_is_active", "has_site", "has_profile", "is_published", "is_default", "has_translation"),
     ("id", "site_id", "copyright_year"),
     ("createtime", "updatetime"),
     ("site_id", *SITE_COLUMNS, *SITE_LOCALE_COLUMNS, "profile_name"),

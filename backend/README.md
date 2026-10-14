@@ -268,6 +268,10 @@ The User `role` field supports the same case-insensitive `in`/`not_in` string ar
 
 Both lists use one account per row, including inactive accounts and accounts without a portfolio. The row id is auth_user.id; site_id identifies the portfolio. Login records are aggregated before joining. Platform joins only the requested language, retaining accounts with missing translations without falling back. Missing portfolios and translations are explicit nulls, with has_site and has_translation flags. A missing portfolio's null publication/default state does not match a false state filter.
 
+Platform 的 Profile 使用 `has_profile`，以關聯 `EXISTS` 判斷該網站在指定啟用語言下是否至少有一筆 `portfolio_career` 工作／教育經歷及對應 `portfolio_career_locale`。只建立網站或填寫基本介紹不會打勾；沒有經歷、缺少該語言的經歷或語言停用時為 false。此判斷不受網站發布／帳號啟用狀態影響，亦不以專案／技能作為工作教育履歷。判斷直接放在列表 SQL 中，只回傳 boolean，不載入經歷資料、不增加逐列查詢；排序、篩選與總筆數共用同一個表達式。`has_site` 保留網站存在的原意，預覽、編輯及 Default 判斷仍使用它。
+
+The Profile column uses `has_profile`, a correlated EXISTS over careers and the requested active-language career translation. Basic site/profile text alone does not count; publication and owner activation do not affect existence. The list returns only a boolean, with no per-owner reads or career content transfer. Sorting, filtering and pagination counts share this expression; `has_site` continues to mean website existence.
+
 ### User 返回欄位 / Account Response Fields
 
 User 列表直接讀取登入信箱，不返回或從 Email 推導 Account／`user`；排序及篩選白名單也不包含 `user`。資料庫的公開作品集 handle 仍由公開網址、身份 API 與 Platform 管理使用，沒有更動資料表或既有資料。
@@ -295,10 +299,11 @@ The User list reads the stored login email directly and neither returns nor deri
 | ----------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`              | `auth_user.id`                                                          | 每人一列的識別 / Person row identity                                                                                                                                 |
 | `user`            | `auth_user.user`                                                        | 公開作品集網址代號 / Public portfolio URL handle                                                                                                                     |
-| `owner_email`     | `auth_user.email`                                                       | 登入信箱，管理表格及詳情中的唯讀 Email；與公開聯絡信箱分開 / Read-only login email                                                                                       |
+| `owner_email`     | `auth_user.email`                                                       | 登入信箱，管理表格及詳情中的唯讀 Email；與公開聯絡信箱分開 / Read-only login email                                                                                   |
 | `owner_is_active` | `auth_user.is_active`                                                   | 擁有者狀態 / Owner state                                                                                                                                             |
 | `site_id`         | `portfolio_site.id`                                                     | 網站識別 / Nullable portfolio identity                                                                                                                               |
 | `has_site`        | `portfolio_site.id IS NOT NULL`                                         | 網站是否存在 / Portfolio presence                                                                                                                                    |
+| `has_profile`     | 關聯 `EXISTS`（site_id／locale／語言啟用） / Correlated EXISTS          | 至少一筆工作或教育履歷 / Localized career presence                                                                                                                   |
 | `is_published`    | `portfolio_site.is_published`                                           | 發布旗標；無網站為 null / Nullable publication flag                                                                                                                  |
 | `is_default`      | `portfolio_site.is_default`                                             | 預設首頁旗標；無網站為 null / Nullable homepage flag                                                                                                                 |
 | `copyright_year`  | `portfolio_site.copyright_year`                                         | 版權年份 / Copyright year                                                                                                                                            |

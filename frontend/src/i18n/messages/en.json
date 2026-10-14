@@ -268,7 +268,7 @@
     "expandNavigation": "Expand navigation",
     "openNavigation": "Open management navigation",
     "readonly": "Read-only",
-    "defaultRequires": "Enable Active, Profile and Publish",
+    "defaultRequires": "Requires Active, a website and Publish",
     "empty": "No matching records.",
     "loadError": "Could not load these records. Please try again.",
     "rowsPerPage": "Rows per page",

@@ -268,7 +268,7 @@
     "expandNavigation": "展开导航",
     "openNavigation": "打开管理导航",
     "readonly": "只读",
-    "defaultRequires": "需启用 Active、Profile、Publish",
+    "defaultRequires": "需启用 Active、Publish，并已建立网站",
     "empty": "没有符合条件的数据。",
     "loadError": "无法加载数据，请重试。",
     "rowsPerPage": "每页条数",

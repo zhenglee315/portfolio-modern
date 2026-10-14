@@ -50,6 +50,7 @@ export const managementSiteSchema = z.object({
   owner_is_active: z.boolean(),
   site_id: recordIdSchema.nullable(),
   has_site: z.boolean(),
+  has_profile: z.boolean(),
   is_published: z.boolean().nullable(),
   is_default: z.boolean().nullable(),
   copyright_year: z.number().int().nullable(),

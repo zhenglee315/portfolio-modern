@@ -19,6 +19,7 @@ const derived = new Set([
   'user_count',
   'role_is_active',
   'has_site',
+  'has_profile',
   'has_translation',
   'locale',
   'profile_name',

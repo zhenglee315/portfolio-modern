@@ -191,6 +191,14 @@ function printTable(html: string, signal: AbortSignal) {
   });
 }
 
+/** Keep both toolbar menus reachable when neither side of the trigger has enough height. */
+const menuPopperConfig = {
+  modifiers: [
+    { name: 'preventOverflow', options: { padding: 8, altAxis: true, tether: false } },
+    { name: 'flip', options: { padding: 8 } },
+  ],
+};
+
 /** Bound navigation to the first, last and neighboring pages, even for very large totals. */
 function pageButtons(page: number, pages: number): (number | 'gap-start' | 'gap-end')[] {
   if (pages <= 7) return Array.from({ length: pages }, (_, index) => index + 1);
@@ -414,7 +422,7 @@ export function DataTable<T>({
                   loading || error || exportBusy || (!rows.length && !exportOptions.loadRows)
                 }
               />
-              <Dropdown.Menu className={styles.exportMenu}>
+              <Dropdown.Menu className={styles.exportMenu} popperConfig={menuPopperConfig}>
                 <Dropdown.Header>{copy.export.scope}</Dropdown.Header>
                 {(['copy', 'excel', 'csv', 'print'] as const).map((kind) => (
                   <Dropdown.Item
@@ -440,15 +448,7 @@ export function DataTable<T>({
             <Dropdown.Menu
               align="end"
               className={styles.columnMenu}
-              popperConfig={{
-                modifiers: [
-                  {
-                    name: 'preventOverflow',
-                    options: { padding: 8, altAxis: true, tether: false },
-                  },
-                  { name: 'flip', options: { padding: 8 } },
-                ],
-              }}
+              popperConfig={menuPopperConfig}
             >
               <label className={`form-check ${styles.columnChoice} ${styles.allColumns}`}>
                 <TableCheckbox

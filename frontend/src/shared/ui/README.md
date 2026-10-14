@@ -743,6 +743,8 @@ const selected = useDataTableSelection(scope);
 
 內建 Export／Columns 在左側，按鈕只顯示 icon 與下拉三角；`copy.export.label`／`copy.columns` 保留為滑鼠提示與無障礙名稱。toolbar 可放 Refresh、Add、Del。用 flex＋margin-left:auto 將 action group 靠右，窄容器允許換行。
 
+Export／Columns 選單共用 Popper 的視窗避讓設定，四周保留 8px；手機橫向等短視窗允許選單沿垂直方向移動，不必緊貼觸發鈕，確保底部的 CSV／Print 仍可操作。
+
 ```tsx
 // owner 的插槽範例；busy、回呼與 selectedRows 由頁面提供。
 <DataTable

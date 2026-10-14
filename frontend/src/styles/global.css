@@ -88,7 +88,7 @@ summary:focus-visible {
   --bs-link-hover-color: var(--accent);
 }
 html {
-  min-width: 320px;
+  min-width: 0;
 }
 body {
   min-height: 100vh;

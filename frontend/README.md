@@ -277,6 +277,10 @@ The `auth` feature presents a translucent two-column frame up to 720px, with the
 
 The account card uses equal 16px top/bottom insets and row gaps. Desktop columns share three subgrid rows with matching 44px outer heights for expression buttons/account switch and playback buttons/footer area. Icon frames share the language/theme button size. Mobile retains 16px outer insets; the compact switch keeps its full 44px tap height.
 
+註冊密碼與確認密碼依實際可用寬度排列；每欄至少 180px，窄螢幕自動改為上下排列，避免文字、顯示密碼按鈕與驗證圖示互相擠壓。作品集預覽的內部畫面可小於 320px，文件根節點不再強制最小寬度，避免手機預覽產生額外水平捲動。
+
+Password and confirmation fields share a row only when each has at least 180px; narrower forms stack them. Embedded portfolio previews can be narrower than the outer 320px screen, so the document root allows their actual available width.
+
 登入／註冊內容以動態島式收合及展開切換：舊內容向內縮小、模糊並淡出，新內容短距離滑入、展開並輕微回彈，整段展開為 480ms。拖曳時收合程度跟隨指標；放開後完成切換或回到原位。過場暫時渲染一份 inert／aria-hidden 的視覺預覽，輸入停用且為空、不複製帳密、不建立第二份 form；預覽使用獨立 ID，完成後移除。只有提交模式切換才清空欄位及取消待辦請求；取消拖曳保留原輸入。快速反向切換沿用當前 transform、透明度及模糊程度，完成才將焦點移到新標題。系統減少動態時立即切換；背景分頁取消過場，卸載及替換清除 rAF／計時器。
 
 Account content uses a Dynamic Island-style collapse and expansion. The old view shrinks, blurs and fades; the new view travels a short distance and expands with a gentle rebound over 480ms. Dragging controls the collapse, then settles or returns on release. A temporary inert, aria-hidden visual preview uses empty disabled inputs and separate IDs, copies no credentials, and creates no second form. Only committed mode changes clear fields and abort requests; cancelled drags retain input. Rapid reversal preserves the rendered transform, opacity and blur, and heading focus moves after settling. Reduced motion switches immediately; hidden pages cancel the effect and replacement/unmount clears frames and timers.
@@ -567,9 +571,9 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.065 MB raw／365 KB gzip、CSS 332 KB raw／66 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.065 MB raw／365 KB gzip、CSS 333 KB raw／66 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
 
-Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.065 MB raw/365 KB gzip for JavaScript, 332 KB raw/66 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.065 MB raw/365 KB gzip for JavaScript, 333 KB raw/66 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
 
 手機載入目標：raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1。初始離屏 Map／Auth／Cow／detail 按需載入，API 不自動讀第 2 頁；地圖已鄰近 viewport 時才載入。
 
@@ -611,7 +615,7 @@ Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:loca
 
 預覽 SSR 不讀取私有資料或轉送 cookie；hydration 先驗證最新 SESSION，後端六支 `/api/management/portfolio/{site,journey,experiences,projects,skill-categories,skills}` 每次再次驗證有效帳號／角色及 is_manage_sites。未發布與停用擁有者可預覽，但公開 API 的可見性保持不變。DTO、ORM 查詢、固定六筆分頁及技能標籤驗證共用既有規格；preview 使用 credentials=include、no-store、独立 query key 和 meta.private。缺少網站／語言不回退。iframe 訊息只有在來源與 iframe window 都符合時才接受，Escape 先交內層 Modal 處理，再關閉預覽及恢復眼睛焦點。
 
-新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 332,000 raw／66,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
+新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 333,000 raw／66,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
 
 元件的完整使用手冊、Filter／checkbox／switch／button 配置與圖示見 [DataTable 套件 README](src/shared/ui/README.md)。
 
@@ -737,6 +741,10 @@ Each feature owns one selection scope spanning its preview and expanded history.
 `ProjectDetail(project,locale,onClose,localeControl?)` 只在開啟有實質內容的 project 時 dynamic import；以列表 payload 呈現 workflow、flow、technical、contribution、outcome，省略 null／空白欄位。skills 重用 `labelTags`／`tagCopy`／`ExpandableTagList`，不新增詳情或技能請求。流程以有序列表搭配裝飾箭頭呈現；對話框最大寬 680px、桌面內距 42px、760px 以下 30px／24px、最大高度 85vh，遮罩使用 token 透明度與 6px blur。Bootstrap 管理啟閉、Escape、backdrop 與還原焦點；共用 `cycleDialogTab` 補上 Tab／Shift+Tab 首末邊界循環，略過 hidden／inert／disabled 並尊重子控制已 preventDefault 的事件。選取只記錄 stable ID，切語言可保留對應專案。
 
 `ProjectDetail(project,locale,onClose,localeControl?)` is imported only when meaningful detail is opened. It reuses the list payload and shared tag disclosure for skills, hides empty fields and issues no detail/skill request. Workflow steps form an ordered list with decorative arrows. The dialog retains a 680px maximum width, 42px desktop padding, 30px/24px padding at widths up to 760px and an 85vh height bound; its backdrop uses the semantic alpha token and 6px blur. Bootstrap manages activation, Escape, dismissal and restoration. Shared `cycleDialogTab` wraps first/last Tab boundaries, excludes hidden/inert/disabled controls and preserves a child control's prevented event. Stable-ID selection survives language changes.
+
+長標題保留完整文字，標題文字區最多占 40dvh 並可獨立捲動；語言與關閉控制位於文字捲動區外。視窗高度不超過 480px 時，彈窗內距改為 16px，為手機橫向與管理員預覽中的巢狀彈窗保留可閱讀的內容區。
+
+Long headings remain complete within a scrollable text area capped at 40dvh. Language and close controls stay outside that scroll area. Viewports no taller than 480px use 16px dialog padding to preserve readable content in landscape and embedded previews.
 
 ## Skills 元件規格 / Skills Component Specifications
 

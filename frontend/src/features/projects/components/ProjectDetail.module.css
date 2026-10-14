@@ -38,6 +38,8 @@
 .dialog :global(.modal-header) > div:first-child {
   flex: 1;
   min-width: 0;
+  max-height: 40dvh;
+  overflow-y: auto;
 }
 .dialog :global(.modal-title) {
   font-size: 30px;
@@ -137,5 +139,10 @@
   }
   .dialog :global(.modal-title) {
     font-size: 26px;
+  }
+}
+@media (max-height: 480px) {
+  .dialog .content:global(.modal-content) {
+    padding: 16px;
   }
 }

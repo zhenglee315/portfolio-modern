@@ -407,12 +407,13 @@ export function DataTable<T>({
               <Dropdown.Toggle
                 variant="outline-secondary"
                 size="sm"
+                aria-label={exportBusy ? copy.export.busy : copy.export.label}
+                title={exportBusy ? copy.export.busy : copy.export.label}
+                aria-busy={exportBusy || undefined}
                 disabled={
                   loading || error || exportBusy || (!rows.length && !exportOptions.loadRows)
                 }
-              >
-                {exportBusy ? copy.export.busy : copy.export.label}
-              </Dropdown.Toggle>
+              />
               <Dropdown.Menu className={styles.exportMenu}>
                 <Dropdown.Header>{copy.export.scope}</Dropdown.Header>
                 {(['copy', 'excel', 'csv', 'print'] as const).map((kind) => (
@@ -430,9 +431,12 @@ export function DataTable<T>({
             </Dropdown>
           )}
           <Dropdown autoClose="outside" className={styles.columnPicker}>
-            <Dropdown.Toggle variant="outline-secondary" size="sm">
-              {copy.columns}
-            </Dropdown.Toggle>
+            <Dropdown.Toggle
+              variant="outline-secondary"
+              size="sm"
+              aria-label={copy.columns}
+              title={copy.columns}
+            />
             <Dropdown.Menu
               align="end"
               className={styles.columnMenu}

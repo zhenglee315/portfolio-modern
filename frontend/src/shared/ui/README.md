@@ -739,7 +739,7 @@ const selected = useDataTableSelection(scope);
 
 ## 11. Toolbar 與 Actions
 
-內建 Export／Columns 在左側；toolbar 可放 Refresh、Add、Del。用 flex＋margin-left:auto 將 action group 靠右，窄容器允許換行。
+內建 Export／Columns 在左側，按鈕只顯示 icon 與下拉三角；`copy.export.label`／`copy.columns` 保留為滑鼠提示與無障礙名稱。toolbar 可放 Refresh、Add、Del。用 flex＋margin-left:auto 將 action group 靠右，窄容器允許換行。
 
 ```tsx
 // owner 的插槽範例；busy、回呼與 selectedRows 由頁面提供。

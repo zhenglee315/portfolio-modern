@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { cycleDialogTab } from '@/shared/lib/focus';
 import { Icon } from '@/shared/ui/Icon';
+import { CloseButton } from '@/shared/ui/CloseButton';
 import { LoadingIndicator } from '@/shared/ui/LoadingIndicator';
 import styles from './PortfolioPreview.module.css';
 
@@ -51,13 +52,7 @@ export default function PortfolioPreview({
           {t('management.previewTitle')}
           <span className={styles.user}>{user}</span>
         </Modal.Title>
-        <button
-          ref={close}
-          type="button"
-          className="btn-close"
-          aria-label={t('management.close')}
-          onClick={onClose}
-        />
+        <CloseButton ref={close} label={t('management.close')} onClose={onClose} />
       </Modal.Header>
       <Modal.Body className={styles.body}>
         {loading && (

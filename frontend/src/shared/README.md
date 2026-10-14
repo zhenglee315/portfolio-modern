@@ -215,11 +215,40 @@ The shared usePageEntrance hook owns paired setup/cleanup and one startup/palett
 
 `SidebarRail`、`SidebarLinks`、`SidebarDrawer`（[來源](ui/SidebarNavigation.tsx)）是首頁與 Settings 共用的導航模組。SidebarRail 接收 compact／onCompact、收合與展開文案、brand、可選 brandLink(to,label)、leading／trailing、children 與 footer；drawerAt 選擇 phone（760px）或 tablet（1024px）的桌面側欄隱藏條件。兩邊共用 32px 雙箭頭控制、180 度旋轉、80px 收合寬度、至少 48px 的項目列高、8px 列間距及 18px 圖示；品牌與文字保持 DOM 並以 max-width、opacity、visibility 收合，不切換成漢堡圖示。
 
-`SidebarNavigationItem` 提供 id、label、icon、可選 href／to／onSelect、current 與 ordinal。SidebarLinks 接收 items、label、active 與 compact，統一 anchor／Router link／button 的排版；compact 狀態的 tooltip 透過 body portal 呈現，沿用 useAnchoredPanel，在 Escape、resize、blur 或側欄捲動時關閉並保留原項目焦點。呼叫端決定權限、排序、網址與翻譯，shared 不取得 SESSION 或 Site 資料。
+`SidebarNavigationItem` 提供 id、label、icon、可選 href／to／onSelect、current 與 ordinal。SidebarLinks 接收 items、label、active 與 compact，統一 anchor／Router link／button 的排版；compact 狀態的 tooltip 透過 body portal 呈現，沿用 useAnchoredPanel 與 useTooltipDismissal，在 Escape、外部點擊、resize、blur、文件隱藏或捲動時關閉並保留原項目焦點。呼叫端決定權限、排序、網址與翻譯，shared 不取得 SESSION 或 Site 資料。
 
 SidebarDrawer 接收 id、open、onClose、label、closeLabel、children、footer 與可選 headerOffset（0 或 64px），共用 250px Offcanvas、關閉圖示、transition 與 cycleDialogTab。首頁保留 64px 固定頂欄避讓；Settings 從畫面頂端開啟，標題只提供無障礙名稱，不顯示 Management 字樣。兩邊的 mobile trigger 都使用共用 icon-button。
 
 Public and settings navigation share one rail, item list and drawer implementation. Owners supply branding, translated labels, destinations and permission-filtered items. Collapse rotates the same double chevrons and animates existing labels; row spacing, icons and compact tooltips are shared. Only the responsive breakpoint and fixed-header offset differ between the two page layouts.
+
+### 控制項與選單標準 / Control and Menu Contracts
+
+| 共用模組 / Shared module                              | 使用與責任 / Usage and responsibility                                                                                                                                                                                                                                                                                        |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`CloseButton`](ui/CloseButton.tsx)                   | `label` 與 `onClose` 必填；可傳 `ref`、`disabled`、`className`。原生 button、翻譯後的 aria-label、44px 點擊範圍與 20px 圖示一致。className 只負責位置；彈窗擁有確認、關閉與焦點還原流程。 / Native dismissal control with required translated label/callback and optional button ref, disabled state and placement class.    |
+| [`useTooltipDismissal`](hooks/useTooltipDismissal.ts) | `useTooltipDismissal(anchor, panelRef, onClose)` 在 anchor 存在時訂閱事件。anchor／portal panel 內部點擊保留提示；外部 pointerdown、Escape、scroll、resize、blur、文件隱藏時關閉。callback 保持穩定；換 anchor、關閉及卸載完整清理。 / Shared dismissal subscriptions without tooltip state, hover timing or focus transfer. |
+| [`menu-position.ts`](lib/menu-position.ts)            | `preferenceMenuPosition` 保留 10px 間隔；`boundedMenuPosition` 讓工具列選單翻轉並保留 8px 邊界；`portaledMenuPosition` 共用邊界規則並使用 fixed 座標。傳給 Dropdown.Menu 的 popperConfig；擴充時建立新物件，不修改共用 preset。 / Typed placement presets; menu state, autoClose and initial focus remain owner-controlled.  |
+
+`CloseButton` 已套用 ProjectDetail、ManagementDetails、PortfolioPreview 與 WarningModal。樣式只在 root 匯入一次 [`CloseButton.css`](ui/CloseButton.css)，避免 lazy chunks 重複輸出；feature CSS 只保留絕對定位等差異。`--control-size=44px` 是基本點擊範圍，`--control-size-compact=32px` 用於既有滑鼠側欄控制，`--control-icon-size=20px` 統一彈窗關閉圖示。顏色取主題 token，focus-visible 沿用全域外框，disabled 使用原生行為。Footer 的 Close／Cancel、清除輸入值與清除篩選仍是各自語義的控制項。
+
+Dialog owners compose CloseButton without sharing their distinct content or save/iframe lifecycles. Root-only CSS prevents duplicated lazy-chunk output. Geometry, theme colors, keyboard focus and native disabled behavior form the shared control contract; footer actions and value/filter clearing retain their own semantics.
+
+`useHoverTooltip` 保留單一 button 的 150ms hover bridge；SidebarLinks 保留多個導航項目共用一個 tooltip、移出立即關閉。兩者呼叫 `useTooltipDismissal`，不重複寫瀏覽器訂閱。Escape 若已被處理則忽略；本次處理後停止傳播，避免同一次按键同時關閉背景 modal。共用 Hook 不改變焦點或保存 owner state。
+
+Single-button hover timing and multi-anchor sidebar disclosure remain separate. Both use the same dismissal policy, including nested scroll and document visibility. Consumed Escape stays with the description; an already handled event is respected. The hook never transfers focus or stores feature state.
+
+```tsx
+import Dropdown from 'react-bootstrap/Dropdown';
+import { CloseButton } from '@/shared/ui/CloseButton';
+import { boundedMenuPosition } from '@/shared/lib/menu-position';
+
+// Dialog owns its lifecycle; the shared control only invokes its close callback.
+<CloseButton label={copy.close} onClose={onClose} ref={closeRef} />;
+// Toolbar owns selection/focus; Popper measures and cleans up the shared placement rules.
+<Dropdown.Menu popperConfig={boundedMenuPosition}>{items}</Dropdown.Menu>;
+```
+
+### 共用元件清單 / Shared Component Inventory
 
 下表逐項涵蓋 `shared/ui` 的共用元件／Hook 匯出；型別、context 與時間常數另見各介面說明。場景道具拆件保持內部實作，呼叫端使用完整 `CowWorkspace` 及公開的角色插槽 `DeniedCowCharacter`。
 

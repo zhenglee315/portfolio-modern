@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -9,6 +10,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import Offcanvas from 'react-bootstrap/Offcanvas';
+import { useTooltipDismissal } from '@/shared/hooks/useTooltipDismissal';
 import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
 import { cycleDialogTab } from '@/shared/lib/focus';
 import { Icon, type IconName } from './Icon';
@@ -113,26 +115,9 @@ export function SidebarLinks({
       return () => cancelAnimationFrame(frame);
     }
   }, [compact]);
-  useEffect(() => {
-    if (!anchor) return;
-    const rail = anchor.closest('aside');
-    const hide = () => setTooltip(null);
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      hide();
-    };
-    document.addEventListener('keydown', escape, true);
-    window.addEventListener('blur', hide);
-    window.addEventListener('resize', hide);
-    rail?.addEventListener('scroll', hide, { passive: true });
-    return () => {
-      document.removeEventListener('keydown', escape, true);
-      window.removeEventListener('blur', hide);
-      window.removeEventListener('resize', hide);
-      rail?.removeEventListener('scroll', hide);
-    };
-  }, [anchor]);
+  // Keep one active description for the list; share dismissal, not single-button hover timing.
+  const hideTooltip = useCallback(() => setTooltip(null), []);
+  useTooltipDismissal(anchor, panel, hideTooltip);
   return (
     <>
       <nav className="sidebar-navigation-links" aria-label={label} data-sidebar-links>

@@ -8,6 +8,9 @@
   --mono: 'IBM Plex Mono', monospace;
   --sans: 'DM Sans', Arial, sans-serif;
   --control-size: 44px;
+  /* Compact mouse controls and dialog glyphs share geometry without changing touch targets. */
+  --control-size-compact: 32px;
+  --control-icon-size: 20px;
   --table-font-size: 13px;
   --radius-card: 6px;
   --radius-menu: 8px;

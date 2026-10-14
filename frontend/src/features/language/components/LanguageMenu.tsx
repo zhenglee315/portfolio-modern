@@ -1,5 +1,6 @@
 import { useCallback, useId, useRef, useState } from 'react';
 import Dropdown from 'react-bootstrap/Dropdown';
+import { preferenceMenuPosition } from '@/shared/lib/menu-position';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { Icon } from '@/shared/ui/Icon';
@@ -67,7 +68,7 @@ export function LanguageMenu({
         className={styles.menu}
         aria-label={t('ui.languageMenu')}
         align="end"
-        popperConfig={{ modifiers: [{ name: 'offset', options: { offset: [0, 10] } }] }}
+        popperConfig={preferenceMenuPosition}
       >
         <LanguageOptions locale={locale} busy={busy} onChange={onChange} selectedRef={selected} />
       </Dropdown.Menu>

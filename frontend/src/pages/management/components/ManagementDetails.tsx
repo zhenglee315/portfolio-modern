@@ -2,6 +2,7 @@ import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import type { DataTableColumn } from '@/shared/ui/DataTable';
 import { Icon, type IconName } from '@/shared/ui/Icon';
+import { CloseButton } from '@/shared/ui/CloseButton';
 import WarningModal from '@/shared/ui/WarningModal';
 import {
   InlineField,
@@ -92,11 +93,12 @@ export function ManagementDetails<T extends object>({
       data-dirty={dirty}
       onKeyDown={(event: KeyboardEvent<HTMLElement>) => cycleDialogTab(event, event.currentTarget)}
     >
-      <Modal.Header closeButton closeLabel={copy.close}>
+      <Modal.Header>
         <Modal.Title id={`${id}-detail-title`}>
           <Icon name={icon} />
           {copy.title}
         </Modal.Title>
+        <CloseButton label={copy.close} onClose={onClose} />
       </Modal.Header>
       <Modal.Body ref={body}>
         <dl className={styles.details}>

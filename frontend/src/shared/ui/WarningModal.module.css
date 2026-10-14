@@ -35,7 +35,6 @@
 .backdrop:global(.modal-backdrop.show) {
   opacity: 1;
 }
-.close,
 .action {
   display: inline-flex;
   align-items: center;
@@ -48,18 +47,6 @@
 .dialog :global(.btn-outline-secondary) {
   --bs-btn-color: var(--text);
   --bs-btn-border-color: var(--control-border);
-}
-.close {
-  flex-shrink: 0;
-  width: var(--control-size);
-  height: var(--control-size);
-  border: 0;
-  border-radius: var(--radius-card);
-  background: transparent;
-  color: var(--muted);
-}
-.close:hover {
-  color: var(--accent);
 }
 .confirm {
   min-height: var(--control-size);

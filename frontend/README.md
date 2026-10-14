@@ -191,6 +191,12 @@ See [`src/shared/README.md`](src/shared/README.md) for shared contracts, consume
 
 `shared/ui/background-field` 擁有首頁與 Access denied 共用背景，幾何計算在 `shared/lib/background-signals`，有限進場控制器在 `shared/lib/auth-transition`。共用視覺元件接收已翻譯的 copy；牛控制列透過 `i18n/cow-copy` 注入 `CowMotionCopy`，不在 shared 寫帳號文案 key。DataTable loading 使用既有 `LoadingIndicator`，不另製一套 spinner。
 
+彈窗共用 `shared/ui/CloseButton`：必填 label／onClose，可傳 native button ref、disabled 與定位 className；ProjectDetail、ManagementDetails、PortfolioPreview、WarningModal 使用相同的 44px 點擊範圍、20px 圖示、主題與鍵盤焦點樣式。CSS 在 root 只匯入一次；內容、Save 確認、iframe 訊息與焦點還原仍由各彈窗管理。`shared/lib/menu-position` 統一偏好選單間隔、表格選單 viewport 邊界及 body portal 的 fixed 座標，選取與初始焦點仍由呼叫端控制。
+
+`shared/hooks/useTooltipDismissal(anchor,panelRef,onClose)` 統一 tooltip 的外部點擊、Escape、scroll、resize、blur 與文件隱藏訂閱，換 anchor／關閉／卸載時清理。SidebarLinks 保留多項目共用描述與立即離開關閉；useHoverTooltip 保留單一 button 的 150ms hover bridge。用途、參數、生命週期與擴充範例見[控制項與選單契約](src/shared/README.md#控制項與選單標準--control-and-menu-contracts)。
+
+Dialog owners share CloseButton geometry, theme and keyboard behavior while retaining content, save confirmation, iframe communication and focus restoration. Root-only CSS avoids duplicate lazy-chunk output. Typed menu-position presets share placement rules. Sidebar and single-button tooltips share dismissal subscriptions and cleanup while retaining their distinct disclosure timing. See the shared guide for interfaces, lifecycle comments and extension examples.
+
 各 feature 的薄 API wrapper 仍保留 endpoint 與 schema 責任，transport／分頁已由共用層處理。相似但擁有不同 scroll／動畫生命週期的 page Hook 保留各自 owner；不為少量形似程式新增通用狀態框架。QueryClient 是遠端資料唯一來源，URL 是表格操作狀態來源，React state 只保留輸入草稿及局部互動。
 
 `npm run check:docs` 以 TypeScript AST 檢查 shared 匯出契約是否列入共用 README，並納入 `npm run check`。三語 leaf key、動態組合文案與實際互動仍須在維護時檢查。

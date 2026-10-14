@@ -10,6 +10,7 @@ import {
   type DataTableFilter,
   type TableFilterOperator,
 } from '../lib/table-filter';
+import { portaledMenuPosition } from '../lib/menu-position';
 import styles from './DataTableColumnMenu.module.css';
 
 export type DataTableFilterCopy = {
@@ -273,13 +274,7 @@ export function DataTableColumnMenu<T>({
             align="end"
             data-bs-theme={theme}
             aria-hidden={!show}
-            popperConfig={{
-              strategy: 'fixed',
-              modifiers: [
-                { name: 'preventOverflow', options: { padding: 8, altAxis: true, tether: false } },
-                { name: 'flip', options: { padding: 8 } },
-              ],
-            }}
+            popperConfig={portaledMenuPosition}
           >
             {column.choices && !dropdownList && (
               <div className={styles.modes}>

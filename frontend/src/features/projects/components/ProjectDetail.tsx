@@ -9,6 +9,7 @@ import { cycleDialogTab } from '@/shared/lib/focus';
 import { labelTags } from '@/shared/lib/tag-layout';
 import { ExpandableTagList } from '@/shared/ui/ExpandableTagList';
 import { Icon } from '@/shared/ui/Icon';
+import { CloseButton } from '@/shared/ui/CloseButton';
 import type { Project } from '../schemas/projects';
 import styles from './ProjectDetail.module.css';
 
@@ -54,14 +55,7 @@ export default function ProjectDetail({
           </Modal.Title>
         </div>
         {localeControl}
-        <button
-          className={styles.close}
-          type="button"
-          aria-label={t('ui.closeProject')}
-          onClick={onClose}
-        >
-          <Icon name="close" />
-        </button>
+        <CloseButton className={styles.close} label={t('ui.closeProject')} onClose={onClose} />
       </Modal.Header>
       <Modal.Body>
         <p className={styles.organization}>{project.organizationName}</p>

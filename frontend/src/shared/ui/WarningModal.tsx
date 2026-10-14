@@ -2,6 +2,7 @@ import { useId, useRef, type KeyboardEvent } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import { cycleDialogTab } from '@/shared/lib/focus';
 import { Icon } from './Icon';
+import { CloseButton } from './CloseButton';
 import styles from './WarningModal.module.css';
 
 /** Present warnings or confirmations; owners supply copy, intent and callbacks. */
@@ -59,9 +60,7 @@ export default function WarningModal({
           )}
           {title}
         </Modal.Title>
-        <button type="button" className={styles.close} onClick={onClose} aria-label={closeLabel}>
-          <Icon name="close" />
-        </button>
+        <CloseButton className={styles.close} onClose={onClose} label={closeLabel} />
       </Modal.Header>
       <Modal.Body>
         <p id={`${id}-message`}>{message}</p>

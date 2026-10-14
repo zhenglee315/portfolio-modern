@@ -22,7 +22,7 @@
   flex-shrink: 0;
 }
 .sidebar-navigation-brand {
-  min-height: 44px;
+  min-height: var(--control-size);
   text-decoration: none;
   display: flex;
   align-items: center;
@@ -112,8 +112,8 @@
   position: absolute;
   top: 5px;
   right: 10px;
-  width: 32px;
-  height: 32px;
+  width: var(--control-size-compact);
+  height: var(--control-size-compact);
   border: 0;
   border-radius: var(--radius-card);
   background: transparent;
@@ -159,7 +159,7 @@
   gap: 0;
 }
 .sidebar-navigation-compact .sidebar-navigation-collapse {
-  right: calc((var(--rail-compact-width) - 32px) / 2);
+  right: calc((var(--rail-compact-width) - var(--control-size-compact)) / 2);
 }
 .sidebar-navigation-compact .sidebar-navigation-collapse > .icon {
   transform: rotate(180deg);
@@ -213,8 +213,8 @@
   position: absolute;
   top: 4px;
   right: 10px;
-  width: 32px;
-  height: 32px;
+  width: var(--control-size-compact);
+  height: var(--control-size-compact);
 }
 .sidebar-navigation-drawer .sidebar-navigation-links {
   margin-top: 16px;
@@ -259,8 +259,8 @@
 }
 @media (max-width: 760px), (any-pointer: coarse) {
   .sidebar-navigation-drawer-close {
-    width: 44px;
-    height: 44px;
+    width: var(--control-size);
+    height: var(--control-size);
     top: 0;
     right: 4px;
   }

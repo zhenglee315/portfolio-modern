@@ -216,12 +216,10 @@
 }
 .detail :global(.modal-header) {
   align-items: flex-start;
+  gap: 12px;
 }
 .details dd :global(.form-check) {
   justify-content: flex-start;
-}
-.detail :global(.btn-close) {
-  flex-shrink: 0;
 }
 .details {
   margin: 0;
@@ -267,12 +265,6 @@
 }
 .details :global(.form-switch .form-check-input:checked) {
   --bs-form-switch-bg: radial-gradient(circle, var(--on-accent) 0 52%, transparent 54%);
-}
-.detail :global(.btn-close) {
-  opacity: 0.75;
-}
-:global(html:not([data-theme='mist'])) .detail :global(.btn-close) {
-  filter: invert(1);
 }
 .detail :global(.btn-outline-secondary) {
   --bs-btn-color: var(--text);
@@ -356,8 +348,7 @@
   .details > div {
     grid-template-columns: minmax(90px, 38%) minmax(0, 1fr);
   }
-  .detail :global(.btn),
-  .detail :global(.btn-close) {
+  .detail :global(.btn) {
     min-width: 44px;
     min-height: 44px;
   }
@@ -369,8 +360,7 @@
   }
 }
 @media (any-pointer: coarse) {
-  .detail :global(.btn),
-  .detail :global(.btn-close) {
+  .detail :global(.btn) {
     min-width: 44px;
     min-height: 44px;
   }

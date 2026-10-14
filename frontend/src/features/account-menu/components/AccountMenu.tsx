@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useId, useRef, useState, type ReactNode } from 'react';
 import Dropdown from 'react-bootstrap/Dropdown';
+import { preferenceMenuPosition } from '@/shared/lib/menu-position';
 import { useTranslation } from 'react-i18next';
 import type { AuthUser } from '@/features/auth/session';
 import { useDisclosureFocus } from '@/shared/hooks/useDisclosureFocus';
@@ -90,7 +91,7 @@ export function AccountMenu({
         data-account-menu
         align="end"
         className={`${styles.menu} ${preference ? styles.preferences : ''}`}
-        popperConfig={{ modifiers: [{ name: 'offset', options: { offset: [0, 10] } }] }}
+        popperConfig={preferenceMenuPosition}
       >
         {preference ? (
           <>

@@ -1,5 +1,6 @@
 import { useCallback, useId, useRef, useState } from 'react';
 import Dropdown from 'react-bootstrap/Dropdown';
+import { preferenceMenuPosition } from '@/shared/lib/menu-position';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/shared/ui/Icon';
 import { useDisclosureFocus } from '@/shared/hooks/useDisclosureFocus';
@@ -49,7 +50,7 @@ export function AppearanceMenu({ onOpen }: { onOpen?: () => void }) {
         align="end"
         className={styles.menu}
         aria-label={t('ui.settingsTitle')}
-        popperConfig={{ modifiers: [{ name: 'offset', options: { offset: [0, 10] } }] }}
+        popperConfig={preferenceMenuPosition}
       >
         <div className={styles.heading}>
           <strong>{t('ui.appearance')}</strong>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type FocusEvent } from 'react';
+import { useTooltipDismissal } from './useTooltipDismissal';
 
 /**
  * Share non-touch hover and visible-focus disclosure while the owning button keeps its action.
@@ -36,40 +37,7 @@ export function useHoverTooltip() {
     [close],
   );
   useEffect(() => () => clearTimeout(closeTimer.current), []);
-  useEffect(() => {
-    if (!open) return;
-    const outside = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node &&
-        !trigger.current?.contains(event.target) &&
-        !panel.current?.contains(event.target)
-      )
-        close();
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    const hidden = () => {
-      if (document.hidden) close();
-    };
-    document.addEventListener('pointerdown', outside);
-    document.addEventListener('keydown', escape, true);
-    document.addEventListener('visibilitychange', hidden);
-    window.addEventListener('blur', close);
-    window.addEventListener('resize', close);
-    window.addEventListener('scroll', close, true);
-    return () => {
-      document.removeEventListener('pointerdown', outside);
-      document.removeEventListener('keydown', escape, true);
-      document.removeEventListener('visibilitychange', hidden);
-      window.removeEventListener('blur', close);
-      window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, true);
-    };
-  }, [open, close]);
+  useTooltipDismissal(anchor, panel, close);
 
   return {
     show,

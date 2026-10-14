@@ -1,0 +1,30 @@
+/* One dialog-close contract across themes and viewport sizes; owners only position the control. */
+.shared-close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--control-size);
+  width: var(--control-size);
+  height: var(--control-size);
+  /* Bootstrap applied this alignment only to .btn-close; custom controls need the same rule. */
+  margin-inline-start: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--muted);
+}
+.shared-close-button > .icon {
+  width: var(--control-icon-size);
+  height: var(--control-icon-size);
+}
+.shared-close-button:enabled:is(:hover, :focus-visible) {
+  color: var(--accent);
+}
+.shared-close-button:focus-visible {
+  outline-offset: 2px;
+}
+.shared-close-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

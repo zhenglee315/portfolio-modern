@@ -5,12 +5,12 @@
   --bs-modal-header-border-color: var(--border);
 }
 .viewport:global(.modal-dialog) {
-  width: calc(100vw - 32px);
-  max-width: 1920px;
-  margin: 16px auto;
+  width: 90vw;
+  max-width: 1440px;
+  margin: var(--bs-modal-margin) auto;
 }
 .content:global(.modal-content) {
-  height: calc(100dvh - 32px);
+  height: min(86dvh, calc(100dvh - 3.5rem));
   overflow: hidden;
 }
 .dialog :global(.modal-title) {

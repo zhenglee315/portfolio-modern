@@ -10,6 +10,7 @@ import Dropdown from 'react-bootstrap/Dropdown';
 import { Icon } from './Icon';
 import { LoadingIndicator } from './LoadingIndicator';
 import { BooleanCell } from './BooleanCell';
+import { DataTableSearch, type DataTableSearchProps } from './DataTableSearch';
 import { DataTableColumnMenu, type DataTableFilterCopy } from './DataTableColumnMenu';
 import type { DataTableChoice, DataTableChoicesSource } from './DataTableChoices';
 import type { DataTableFilter, DataTableFilterSpec } from '../lib/table-filter';
@@ -46,6 +47,8 @@ export type DataTableColumn<T> = {
   render?: (row: T) => ReactNode;
   /** Declared query capabilities, independent of value/render. */
   filter?: DataTableFilterSpec;
+  /** Opt out of the optional toolbar search when a computed column has no server search mapping. */
+  searchable?: boolean;
   /** Dropdown list filter derives colored options from rows seen by this mounted table. Requires sets. */
   filterStyle?: 'dropdown-list';
   /** Optional owner-supplied choices; overrides the dropdown list's loaded-row source. */
@@ -106,6 +109,9 @@ type Props<T> = {
   rowActions?: (row: T) => ReactNode;
   selection?: DataTableSelection<T>;
   toolbar?: ReactNode;
+  /** Extra leading controls follow Export/Columns, before the optional search form. */
+  toolbarStart?: ReactNode;
+  search?: DataTableSearchProps;
   /** Natural row height by default; constrain only tables that need an internal vertical viewport. */
   maxHeight?: CSSProperties['maxHeight'];
   export?: DataTableExport<T>;
@@ -274,6 +280,8 @@ export function DataTable<T>({
   rowActions,
   selection,
   toolbar,
+  toolbarStart,
+  search,
   maxHeight,
   export: exportOptions,
   copy,
@@ -486,7 +494,15 @@ export function DataTable<T>({
               })}
             </Dropdown.Menu>
           </Dropdown>
+          {toolbarStart}
         </div>
+        {search && (
+          <DataTableSearch
+            {...search}
+            columns={columns.filter((column) => column.searchable !== false)}
+            busy={loading}
+          />
+        )}
         {onFiltersChange && filters.length > 0 && (
           <button
             type="button"

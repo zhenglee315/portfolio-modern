@@ -242,14 +242,6 @@
   background: var(--panel);
   padding: 18px;
 }
-.toolbar {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  flex: 1;
-  gap: 12px;
-  min-width: 0;
-}
 .refresh {
   width: var(--table-control-size, 36px);
   min-height: var(--table-control-size, 36px);

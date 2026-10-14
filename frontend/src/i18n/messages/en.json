@@ -296,6 +296,13 @@
     "yes": "Yes",
     "no": "No",
     "refresh": "Refresh",
+    "tableSearch": {
+      "label": "Search records",
+      "submit": "Search",
+      "fields": "Search column",
+      "placeholder": "Search...",
+      "selected": "{{count}} columns"
+    },
     "editRow": "Edit {{name}}",
     "saveConfirmation": "Save changes?",
     "saveTarget": "Confirm the changes to {{name}}.",

@@ -3,17 +3,19 @@ import { useSearchParams } from 'react-router';
 import { readTableQuery, writeTableQuery, type DataTableQueryState } from '../lib/table-query';
 import type { DataTableFilter, DataTableFilterSpec } from '../lib/table-filter';
 import type { DataTableSort } from '../ui/DataTable';
+import type { DataTableSearchState } from '../lib/table-search';
 
 /** Optional URL controller shared by management tables; data fetching remains with the owner. */
 export function useDataTableQuery(
   sortable: readonly string[],
   fields: Record<string, DataTableFilterSpec>,
   initialSize = 6,
+  searchable?: readonly string[],
 ) {
   const [params, setParams] = useSearchParams();
   const state = useMemo(
-    () => readTableQuery(params, sortable, fields, initialSize),
-    [params, sortable, fields, initialSize],
+    () => readTableQuery(params, sortable, fields, initialSize, searchable),
+    [params, sortable, fields, initialSize, searchable],
   );
   const update = useCallback(
     (patch: Partial<DataTableQueryState>) => {
@@ -28,6 +30,10 @@ export function useDataTableQuery(
     onSortChange: useCallback((sort: DataTableSort[]) => update({ page: 1, sort }), [update]),
     onFiltersChange: useCallback(
       (filters: DataTableFilter[]) => update({ page: 1, filters }),
+      [update],
+    ),
+    onSearchChange: useCallback(
+      (search: DataTableSearchState) => update({ page: 1, search }),
       [update],
     ),
   };

@@ -30,7 +30,7 @@
 }
 .toolbarSlot {
   display: flex;
-  flex: 1 1 300px;
+  flex: 1 0 auto;
   justify-content: flex-end;
   min-width: 0;
   max-width: 100%;

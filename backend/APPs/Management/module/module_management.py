@@ -14,6 +14,7 @@ from fastapi import HTTPException
 # ◆—< Pack >—————————————————————————————————◆ SqlAlchemy
 from sqlalchemy import Select, and_, case, func, literal, select
 from COMMON.tools.storage.sqlalchemy.tools_column_filters import apply_column_filters, trim_column_text
+from COMMON.tools.storage.sqlalchemy.tools_table_search import apply_table_search
 from sqlalchemy.exc import SQLAlchemyError
 
 # Generated from ECMAScript Script=Han to share the browser name-order rule.
@@ -28,15 +29,23 @@ class ManagementListModule(SqlAlchemyExecAsync):
                                                                                                ♂ ZhengLee 2026.10.12
     """
 
-    def __init__(self, page: int, size: int, filters: tuple[dict, ...], sort: tuple[tuple[str, str], ...]) -> None:
+    def __init__(
+        self,
+        page: int,
+        size: int,
+        filters: tuple[dict, ...],
+        sort: tuple[tuple[str, str], ...],
+        search: dict | None = None,
+    ) -> None:
         """Own validated page controls; resource projections supply allowed column expressions."""
         super().__init__()
         self.page_number, self.page_size = page, size
         self.filters, self.sort = filters, sort
+        self.search = search
 
     def apply_filters(self, stmt: Select, columns: dict) -> Select:
         """Apply the same predicate engine to stored, joined and aggregate columns."""
-        return apply_column_filters(stmt, columns, self.filters)
+        return apply_table_search(apply_column_filters(stmt, columns, self.filters), columns, self.search)
 
     def apply_sort(self, stmt: Select, columns: dict) -> Select:
         """
@@ -157,10 +166,16 @@ class ManagementSitesModule(ManagementListModule):
     """
 
     def __init__(
-        self, page: int, size: int, filters: tuple[dict, ...], sort: tuple[tuple[str, str], ...], locale: str
+        self,
+        page: int,
+        size: int,
+        filters: tuple[dict, ...],
+        sort: tuple[tuple[str, str], ...],
+        locale: str,
+        search: dict | None = None,
     ) -> None:
         """Restrict joined profile fields and derived names to one requested language."""
-        super().__init__(page, size, filters, sort)
+        super().__init__(page, size, filters, sort, search)
         self.locale = locale
 
     async def select(self) -> dict:

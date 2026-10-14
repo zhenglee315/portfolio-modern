@@ -1,11 +1,13 @@
 import { parseTableFilters, type DataTableFilter, type DataTableFilterSpec } from './table-filter';
 import type { DataTableSort } from '../ui/DataTable';
+import { parseTableSearch, type DataTableSearchState } from './table-search';
 
 export type DataTableQueryState = {
   page: number;
   size: number;
   sort: DataTableSort[];
   filters: DataTableFilter[];
+  search?: DataTableSearchState;
 };
 
 /** Normalize bookmark/history controls against owner-supplied field capabilities. */
@@ -14,6 +16,7 @@ export function readTableQuery(
   sortable: readonly string[],
   fields: Record<string, DataTableFilterSpec>,
   initialSize = 6,
+  searchable: readonly string[] = Object.keys(fields),
 ): DataTableQueryState {
   const integer = (key: string, fallback: number, maximum: number) => {
     const value = Number(params.get(key));
@@ -38,11 +41,28 @@ export function readTableQuery(
   } catch {
     /* Invalid bookmarks normalize; transport validates programmatic state strictly. */
   }
+  let search: DataTableSearchState | undefined;
+  if (params.has('search') || params.has('search_fields')) {
+    try {
+      const raw = params.get('search_fields');
+      if (!raw || raw.length <= 4096)
+        search = parseTableSearch(
+          {
+            term: params.get('search') ?? '',
+            fields: raw ? JSON.parse(raw) : searchable,
+          },
+          searchable,
+        );
+    } catch {
+      /* Invalid search bookmarks normalize without weakening transport validation. */
+    }
+  }
   return {
     page: integer('page', 1, Number.MAX_SAFE_INTEGER),
     size: integer('size', initialSize, 100),
     sort,
     filters,
+    ...(search ? { search } : {}),
   };
 }
 
@@ -58,5 +78,10 @@ export function writeTableQuery(state: DataTableQueryState): URLSearchParams {
       'filters',
       JSON.stringify([...state.filters].sort((a, b) => a.field.localeCompare(b.field))),
     );
+  if (state.search) {
+    const term = state.search.term.trim();
+    if (term) params.set('search', term);
+    params.set('search_fields', JSON.stringify([...state.search.fields].sort()));
+  }
   return params;
 }

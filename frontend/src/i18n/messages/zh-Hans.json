@@ -296,6 +296,13 @@
     "yes": "是",
     "no": "否",
     "refresh": "刷新",
+    "tableSearch": {
+      "label": "搜索数据",
+      "submit": "搜索",
+      "fields": "搜索字段",
+      "placeholder": "搜索...",
+      "selected": "{{count}} 个字段"
+    },
     "editRow": "编辑“{{name}}”",
     "saveConfirmation": "确定保存更改？",
     "saveTarget": "确认“{{name}}”的修改内容。",

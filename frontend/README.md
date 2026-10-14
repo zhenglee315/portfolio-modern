@@ -567,9 +567,9 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.065 MB raw／365 KB gzip、CSS 330 KB raw／66 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.065 MB raw／365 KB gzip、CSS 332 KB raw／66 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
 
-Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.065 MB raw/365 KB gzip for JavaScript, 330 KB raw/66 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.065 MB raw/365 KB gzip for JavaScript, 332 KB raw/66 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
 
 手機載入目標：raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1。初始離屏 Map／Auth／Cow／detail 按需載入，API 不自動讀第 2 頁；地圖已鄰近 viewport 時才載入。
 
@@ -605,11 +605,13 @@ The account cow uses a separate large `scene-sprite.svg`, requested only by the 
 
 ## 管理列表與通用 DataTable / Management Lists and Shared DataTable
 
+三張表共用 Reload 右側的 `DataTableSearch`：最大寬 270px，輸入在左、All／單欄下拉在右、搜尋 icon 最右，比例 3:2:1。選項沿用主表 column title，不包括 Actions。Enter／搜尋按鈕才提交，Typing 保留原列表；查詢由後端在 COUNT／分頁前以 literal contains 搜尋全部資料，所選欄位 OR，再與原 column filters AND，保留排序並回到第一頁。清空後送出恢復未搜尋狀態。search／search_fields 存在 URL，歷史與重新整理可還原；數字、true／false、ISO／點分隔 UTC 日期亦可做部分字串比對。套件 props 與用法見 [DataTable 搜尋規格](src/shared/ui/README.md#3-datatable-props)。
+
 Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:locale/management/preview/:siteId`，使用 DTO 的 site_id；管理頁不跳轉，表格狀態保留。沒有網站時停用入口。PortfolioPage 的 embedded 模式共用原有背景、Overview、Journey、Experience、Projects、Skills、Footer 和子視窗，移除 Navigation、AccountMenu、語言入口與訪客 heartbeat；Explore 只捲動預覽內部。最大寬度 1920px，手機保留 8px 邊距，預覽文件獨立捲動。
 
 預覽 SSR 不讀取私有資料或轉送 cookie；hydration 先驗證最新 SESSION，後端六支 `/api/management/portfolio/{site,journey,experiences,projects,skill-categories,skills}` 每次再次驗證有效帳號／角色及 is_manage_sites。未發布與停用擁有者可預覽，但公開 API 的可見性保持不變。DTO、ORM 查詢、固定六筆分頁及技能標籤驗證共用既有規格；preview 使用 credentials=include、no-store、独立 query key 和 meta.private。缺少網站／語言不回退。iframe 訊息只有在來源與 iframe window 都符合時才接受，Escape 先交內層 Modal 處理，再關閉預覽及恢復眼睛焦點。
 
-新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 330,000 raw／66,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
+新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 332,000 raw／66,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
 
 元件的完整使用手冊、Filter／checkbox／switch／button 配置與圖示見 [DataTable 套件 README](src/shared/ui/README.md)。
 
@@ -642,7 +644,7 @@ Only the three GETs are integrated. Entry reads one page of the selected resourc
 
 Without frontend sort criteria, managementListParams omits sort so all three backend lists use updatetime:desc with ascending ID for equal timestamps. Explicit criteria preserve click priority. Initial entry and clearing all sorts leave arrows unselected; a URL sort= records UI state without sending an empty API parameter.
 
-共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。舊上方全表搜尋、單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；字串預設單行省略，hover 原生 title 查看完整內容；欄位可用 `truncate: false` 保留全文並換行，User 的 Email 已套用。詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable 首次 loading 位於工具列／排序摘要下方、表頭上方。換頁、排序與篩選期間，`useManagementList` 只在相同身份／資源／語言內保留 query 的前頁資料與分頁資訊，表格維持尺寸並由既有 loading 動畫覆蓋；舊列隱藏且停用，新頁 DOM 完成後淡入，reduced motion 直接顯示。錯誤與空資料提示保留在表格下方。
+共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；字串預設單行省略，hover 原生 title 查看完整內容；欄位可用 `truncate: false` 保留全文並換行，User 的 Email 已套用。詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable 首次 loading 位於工具列／排序摘要下方、表頭上方。換頁、排序與篩選期間，`useManagementList` 只在相同身份／資源／語言內保留 query 的前頁資料與分頁資訊，表格維持尺寸並由既有 loading 動畫覆蓋；舊列隱藏且停用，新頁 DOM 完成後淡入，reduced motion 直接顯示。錯誤與空資料提示保留在表格下方。
 
 三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。後續批次更新操作尚未串接。
 

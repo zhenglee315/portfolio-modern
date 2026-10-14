@@ -28,6 +28,10 @@ _COLUMN_QUERY_DESCRIPTION = (
     "Negative operators exclude null. False and zero are values, not empty. "
     "Invalid predicates return 400 INVALID_FILTERS; obsolete/unknown query keys return 400 INVALID_QUERY. "
     "All predicates run before the matching total and requested page are read. "
+    "search adds literal case-insensitive substring matching across search_fields (a JSON array); fields combine with OR. "
+    "Search combines with column filters using AND and runs before counting/paging. Blank text clears it; maximum 200 characters. "
+    "Boolean search values are true/false, numbers use text, and UTC dates accept ISO or the displayed dotted format. "
+    "Invalid scopes/duplicate search parameters return 400 INVALID_SEARCH. "
     "The envelope stays items/total/pages/page/size; out-of-range pages return empty items with the matching total. "
     "Unavailable storage returns 503 MANAGEMENT_DATABASE_UNAVAILABLE."
 )

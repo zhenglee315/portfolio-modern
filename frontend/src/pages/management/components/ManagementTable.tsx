@@ -44,10 +44,13 @@ export function ManagementTable({
   accountId?: number;
 }) {
   const { t } = useTranslation();
-  const { state, onPageChange, onSizeChange, onSortChange, onFiltersChange } = useDataTableQuery(
-    managementSortFields[resource],
-    managementFilterSpecs[resource],
-  );
+  const { state, onPageChange, onSizeChange, onSortChange, onFiltersChange, onSearchChange } =
+    useDataTableQuery(
+      managementSortFields[resource],
+      managementFilterSpecs[resource],
+      undefined,
+      visible[resource],
+    );
   const scope = `${resource}/${accountId}/${locale}?${JSON.stringify(state)}`;
   const [editing, setEditing] = useState<{
     scope: string;
@@ -171,38 +174,38 @@ export function ManagementTable({
     actions: columnLabels[resource].actions ?? t('management.actions'),
   };
   const toolbar = (
-    <div className={styles.toolbar}>
+    <div className={styles.tableActions}>
       <button
-        className={`btn btn-outline-secondary btn-sm ${styles.refresh}`}
+        className={`btn btn-outline-secondary btn-sm ${styles.tableAction}`}
         type="button"
-        aria-label={t('management.refresh')}
-        title={t('management.refresh')}
-        disabled={!enabled || query.isFetching}
-        onClick={() => void query.refetch()}
+        value="add"
       >
-        <Icon name="restart" />
+        Add
       </button>
-      <div className={styles.tableActions}>
-        <button
-          className={`btn btn-outline-secondary btn-sm ${styles.tableAction}`}
-          type="button"
-          value="add"
-        >
-          Add
-        </button>
-        <button
-          className={`btn btn-outline-secondary btn-sm ${styles.tableAction}`}
-          type="button"
-          value="delete"
-          aria-label="Delete"
-          title="Delete"
-          disabled={actionsUnavailable || !selectedRows.length}
-          onClick={() => openDelete(selectedRows)}
-        >
-          Del
-        </button>
-      </div>
+      <button
+        className={`btn btn-outline-secondary btn-sm ${styles.tableAction}`}
+        type="button"
+        value="delete"
+        aria-label="Delete"
+        title="Delete"
+        disabled={actionsUnavailable || !selectedRows.length}
+        onClick={() => openDelete(selectedRows)}
+      >
+        Del
+      </button>
     </div>
+  );
+  const reload = (
+    <button
+      className={`btn btn-outline-secondary btn-sm ${styles.refresh}`}
+      type="button"
+      aria-label={t('management.refresh')}
+      title={t('management.refresh')}
+      disabled={!enabled || query.isFetching}
+      onClick={() => void query.refetch()}
+    >
+      <Icon name="restart" />
+    </button>
   );
   return (
     <section className={styles.tablePanel} aria-label={title}>
@@ -231,6 +234,25 @@ export function ManagementTable({
         onRetry={() => void query.refetch()}
         copy={copy}
         toolbar={toolbar}
+        toolbarStart={reload}
+        search={{
+          value: state.search,
+          onChange: onSearchChange,
+          copy: {
+            label: t('management.tableSearch.label', {
+              defaultValue: t('management.filter.search'),
+            }),
+            submit: t('management.tableSearch.submit', {
+              defaultValue: t('management.filter.search'),
+            }),
+            fields: t('management.tableSearch.fields', { defaultValue: t('management.columns') }),
+            all: t('management.all'),
+            placeholder: t('management.tableSearch.placeholder', {
+              defaultValue: t('management.filter.search'),
+            }),
+            selected: (count) => t('management.tableSearch.selected', { count }),
+          },
+        }}
         export={{ filename: `management-${resource}-${locale}` }}
         rowActions={(row) => (
           <div className={styles.rowActions}>

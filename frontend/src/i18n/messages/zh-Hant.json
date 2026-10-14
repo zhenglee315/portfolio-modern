@@ -296,6 +296,13 @@
     "yes": "是",
     "no": "否",
     "refresh": "重新整理",
+    "tableSearch": {
+      "label": "搜尋資料",
+      "submit": "搜尋",
+      "fields": "搜尋欄位",
+      "placeholder": "搜尋...",
+      "selected": "{{count}} 個欄位"
+    },
     "editRow": "編輯「{{name}}」",
     "saveConfirmation": "確定儲存變更？",
     "saveTarget": "確認「{{name}}」的修改內容。",

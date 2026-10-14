@@ -236,6 +236,8 @@ Each request queries the database; this endpoint has no response-cache decorator
 
 ## 帳號與網站管理列表 / Account and Platform Lists
 
+三支列表 GET 皆支援 `search`（最多 200 字、大小寫不敏感的 literal contains）及 `search_fields`（JSON 欄位 ID 陣列，白名單驗證）。前端 All 傳送 DataTable 標題對應的所有資料欄位，單選只傳一個；API 若省略 search_fields，預設搜尋允許的 projection 欄位，排除固定 locale。多欄搜尋以 OR 組合，再與既有 filters AND；COUNT 與分頁都在搜尋後執行，沒有額外查全部資料的 API。空文字移除搜尋；%／_ 不作萬用字元。布林使用 true／false，數字做文字包含比對，UTC 日期可用 ISO 或 `YYYY.MM.DD HH:mm:ss` 的部分字串。無效欄位、重複欄位／參數、格式錯誤及過長文字回 `400 INVALID_SEARCH`。共同驗證在 `COMMON/schema/parser/parser_table_search.py`，共同 SQL 在 `COMMON/tools/storage/sqlalchemy/tools_table_search.py`。
+
 `GET /management/users` 與 `GET /management/sites` 沿用角色列表的 `{items,total,pages,page,size}`、page=1、size=6（可調 1–100）、型別化逐欄篩選與最多三欄排序。每層集中於一個檔案：`module/module_management.py` 內的各資源類別共用 `ManagementListModule`，`schema/parser/parser_management.py` 內的各資源函式共用欄位篩選、排序、分頁驗證，`schema/resp/resp_management.py` 集中各資源返回類別，HTTP 介面集中於 `views_management.py`。OpenAPI 說明共用條件契約並以 response schema 列出完整欄位。前端呼叫 `/api/management/users`、`/api/management/sites`。
 
 The account and platform GETs share the role list's numbered envelope, pagination limits, typed column predicates and ordered sorting. Each layer uses one management file: resource query classes in module_management.py, query functions in parser_management.py, response classes in resp_management.py, and HTTP routes in views_management.py. Generic predicate validation and SQL application live in COMMON, with resource field capabilities and projection expressions supplied by Management. OpenAPI describes the shared query contract and typed response schemas. The frontend uses the existing /api proxy.
@@ -260,7 +262,7 @@ The User `role` field supports the same case-insensitive `in`/`not_in` string ar
 ]
 ```
 
-上例 JSON 以 URLSearchParams 編碼在 filters 參數。舊 search 與散落的 boolean query 參數已移除，未知／過期 query keys 回 400 INVALID_QUERY；錯誤欄位、運算、型別、重複條件或反向範圍回 400 INVALID_FILTERS。profile_name 使用當前語言的姓名、漢字姓在前及 nickname fallback；無作品集／翻譯／名稱的提示文案不是可搜尋資料值。
+上例 JSON 以 URLSearchParams 編碼在 filters 參數。上方搜尋使用獨立 search／search_fields，與 filters 同時套用；散落的 boolean query 參數已移除，未知／過期 query keys 回 400 INVALID_QUERY。錯誤欄位、運算、型別、重複條件或反向範圍回 400 INVALID_FILTERS。profile_name 使用當前語言的姓名、漢字姓在前及 nickname fallback；無作品集／翻譯／名稱的提示文案不是可搜尋資料值。
 
 兩者都以帳號為根，每人一列，包含停用帳號與沒有網站的帳號。`id` 一律是 `auth_user.id`，`site_id` 才是網站 ID。User 的成功登入紀錄先彙整再 JOIN，避免重複列；Platform 只 JOIN 指定語言，缺翻譯時不丟棄帳號、不混用其他語言。網站缺失回 `has_site=false`、site_id 與網站欄位為 null；翻譯缺失回 `has_translation=false`、語言內容欄位為 null。`is_published=false`／`is_default=false` 僅篩選有網站且旗標為 false 的列，缺網站的 null 不算 false。
 

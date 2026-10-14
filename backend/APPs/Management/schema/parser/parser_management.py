@@ -16,6 +16,7 @@ from APPs.Management.constants import (
 )
 from COMMON.schema.parser import parser_locale
 from COMMON.schema.parser.parser_column_filters import parse_column_filters
+from COMMON.schema.parser.parser_table_search import parse_table_search
 
 
 def _positive_integer(value: str, maximum: int, detail: str) -> int:
@@ -69,6 +70,8 @@ def parser_management_pagination(
 
 def parser_management_roles(
     request: Request,
+    search: str | None = Query(default=None, description="Case-insensitive literal substring search."),
+    search_fields: str | None = Query(default=None, description="JSON array of search field names, combined with OR."),
     filters: str = Query(
         default="[]",
         description="JSON array of {field, operator, value?}; one typed predicate per column, combined with AND.",
@@ -77,33 +80,39 @@ def parser_management_roles(
     pagination: dict[str, int] = Depends(parser_management_pagination),
 ) -> dict:
     """Validate role column predicates and page controls."""
-    if set(request.query_params) - {"filters", "sort", "page", "size"}:
+    if set(request.query_params) - {"filters", "sort", "page", "size", "search", "search_fields"}:
         raise HTTPException(status_code=400, detail="INVALID_QUERY")
     return {
         **pagination,
         "filters": parse_column_filters(filters, ROLE_FILTER_FIELDS),
         "sort": _parse_sort(sort, ROLE_SORT_FIELDS),
+        "search": _parse_search(request, search, search_fields, ROLE_FILTER_FIELDS),
     }
 
 
 def parser_management_users(
     request: Request,
+    search: str | None = Query(default=None, description="Case-insensitive literal substring search."),
+    search_fields: str | None = Query(default=None, description="JSON array of search field names, combined with OR."),
     filters: str = Query(default="[]", description="JSON array of typed column predicates, combined with AND."),
     sort: str = Query(default=MANAGEMENT_DEFAULT_SORT, description="Up to three ordered field:asc/desc criteria."),
     pagination: dict[str, int] = Depends(parser_management_pagination),
 ) -> dict:
     """Validate account column predicates and page controls."""
-    if set(request.query_params) - {"filters", "sort", "page", "size"}:
+    if set(request.query_params) - {"filters", "sort", "page", "size", "search", "search_fields"}:
         raise HTTPException(status_code=400, detail="INVALID_QUERY")
     return {
         **pagination,
         "filters": parse_column_filters(filters, USER_FILTER_FIELDS),
         "sort": _parse_sort(sort, USER_SORT_FIELDS),
+        "search": _parse_search(request, search, search_fields, USER_FILTER_FIELDS),
     }
 
 
 def parser_management_sites(
     request: Request,
+    search: str | None = Query(default=None, description="Case-insensitive literal substring search."),
+    search_fields: str | None = Query(default=None, description="JSON array of search field names, combined with OR."),
     filters: str = Query(
         default="[]", description="JSON array of typed column predicates; profile_name uses only the selected language."
     ),
@@ -112,14 +121,21 @@ def parser_management_sites(
     pagination: dict[str, int] = Depends(parser_management_pagination),
 ) -> dict:
     """Validate selected-language platform predicates and page controls."""
-    if set(request.query_params) - {"locale", "filters", "size", "page", "sort"}:
+    if set(request.query_params) - {"locale", "filters", "size", "page", "sort", "search", "search_fields"}:
         raise HTTPException(status_code=400, detail="INVALID_QUERY")
     return {
         **pagination,
         "locale": locale,
         "filters": parse_column_filters(filters, SITE_FILTER_FIELDS),
         "sort": _parse_sort(sort, SITE_SORT_FIELDS),
+        "search": _parse_search(request, search, search_fields, SITE_FILTER_FIELDS),
     }
+
+
+def _parse_search(request: Request, term: str | None, selected: str | None, fields: dict) -> dict | None:
+    if any(len(request.query_params.getlist(key)) > 1 for key in ("search", "search_fields")):
+        raise HTTPException(status_code=400, detail="INVALID_SEARCH")
+    return parse_table_search(term, selected, fields)
 
 
 __all__ = (

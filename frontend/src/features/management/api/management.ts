@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import { localeSchema, type Locale } from '@/i18n/config';
 import { ApiError, requestJson, retryRead } from '@/shared/api/http';
 import { parseTableFilters, type DataTableFilterSpec } from '@/shared/lib/table-filter';
+import { parseTableSearch } from '@/shared/lib/table-search';
 import type { NumberedPage } from '@/shared/schemas/records';
 import {
   managementRolesSchema,
@@ -139,6 +140,14 @@ export function managementListParams(
   if (resource === 'sites') params.set('locale', locale);
   if (filters.length)
     params.set('filters', JSON.stringify(filters.sort((a, b) => a.field.localeCompare(b.field))));
+  if (state.search) {
+    const search = parseTableSearch(state.search, Object.keys(managementFilterSpecs[resource]));
+    if (!search) throw new ApiError('contract');
+    if (search.term) {
+      params.set('search', search.term);
+      params.set('search_fields', JSON.stringify(search.fields));
+    }
+  }
   return params;
 }
 

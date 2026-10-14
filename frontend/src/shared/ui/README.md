@@ -229,6 +229,33 @@ export function UsersTable({
 
 ## 3. DataTable props
 
+`search` 是可選的共用搜尋控制；`toolbarStart` 是 Export／Columns 後方、搜尋前方的操作插槽。管理頁透過 toolbarStart 放置 Reload，再接最大 270px 的搜尋列。左側輸入、中間 All／單欄下拉、右側搜尋 icon 使用 3:2:1 比例；不足寬度時整列換行，不超出容器。字體沿用 table column title 的尺寸。
+
+```tsx
+import { DataTable } from '@/shared/ui/DataTable';
+import type { DataTableSearchState } from '@/shared/lib/table-search';
+
+// state and onSearchChange come from useDataTableQuery(...).
+// Add to your DataTable props:
+const searchControl = {
+  value: state.search as DataTableSearchState | undefined,
+  onChange: onSearchChange,
+  copy: {
+    label: 'Search records',
+    submit: 'Search',
+    fields: 'Search column',
+    all: 'All',
+    placeholder: 'Search...',
+    selected: (count: number) => `${count} columns`,
+  },
+};
+// <DataTable {...tableProps} toolbarStart={reloadButton} search={searchControl} />
+```
+
+![半寬搜尋列：輸入、All／單欄、搜尋 icon](data-table-docs/search.png)
+
+`DataTableSearch` 可單獨使用，接收 `columns={[{ id, label }]}` 與 `DataTableSearchProps`；文案由 `DataTableSearchCopy` 注入。All 使用所有已配置的資料欄位（searchable=false 可排除計算欄）；單選僅使用該欄。輸入不立即查詢，Enter／搜尋按鈕才送出 `{ term, fields }`，清空後送出清除條件；原本的逐欄 filter 不被覆蓋。`parseTableSearch` 和 `tableSearchMaxLength` 共用欄位驗證及 200 字限制。Management 在資料庫搜尋所有頁面，不使用目前六筆資料做假搜尋；多個搜尋欄位 OR，再與 filters AND，總筆數及分頁使用同一個條件。欄位來源不受 Columns 隱藏影響，隱藏仍可搜尋；列勾選與開啟的詳情會在搜尋作用域變更時清除。URL 保存 search／search_fields，重新整理及歷史導覽會還原已提交條件。
+
 ### 必填
 
 | Prop         | 型別                              | 使用方式                             |

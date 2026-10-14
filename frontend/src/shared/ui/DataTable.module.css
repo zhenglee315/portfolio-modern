@@ -358,6 +358,7 @@
 }
 /* Equal side tracks keep the title center directly over the data, independent of tools. */
 .headerContent {
+  position: relative;
   display: grid;
   grid-template-columns: var(--table-header-tools) max-content var(--table-header-tools);
   justify-content: center;
@@ -365,6 +366,9 @@
   min-height: var(--table-header-height);
 }
 .headerContent > [data-column-title] {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
   grid-column: 2;
   line-height: 20px;
 }
@@ -605,10 +609,37 @@
     --table-filter-width: 44px;
   }
   .toolbarSlot {
-    flex-basis: 100%;
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .toolbarActions {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .toolbar > :global([data-table-search]) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+  .toolbar > :global(button) {
+    grid-column: 1 / -1;
+    justify-self: start;
+    order: 3;
+  }
+  .exportStatus {
+    grid-column: 1 / -1;
+    order: 4;
   }
   .scroll {
-    --table-header-height: 88px;
+    --table-header-height: 44px;
+  }
+  .table > thead > tr > th {
+    padding-block: 6px;
   }
   .table .headerControls :global(.btn) {
     min-height: 44px;
@@ -616,6 +647,34 @@
   .sortButton {
     min-width: var(--table-control-size);
     min-height: var(--table-control-size);
+  }
+  /* The whole heading opens the existing menu without widening two separate sort targets. */
+  .menuHeader .headerContent {
+    --table-header-tools: 16px;
+  }
+  .menuHeader .headerControls {
+    position: absolute;
+    grid-column: 1 / -1;
+    inset: 0;
+    width: auto;
+    padding: 0;
+  }
+  .menuHeader .sortIcon {
+    display: none;
+  }
+  .headerControls > :global(.dropdown) {
+    width: 100%;
+    height: 100%;
+  }
+  .table .headerControls :global(.dropdown-toggle) {
+    width: 100%;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .menuHeader .rank {
+    position: absolute;
+    inset-inline-start: 0;
+    pointer-events: none;
   }
   .footer {
     justify-content: space-between;
@@ -628,10 +687,25 @@
     width: 100%;
   }
   .pagination {
-    gap: 6px;
+    gap: 4px;
+    justify-content: flex-end;
+  }
+  .pagination :global(.page-item:has(button:not([value])):not(.active)),
+  .pagination :global(.page-item:has(span[aria-hidden])) {
+    display: none;
   }
   .pagination :global(.page-link) {
     border-radius: 4px;
+  }
+}
+@container data-table (max-width: 300px) {
+  .toolbarActions {
+    grid-column: 1 / -1;
+  }
+  .toolbarSlot {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    order: 2;
   }
 }
 @media (any-pointer: coarse) {
@@ -639,7 +713,7 @@
     --table-control-size: 44px;
     --table-sort-width: 44px;
     --table-filter-width: 44px;
-    --table-header-height: 88px;
+    --table-header-height: 44px;
   }
   .table .headerControls :global(.btn) {
     min-height: 44px;
@@ -647,5 +721,32 @@
   .sortButton {
     min-width: var(--table-control-size);
     min-height: var(--table-control-size);
+  }
+  .menuHeader .headerContent {
+    --table-header-tools: 16px;
+  }
+  .menuHeader .headerControls {
+    position: absolute;
+    grid-column: 1 / -1;
+    inset: 0;
+    width: auto;
+    padding: 0;
+  }
+  .menuHeader .sortIcon {
+    display: none;
+  }
+  .headerControls > :global(.dropdown) {
+    width: 100%;
+    height: 100%;
+  }
+  .table .headerControls :global(.dropdown-toggle) {
+    width: 100%;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .menuHeader .rank {
+    position: absolute;
+    inset-inline-start: 0;
+    pointer-events: none;
   }
 }

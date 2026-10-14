@@ -583,6 +583,7 @@ export function DataTable<T>({
                     <th
                       key={column.id}
                       scope="col"
+                      className={column.filter && onFiltersChange ? styles.menuHeader : undefined}
                       style={columnStyle(column)}
                       aria-sort={
                         !direction

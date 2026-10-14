@@ -1087,7 +1087,9 @@ Bootstrap 檔名不一定是 IconName。目前 Icon 沒有 trash／download／fl
 - maxHeight 可選，超出才有內部垂直捲動。
 - 最末列不重複畫底線，外框只有一條底邊。
 - 寬表格只在自身 viewport 水平捲動，不撐寬整頁。
-- 根節點是 data-table inline-size container，640px 以下 toolbar／footer／頁碼換行。
+- 根節點是 data-table inline-size container。640px 以下優先排列工具按鈕與 Add／Del，搜尋列置於下一列；300px 以下 Add／Del 另放在搜尋列下方，避免操作組互相擠壓。
+- 窄容器或 coarse pointer 可直接點擊可篩選表頭的標題或 icon，使用既有選單進行篩選與排序；隱藏兩個獨立排序箭頭，標題仍對齊資料中心。短欄位依內容決定寬度，不再為觸控箭頭預留大塊空白。
+- 640px 以下頁碼顯示目前頁、第一頁／上一頁／下一頁／最後一頁，保持一組緊密的控制；桌面保留相鄰頁碼與省略號。
 - 窄容器或 coarse pointer 的主要控制保留至少 44px 點擊區。
 - Filter menu 依內容自適應，常規寬度 184–208px，viewport 左右至少 8px，短畫面可捲動。
 - 外層 flex／grid item 允許 min-width:0，自訂 toolbar 避免固定大 min-width。

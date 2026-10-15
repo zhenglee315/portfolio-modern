@@ -10,9 +10,9 @@ Six Portfolio read APIs, three management lists for sites/accounts/roles, an onl
 
 ## 管理員 Portfolio 預覽
 
-`APPs/Management/views_portfolio_preview.py` 提供 `/management/portfolio/site`、`journey`、`experiences`、`projects`、`skill-categories`、`skills` 六支 GET。每次透過既有 AuthSessionModule 讀取目前有效帳號與角色，再要求 is_manage_sites=true；未登入／停用管理員回 401，沒有管理權限回 403，儲存不可用回 503。必須明確指定 site_id，不以帳號 id 或 default 推測；可讀取未發布及停用用戶的網站，缺少網站／語言回 404。公開 Portfolio 的發布條件維持不變。
+`APPs/Management/views_management.py` 的 `ManagementPortfolioPreview` 提供 `/management/preview/site`、`journey`、`experiences`、`projects`、`skill-categories`、`skills` 六支 GET。CBV class 直接使用共用 ManagementPermission(is_manage_sites=True)，每次透過既有 AuthSessionModule 讀取目前有效帳號與角色；未登入／停用管理員回 401，沒有管理權限回 403，儲存不可用回 503。必須明確指定 site_id，不以帳號 id 或 default 推測；可讀取未發布及停用用戶的網站，缺少網站／語言回 404。View 只呼叫既有 Portfolio module 的 `preview()`／`preview_categories()`／`preview_skills()`；目標存在性、內容讀取與私有錯誤處理由 module 負責。公開 Portfolio 的發布條件維持不變。
 
-所有預覽 DTO 與資料查詢共用 APPs/Portfolio；四個集合仍為 page／size=6，Skills 仍使用 ownerType=category／ownerId。預覽不掛 public cache decorator，成功及已處理錯誤使用 private, no-store／Vary: Cookie。這些端點只讀取，不改資料庫；管理員 SESSION 依既有機制刷新。原有三支管理列表的權限工作仍保留於管理權限待辦。
+所有預覽 DTO 與資料查詢共用 APPs/Portfolio；四個集合仍為 page／size=6，Skills 仍使用 ownerType=category／ownerId。預覽不掛 public cache decorator，成功及已處理錯誤使用 private, no-store／Vary: Cookie。這些端點只讀取，不改資料庫；管理員 SESSION 依既有機制刷新。三支管理列表也已套用共用權限檢查；CUD 與細分操作授權保留於管理權限待辦。
 
 ## 目錄結構 / Directory Layout
 
@@ -191,7 +191,9 @@ See the [frontend README](../frontend/README.md) for the React migration plan. I
 
 ## 角色管理列表 / Role Management List
 
-後端管理 API 權限管理尚待實作；目前狀態、各 API 對應旗標及驗收項目見 [權限待辦](../docs/management-permissions-todo.md)。本次檢查依使用者指示保留現有後端權限行為。
+管理列表與 Portfolio preview 已共用 `ManagementPermission` class dependency。`roles`、`users`、`sites` 分別要求 `is_manage_roles`、`is_manage_users`、`is_manage_sites`；preview 要求 `is_manage_sites`。每次依伺服器 SESSION 的 ID 重查有效帳號及角色，訪客／停用回 401、權限不足回 403、身份儲存失敗保留 503，成功讀取為 `private, no-store`。用法與擴充界線見 [權限模組](APPs/Management/module/README.md)，CUD 與細分權限待辦見 [權限待辦](../docs/management-permissions-todo.md)。
+
+Management lists and portfolio previews share the `ManagementPermission` class dependency. Roles, users and sites require their matching `is_manage_*` flag; preview requires `is_manage_sites`. Each request refreshes the active account and role from the server SESSION ID. Guests/disabled identities receive 401, denied permissions 403, and identity storage failures retain 503; successful reads are private and not cached. See the [permission module](APPs/Management/module/README.md) for usage and extension boundaries and the [remaining permission work](../docs/management-permissions-todo.md) for CUD and finer grants.
 
 `GET /management/roles` 每列是一個角色，沿用 `{items,total,pages,page,size}`，`items` 是有欄位名稱的物件陣列。前端透過既有代理呼叫 `/api/management/roles`。查詢由 `schema/parser/parser_management.py` 驗證，`module/module_management.py` 組合 SQL，`schema/resp/resp_management.py` 定義回應，`views_management.py` 提供 HTTP 介面；啟動時由現有路由探索機制載入。
 

@@ -2,6 +2,9 @@
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 from COMMON.schema.resp import RespRecords
 
+# ◆—< Pack >—————————————————————————————————◆ Project
+from APPs.Management.constants import MANAGEMENT_PRIVATE_HEADERS
+
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.models import (
     AuthUser,
@@ -21,13 +24,16 @@ from SYSTEM.models import (
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
 from sqlalchemy import Select, and_, func, select
+from sqlalchemy.exc import SQLAlchemyError
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import HTTPException
 
 # ◆—< Pack >—————————————————————————————————◆ Python
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Awaitable, Callable, Mapping
+from typing import Any, TypeVar
+
+_PreviewResponse = TypeVar("_PreviewResponse")
 
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ Portfolio - Career Query
@@ -146,6 +152,56 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
         self.locale = locale
         self.site_id = site_id
 
+    async def require_site(self) -> None:
+        """
+        Confirm the selected portfolio exists without imposing publication or owner activation.
+
+        The protected preview calls this after its router authorizes the actor. Public
+        routes retain their existing published/active selector before content queries.
+        This method checks the target's existence, not the actor's permissions.
+
+        :return: None when the selected site and its owner exist.
+        :raises HTTPException: Missing targets return 404; unavailable storage returns 503.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        statement = (
+            select(PortfolioSite.id)
+            .join(AuthUser, AuthUser.id == PortfolioSite.user_id)
+            .where(PortfolioSite.id == self.site_id)
+        )
+        try:
+            exists = (await self.execute_orm(statement)).scalar_one_or_none()
+        except (SQLAlchemyError, RuntimeError, OSError):
+            raise HTTPException(status_code=503, detail="PORTFOLIO_DATABASE_UNAVAILABLE") from None
+        if exists is None:
+            raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    async def _read_preview(self, read: Callable[[], Awaitable[_PreviewResponse]]) -> _PreviewResponse:
+        """
+        Run an authorized preview read while retaining private domain errors.
+
+        ManagementPermission authorizes the HTTP request before the view calls a
+        preview method. This module owns existence checks and content reads; no
+        role checks or response-cache lookup are performed here.
+
+        :param read: Bound content query method; never a client-supplied method name.
+        :return: The original response produced by the selected content query.
+        :raises HTTPException: Preserve domain errors; unavailable storage returns private 503.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        try:
+            await self.require_site()
+            return await read()
+        except HTTPException as error:
+            error.headers = {**(error.headers or {}), **MANAGEMENT_PRIVATE_HEADERS}
+            raise
+        except (SQLAlchemyError, RuntimeError, OSError):
+            raise HTTPException(
+                status_code=503, detail="PORTFOLIO_DATABASE_UNAVAILABLE", headers=MANAGEMENT_PRIVATE_HEADERS
+            ) from None
+
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Portfolio - Shared Page
 class _PortfolioPageModule(_PortfolioScopedModule):
@@ -180,6 +236,17 @@ class PortfolioSiteModule(_PortfolioScopedModule):
 
                                                                                                ♂ ZhengLee 2026.10.11
     """
+
+    async def preview(self) -> dict:
+        """
+        Read localized site content for an authorized management preview.
+
+        :return: Existing site response, including an unpublished site or disabled owner.
+        :raises HTTPException: Missing content returns 404; storage failures return private 503.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return await self._read_preview(self.select)
 
     async def select(self) -> dict:
         """
@@ -250,6 +317,17 @@ class PortfolioJourneyModule(_PortfolioScopedModule):
                                                                                                ♂ ZhengLee 2026.10.11
     """
 
+    async def preview(self) -> list[dict]:
+        """
+        Read the recorded career journey for an authorized management preview.
+
+        :return: Existing ordered journey response for the selected portfolio and language.
+        :raises HTTPException: Missing sites return 404; storage failures return private 503.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return await self._read_preview(self.select)
+
     async def select(self) -> list[dict]:
         """
         Return journey records in their stored playback order.
@@ -283,6 +361,17 @@ class PortfolioExperiencesModule(_PortfolioPageModule):
 
                                                                                                ♂ ZhengLee 2026.10.11
     """
+
+    async def preview(self) -> dict:
+        """
+        Read one experience page for an authorized management preview.
+
+        :return: Existing numbered experience response for the selected portfolio and language.
+        :raises HTTPException: Missing sites return 404; storage failures return private 503.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return await self._read_preview(self.select)
 
     async def select(self) -> dict:
         """
@@ -324,6 +413,17 @@ class PortfolioProjectsModule(_PortfolioPageModule):
 
                                                                                                ♂ ZhengLee 2026.10.11
     """
+
+    async def preview(self) -> dict:
+        """
+        Read one project page for an authorized management preview.
+
+        :return: Existing numbered project response for the selected portfolio and language.
+        :raises HTTPException: Missing sites return 404; storage failures return private 503.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return await self._read_preview(self.select)
 
     async def select(self) -> dict:
         """
@@ -433,6 +533,28 @@ class PortfolioSkillsModule(_PortfolioPageModule):
         super().__init__(locale=locale, page=page, size=size, site_id=site_id)
         self.owner_type = owner_type
         self.owner_id = owner_id
+
+    async def preview_categories(self) -> dict:
+        """
+        Read one category page and nested skills for an authorized management preview.
+
+        :return: Existing numbered category response with its bounded nested skill pages.
+        :raises HTTPException: Missing sites return 404; storage failures return private 503.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return await self._read_preview(self.select_categories)
+
+    async def preview_skills(self) -> dict:
+        """
+        Read one category-owned skill page for an authorized management preview.
+
+        :return: Existing numbered skill response for the selected category and language.
+        :raises HTTPException: Invalid owners, missing content, or unavailable storage retain private errors.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return await self._read_preview(self.select_skills)
 
     def _skill_query(self) -> Select:
         """

@@ -563,9 +563,9 @@ Public SSR resolves content on each request without rebuilding frontend code. Qu
 
 Run `npm run check` for types, lint, formatting, shared documentation and production builds. Local tests, fixtures, test-runner configuration, seeding tools and load reports are kept in the ignored root `agent/` directory.
 
-後端管理 API 權限尚待實作，依既有規劃記錄於 [權限待辦](../docs/management-permissions-todo.md)。
+後端管理列表與 Portfolio preview 已共用 class 權限驗證器，每次依 SESSION 的 ID 讀取目前帳號與角色權限；CUD 與各模組獨立 CRUD 權限仍記錄於 [權限待辦](../docs/management-permissions-todo.md)。
 
-Backend management permissions remain planned separately; see the [permission TODO](../docs/management-permissions-todo.md).
+Management lists and portfolio previews share a class-based permission dependency that refreshes the current account and role from the SESSION ID on every request. CUD and per-module CRUD grants remain in the [permission TODO](../docs/management-permissions-todo.md).
 
 原始碼、CSS、字典、字型／地圖／圖片及授權、建置 scripts、deploy 範例與必要工具設定隨功能提交。本機測試工具、依賴、環境及可重建產物不提交；`.react-router` 由 typecheck／dev／build 產生，正式產物由 build 產生。
 
@@ -619,7 +619,7 @@ The account cow uses a separate large `scene-sprite.svg`, requested only by the 
 
 Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:locale/management/preview/:siteId`，使用 DTO 的 site_id；管理頁不跳轉，表格狀態保留。沒有網站時停用入口。PortfolioPage 的 embedded 模式共用原有背景、Overview、Journey、Experience、Projects、Skills、Footer 和子視窗，移除 Navigation、AccountMenu、語言入口與訪客 heartbeat；Explore 只捲動預覽內部。最大寬度 1920px，手機保留 8px 邊距，預覽文件獨立捲動。
 
-預覽 SSR 不讀取私有資料或轉送 cookie；hydration 先驗證最新 SESSION，後端六支 `/api/management/portfolio/{site,journey,experiences,projects,skill-categories,skills}` 每次再次驗證有效帳號／角色及 is_manage_sites。未發布與停用擁有者可預覽，但公開 API 的可見性保持不變。DTO、ORM 查詢、固定六筆分頁及技能標籤驗證共用既有規格；preview 使用 credentials=include、no-store、独立 query key 和 meta.private。缺少網站／語言不回退。iframe 訊息只有在來源與 iframe window 都符合時才接受，Escape 先交內層 Modal 處理，再關閉預覽及恢復眼睛焦點。
+預覽 SSR 不讀取私有資料或轉送 cookie；hydration 先驗證最新 SESSION，後端六支 `/api/management/preview/{site,journey,experiences,projects,skill-categories,skills}` 每次再次驗證有效帳號／角色及 is_manage_sites。未發布與停用擁有者可預覽，但公開 API 的可見性保持不變。DTO、ORM 查詢、固定六筆分頁及技能標籤驗證共用既有規格；preview 使用 credentials=include、no-store、独立 query key 和 meta.private。缺少網站／語言不回退。iframe 訊息只有在來源與 iframe window 都符合時才接受，Escape 先交內層 Modal 處理，再關閉預覽及恢復眼睛焦點。
 
 新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 333,000 raw／66,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
 
@@ -629,9 +629,9 @@ Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:loca
 
 The gear's management actions open dedicated locale routes, composed by the page with one project-owned DataTable. Its props, types and usage example live in the shared guide. The component uses existing React/Bootstrap dependencies without adding a table package.
 
-`routes/management.clientLoader` 在每次瀏覽器進入及 hydration 先重新確認 SESSION，通過後才載入 `ManagementPage` 與讀取列表；SSR／首次 hydration 只顯示中性 LoadingIndicator，不包含身份、管理外框或表格。`auth/permissions.canManage` 要求明確 `true`，供齒輪選單、sidebar 與表格 gate 共用：Platform／User management 保留既有 `is_manage_sites` 規則，Role management 使用 `is_manage_roles`。Settings 齒輪選單、桌面 sidebar 與手機 drawer 共用 `managementNavigation`，依序為 Platform monitoring、Platform management、Role management、User management；監控仍為介面入口，沒有實際 route。
+`routes/management.clientLoader` 在每次瀏覽器進入及 hydration 先重新確認 SESSION，通過後才載入 `ManagementPage` 與讀取列表；SSR／首次 hydration 只顯示中性 LoadingIndicator，不包含身份、管理外框或表格。`auth/permissions.canManage` 要求明確 `true`，供齒輪選單、sidebar 與表格 gate 共用：Platform、User、Role management 分別使用 `is_manage_sites`、`is_manage_users`、`is_manage_roles`，與後端讀取權限一致。Settings 齒輪選單、桌面 sidebar 與手機 drawer 共用 `managementNavigation`，依序為 Platform monitoring、Platform management、Role management、User management；監控仍為介面入口，沒有實際 route。
 
-The management route's hydrating `clientLoader` freshly checks browser SESSION before loading `ManagementPage` or reading lists. SSR and initial hydration contain only a neutral LoadingIndicator, with no identity, management shell or table. The account menu, sidebar and table gate share strict-true `auth/permissions.canManage`: platform/user management retain `is_manage_sites`, while roles use `is_manage_roles`. Monitoring remains a menu item without a route.
+The management route's hydrating `clientLoader` freshly checks browser SESSION before loading `ManagementPage` or reading lists. SSR and initial hydration contain only a neutral LoadingIndicator, with no identity, management shell or table. The account menu, sidebar and table gate share strict-true `auth/permissions.canManage`: platform, user and role management use `is_manage_sites`, `is_manage_users` and `is_manage_roles` respectively, matching the backend read guards. Monitoring remains a menu item without a route.
 
 已確認無 SESSION、權限為 false 或 SESSION 回 401／403 時，先顯示共用 warning，再以 replace 轉到目前語系的 Access denied。SESSION 的網路、服務或契約錯誤保持管理內容隱藏，提供明確重試，不用舊權限繼續讀取。已開啟的頁面也在身份未知、查詢錯誤、權限撤銷或登出時同步隱藏外框、列資料及詳情；導覽進行中暫停舊表格 query，避免私有 cache 清理後重讀，由 loader 決定目的地，舊頁面不搶先轉址。
 
@@ -711,9 +711,9 @@ The complete 31-field Actions record follows the configured order independently 
 
 If all three management GETs return `404`, check whether the running backend has loaded the routes: `/openapi.json` should list `/management/sites`, `/management/users` and `/management/roles`. The current backend entry builds routes at startup, so restart that development service after adding routes and refresh the table.
 
-管理 query 以操作者、資源、語言及完整查詢條件隔離，meta.private 排除 SSR／語言 staging 的 hydration。登入替換身份、SESSION 管理權限改變與登出時取消並移除 private resource queries，公開 Portfolio cache 保留；管理 DTO 不寫入 localStorage。此處實作前端 SESSION gate；後端 API permission dependencies 維持原樣，依既有規劃後補。
+管理 query 以操作者、資源、語言及完整查詢條件隔離，meta.private 排除 SSR／語言 staging 的 hydration。登入替換身份、SESSION 管理權限改變與登出時取消並移除 private resource queries，公開 Portfolio cache 保留；管理 DTO 不寫入 localStorage。前端 SESSION gate 與後端共用 `ManagementPermission` dependency 各自驗證存取；後端每次重新讀取有效帳號、角色及對應管理旗標。
 
-Management queries are isolated by account, resource, language and query controls, and marked private to exclude them from server/staging hydration. Identity replacement, changed SESSION management permissions and sign-out cancel and remove private resource reads while preserving public caches. DTOs are not stored in localStorage. This is a frontend SESSION gate; backend API permission dependencies remain unchanged and planned separately.
+Management queries are isolated by account, resource, language and query controls, and marked private to exclude them from server/staging hydration. Identity replacement, changed SESSION management permissions and sign-out cancel and remove private resource reads while preserving public caches. DTOs are not stored in localStorage. The frontend SESSION gate and backend `ManagementPermission` dependency independently enforce access; each backend request refreshes the active account, role and required management flag.
 
 管理頁面支援手機、平板及桌面；維護時檢查中英文標籤、短橫向畫面、長帳號與詳情、全部欄位、分頁、觸控排序及抽屜跨斷點切換。
 
@@ -778,9 +778,9 @@ Management content reuses `Breadcrumb` for Settings / the current management pag
 
 ## 帳號選單 / Account Menu
 
-`features/account-menu` 的 `AccountMenu(account,preferences,onOpen?,busy?,onLogin?,onLogout?,onNavigate?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理、平台監控、用戶管理使用 `is_manage_sites`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
+`features/account-menu` 的 `AccountMenu(account,preferences,onOpen?,busy?,onLogin?,onLogout?,onNavigate?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理／監控使用 `is_manage_sites`，用戶管理使用 `is_manage_users`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
 
-The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management, monitoring and user management to `is_manage_sites`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; Gear, the settings sidebar and the mobile drawer share managementNavigation in monitoring → platform → roles → users order; monitoring remains a scaffold without a route.
+The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management/monitoring to `is_manage_sites`, users to `is_manage_users`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; Gear, the settings sidebar and the mobile drawer share managementNavigation in monitoring → platform → roles → users order; monitoring remains a scaffold without a route.
 
 主題、語言列會在同一個齒輪面板展開控制項。頁面透過必要的 `preferences={{ theme: <AppearanceSettings />, language: <LanguageOptions locale={locale} busy={busy} onChange={change} /> }}` 組合 feature 公開元件，不在 account-menu 內跨 feature 引用或重寫設定。外觀重用同一個 Provider、保存、換色動畫、speed／brightness／pause／reset；操作時面板保持開啟。語言重用同一組三語選項及鍵盤循環：首頁沿用 `useLocaleSwitch` 的資料準備流程、owner／query／hash；管理頁沿用受保護的路由載入，保留 resource／query／hash。返回按鈕或第一次 Escape 回到選單並聚焦原主題／語言列，第二次 Escape 關閉並還原齒輪焦點；外點或焦點離開亦可關閉。登入／登出沿用 SESSION 操作。原本的 `AppearanceMenu`／`LanguageMenu` 重用相同控制項，仍用於帳號介面及專案詳情。
 

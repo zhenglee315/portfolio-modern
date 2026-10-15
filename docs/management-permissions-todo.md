@@ -1,25 +1,32 @@
-# 後端管理 API 權限待辦
+# 後端管理 API 權限
 
-記錄日期：2026-10-13。依使用者指示，後端權限管理留待使用者後續實作；本次功能與壓力測試不新增權限攔截。
+更新日期：2026-10-15。依使用者指示，這次完成現有管理讀取 API 的權限檢查；CUD API 與各模組獨立 CRUD 授權尚未實作。
 
-目前前端透過登入狀態與 `canManage` 限制管理頁面。實際檢查確認，匿名請求以下三支後端 GET 仍回傳 200 及資料；這是尚未完成的後端工作，不列為已完成的權限功能。
+`APPs/Management/module/module_permission.py` 的 `ManagementPermission` 以 class 的 `__call__` 提供 FastAPI dependency。API 宣告所需旗標；同一請求共用身份讀取，下一個請求重新以伺服器 SESSION 的使用者 ID 查詢有效帳號、角色及最新權限。前端傳入的旗標、角色名稱及登入時的舊旗標不能授權。
 
-| API                     | 預計對應角色權限  |
-| ----------------------- | ----------------- |
-| `GET /management/sites` | `is_manage_sites` |
+| API | 必須為 True 的角色旗標 |
+| --- | --- |
 | `GET /management/roles` | `is_manage_roles` |
 | `GET /management/users` | `is_manage_users` |
+| `GET /management/sites` | `is_manage_sites` |
+| 六支 `GET /management/preview/*` preview | `is_manage_sites` |
 
-後續實作與驗收項目：
+目前已實作：
 
-- [ ] 共用後端權限檢查，從伺服器 session 的使用者 ID 讀取目前帳號與角色；不信任前端傳入的權限旗標。
-- [ ] 未登入時回傳 401；缺少對應管理權限時回傳 403，不回傳列表資料。
-- [ ] 帳號或角色停用後，既有 session 失去存取權。
-- [ ] 角色權限變更後，既有 session 使用最新權限；另一項管理權限或 CRUD 權限不能代替本資源所需權限。
-- [ ] 身分資料庫或 session 儲存失敗時回傳明確的 503，不能誤判為空列表或允許存取。
-- [ ] 新增三支 API 的匿名、權限不足、允許存取、停用、權限撤回與儲存失敗回歸測試。
-- [ ] 後續 Add、Submit、單筆刪除與批次刪除接上 API 時，也在後端執行對應的寫入權限及資料範圍檢查。
+- 未登入、身份失效、帳號或角色停用時回 401。
+- 缺少對應旗標時回 403；其他管理旗標或內容 CRUD 權限不能代替。
+- 帳號角色指派及角色旗標變更，於下一個請求使用最新資料。
+- 身份讀取的資料庫／SESSION 儲存錯誤保留 503，不能使用舊旗標放行。
+- 成功讀取與身份／權限錯誤回應包含 `Cache-Control: private, no-store`、`Vary: Cookie`。
+- 空規則、未知名稱與不是 boolean True 的條件於 API 宣告時報錯；多個條件採 AND。
+- Users 的前端入口改為檢查 `is_manage_users`，與後端一致。
+- Preview 在 `views_management.py` 的 CBV class 直接宣告共用驗證器，parser 只驗證參數、不處理授權或資料庫查詢；保留 `AUTH_REQUIRED`／`PORTFOLIO_PREVIEW_FORBIDDEN` 及草稿、停用被預覽用戶的讀取契約。
 
-目前 Add／Save／Del 仍提供介面及本地草稿；確認刪除的 modal 尚不執行資料庫刪除。
+後續工作：
 
-2026-10-14：新增六支管理員 Portfolio preview GET，已各自套用有效 SESSION／帳號角色啟用／最新 is_manage_sites 權限檢查與 private, no-store。這次只涵蓋 preview 讀取，原有三支管理列表及後續寫入權限仍按上方待辦處理。
+- [ ] 依討論設計權限目錄與角色權限關聯，支援各管理模組獨立 read/create/update/delete。現有七個旗標尚不能表達這種粒度，勿以內容 `is_read`／`is_update` 代替管理模組操作權限。
+- [ ] Add／Save／單筆與批次 Delete 接上 CUD API 後，套用對應操作權限及資料範圍檢查。
+- [ ] 特殊資料規則在交易內處理：限制可授予權限、保留最後有效管理員、先移轉使用中的角色。
+- [ ] 更新 DTO 排除登入 Email、ID、時間與衍生欄位；記錄操作者與前後差異。
+
+Add／Save／Del 目前仍是介面與本地草稿；這次沒有新增寫入 API、權限資料表或變更既有角色授權。

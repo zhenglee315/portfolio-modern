@@ -3,7 +3,7 @@ import type { AuthUser } from './schemas/auth';
 /** One UI policy follows the established server-issued management flags. */
 export const managementPermissions = {
   sites: 'is_manage_sites',
-  users: 'is_manage_sites',
+  users: 'is_manage_users',
   roles: 'is_manage_roles',
   monitoring: 'is_manage_sites',
 } as const;

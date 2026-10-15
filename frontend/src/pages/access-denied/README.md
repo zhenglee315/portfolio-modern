@@ -9,15 +9,16 @@ Management routes now verify a fresh browser `SESSION` before loading
 loading indicator and include no private identity. A confirmed guest, a false
 resource permission, or a SESSION HTTP 401/403 produces the shared warning and
 replaces the blocked URL with this localized page. The account menu, sidebar
-and table gate share `auth/permissions`: sites/users/monitoring use
-`is_manage_sites`, preserving the existing user-management rule; roles use
+and table gate share `auth/permissions`: sites/monitoring use
+`is_manage_sites`, users use `is_manage_users`, and roles use
 `is_manage_roles`. Monitoring remains a menu entry without a route.
 
 Network, service and response-schema failures withhold management content and
 offer explicit SESSION retry instead of granting cached access. Navigation and
 session cancellation cannot commit stale permission decisions; identity/role
 or management-flag changes cancel and clear private record caches. Backend
-permission dependencies are unchanged and remain planned separately.
+management reads and previews also enforce current account and role permissions
+through the shared `ManagementPermission` dependency.
 
 The illustration uses the existing `CowWorkspace` character slot so the desk,
 open book, rotating globe, coffee cup, steam, plant pot, leaves, stacked books

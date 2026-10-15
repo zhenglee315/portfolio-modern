@@ -12,7 +12,7 @@ export type PortfolioAccess = 'public' | 'preview';
 export function portfolioTransport(access: PortfolioAccess = 'public') {
   return access === 'preview'
     ? {
-        prefix: 'management/portfolio',
+        prefix: 'management/preview',
         credentials: 'include' as const,
         cache: 'no-store' as const,
       }

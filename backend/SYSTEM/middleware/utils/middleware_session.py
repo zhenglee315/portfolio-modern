@@ -8,6 +8,10 @@ from starsessions.session import SessionHandler, get_session_remaining_seconds, 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.datastructures import MutableHeaders
 from starlette.requests import HTTPConnection
+from starlette.responses import JSONResponse
+
+# ◆—< Pack >—————————————————————————————————◆ Redis
+from redis.exceptions import RedisError
 
 # ◆—< Pack >—————————————————————————————————◆ Standard
 import datetime
@@ -80,14 +84,31 @@ class SessionMiddleware:
         scope["session"] = LoadGuard()
         scope["session_handler"] = handler
 
+        response_started = False
+
+        async def send_checked(message: Message) -> None:
+            """
+            Track committed headers so storage errors cannot trigger a second response.
+
+            :param message: Outbound ASGI response message after SESSION processing.
+            :return: None after forwarding the message to the transport.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+            """
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
         async def send_wrapper(message: Message) -> None:
             if message["type"] != "http.response.start":
-                await send(message)
+                await send_checked(message)
                 return
 
-            # session was not loaded, do nothing
-            if not handler.is_loaded:  # pragma: nocover
-                await send(message)
+            # A failed load can mark the handler loaded while leaving SESSION guarded.
+            # Forward its error response without saving, clearing, or inspecting that session.
+            if not handler.is_loaded or type(scope["session"]) is LoadGuard:
+                await send_checked(message)
                 return
 
             nonlocal session_id
@@ -96,7 +117,7 @@ class SessionMiddleware:
             if handler.is_empty:
                 # if session was initially empty then do nothing
                 if handler.initially_empty:
-                    await send(message)
+                    await send_checked(message)
                     return
 
                 if not self.cookie_path or self.cookie_path and scope["path"].startswith(self.cookie_path):
@@ -112,7 +133,7 @@ class SessionMiddleware:
                     header_value = "; ".join(header_parts)
                     headers.append("Set-Cookie", header_value)
                     await handler.destroy()
-                await send(message)
+                await send_checked(message)
                 return
 
             # calculate cookie/storage expiry seconds based on selected strategy
@@ -147,9 +168,21 @@ class SessionMiddleware:
             header_value = "; ".join(header_parts)
             headers.append("set-cookie", header_value)
 
-            await send(message)
+            await send_checked(message)
 
-        await self.app(scope, receive, send_wrapper)
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except RedisError:
+            # Autoload and SESSION persistence run outside route exception handlers.
+            # Fail before sending private content; preserve the incoming session cookie.
+            if scope["type"] != "http" or response_started:
+                raise
+            response = JSONResponse(
+                {"detail": "AUTH_STORAGE_UNAVAILABLE"},
+                status_code=503,
+                headers={"Cache-Control": "private, no-store", "Vary": "Cookie"},
+            )
+            await response(scope, receive, send)
 
 
 class SessionAutoloadMiddleware:

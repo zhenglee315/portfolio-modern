@@ -2,6 +2,9 @@
 
 from SYSTEM.constants import AUTH_PERMISSION_FIELDS
 
+# ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Management - Private Responses
+MANAGEMENT_PRIVATE_HEADERS = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
+
 MANAGEMENT_DEFAULT_SIZE = 6
 MANAGEMENT_DEFAULT_SORT = "updatetime:desc"
 MANAGEMENT_MAX_SIZE = 100

@@ -1,0 +1,7 @@
+IP Geolocation by DB-IP
+https://db-ip.com
+DB-IP Lite City, October 2026
+Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/
+Source: https://download.db-ip.com/free/dbip-city-lite-2026-10.mmdb.gz
+Data is unmodified; deployment filenames are City.mmdb.gz and City.mmdb.

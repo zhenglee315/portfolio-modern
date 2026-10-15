@@ -7,6 +7,8 @@ from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache
 from SYSTEM.models import AuthRole, AuthUser, RecordLogin
 from SYSTEM.settings import SEC_SECRET_KEY
+from SYSTEM.tools.tools_net import net_client_ip
+from SYSTEM.tools.tools_geoip import GeoIpReader
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
 from sqlalchemy import insert, literal, select
@@ -15,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
 # ◆—< Pack >—————————————————————————————————◆ Session
 from starsessions import get_session_handler, is_loaded, load_session, regenerate_session_id
@@ -415,7 +418,12 @@ class AuthSignInModule(AuthModule):
         except SQLAlchemyError:
             raise HTTPException(status_code=503, detail="AUTH_DATABASE_UNAVAILABLE") from None
         await self._start_session(response)
-        stmt = insert(RecordLogin).values(user_id=response["id"])
+        # Capture only the trusted ASGI client after successful authentication. GeoIP
+        # failures retain the IP/status without blocking an otherwise valid sign-in.
+        #                                                                                       ♂ ZhengLee 2026.10.15
+        geoip = getattr(self.request.app.state, "geoip_reader", None) or GeoIpReader()
+        location = await run_in_threadpool(geoip.lookup, net_client_ip(request=self.request))
+        stmt = insert(RecordLogin).values(user_id=response["id"], **location.record_values())
         try:
             await self.execute_orm(stmt)
         except (SQLAlchemyError, RuntimeError, OSError):

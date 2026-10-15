@@ -11,10 +11,19 @@ from .tools.tools_net import net_primary_ip
 # ◆—< Pack >—————————————————————————————————◆ Python
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+import os
 import httpx
 
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Basic
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ GeoIP - Local City Database
+# Runtime MMDB cache; the versioned offline gzip bundle prepares it on first startup.
+#                                                                                               ♂ ZhengLee 2026.10.15
+GEOIP_DATABASE_PATH = os.environ.get(
+    "GEOIP_DATABASE_PATH",
+    SYS_CONF.get("GEOIP", "database_path", fallback=str(BASE_DIR / "SYSTEM" / "geoip" / "City.mmdb")),
+)
 
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Directory
 DIR_APPS = "APPs"

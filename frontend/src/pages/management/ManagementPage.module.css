@@ -125,7 +125,6 @@
 .tableActions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
   margin-inline-start: auto;
   min-width: 0;
@@ -168,8 +167,18 @@
 .tableAction[value='save']::before {
   mask-image: url('bootstrap-icons/icons/floppy.svg?no-inline');
 }
-.refresh:hover,
-.refresh:focus-visible {
+/* Compact tables keep action names accessible while using square touch targets.
+ * @author ZhengLee 2026.10.15
+ */
+@container data-table (max-width: 760px) {
+  .tableActions > button {
+    width: 44px;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
+  }
+}
+.refresh:is(:hover, :focus-visible) {
   color: var(--text);
   border-color: var(--accent);
   background: var(--control-hover);
@@ -180,13 +189,11 @@
 .deleteRow {
   color: var(--field-error);
 }
-.deleteRow:hover,
-.deleteRow:focus-visible {
+.deleteRow:is(:hover, :focus-visible) {
   color: var(--field-error);
   background: color-mix(in srgb, var(--field-error) 12%, transparent);
 }
-.editRow:hover,
-.editRow:focus-visible {
+.editRow:is(:hover, :focus-visible) {
   background: var(--control-hover);
   color: var(--accent);
 }

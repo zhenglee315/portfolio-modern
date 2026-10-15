@@ -17,6 +17,10 @@
 /backend/htmlcov/
 /backend/dist/
 /backend/*.egg-info/
+# Keep generated MMDB caches out of Git; ship the offline source archive and notices.
+*.mmdb
+*.mmdb.*
+!/backend/SYSTEM/geoip/City.mmdb.gz
 # Legacy SQLite filenames have no extension; they are still local database data.
 /backend/porfolio_modern
 /backend/porfolio_modern-journal

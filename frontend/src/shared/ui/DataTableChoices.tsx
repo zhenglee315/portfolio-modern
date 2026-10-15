@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import type { DataTableCopy } from './DataTable';
+import { tableChoiceColor, type TableChoiceColor } from '../lib/table-choice-color';
 import {
   parseTableFilters,
   type DataTableFilter,
@@ -11,7 +12,7 @@ import styles from './DataTableColumnMenu.module.css';
 export type DataTableChoice = {
   value: string;
   label: string;
-  color?: 'pink' | 'cyan' | 'violet' | 'green' | 'orange' | 'red' | 'blue';
+  color?: TableChoiceColor;
 };
 export type DataTableChoicePage = {
   items: DataTableChoice[];
@@ -24,14 +25,6 @@ export type DataTableChoicesSource = { colored?: boolean } & (
   | { options: DataTableChoice[] }
   | { load: (search: string, page: number, signal: AbortSignal) => Promise<DataTableChoicePage> }
 );
-
-const colors = ['pink', 'cyan', 'violet', 'green', 'orange', 'red', 'blue'] as const;
-function colorFor(option: DataTableChoice) {
-  let hash = 0;
-  for (const character of option.value.toLowerCase())
-    hash = (hash * 31 + character.codePointAt(0)!) >>> 0;
-  return option.color ?? colors[hash % colors.length];
-}
 
 /** Search changes the available choices; only selecting values changes the table query. */
 export function DataTableChoices({
@@ -238,7 +231,7 @@ export function DataTableChoices({
             />
             <span
               className={source.colored ? styles.chip : styles.choiceLabel}
-              data-color={source.colored ? colorFor(option) : undefined}
+              data-color={source.colored ? tableChoiceColor(option.value, option.color) : undefined}
               title={option.label}
             >
               {option.label}

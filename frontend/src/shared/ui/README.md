@@ -231,7 +231,9 @@ export function UsersTable({
 
 ## 3. DataTable props
 
-`search` 是可選的共用搜尋控制；`toolbarStart` 是 Export／Columns 後方、搜尋前方的操作插槽。管理頁透過 toolbarStart 放置 Reload，再接最大 270px 的搜尋列。左側輸入、中間 All／單欄下拉、右側搜尋 icon 使用 3:2:1 比例；不足寬度時整列換行，不超出容器。字體沿用 table column title 的尺寸。
+`search` 是可選的共用搜尋控制；`toolbarStart` 是 Export／Columns 後方、搜尋前方的操作插槽。管理頁透過 toolbarStart 放置 Reload，再接最大 360px 的搜尋列。左側輸入使用剩餘空間，中間選欄按鈕縮至 64px，全選時顯示 All，部分選取時亮起 Funnel fill，不顯示數字，右側搜尋 icon 保持控制項尺寸。部分選取時，欄名標籤在搜尋控制右側延伸，每個標籤可按 × 移除；選取所有欄位時隱藏標籤。標籤使用右側剩餘空間，超出時可在單列內水平滑動；窄容器下整列移至搜尋框下方，搜尋控制縮至容器內。字體沿用 table column title 的尺寸。
+
+Export、Columns 與搜尋欄位選單共用 `DataTableMenu.module.css` 的框線、背景、圓角、內距與選項高度，搜尋欄位不使用作業系統的原生 select 彈層。三者使用 `tableToolbarMenuPosition` 從按鈕起始邊對齊、間隔 4px；接近視窗邊界時可翻轉或位移。搜尋選欄與 Columns 都使用 `DataTableFieldPicker`，下拉寬度依最長選項自動決定，上限為 220px 且不超出視窗，較長欄名換行；捲軸保留空間，避免出現時擠壓欄名。搜尋欄位支援方向鍵移動、Space 勾選及 Escape 關閉，選擇只更新暫存條件；All 可全選／取消全選，部分勾選時顯示半選。按搜尋或輸入框 Enter 才送出；移除標籤同樣只改暫存，不立即改變列表。
 
 ```tsx
 import { DataTable } from '@/shared/ui/DataTable';
@@ -249,14 +251,17 @@ const searchControl = {
     all: 'All',
     placeholder: 'Search...',
     selected: (count: number) => `${count} columns`,
+    remove: (label: string) => `Remove ${label} from search`,
   },
 };
 // <DataTable {...tableProps} toolbarStart={reloadButton} search={searchControl} />
 ```
 
-![半寬搜尋列：輸入、All／單欄、搜尋 icon](data-table-docs/search.png)
+![搜尋列：輸入、選欄、搜尋 icon](data-table-docs/search.png)
 
-`DataTableSearch` 可單獨使用，接收 `columns={[{ id, label }]}` 與 `DataTableSearchProps`；文案由 `DataTableSearchCopy` 注入。All 使用所有已配置的資料欄位（searchable=false 可排除計算欄）；單選僅使用該欄。輸入不立即查詢，Enter／搜尋按鈕才送出 `{ term, fields }`，清空後送出清除條件；原本的逐欄 filter 不被覆蓋。`parseTableSearch` 和 `tableSearchMaxLength` 共用欄位驗證及 200 字限制。Management 在資料庫搜尋所有頁面，不使用目前六筆資料做假搜尋；多個搜尋欄位 OR，再與 filters AND，總筆數及分頁使用同一個條件。欄位來源不受 Columns 隱藏影響，隱藏仍可搜尋；列勾選與開啟的詳情會在搜尋作用域變更時清除。URL 保存 search／search_fields，重新整理及歷史導覽會還原已提交條件。
+`DataTableSearch` 可單獨使用，接收 `columns={[{ id, label }]}` 與 `DataTableSearchProps`；文案由 `DataTableSearchCopy` 注入。All 勾選所有已配置的資料欄位（searchable=false 可排除計算欄），也可取消全選或分別勾選多欄；部分勾選時 All 顯示半選狀態。未勾選欄位時停用搜尋按鈕，不送出無效條件。輸入不立即查詢，Enter／搜尋按鈕才送出 `{ term, fields }`，清空後送出清除條件；原本的逐欄 filter 不被覆蓋。`parseTableSearch` 和 `tableSearchMaxLength` 共用欄位驗證及 200 字限制。Management 在資料庫搜尋所有頁面，不使用目前六筆資料做假搜尋；多個搜尋欄位 OR，再與 filters AND，總筆數及分頁使用同一個條件。欄位來源不受 Columns 隱藏影響，隱藏仍可搜尋；列勾選與開啟的詳情會在搜尋作用域變更時清除。URL 保存 search／search_fields，重新整理及歷史導覽會還原已提交條件。
+
+部分選取的搜尋標籤使用與選項清單相同的七色柔和色票，依欄位 ID 固定配色，不因取消其他欄位或切換語言而改色。標籤高度 24px、字級 12px、最寬 180px；長字省略，hover 保留完整名稱。移除 × 位於邊框右上角，水平捲動區預留空間，避免圓點被裁切。全選時仍只顯示 All，不顯示標籤。
 
 ### 必填
 
@@ -1091,7 +1096,7 @@ Bootstrap 檔名不一定是 IconName。目前 Icon 沒有 trash／download／fl
 - maxHeight 可選，超出才有內部垂直捲動。
 - 最末列不重複畫底線，外框只有一條底邊。
 - 寬表格只在自身 viewport 水平捲動，不撐寬整頁。
-- 根節點是 data-table inline-size container。640px 以下優先排列工具按鈕與 Add／Del，搜尋列置於下一列；300px 以下 Add／Del 另放在搜尋列下方，避免操作組互相擠壓。
+- 根節點是 data-table inline-size container。760px 以下第一排保留工具按鈕與右側 Add／Del 圖示按鈕，搜尋列置於下一排且最寬 320px；選取標籤仍可使用剩餘寬度並水平滑動。Add／Del 隱藏文字，保留外框、44px 點擊區、aria-label 與 title。僅在 260px 以下的極窄容器才將操作組另排一列。
 - 窄容器或 coarse pointer 可直接點擊可篩選表頭的標題或 icon，使用既有選單進行篩選與排序；隱藏兩個獨立排序箭頭，標題仍對齊資料中心。短欄位依內容決定寬度，不再為觸控箭頭預留大塊空白。
 - 640px 以下頁碼顯示目前頁、第一頁／上一頁／下一頁／最後一頁，保持一組緊密的控制；桌面保留相鄰頁碼與省略號。
 - 窄容器或 coarse pointer 的主要控制保留至少 44px 點擊區。

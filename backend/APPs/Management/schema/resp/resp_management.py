@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from COMMON.schema.resp import RespRecords
+from SYSTEM.constants import LoginGeoStatus
 
 
 class RespManagementRole(BaseModel):
@@ -121,6 +122,49 @@ class RespManagementSites(RespRecords[RespManagementSite]):
     """Return one person per item in the shared numbered response envelope."""
 
 
+# ■—< RESP >——————————————————————————————————————————————————————————————————————————■ Management - Login Records
+class RespManagementLoginRecord(BaseModel):
+    """
+    Expose one private login event with its original nullable geographic snapshot.
+
+    Geographic names are approximate provider display values, never verified
+    physical whereabouts. Old events preserve nulls and an unknown status.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+    """
+
+    id: int = Field(..., gt=0, description="Successful-login event primary key.")
+    user_id: int = Field(..., gt=0, description="Account that successfully signed in.")
+    email: str = Field(..., max_length=254, description="Read-only account login email.")
+    logintime: datetime = Field(..., description="Original login time serialized in UTC ISO 8601.")
+    ip_address: str | None = Field(..., max_length=45, description="Normalized request IP, or null when unknown.")
+    country_code: str | None = Field(..., min_length=2, max_length=2, description="Approximate IP-derived country code.")
+    region: str | None = Field(..., max_length=128, description="Approximate region captured at login time.")
+    city: str | None = Field(..., max_length=128, description="Approximate city captured at login time.")
+    geo_status: LoginGeoStatus = Field(..., description="GeoIP result; missing geography does not invalidate the login.")
+
+    @field_validator("logintime")
+    @classmethod
+    def utc_timestamp(cls, value: datetime) -> datetime:
+        """
+        Normalize event timestamps across PostgreSQL and SQLite.
+
+        :param value: Stored login event time; SQLite may return a naive UTC value.
+        :return: Timezone-aware UTC timestamp, preserving the historical event time.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+class RespManagementLoginRecords(RespRecords[RespManagementLoginRecord]):
+    """
+    Return private login-history rows in the existing numbered page envelope.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+    """
+
+
 __all__ = (
     "RespManagementRole",
     "RespManagementRoles",
@@ -128,4 +172,6 @@ __all__ = (
     "RespManagementUsers",
     "RespManagementSite",
     "RespManagementSites",
+    "RespManagementLoginRecord",
+    "RespManagementLoginRecords",
 )

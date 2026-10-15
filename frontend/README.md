@@ -577,9 +577,9 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.065 MB raw／365 KB gzip、CSS 333 KB raw／66 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.075 MB raw／370 KB gzip、CSS 333 KB raw／66.5 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
 
-Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.065 MB raw/365 KB gzip for JavaScript, 333 KB raw/66 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.075 MB raw/370 KB gzip for JavaScript, 333 KB raw/66.5 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
 
 手機載入目標：raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1。初始離屏 Map／Auth／Cow／detail 按需載入，API 不自動讀第 2 頁；地圖已鄰近 viewport 時才載入。
 
@@ -615,13 +615,13 @@ The account cow uses a separate large `scene-sprite.svg`, requested only by the 
 
 ## 管理列表與通用 DataTable / Management Lists and Shared DataTable
 
-三張表共用 Reload 右側的 `DataTableSearch`：最大寬 270px，輸入在左、All／單欄下拉在右、搜尋 icon 最右，比例 3:2:1。選項沿用主表 column title，不包括 Actions。Enter／搜尋按鈕才提交，Typing 保留原列表；查詢由後端在 COUNT／分頁前以 literal contains 搜尋全部資料，所選欄位 OR，再與原 column filters AND，保留排序並回到第一頁。清空後送出恢復未搜尋狀態。search／search_fields 存在 URL，歷史與重新整理可還原；數字、true／false、ISO／點分隔 UTC 日期亦可做部分字串比對。套件 props 與用法見 [DataTable 搜尋規格](src/shared/ui/README.md#3-datatable-props)。
+三張表共用 Reload 右側的 `DataTableSearch`：搜尋控制最大寬 360px，輸入在左、64px 的 All／Funnel fill 按鈕在右、搜尋 icon 最右。部分選取的欄位在右側顯示可按 × 移除的標籤，全部選取時隱藏；標籤使用右側剩餘空間，超出時單列水平滑動，手機版整列移至搜尋框下方。搜尋選欄與 Columns 共用 `DataTableFieldPicker` 的 Checkbox／全選／半選行為，欄位選單與 Export 共用主題樣式及按鈕起始邊對齊，選項沿用主表 column title，不包括 Actions。Enter／搜尋按鈕才提交，Typing 保留原列表；查詢由後端在 COUNT／分頁前以 literal contains 搜尋全部資料，所選欄位 OR，再與原 column filters AND，保留排序並回到第一頁。清空後送出恢復未搜尋狀態。search／search_fields 存在 URL，歷史與重新整理可還原；數字、true／false、ISO／點分隔 UTC 日期亦可做部分字串比對。套件 props 與用法見 [DataTable 搜尋規格](src/shared/ui/README.md#3-datatable-props)。
 
 Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:locale/management/preview/:siteId`，使用 DTO 的 site_id；管理頁不跳轉，表格狀態保留。沒有網站時停用入口。PortfolioPage 的 embedded 模式共用原有背景、Overview、Journey、Experience、Projects、Skills、Footer 和子視窗，移除 Navigation、AccountMenu、語言入口與訪客 heartbeat；Explore 只捲動預覽內部。最大寬度 1920px，手機保留 8px 邊距，預覽文件獨立捲動。
 
 預覽 SSR 不讀取私有資料或轉送 cookie；hydration 先驗證最新 SESSION，後端六支 `/api/management/preview/{site,journey,experiences,projects,skill-categories,skills}` 每次再次驗證有效帳號／角色及 is_manage_sites。未發布與停用擁有者可預覽，但公開 API 的可見性保持不變。DTO、ORM 查詢、固定六筆分頁及技能標籤驗證共用既有規格；preview 使用 credentials=include、no-store、独立 query key 和 meta.private。缺少網站／語言不回退。iframe 訊息只有在來源與 iframe window 都符合時才接受，Escape 先交內層 Modal 處理，再關閉預覽及恢復眼睛焦點。
 
-新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,065,000 raw／365,000 gzip、CSS 333,000 raw／66,000 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
+新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,075,000 raw／370,000 gzip、CSS 333,000 raw／66,500 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
 
 元件的完整使用手冊、Filter／checkbox／switch／button 配置與圖示見 [DataTable 套件 README](src/shared/ui/README.md)。
 
@@ -678,7 +678,7 @@ Role 主表固定使用上表的十三個英文標籤，Create、Read、Update�
 
 Role Actions 的十五項順序為：Role、Description、Default、Create、Read、Update、Delete、Manage Site、Manage Roles、Manage Users、Users、ID、Active、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
 
-Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 365,000／CSS 66,000 bytes，由建置驗證實際資產，未新增套件。
+Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 370,000／CSS 66,500 bytes，由建置驗證實際資產，未新增套件。
 
 | 設計要求                     | 核對結果                                                                                                     |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -900,3 +900,11 @@ Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，
 - [Bootstrap](https://getbootstrap.com/docs/5.3/getting-started/introduction/)、[React-Bootstrap](https://react-bootstrap.github.io/docs/getting-started/introduction/)與[Bootstrap Icons](https://icons.getbootstrap.com/)
 - [Zod](https://zod.dev/)與[react-i18next](https://react.i18next.com/getting-started)
 - [import-x 依賴路徑規則](https://github.com/un-ts/eslint-plugin-import-x/blob/master/docs/rules/no-restricted-paths.md)
+
+## 登入紀錄 / Login history
+
+User management 的 Actions 提供登入紀錄入口，延遲載入 `LoginRecords` 視窗，透過既有 `/management/login-records?user_id=...` 讀取該用戶的登入事件。沿用 DataTable 的欄位選擇、搜尋、篩選、排序、分頁與本頁匯出；視窗查詢狀態不覆寫背景管理表的 URL。紀錄依登入時間降序顯示，IP／地區與查詢狀態唯讀；舊資料缺值顯示破折號。私有快取依登入管理員、目標用戶、語言及查詢條件隔離，關閉視窗停止觀察請求。
+
+The User management action lazily loads a read-only login-history dialog. It reuses DataTable controls and the existing private management query engine while keeping dialog controls separate from the background URL. Query identity includes the actor, target account, locale and server query. Geographic results are approximate stored snapshots; browser code never collects or resolves the login IP. The backend supports offline GeoIP data imported through the deployment process.
+
+登入紀錄沿用原本 Modal 樣式並延遲載入；其 API schema、唯讀查詢及三語文案納入目前有界資產預算。IP 地區使用後端部署包內的 DB-IP Lite MMDB，畫面提供 CC BY 4.0 來源連結；呈現畫面不觸發外部定位或下載。

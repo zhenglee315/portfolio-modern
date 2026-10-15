@@ -301,7 +301,8 @@
       "submit": "Search",
       "fields": "Search column",
       "placeholder": "Search...",
-      "selected": "{{count}} columns"
+      "selected": "{{count}} columns",
+      "remove": "Remove {{label}} from search"
     },
     "editRow": "Edit {{name}}",
     "saveConfirmation": "Save changes?",
@@ -439,7 +440,30 @@
     },
     "previewTitle": "Portfolio preview",
     "previewRow": "Preview {{name}}",
-    "previewDenied": "Portfolio preview requires platform management permission."
+    "previewDenied": "Portfolio preview requires platform management permission.",
+    "loginHistory": {
+      "title": "Login history",
+      "open": "View login history for {{name}}",
+      "note": "Location is estimated from the login IP. Older records may have no location.",
+      "fields": {
+        "id": "ID",
+        "user_id": "User",
+        "email": "Email",
+        "logintime": "Time",
+        "ip_address": "IP",
+        "country_code": "Country",
+        "region": "Region",
+        "city": "City",
+        "geo_status": "Status"
+      },
+      "statuses": {
+        "unknown": "Unknown",
+        "resolved": "Located",
+        "not_found": "No match",
+        "non_public": "Private",
+        "unavailable": "Unavailable"
+      }
+    }
   },
   "accessDenied": {
     "eyebrow": "Restricted access",

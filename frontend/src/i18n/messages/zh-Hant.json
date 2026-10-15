@@ -301,7 +301,8 @@
       "submit": "搜尋",
       "fields": "搜尋欄位",
       "placeholder": "搜尋...",
-      "selected": "{{count}} 個欄位"
+      "selected": "{{count}} 個欄位",
+      "remove": "從搜尋欄位移除「{{label}}」"
     },
     "editRow": "編輯「{{name}}」",
     "saveConfirmation": "確定儲存變更？",
@@ -439,7 +440,30 @@
     },
     "previewTitle": "Portfolio 預覽",
     "previewRow": "預覽「{{name}}」",
-    "previewDenied": "需要平台管理權限才能預覽 Portfolio。"
+    "previewDenied": "需要平台管理權限才能預覽 Portfolio。",
+    "loginHistory": {
+      "title": "登入紀錄",
+      "open": "查看 {{name}} 的登入紀錄",
+      "note": "地區根據登入 IP 推估；舊紀錄可能沒有 IP 或地區資料。",
+      "fields": {
+        "id": "ID",
+        "user_id": "用戶",
+        "email": "Email",
+        "logintime": "時間",
+        "ip_address": "IP",
+        "country_code": "國家",
+        "region": "行政區",
+        "city": "城市",
+        "geo_status": "狀態"
+      },
+      "statuses": {
+        "unknown": "未知",
+        "resolved": "已定位",
+        "not_found": "查無資料",
+        "non_public": "內部位址",
+        "unavailable": "暫不可用"
+      }
+    }
   },
   "accessDenied": {
     "eyebrow": "存取受限",

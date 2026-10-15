@@ -301,7 +301,8 @@
       "submit": "搜索",
       "fields": "搜索字段",
       "placeholder": "搜索...",
-      "selected": "{{count}} 个字段"
+      "selected": "{{count}} 个字段",
+      "remove": "从搜索字段移除“{{label}}”"
     },
     "editRow": "编辑“{{name}}”",
     "saveConfirmation": "确定保存更改？",
@@ -439,7 +440,30 @@
     },
     "previewTitle": "Portfolio 预览",
     "previewRow": "预览“{{name}}”",
-    "previewDenied": "需要平台管理权限才能预览 Portfolio。"
+    "previewDenied": "需要平台管理权限才能预览 Portfolio。",
+    "loginHistory": {
+      "title": "登录记录",
+      "open": "查看 {{name}} 的登录记录",
+      "note": "地区根据登录 IP 推估；旧记录可能没有 IP 或地区资料。",
+      "fields": {
+        "id": "ID",
+        "user_id": "用户",
+        "email": "Email",
+        "logintime": "时间",
+        "ip_address": "IP",
+        "country_code": "国家",
+        "region": "行政区",
+        "city": "城市",
+        "geo_status": "状态"
+      },
+      "statuses": {
+        "unknown": "未知",
+        "resolved": "已定位",
+        "not_found": "查无资料",
+        "non_public": "内部地址",
+        "unavailable": "暂不可用"
+      }
+    }
   },
   "accessDenied": {
     "eyebrow": "访问受限",

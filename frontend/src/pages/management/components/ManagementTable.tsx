@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { fullName } from '@/features/site';
@@ -24,10 +24,14 @@ import {
   rowValue,
 } from '../model/management-view';
 import { useDataTableQuery, useDataTableSelection } from '@/shared/hooks/useDataTableQuery';
-import { dataTableCopy } from '@/i18n/table-copy';
+import { dataTableCopy, dataTableSearchCopy } from '@/i18n/table-copy';
 import { BooleanCell } from '@/shared/ui/BooleanCell';
 import WarningModal from '@/shared/ui/WarningModal';
 import styles from '../ManagementPage.module.css';
+
+// Load the audit dialog only when requested; it never prefetches another account's history.
+//                                                                                 ZhengLee 2026.10.15
+const LoginRecords = lazy(() => import('./LoginRecords'));
 
 /** Own query controls and detail selection; server data stays only in the feature query cache. */
 export function ManagementTable({
@@ -61,6 +65,8 @@ export function ManagementTable({
     null,
   );
   if (preview && preview.scope !== scope) setPreview(null);
+  const [history, setHistory] = useState<{ scope: string; id: number; email: string } | null>(null);
+  if (history && history.scope !== scope) setHistory(null);
   const selection = useDataTableSelection(scope);
   const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
   if (deletion && deletion.scope !== scope) setDeletion(null);
@@ -72,6 +78,7 @@ export function ManagementTable({
     if (!actionsUnavailable && rows.length) {
       setEditing(null);
       setPreview(null);
+      setHistory(null);
       setDeletion({ scope, rows });
     }
   };
@@ -79,6 +86,7 @@ export function ManagementTable({
     if (!actionsUnavailable) {
       setDeletion(null);
       setPreview(null);
+      setHistory(null);
       setEditing({ scope, row });
     }
   };
@@ -179,6 +187,8 @@ export function ManagementTable({
         className={`btn btn-outline-secondary btn-sm ${styles.tableAction}`}
         type="button"
         value="add"
+        aria-label="Add"
+        title="Add"
       >
         Add
       </button>
@@ -238,24 +248,27 @@ export function ManagementTable({
         search={{
           value: state.search,
           onChange: onSearchChange,
-          copy: {
-            label: t('management.tableSearch.label', {
-              defaultValue: t('management.filter.search'),
-            }),
-            submit: t('management.tableSearch.submit', {
-              defaultValue: t('management.filter.search'),
-            }),
-            fields: t('management.tableSearch.fields', { defaultValue: t('management.columns') }),
-            all: t('management.all'),
-            placeholder: t('management.tableSearch.placeholder', {
-              defaultValue: t('management.filter.search'),
-            }),
-            selected: (count) => t('management.tableSearch.selected', { count }),
-          },
+          copy: dataTableSearchCopy(t),
         }}
         export={{ filename: `management-${resource}-${locale}` }}
         rowActions={(row) => (
           <div className={styles.rowActions}>
+            {resource === 'users' && 'login_count' in row && (
+              <button
+                className={`btn btn-link btn-sm ${styles.editRow}`}
+                type="button"
+                aria-label={t('management.loginHistory.open', { name: row.email })}
+                title={t('management.loginHistory.open', { name: row.email })}
+                disabled={actionsUnavailable}
+                onClick={() => {
+                  setEditing(null);
+                  setDeletion(null);
+                  setHistory({ scope, id: row.id, email: row.email });
+                }}
+              >
+                <Icon name="activity" />
+              </button>
+            )}
             {resource === 'sites' && (
               <button
                 className={`btn btn-link btn-sm ${styles.editRow}`}
@@ -309,6 +322,19 @@ export function ManagementTable({
           </div>
         )}
       />
+      {history?.scope === scope && (
+        <Suspense fallback={null}>
+          <LoginRecords
+            key={`${accountId}/${locale}/${history.id}`}
+            userId={history.id}
+            email={history.email}
+            locale={locale}
+            accountId={accountId}
+            enabled={enabled}
+            onClose={() => setHistory(null)}
+          />
+        </Suspense>
+      )}
       {preview?.scope === scope && (
         <PortfolioPreview
           locale={locale}

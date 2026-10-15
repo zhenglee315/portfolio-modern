@@ -11,11 +11,13 @@ import { Icon } from './Icon';
 import { LoadingIndicator } from './LoadingIndicator';
 import { BooleanCell } from './BooleanCell';
 import { DataTableSearch, type DataTableSearchProps } from './DataTableSearch';
+import { DataTableFieldPicker } from './DataTableFieldPicker';
 import { DataTableColumnMenu, type DataTableFilterCopy } from './DataTableColumnMenu';
 import type { DataTableChoice, DataTableChoicesSource } from './DataTableChoices';
 import type { DataTableFilter, DataTableFilterSpec } from '../lib/table-filter';
 import { tableCsv, tablePrintHtml, tableTsv, tableXlsx } from '../lib/table-export';
-import { boundedMenuPosition } from '../lib/menu-position';
+import { tableToolbarMenuPosition } from '../lib/menu-position';
+import menuStyles from './DataTableMenu.module.css';
 import styles from './DataTable.module.css';
 
 export type DataTableSort = { field: string; direction: 'asc' | 'desc' };
@@ -310,7 +312,6 @@ export function DataTable<T>({
   const visibleColumns = columns.filter(
     (column) => column.hideable === false || (visibility[column.id] ?? !column.initiallyHidden),
   );
-  const allColumnsVisible = columns.length > 0 && visibleColumns.length === columns.length;
   const selectedKeys = rows.map(rowKey).filter((key) => selection?.keys.includes(key));
   const allRowsSelected = rows.length > 0 && selectedKeys.length === rows.length;
   const first = rows.length ? (page.page - 1) * page.size + 1 : 0;
@@ -416,7 +417,11 @@ export function DataTable<T>({
                   loading || error || exportBusy || (!rows.length && !exportOptions.loadRows)
                 }
               />
-              <Dropdown.Menu className={styles.exportMenu} popperConfig={boundedMenuPosition}>
+              <Dropdown.Menu
+                align="start"
+                className={`${menuStyles.menu} ${styles.exportMenu}`}
+                popperConfig={tableToolbarMenuPosition}
+              >
                 <Dropdown.Header>{copy.export.scope}</Dropdown.Header>
                 {(['copy', 'excel', 'csv', 'print'] as const).map((kind) => (
                   <Dropdown.Item
@@ -432,66 +437,39 @@ export function DataTable<T>({
               </Dropdown.Menu>
             </Dropdown>
           )}
-          <Dropdown autoClose="outside" className={styles.columnPicker}>
-            <Dropdown.Toggle
-              variant="outline-secondary"
-              size="sm"
-              aria-label={copy.columns}
-              title={copy.columns}
-            />
-            <Dropdown.Menu
-              align="end"
-              className={styles.columnMenu}
-              popperConfig={boundedMenuPosition}
-            >
-              <label className={`form-check ${styles.columnChoice} ${styles.allColumns}`}>
-                <TableCheckbox
-                  checked={allColumnsVisible}
-                  mixed={visibleColumns.length > 0 && !allColumnsVisible}
-                  disabled={
-                    columns.length <= 1 || columns.every((column) => column.hideable === false)
-                  }
-                  onChange={(event) => {
-                    const checked = event.target.checked;
-                    const retained =
-                      columns.find((column) => column.hideable === false)?.id ??
-                      visibleColumns[0]?.id ??
-                      columns[0]?.id;
-                    setVisibility(
-                      Object.fromEntries(
-                        columns.map((column) => [
-                          column.id,
-                          checked || column.hideable === false || column.id === retained,
-                        ]),
-                      ),
-                    );
-                  }}
-                />
-                <span className="form-check-label">{copy.allColumns}</span>
-              </label>
-              {columns.map((column) => {
-                const checked =
-                  column.hideable === false || (visibility[column.id] ?? !column.initiallyHidden);
-                return (
-                  <label key={column.id} className={`form-check ${styles.columnChoice}`}>
-                    <TableCheckbox
-                      checked={checked}
-                      disabled={
-                        column.hideable === false || (checked && visibleColumns.length === 1)
-                      }
-                      onChange={(event) =>
-                        setVisibility((previous) => ({
-                          ...previous,
-                          [column.id]: event.target.checked,
-                        }))
-                      }
-                    />
-                    <span className="form-check-label">{column.label}</span>
-                  </label>
-                );
-              })}
-            </Dropdown.Menu>
-          </Dropdown>
+          <DataTableFieldPicker
+            className={styles.columnPicker}
+            label={copy.columns}
+            allLabel={copy.allColumns}
+            allDisabled={columns.length <= 1}
+            options={columns.map((column) => {
+              const checked =
+                column.hideable === false || (visibility[column.id] ?? !column.initiallyHidden);
+              return {
+                id: column.id,
+                label: column.label,
+                checked,
+                disabled: column.hideable === false || (checked && visibleColumns.length === 1),
+              };
+            })}
+            onAllChange={(checked) => {
+              const retained =
+                columns.find((column) => column.hideable === false)?.id ??
+                visibleColumns[0]?.id ??
+                columns[0]?.id;
+              setVisibility(
+                Object.fromEntries(
+                  columns.map((column) => [
+                    column.id,
+                    checked || column.hideable === false || column.id === retained,
+                  ]),
+                ),
+              );
+            }}
+            onChange={(id, checked) =>
+              setVisibility((previous) => ({ ...previous, [id]: checked }))
+            }
+          />
           {toolbarStart}
         </div>
         {search && (

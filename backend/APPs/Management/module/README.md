@@ -49,3 +49,8 @@ Rules accept recognized flags set to the literal boolean True. Multiple conditio
 擁有者檢查、可修改欄位、最後管理員與刪除使用中角色等資料規則，保留在各業務模組的交易內處理；依賴驗證器不接管資料修改。
 
 The current model gates existing reads with management flags. Per-resource CRUD, `action`, and `policy` are future work; unsupported parameters fail validation instead of silently doing nothing. Public portfolio GETs stay public. Ownership, writable fields and transactional invariants belong to the resource's business module.
+## Login history / 登入紀錄
+
+`ManagementLoginRecordsModule` extends `ManagementListModule` and uses the shared filters/search/sort/page engine. Its optional account selector is applied before counting or paging. Rows retain stored location snapshots, including legacy nulls and disabled target accounts; the module never opens a GeoIP reader. `ManagementPermission(is_manage_users=True)` protects `/management/login-records` through the existing management router. Views declare the HTTP contract and delegate the read.
+
+登入紀錄沿用共用查詢引擎及既有管理用戶權限；地區資料在成功登入時由 Auth module 寫入。讀取 module 不解析代理標頭、不執行定位，也不更改歷史事件。預設依 `logintime DESC, id DESC`；其他三個管理列表維持 Updated 降序。

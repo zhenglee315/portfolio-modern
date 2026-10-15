@@ -60,12 +60,13 @@ export async function verifyPublic(directory) {
   }
   await inspect(directory);
   const ceilings = {
-    js: 1_065_000,
+    // Include the requested lazy login-history table, typed API contract and three-language copy.
+    js: 1_075_000,
     // Keep bounded headroom for settings controls and hash-dependent gzip variation between checkouts.
-    jsGzip: 365_000,
+    jsGzip: 370_000,
     css: 333_000,
     // Shared settings controls and their responsive disclosures reuse the existing animations.
-    cssGzip: 66_000,
+    cssGzip: 66_500,
     fonts: 250_000,
     mascot: 1_250_000,
     map: 250_000,

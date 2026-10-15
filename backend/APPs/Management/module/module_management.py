@@ -1,5 +1,5 @@
 # ◆—< Pack >—————————————————————————————————◆ Project
-from APPs.Management.constants import ROLE_COLUMNS, SITE_COLUMNS, SITE_LOCALE_COLUMNS
+from APPs.Management.constants import ROLE_COLUMNS, SITE_COLUMNS, SITE_LOCALE_COLUMNS, LOGIN_SORT_FIELDS
 
 # ◆—< Pack >—————————————————————————————————◆ Common
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
@@ -246,4 +246,50 @@ class ManagementSitesModule(ManagementListModule):
         return await self.page(self.apply_sort(self.apply_filters(stmt, columns), columns))
 
 
-__all__ = ("ManagementListModule", "ManagementRolesModule", "ManagementUsersModule", "ManagementSitesModule")
+# ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Management - Login Records
+class ManagementLoginRecordsModule(ManagementListModule):
+    """
+    Read immutable successful-login events through the shared private DataTable query engine.
+
+    Account state does not hide historical events. Geographic values come only
+    from the stored snapshot; reading a history page never performs GeoIP lookups.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+    """
+
+    def __init__(self, *, user_id: int | None = None, **controls) -> None:
+        """
+        Retain an optional target account and the validated shared page controls.
+
+        :param user_id: Target account ID, or None to read all authorized login records.
+        :param controls: Shared pagination, filter, sort and search constructor values.
+        :return: None; select() owns the read workflow.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        super().__init__(**controls)
+        self.user_id = user_id
+
+    async def select(self) -> dict:
+        """
+        Filter, count and page one row per event, including old records without IP data.
+
+        :return: Shared records envelope containing only audit identity/time/location fields.
+        :raises HTTPException: Unavailable storage returns the shared sanitized 503 response.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        columns = {
+            name: AuthUser.email if name == "email" else getattr(RecordLogin, name)
+            for name in LOGIN_SORT_FIELDS
+        }
+        stmt = select(*columns.values()).join(AuthUser, AuthUser.id == RecordLogin.user_id)
+        if self.user_id is not None:
+            stmt = stmt.where(RecordLogin.user_id == self.user_id)
+        return await self.page(self.apply_sort(self.apply_filters(stmt, columns), columns))
+
+
+__all__ = (
+    "ManagementListModule", "ManagementRolesModule", "ManagementUsersModule", "ManagementSitesModule",
+    "ManagementLoginRecordsModule",
+)

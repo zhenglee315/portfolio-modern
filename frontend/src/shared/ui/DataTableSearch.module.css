@@ -1,18 +1,32 @@
 .root {
-  display: grid;
-  grid-template-columns: minmax(108px, 3fr) minmax(72px, 2fr) minmax(36px, 1fr);
-  flex: 0 1 270px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 0 1 360px;
   min-width: 0;
-  max-width: 270px;
+  max-width: 360px;
+}
+.root[data-search-selection] {
+  flex-grow: 1;
+  max-width: 100%;
+}
+.controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px var(--table-control-size, 40px);
+  flex: 0 1 360px;
+  width: 100%;
+  min-width: 0;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-control, 4px);
-  overflow: hidden;
 }
-.root:focus-within {
+.controls:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
-.root :is(button, select, input) {
+.input,
+.root .fieldToggle,
+.root .submit {
   min-width: 0;
   width: 100%;
   border: 0;
@@ -20,18 +34,52 @@
   background-color: var(--panel);
   color: var(--text);
   font-size: var(--table-font-size, 13px);
+  min-height: var(--table-control-size, 36px);
 }
-.root :is(select, input):focus {
+.input:focus,
+.root .fieldToggle:focus {
   box-shadow: none;
 }
 .root .fields,
 .root .submit {
   border-left: 1px solid var(--control-border);
 }
+.fields {
+  min-width: 0;
+}
+.root .fieldToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 100%;
+  padding-inline: 10px;
+  text-align: start;
+}
+.fieldToggle::after {
+  flex-shrink: 0;
+  margin: 0;
+}
+.fieldToggle > :global(.icon) {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+.root[data-search-selection] .fieldToggle > :global(.icon) {
+  color: var(--accent);
+}
+.input {
+  border-start-start-radius: var(--radius-control, 4px);
+  border-end-start-radius: var(--radius-control, 4px);
+}
 .submit {
   display: grid;
   place-items: center;
   padding: 0;
+}
+.root .submit {
+  border-start-end-radius: var(--radius-control, 4px);
+  border-end-end-radius: var(--radius-control, 4px);
 }
 .submit::before {
   content: '';
@@ -42,4 +90,87 @@
 }
 .input::placeholder {
   color: var(--muted);
+}
+/* Use the available right-hand space; overflow stays in one swipeable row. */
+.tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex: 1 1 120px;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  /* Leave room for corner crosses and focus rings inside the horizontal scroller.
+   * @author ZhengLee 2026.10.15
+   */
+  padding: 8px 8px 6px 4px;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  scroll-padding-inline: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--control-border) transparent;
+}
+.tags > li {
+  flex: 0 0 auto;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.tags .tag {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 180px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 18px;
+  overflow: visible;
+  white-space: nowrap;
+}
+.tag > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tag .tagClose {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--panel);
+  border-radius: 50%;
+  background: inherit;
+  font-size: 12px;
+  line-height: 1;
+}
+.tags .tag:hover {
+  border-color: currentColor;
+}
+.tag:focus-visible,
+.tags:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Keep the compact search modest; selected tags can still use the remaining row.
+ * @author ZhengLee 2026.10.15
+ */
+@container data-table (max-width: 760px) {
+  .root,
+  .controls {
+    max-width: 320px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tags {
+    scroll-behavior: auto;
+  }
 }

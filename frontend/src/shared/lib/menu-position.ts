@@ -19,6 +19,15 @@ export const boundedMenuPosition: MenuPopperConfig = {
   ],
 };
 
+/** Toolbar menus align to the trigger's start edge with the same 4px gap and viewport fallback. */
+export const tableToolbarMenuPosition: MenuPopperConfig = {
+  ...boundedMenuPosition,
+  modifiers: [
+    ...(boundedMenuPosition.modifiers ?? []),
+    { name: 'offset', options: { offset: [0, 4] } },
+  ],
+};
+
 /** Body-portaled column menus use viewport coordinates rather than the scrolling table's offset. */
 export const portaledMenuPosition: MenuPopperConfig = {
   ...boundedMenuPosition,

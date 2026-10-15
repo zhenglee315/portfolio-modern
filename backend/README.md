@@ -95,6 +95,59 @@ HTTP request
 
 `POST /authority/sign-in` verifies the account, role and password, initializes SESSION, then inserts one `RecordLogin` (`record_login`) through `execute_orm()`. It stores the account's `user_id`; the database supplies the serial `id` and timezone-aware `logintime`. Each successful sign-in creates a separate row; failed sign-ins and session lookups create none. A record write failure returns `503 AUTH_DATABASE_UNAVAILABLE` and clears the newly prepared identity. Migration `159af2dc7898` creates only this table, its FK, check constraint and two history indexes.
 
+### 登入來源與離線地區查詢 / Login IP and offline geolocation
+
+Migration `71bc8f24d903` 在 `record_login` 新增 `ip_address`（45）、`country_code`（2）、`region`／`city`（128）與 `geo_status`（24）。前四個欄位可空；舊紀錄保留原 ID、帳號、時間及索引，狀態為 `unknown`。地區是登入當時的 IP 推估快照；查閱紀錄時不重新定位。這張歷史事件表沒有 Updated，預設依 `logintime DESC, id DESC` 排序。
+
+Migration `71bc8f24d903` adds nullable IP/country/region/city snapshots and a bounded status to the existing login table. Historical rows retain their original identity, owner, time and indexes. History reads use stored values and default to descending event time, then descending ID.
+
+`SYSTEM.tools.tools_geoip.GeoIpReader` 使用官方 `geoip2` 讀取部署提供的 City MMDB。Lifespan 每個 process 開啟一個 reader，關閉時釋放；登入以 thread pool 執行本機查詢。程式啟動、登入、歷史查詢及匯入工具都不下載資料、不呼叫外部地區 API。IP 取自既有 `net_client_ip(request=...)`，不接受登入 body 的 IP／地區欄位。
+
+The process-local reader performs local-file lookups only. Startup, sign-in, history reads and the import command never download GeoIP data or call a remote geolocation API. IP extraction uses the validated ASGI client after trusted-proxy handling, never user-submitted login fields.
+
+| `geo_status`  | 意義 / Meaning                                                                        |
+| ------------- | ------------------------------------------------------------------------------------- |
+| `unknown`     | 舊紀錄或來源位址不明 / Legacy event or unknown source address                         |
+| `resolved`    | 至少取得一項地區資訊；其他欄位仍可空 / At least one geographic attribute is available |
+| `not_found`   | 本機資料庫沒有對應地區 / No geographic match in the local database                    |
+| `non_public`  | 內網、loopback 或其他不可公開定位的位址 / Private, loopback or non-public address     |
+| `unavailable` | 缺少、無法讀取或查詢失敗的 City MMDB / City data missing, unreadable or unavailable   |
+
+地區缺少或查詢失敗不阻擋登入，仍保存可取得的 IP。登入紀錄本身的資料庫寫入失敗，維持既有 503 與清除新登入身份行為。VPN／行動網路可能影響定位，地區資訊不可視為實際住址。
+
+Missing geographic data does not block a valid sign-in; the event still retains the available IP and status. Failure to persist the login event itself preserves the established 503/session-cleanup behavior. IP-derived locations are approximate and can identify a VPN exit instead of the user.
+
+### 封閉網段部署 / Isolated-network deployment
+
+1. 在可連外且與目標相容的作業系統／CPU／Python 3.13 環境，依 `pyproject.toml`／`uv.lock` 準備離線套件或完整部署映像；`geoip2` 套件不包含地區資料。部署映像須事先含 Python、套件、前後端建置輸出及靜態資產。
+2. 目前採用 DB-IP Lite City 的本機 MMDB（CC BY 4.0），不需下載金鑰。壓縮原檔 `SYSTEM/geoip/City.mmdb.gz`、來源 NOTICE 與版本／雜湊 manifest **一起納入 Git**；新環境 clone 不需另取地區資料。原本的後端部署產物也須保留這些檔案。登入紀錄畫面保留 DB-IP 來源連結，不新增服務、排程或啟動下載。
+3. 備份資料庫並執行 `uv run --offline --locked alembic upgrade head`（需事先備妥本機依賴）。FastAPI 啟動不自動執行 migration。
+4. 設定 `GEOIP_DATABASE_PATH` 環境變數，或私有 `SYSTEM/config.yaml` 的 `GEOIP.database_path`；環境變數優先。預設檔案是 `backend/SYSTEM/geoip/City.mmdb`。
+5. 預設路徑在第一次啟動時，自動驗證壓縮檔並於本機解壓為 `City.mmdb`；原始大小與 SHA-256、City 類型全部正確才原子替換。解壓後的大檔與暫存檔不進 Git。初次啟動需能寫入 `SYSTEM/geoip/`；之後若檔案與 manifest 一致則不重寫。唯讀部署可在既有打包階段先執行下方離線匯入工具，再給 API 使用者讀取權限。
+6. 更新 Git 中的壓縮檔時一併更新 NOTICE 與 manifest，重新啟動 workers 就會依新雜湊替換舊快取。更新失敗保留原有可讀的資料，不在登入請求內更新。自訂 `GEOIP_DATABASE_PATH` 仍可使用自行準備的原始 MMDB；沒有同名 `.gz` 時不套用內建資料包。
+
+Prepare Python dependencies outside the isolated network and apply the migration. Git includes the compressed DB-IP Lite City database, NOTICE and release/hash manifest, so a fresh clone contains all GeoIP data. First startup validates and atomically extracts the local archive; subsequent startups reuse a matching cache, or refresh it after a Git data update. The expanded MMDB stays ignored. Initial extraction requires a writable data directory; read-only deployments can run the existing offline importer during packaging. No additional service, Git LFS, scheduler or runtime download is required. Retain the DB-IP attribution in the history dialog. Data is distributed under CC BY 4.0; see [DB-IP Lite downloads and attribution](https://db-ip.com/db/download/ip-to-city-lite). The same reader can also accept a separately licensed compatible City MMDB.
+
+```bash
+# Optional preparation for a read-only deployment, from backend/ with dependencies installed.
+uv run --offline --locked python scripts/import_geoip.py SYSTEM/geoip/City.mmdb.gz
+# A separately supplied raw MMDB and --destination remain supported.
+```
+
+匯入工具先完整複製至目標目錄的暫存檔並驗證 City 類型，再原子替換；失敗時保留既有檔案。尚未提供 MMDB 時 API 仍可啟動並記錄登入 IP，公開 IP 的狀態為 `unavailable`；取得地區仍需要有效資料檔。
+
+The importer validates a fully staged City MMDB before atomic replacement. An invalid source leaves the existing file intact. Without an MMDB, the API remains usable and records source IPs with an unavailable status for public IPs; geographic results require actual City data.
+
+正式路徑為「用戶 → Nginx → FastAPI」。使用 `frontend/deploy/nginx.conf.example` 的 API 區段，以 `$remote_addr` **覆寫** `X-Forwarded-For`／`X-Real-IP`。FastAPI 必須僅對 Nginx 開放，例如同機 loopback；Lightsail 防火牆不對 Internet 開放後端 API port。現有入口信任轉發標頭，因此禁止繞過 Nginx 直接連線。日後加入 Cloudflare／其他代理時，須重新設定完整可信代理鏈。
+
+For the confirmed direct-client → Nginx → FastAPI topology, overwrite incoming IP headers in Nginx and restrict the backend to Nginx-only access. The current API entry enables forwarded-header handling, so direct public access to its port must be blocked. A future CDN/load balancer changes this trust configuration.
+
+### 管理端登入紀錄 / Management login history
+
+`GET /management/login-records` 沿用既有 Management router 與 `ManagementPermission(is_manage_users=True)`。每次讀取重新檢查登入中的啟用帳號／角色及管理用戶權限；目標用戶停用後仍保留歷史紀錄。支援選填 `user_id`、既有 page／size、sort、filters、search／search_fields，查詢先篩選再計算總數及分頁。預設最新登入在前；回應維持 `items/total/pages/page/size`，並設定 private／no-store／Vary Cookie。
+
+The private history endpoint reuses the management router, fresh user-management authorization and existing server-side DataTable controls. Optional user_id scopes an account; omitting it queries all authorized events. Disabled target accounts remain auditable. No new authentication or permission mechanism is introduced.
+
 `POST /authority/sign-out` 不需要 body，使用目前的 session cookie，先刪除 System Redis 中的 SESSION，再清除所有欄位並使 cookie 過期。成功回傳 `200 {"signed_out": true}`，訪客或重複登出也回成功。後續 SESSION 查詢回傳 `null`；同一帳號的其他瀏覽器 session 不受影響。
 
 `POST /authority/sign-out` requires no body and uses the current session cookie. It removes the session from System Redis, clears all session fields, and expires the incoming cookie. Success returns `200 {"signed_out": true}`, including guests and repeated sign-out requests. Subsequent session lookup returns `null`; other browser sessions for the account remain active.
@@ -478,3 +531,7 @@ A new database has no portfolio content; `/portfolio/site?locale=en` returns 404
 `RespPortfolioExperiences`、`RespPortfolioProjects`、`RespPortfolioSkills`、`RespPortfolioSkillCategories` 僅特化共用模型的 item 型別；`RespPortfolioSkillCategoryItem.skills` 直接使用 `RespPortfolioSkills`。分頁欄位不得在各 API 重複宣告或計算。
 
 The four resource responses specialize only the item type of the shared model. Category skills directly use `RespPortfolioSkills`; keep pagination fields and arithmetic in the common response.
+
+套件準備階段以 `tool.uv.no-binary-package` 對 `charset-normalizer` 使用純 Python 版本，避免載入選用的原生加速檔。封閉網段仍需事先備妥與目標 OS／CPU／Python 相容的全部依賴；本機開發的虛擬環境不可直接搬到不同作業系統。
+
+The dependency preparation step builds the optional charset detector as pure Python. Prepare all locked dependencies for the actual target OS, CPU and Python before entering the isolated network; a development virtual environment is not a cross-platform deployment artifact.

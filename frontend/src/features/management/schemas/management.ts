@@ -106,6 +106,26 @@ export function managementPageSchema<T extends z.ZodType<{ id: number }>>(item: 
 export const managementRolesSchema = managementPageSchema(managementRoleSchema);
 export const managementUsersSchema = managementPageSchema(managementUserSchema);
 export const managementSitesSchema = managementPageSchema(managementSiteSchema);
+
+/** Validate a historical login snapshot; unavailable/legacy geography keeps its null values.
+ * @author ZhengLee 2026.10.15
+ */
+export const managementLoginRecordSchema = z.object({
+  id: recordIdSchema,
+  user_id: recordIdSchema,
+  email: managementUserSchema.shape.email,
+  logintime: utcTimestampSchema,
+  ip_address: z.string().max(45).nullable(),
+  country_code: z
+    .string()
+    .regex(/^[A-Z]{2}$/)
+    .nullable(),
+  region: z.string().max(128).nullable(),
+  city: z.string().max(128).nullable(),
+  geo_status: z.enum(['unknown', 'resolved', 'not_found', 'non_public', 'unavailable']),
+});
+export const managementLoginRecordsSchema = managementPageSchema(managementLoginRecordSchema);
+export type LoginRecordRow = z.infer<typeof managementLoginRecordSchema>;
 export type RoleRow = z.infer<typeof managementRoleSchema>;
 export type UserRow = z.infer<typeof managementUserSchema>;
 export type SiteRow = z.infer<typeof managementSiteSchema>;

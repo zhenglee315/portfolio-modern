@@ -129,6 +129,68 @@ class ManagementSites:
         return await ManagementSitesModule(**query_string).select()
 
 
+# ■—< API >———————————————————————————————————————————————————————————————————————————■ Management - Login Records
+@cbv(router)
+class ManagementLoginRecords:
+    """
+    Declare the private login-history contract and delegate reads to its module.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+    """
+
+    path = RouteManagement.LOGIN_RECORDS
+
+    @router.get(
+        path,
+        summary="Query Management Login Records",
+        description=(
+            "Retrieve successful-login events with their stored source IP and approximate geographic snapshot.\n\n"
+            "🛡️ **Purpose & Permission:**\n"
+            "- Requires a signed-in, enabled account and role with `is_manage_users=true`.\n"
+            "- Uses ManagementPermission to refresh current database rights on every request.\n"
+            "- Target accounts may be disabled; historical events remain available.\n\n"
+            "🔎 **Query & Order:**\n"
+            "- Optional `user_id` selects one account; omit it to query all login records.\n"
+            "- Supports the existing page/size, typed filters, explicit sort, search and search_fields controls.\n"
+            "- Defaults to `logintime:desc,id:desc`; explicit sort criteria take precedence and retain descending ID ties.\n"
+            "- Page starts at 1; size defaults to 6 and accepts 1–100.\n"
+            "- Filters and search run before counting and paging; out-of-range pages return empty items.\n\n"
+            "🌐 **Location Snapshot:**\n"
+            "- IP comes from the trusted-proxy-normalized ASGI client, never client-submitted login fields.\n"
+            "- Country, region and city are approximate IP-derived values captured at login time.\n"
+            "- Historic missing IP/location fields remain null with `geo_status=unknown`.\n"
+            "- Status is unknown/resolved/not_found/non_public/unavailable; reads never call GeoIP.\n\n"
+            "📦 **Response Format:**\n"
+            "```json\n"
+            "{\n"
+            '  "items": [{"id": 1, "user_id": 1, "email": "developer@example.com",\n'
+            '    "logintime": "2026-10-15T09:00:00Z", "ip_address": null,\n'
+            '    "country_code": null, "region": null, "city": null, "geo_status": "unknown"}],\n'
+            '  "total": 1, "pages": 1, "page": 1, "size": 6\n'
+            "}\n"
+            "```\n\n"
+            "📝 **Notes:**\n"
+            "- Responses are private, no-store and vary by Cookie.\n"
+            "- Invalid account selectors, repeated/unknown query keys or table controls return 400.\n"
+            "- Missing/disabled identity returns 401; insufficient permission returns 403.\n"
+            "- Unavailable identity or history storage returns a sanitized 503 response."
+        ),
+        response_model=RespManagementLoginRecords,
+        dependencies=[Depends(ManagementPermission(is_manage_users=True))],
+        responses=_READ_RESPONSES,
+    )
+    async def get_login_records(self, query_string: dict = Depends(parser_management_login_records)) -> dict:
+        """
+        Delegate validated login-history reads without collecting or interpreting client IPs.
+
+        :param query_string: Account selector and shared DataTable controls.
+        :return: Numbered page of stored successful-login snapshots.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        return await ManagementLoginRecordsModule(**query_string).select()
+
+
 # ■—< DESC >——————————————————————————————————————————————————————————————————————————■ Management - Portfolio Preview
 _PREVIEW_DESCRIPTION = (
     "🛡️ **Purpose & Permission:**\n"

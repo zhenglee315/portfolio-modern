@@ -1,6 +1,6 @@
 """Share management query limits and projection names without importing storage."""
 
-from SYSTEM.constants import AUTH_PERMISSION_FIELDS
+from SYSTEM.constants import AUTH_PERMISSION_FIELDS, LOGIN_GEO_STATUSES
 
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Management - Private Responses
 MANAGEMENT_PRIVATE_HEADERS = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
@@ -125,4 +125,20 @@ for field in ("id", "site_id", "copyright_year"):
     SITE_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
 
 SITE_FILTER_FIELDS["locale"] = {"type": "enum", "options": ("en", "zh-Hans", "zh-Hant")}
+
+# Immutable login events use their event time rather than an artificial update timestamp.
+#                                                                                               ♂ ZhengLee 2026.10.15
+LOGIN_DEFAULT_SORT = "logintime:desc"
+LOGIN_SORT_FIELDS = (
+    "id", "user_id", "email", "logintime", "ip_address", "country_code", "region", "city", "geo_status",
+)
+LOGIN_FILTER_FIELDS = _filter_fields(
+    LOGIN_SORT_FIELDS,
+    numbers=("id", "user_id"),
+    dates=("logintime",),
+    nullable=("ip_address", "country_code", "region", "city"),
+)
+for field in ("id", "user_id"):
+    LOGIN_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
+LOGIN_FILTER_FIELDS["geo_status"] = {"type": "enum", "options": LOGIN_GEO_STATUSES}
 __all__ = tuple(name for name in globals() if name.isupper())

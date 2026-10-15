@@ -1,5 +1,21 @@
 import type { TFunction } from 'i18next';
 import type { DataTableCopy } from '@/shared/ui/DataTable';
+import type { DataTableSearchCopy } from '@/shared/ui/DataTableSearch';
+
+/** Share the search/field-picker vocabulary across full-page tables and history dialogs.
+ * @author ZhengLee 2026.10.15
+ */
+export function dataTableSearchCopy(t: TFunction): DataTableSearchCopy {
+  return {
+    label: t('management.tableSearch.label'),
+    submit: t('management.tableSearch.submit'),
+    fields: t('management.tableSearch.fields'),
+    all: t('management.all'),
+    placeholder: t('management.tableSearch.placeholder'),
+    selected: (count) => t('management.tableSearch.selected', { count }),
+    remove: (label) => t('management.tableSearch.remove', { label }),
+  };
+}
 
 /** Inject the complete table vocabulary once for all management consumers. */
 export function dataTableCopy(t: TFunction, caption: string): DataTableCopy {

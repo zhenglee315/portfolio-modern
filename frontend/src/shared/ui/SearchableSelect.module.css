@@ -1,0 +1,111 @@
+.root {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 100%;
+  width: auto;
+}
+.trigger:global(.btn) {
+  --bs-btn-color: var(--text);
+  --bs-btn-hover-color: var(--accent);
+  --bs-btn-hover-bg: transparent;
+  --bs-btn-active-color: var(--text);
+  --bs-btn-active-bg: transparent;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+}
+.trigger::after {
+  flex-shrink: 0;
+}
+.trigger:global(.btn):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Portals inherit canonical palette tokens, including the originating dialog's theme. */
+.menu:global(.dropdown-menu) {
+  --bs-dropdown-font-size: var(--table-font-size, 13px);
+  --bs-dropdown-border-color: var(--control-border);
+  z-index: 1080;
+  width: max-content;
+  min-width: 0;
+  max-width: min(20rem, calc(100vw - 16px));
+  max-height: min(30rem, calc(100dvh - 16px));
+  overflow: auto;
+  padding: 6px;
+  color: var(--text);
+  background: var(--panel2);
+  box-shadow: 0 10px 30px var(--shadow-medium);
+}
+.menu :global(.form-control) {
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 8px;
+  font-size: inherit;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--control-border);
+}
+.menu :global(.form-control:focus) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow-low);
+}
+.menu :global(.form-control)::placeholder {
+  color: var(--muted);
+}
+.options {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  text-align: start;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: 1.5;
+}
+.option :global(.icon) {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.option > span {
+  min-width: 0;
+}
+.option small {
+  display: block;
+  white-space: normal;
+}
+.option:hover,
+.option:focus-visible,
+.option[aria-selected='true'] {
+  background: var(--control-hover);
+}
+.option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.option:disabled {
+  opacity: 0.55;
+}

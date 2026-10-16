@@ -13,12 +13,14 @@ export default function WarningModal({
   onClose,
   confirm,
   layout = 'standard',
+  busy = false,
 }: {
   title: string;
   message: string;
   closeLabel: string;
   onClose: () => void;
   layout?: 'standard' | 'prompt';
+  busy?: boolean;
   confirm?: {
     label: string;
     cancelLabel: string;
@@ -33,7 +35,9 @@ export default function WarningModal({
       show
       centered
       scrollable
-      onHide={onClose}
+      onHide={() => {
+        if (!busy) onClose();
+      }}
       onEntered={(node: HTMLElement) => {
         // Strict-mode replay can move initial focus to the dialog; preserve any user focus.
         if (node.ownerDocument.activeElement === node) cancel.current?.focus();
@@ -46,7 +50,7 @@ export default function WarningModal({
       backdropClassName={styles.backdrop}
     >
       {layout === 'prompt' && confirm && (
-        <div className={styles.badge} aria-hidden="true">
+        <div className={styles.badge} data-variant={confirm.variant} aria-hidden="true">
           <Icon name="warning" />
         </div>
       )}
@@ -60,7 +64,12 @@ export default function WarningModal({
           )}
           {title}
         </Modal.Title>
-        <CloseButton className={styles.close} onClose={onClose} label={closeLabel} />
+        <CloseButton
+          className={styles.close}
+          onClose={onClose}
+          label={closeLabel}
+          disabled={busy}
+        />
       </Modal.Header>
       <Modal.Body>
         <p id={`${id}-message`}>{message}</p>
@@ -74,6 +83,7 @@ export default function WarningModal({
               className={`btn btn-outline-secondary ${styles.action}`}
               onClick={onClose}
               autoFocus
+              disabled={busy}
             >
               <Icon name="close" />
               {confirm.cancelLabel}
@@ -82,6 +92,8 @@ export default function WarningModal({
               type="button"
               className={`btn btn-${confirm.variant ?? 'primary'} ${styles.action}`}
               onClick={confirm.onConfirm}
+              disabled={busy}
+              aria-busy={busy || undefined}
             >
               <Icon name="check" />
               {confirm.label}

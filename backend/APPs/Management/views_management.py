@@ -3,9 +3,17 @@ from APPs.Management.constants import (
     MANAGEMENT_DEFAULT_SORT,
     MANAGEMENT_PRIVATE_HEADERS,
     SITE_PATCH_MAX_BYTES,
+    MANAGEMENT_DELETE_MAX_BYTES,
     EnumManagementError,
 )
-from APPs.Management.schema.body import ManagementSitePatchParameters
+from APPs.Management.schema.body import (
+    ManagementSitePatchParameters,
+    ManagementRolePatchParameters,
+    ManagementUserPatchParameters,
+    ManagementSiteDeleteParameters,
+    ManagementRoleDeleteParameters,
+    ManagementUserDeleteParameters,
+)
 from APPs.Auth.schema.resp import RespAuthUser
 from APPs.Management.schema.parser import *
 from APPs.Management.schema.resp import *
@@ -81,7 +89,7 @@ class ManagementRoute(APIRoute):
         Reject nonstandard JSON NaN/Infinity constants before field validation.
 
         :param value: Invalid JSON numeric constant.
-        :raises ValueError: Such constants are never accepted in a platform patch.
+        :raises ValueError: Such constants are never accepted in a management write.
 
                                                                                                ♂ ZhengLee 2026.10.15
         """
@@ -89,7 +97,7 @@ class ManagementRoute(APIRoute):
 
     def get_route_handler(self):
         """
-        Apply bounded JSON decoding to PATCH and sanitize all management validation errors.
+        Apply bounded JSON decoding to management writes and sanitize all validation errors.
 
         :return: Handler preserving normal FastAPI dependency injection and response validation.
 
@@ -101,14 +109,15 @@ class ManagementRoute(APIRoute):
             """
             Validate the transport before normal parsing and attach private response headers.
 
-            :param request: Current request; only PATCH bodies use the write size/content policy.
+            :param request: Current request; write bodies use the bounded JSON/content policy.
             :return: Original endpoint response without a new envelope.
             :raises HTTPException: Invalid transport, input, authentication or resource state.
 
                                                                                                ♂ ZhengLee 2026.10.15
             """
             try:
-                if request.method == HTTPMethod.PATCH:
+                if request.method in (HTTPMethod.PATCH, HTTPMethod.DELETE, HTTPMethod.POST):
+                    deleting = request.method != HTTPMethod.PATCH
                     # --------------------------------------● Step 1. Reject cross-origin browser writes and unsupported encodings.
                     origin = request.headers.get(EnumHttpHeader.ORIGIN)
                     if origin and origin not in {
@@ -127,8 +136,19 @@ class ManagementRoute(APIRoute):
                     chunks, length = [], 0
                     async for chunk in request.stream():
                         length += len(chunk)
-                        if length > SITE_PATCH_MAX_BYTES:
-                            raise HTTPException(status_code=413, detail=EnumManagementError.PLATFORM_PATCH_TOO_LARGE)
+                        if length > (MANAGEMENT_DELETE_MAX_BYTES if deleting else SITE_PATCH_MAX_BYTES):
+                            raise HTTPException(
+                                status_code=413,
+                                detail=(
+                                    EnumManagementError.MANAGEMENT_DELETE_TOO_LARGE
+                                    if deleting
+                                    else (
+                                        EnumManagementError.PLATFORM_PATCH_TOO_LARGE
+                                        if request.url.path.startswith(f"{PreFix.MGR}{RouteManagement.SITES}/")
+                                        else EnumManagementError.MANAGEMENT_PATCH_TOO_LARGE
+                                    )
+                                ),
+                            )
                         chunks.append(chunk)
                     # Starlette caches body bytes here; FastAPI then performs its normal body/schema parsing.
                     request._body = b"".join(chunks)
@@ -196,6 +216,15 @@ _READ_RESPONSES = {
     503: {"description": "Storage unavailable."},
 }
 
+_DELETE_RESPONSES = {
+    **_READ_RESPONSES,
+    404: {"description": "Target confirmation does not match."},
+    409: {"description": "A protected, changed or referenced target prevents the whole batch."},
+    413: {"description": "Delete body exceeds 64 KiB."},
+    415: {"description": "Uncompressed application/json required."},
+    422: {"description": "Invalid, repeated or excessive targets."},
+}
+
 
 @cbv(router)
 class ManagementRoles:
@@ -215,6 +244,67 @@ class ManagementRoles:
         """Execute the validated role query without exposing credentials."""
         return await ManagementRolesModule(**query_string).select()
 
+    @router.patch(
+        f"{path}/{{role_id}}",
+        response_model=RespManagementRole,
+        summary="Update Management Role",
+        description=_PERMISSION_DESCRIPTION
+        + "Requires is_manage_roles. Confirms the ID and original role name. Send changes and matching expected original values. Permissions, state and registration Default update atomically. A registration Default must remain active without management flags; the final effective role manager cannot be removed.",
+        responses={
+            **_READ_RESPONSES,
+            404: {"description": "Target confirmation does not match."},
+            409: {"description": "Original values, default, manager or uniqueness conflict."},
+            422: {"description": "Invalid mutable assignments."},
+        },
+    )
+    async def patch_role(
+        self,
+        parameters: ManagementRolePatchParameters = Depends(parser_management_role_patch),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_roles)),
+    ) -> dict:
+        """Delegate to the same class as GET; the module owns all transactional decisions."""
+        return await ManagementRolesModule().update(
+            parameters.role_id,
+            parameters.changes,
+            expected_role=parameters.expected_role,
+            expected=parameters.expected,
+            actor_id=actor.id,
+        )
+
+    @router.delete(
+        f"{path}/{{role_id}}",
+        response_model=RespManagementRoleDeletion,
+        summary="Delete Management Role",
+        responses=_DELETE_RESPONSES,
+        description=_PERMISSION_DESCRIPTION + "Requires is_manage_roles. Confirm expected_role. "
+        "Only unused, non-default roles may be deleted; inactive accounts still count as assignments. "
+        "Accounts and portfolios are never cascaded. No query selectors; 64 KiB JSON body.",
+    )
+    async def delete_role(
+        self,
+        parameters: ManagementRoleDeleteParameters = Depends(parser_management_role_delete),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_roles)),
+    ) -> dict:
+        """Delegate a single role to the original class's atomic delete method. ♂ ZhengLee 2026.10.16"""
+        return await ManagementRolesModule().delete(parameters.targets, actor_id=actor.id)
+
+    @router.post(
+        RouteManagement.ROLE_BULK_DELETE,
+        response_model=RespManagementRoleDeletion,
+        summary="Bulk Delete Management Roles",
+        responses=_DELETE_RESPONSES,
+        description=_PERMISSION_DESCRIPTION + "Requires is_manage_roles. Submit 1–100 unique targets "
+        "with role_id and expected_role. Every role must be unused and non-default; all succeed or all roll back. "
+        "Accounts and portfolios remain untouched. No query selectors; 64 KiB JSON body.",
+    )
+    async def bulk_delete_roles(
+        self,
+        parameters: ManagementRoleDeleteParameters = Depends(parser_management_role_bulk_delete),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_roles)),
+    ) -> dict:
+        """Keep batch business rules in ManagementRolesModule, alongside select/update/delete."""
+        return await ManagementRolesModule().delete(parameters.targets, actor_id=actor.id)
+
 
 @cbv(router)
 class ManagementUsers:
@@ -233,6 +323,86 @@ class ManagementUsers:
     async def get_users(self, query_string: dict = Depends(parser_management_users)) -> dict:
         """Filter the account projection before counting and paging."""
         return await ManagementUsersModule(**query_string).select()
+
+    @router.get(
+        f"{path}{RouteManagement.ROLE_OPTIONS}",
+        summary="Query User Role Assignment Choices",
+        description=_PERMISSION_DESCRIPTION
+        + "Requires is_manage_users. Search and page role names. Inactive roles and roles granting permissions the actor lacks cannot be assigned. Writes recheck under lock.",
+        response_model=RespManagementRoleOptions,
+        responses=_READ_RESPONSES,
+    )
+    async def get_role_options(
+        self,
+        query_string: dict = Depends(parser_management_role_options),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_users)),
+    ) -> dict:
+        """Reuse the User module for role assignment choices. ♂ ZhengLee 2026.10.16"""
+        return await ManagementUsersModule(**query_string).role_options(actor.id)
+
+    @router.patch(
+        f"{path}/{{account_id}}",
+        response_model=RespManagementUser,
+        summary="Update Management User",
+        description=_PERMISSION_DESCRIPTION
+        + "Requires is_manage_users. Accepts is_active and role_id with existing email confirmation and matching expected original values. Role assignment requires an active role granting no permissions the actor lacks. A Default website's account cannot be disabled; clear or switch its website Default first (409 DEFAULT_SITE_DEACTIVATE_FORBIDDEN). All other identity/FKs and password remain read-only. The final effective role manager must be retained.",
+        responses={
+            **_READ_RESPONSES,
+            404: {"description": "ID/email confirmation does not match."},
+            409: {"description": "Original values or final role manager conflict."},
+            422: {"description": "Invalid mutable assignments."},
+        },
+    )
+    async def patch_user(
+        self,
+        parameters: ManagementUserPatchParameters = Depends(parser_management_user_patch),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_users)),
+    ) -> dict:
+        """Reuse account-state decisions with Platform without substituting its permission gate."""
+        return await ManagementUsersModule().update(
+            parameters.account_id,
+            parameters.changes,
+            expected_email=parameters.expected_email,
+            expected=parameters.expected,
+            actor_id=actor.id,
+        )
+
+    @router.delete(
+        f"{path}/{{account_id}}",
+        response_model=RespManagementUserDeletion,
+        summary="Delete Management User",
+        responses=_DELETE_RESPONSES,
+        description=_PERMISSION_DESCRIPTION + "Requires is_manage_users. Confirm expected_email and required "
+        "expected_site_id (null when no website exists). Permanently removes the account, login history and owned "
+        "website in every language; shared roles and languages survive. Replace Default first and retain an effective "
+        "role manager. No query selectors; 64 KiB JSON. Committed cache failure returns "
+        "MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE and X-Management-Update-State: committed; never retry automatically.",
+    )
+    async def delete_user(
+        self,
+        parameters: ManagementUserDeleteParameters = Depends(parser_management_user_delete),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_users)),
+    ) -> dict:
+        """Delegate account-owned cleanup to the original User business class. ♂ ZhengLee 2026.10.16"""
+        return await ManagementUsersModule().delete(parameters.targets, actor_id=actor.id)
+
+    @router.post(
+        RouteManagement.USER_BULK_DELETE,
+        response_model=RespManagementUserDeletion,
+        summary="Bulk Delete Management Users",
+        responses=_DELETE_RESPONSES,
+        description=_PERMISSION_DESCRIPTION + "Requires is_manage_users. Submit 1–100 unique targets with "
+        "account_id, expected_email and required expected_site_id (nullable). All confirmations, Default and last-manager "
+        "rules are checked before deleting any account-owned data. One failure rolls back the whole batch. "
+        "No query selectors; 64 KiB JSON. A committed cache failure is explicit and must not be retried automatically.",
+    )
+    async def bulk_delete_users(
+        self,
+        parameters: ManagementUserDeleteParameters = Depends(parser_management_user_bulk_delete),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_users)),
+    ) -> dict:
+        """One atomic batch, without separately committed per-user requests."""
+        return await ManagementUsersModule().delete(parameters.targets, actor_id=actor.id)
 
 
 @cbv(router)
@@ -265,19 +435,19 @@ class ManagementSites:
             "- Requires the current enabled account/role with `is_manage_sites=true`; content `is_update` is separate.\n"
             "- Path `account_id` matches the Platform row's `id`, not its `site_id`.\n"
             "- Body `expected_owner_email` must match that same account under lock; it is confirmation, never an update.\n"
-            "- PKs, FKs, owner login email, public user, account state, timestamps and derived fields are read-only.\n\n"
+            "- PKs, FKs, owner login email, public user, timestamps and derived fields are read-only; owner_is_active is editable.\n\n"
             "📨 **Partial Update:**\n"
-            "- Send application/json with `expected_owner_email` and a nonempty `changes` object; limit 256 KiB.\n"
+            "- Send application/json with `expected_owner_email`, matching `expected` original values and a nonempty `changes` object; limit 256 KiB.\n"
             "- Only explicitly submitted fields change. Null, unknown fields, duplicate keys and type coercion are rejected.\n"
             "- `locale` selects existing en/zh-Hans/zh-Hant content (default en); other query controls are rejected.\n"
-            "- Missing sites are never created; an existing translation is required only when editing it, including disabled languages.\n"
+            "- Activation-only changes also support accounts without a site. Missing sites are never created; translation edits require an existing translation, including disabled languages.\n"
             "- Text is plain text; bounded long-copy fields accept up to 10,000 characters.\n"
             "- Social links require HTTP(S); empty links/contact email hide them. Icons must be bundled/allowlisted.\n\n"
             "🔄 **Transaction & Default:**\n"
             "- All settings/translation writes commit together or roll back together.\n"
             "- A new Default requires an active owner and final published state; it atomically replaces the old Default.\n"
-            "- Unpublishing clears Default; explicitly requesting Default=true with Publish=false is a 409 conflict.\n"
-            "- Account identity/state/timestamps are never updated. Responses retain account Created/Updated semantics.\n\n"
+            "- A Default website's owner cannot be disabled (409 DEFAULT_SITE_DEACTIVATE_FORBIDDEN). Clear or switch Default first, or explicitly clear Default in the same PATCH. Active never implicitly clears Default. Unpublishing still clears Default. Explicit Default=true with an unpublished final state is a 409 conflict.\n"
+            "- Only account activation may change; its existing onupdate maintains Updated. Identity and explicit timestamp writes remain forbidden.\n\n"
             "📦 **Response & Cache:**\n"
             "- Returns one complete Platform row using the same projection as GET, with private/no-store headers.\n"
             "- Public portfolio response caches are invalidated after commit.\n"
@@ -297,7 +467,9 @@ class ManagementSites:
         },
     )
     async def patch_site(
-        self, parameters: ManagementSitePatchParameters = Depends(parser_management_site_patch)
+        self,
+        parameters: ManagementSitePatchParameters = Depends(parser_management_site_patch),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_sites)),
     ) -> dict:
         """
         Delegate validated assignments to the existing Platform module's update method.
@@ -312,7 +484,66 @@ class ManagementSites:
             account_id=parameters.account_id,
             changes=parameters.changes,
             expected_owner_email=parameters.expected_owner_email,
+            expected=parameters.expected,
+            actor_id=actor.id,
         )
+
+    @router.delete(
+        f"{path}/{{account_id}}",
+        summary="Delete Management Platform Site",
+        response_model=RespManagementSiteDeletion,
+        description=_PERMISSION_DESCRIPTION
+        + "Requires is_manage_sites. Path ID is the owner account ID. Confirm expected_owner_email and expected_site_id. "
+        "Physically deletes the website and ALL languages/child content, preserving the account, role, login history and shared locales. "
+        "Replace Default before deleting. No query parameters. Limit 64 KiB uncompressed JSON. "
+        "Uses the same atomic transaction as bulk-delete. A committed cache failure returns 503 "
+        "MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE with X-Management-Update-State: committed; do not retry automatically.",
+        responses={
+            **_READ_RESPONSES,
+            404: {"description": "Confirmation or website missing."},
+            409: {"description": "Changed website, Default protection or FK conflict."},
+            413: {"description": "Delete body exceeds 64 KiB."},
+            415: {"description": "Uncompressed JSON required."},
+            422: {"description": "Invalid delete target."},
+        },
+    )
+    async def delete_site(
+        self,
+        parameters: ManagementSiteDeleteParameters = Depends(parser_management_site_delete),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_sites)),
+    ) -> dict:
+        """Normalize one confirmed target into the original Platform class's shared delete transaction.
+
+        ♂ ZhengLee 2026.10.16
+        """
+        return await ManagementSitesModule().delete(parameters.targets, actor_id=actor.id)
+
+    @router.post(
+        RouteManagement.SITE_BULK_DELETE,
+        summary="Bulk Delete Management Platform Sites",
+        response_model=RespManagementSiteDeletion,
+        description=_PERMISSION_DESCRIPTION
+        + "Requires is_manage_sites. Submit targets with account_id, expected_owner_email and expected_site_id. "
+        "Accepts 1–100 unique owners/sites, 64 KiB uncompressed JSON, and no query selectors. "
+        "Every target is checked before any deletion; one failure rolls back the whole batch. "
+        "Default must be replaced first. All site languages/content cascade; accounts, roles and login history remain. "
+        "Committed cache failure is explicit and must not be retried automatically.",
+        responses={
+            **_READ_RESPONSES,
+            404: {"description": "Confirmation or website missing."},
+            409: {"description": "Changed website, Default protection or FK conflict."},
+            413: {"description": "Delete body exceeds 64 KiB."},
+            415: {"description": "Uncompressed JSON required."},
+            422: {"description": "Invalid or repeated targets."},
+        },
+    )
+    async def bulk_delete_sites(
+        self,
+        parameters: ManagementSiteDeleteParameters = Depends(parser_management_site_bulk_delete),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_manage_sites)),
+    ) -> dict:
+        """Delegate one atomic batch; the view never loops over separately committed single deletes."""
+        return await ManagementSitesModule().delete(parameters.targets, actor_id=actor.id)
 
 
 # ■—< API >———————————————————————————————————————————————————————————————————————————■ Management - Login Records
@@ -345,13 +576,15 @@ class ManagementLoginRecords:
             "- IP comes from the trusted-proxy-normalized ASGI client, never client-submitted login fields.\n"
             "- Country, region and city are approximate IP-derived values captured at login time.\n"
             "- Historic missing IP/location fields remain null with `geo_status=unknown`.\n"
-            "- Status is unknown/resolved/not_found/non_public/unavailable; reads never call GeoIP.\n\n"
+            "- geo_status preserves the stored GeoIP outcome; reads never call GeoIP.\n"
+            "- is_online observes this page's IP heartbeat keys in Redis (60-second TTL); it is not account-session status.\n"
+            "- Missing IP or absent heartbeat is false; Redis unavailability is null. Live status cannot be SQL-filtered or sorted.\n\n"
             "📦 **Response Format:**\n"
             "```json\n"
             "{\n"
             '  "items": [{"id": 1, "user_id": 1, "email": "developer@example.com",\n'
             '    "logintime": "2026-10-15T09:00:00Z", "ip_address": null,\n'
-            '    "country_code": null, "region": null, "city": null, "geo_status": "unknown"}],\n'
+            '    "country_code": null, "region": null, "city": null, "geo_status": "unknown", "is_online": false}],\n'
             '  "total": 1, "pages": 1, "page": 1, "size": 6\n'
             "}\n"
             "```\n\n"

@@ -12,6 +12,7 @@
   color: var(--muted);
   border: 0;
   border-radius: 4px;
+  background: transparent;
 }
 .toggle:global(.btn)::after {
   display: none;
@@ -20,7 +21,7 @@
 .toggle:global(.btn):focus-visible,
 .toggle.active {
   color: var(--accent);
-  background: var(--control-hover);
+  background: transparent;
 }
 .menu:global(.dropdown-menu) {
   --bs-dropdown-bg: var(--panel2);
@@ -192,40 +193,12 @@
   flex-shrink: 0;
   margin-left: auto;
 }
-.choiceLabel,
-.chip {
+.choiceLabel {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--table-font-size, 13px);
-}
-.chip {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 5px;
-  color: #162026;
-}
-.chip[data-color='pink'] {
-  background: #f3cfe1;
-}
-.chip[data-color='cyan'] {
-  background: #c5e7e4;
-}
-.chip[data-color='violet'] {
-  background: #dcd5f0;
-}
-.chip[data-color='green'] {
-  background: #d0e7c4;
-}
-.chip[data-color='orange'] {
-  background: #f6d2a4;
-}
-.chip[data-color='red'] {
-  background: #f5d4d0;
-}
-.chip[data-color='blue'] {
-  background: #c7e6fa;
 }
 /* Bootstrap masks keep decoration out of the JavaScript payload. */
 .menuIcon {

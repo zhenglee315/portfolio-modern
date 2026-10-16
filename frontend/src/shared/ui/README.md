@@ -10,6 +10,8 @@ DataTable 負責呈現與發出操作事件；頁面／feature 負責查詢、�
 
 ## 目錄
 
+欄位說明可設定 `column.help = { label: 'About Create permission', text: '…' }`，在標題左側顯示小型 question 圖示。共用 `HelpTooltip` 使用一般圓角提示框，支援 hover、鍵盤焦點與 touch 點按；可按 Escape 關閉，水平捲動時也會關閉。label／text 由 owner 翻譯；說明文字不加入欄位標題、排序、篩選或匯出值。
+
 1. [套件結構與資料流程](#1-套件結構與資料流程)
 2. [快速開始：完整 API 範例](#2-快速開始完整-api-範例)
 3. [DataTable props](#3-datatable-props)
@@ -71,7 +73,7 @@ Platform 的 Profile checkbox 直接呈現 API `has_profile`：指定啟用語�
 | Add、Del、Refresh、Edit 與單筆刪除   | toolbar／rowActions 插槽   | 按鈕、權限、回呼與 modal                   |
 | Details、InlineField／Save、刪除確認 | 不是 DataTable 內建 CRUD   | ManagementDetails／WarningModal 等頁面組合 |
 
-目前三張管理表的 **Add、Save、Delete 是介面預覽**。Actions 使用 Edit icon 開啟可逐格編輯的詳情；Save 只確認視窗內的草稿，關閉重開恢復查詢資料。確認刪除只關閉 modal，沒有新增、更新或刪除 API 呼叫。
+三張管理表的 **Save 與單筆／批次 Delete 已串接 API，Add 仍是介面預覽**。Actions 的 Edit 開啟可逐格編輯的詳情，Save 透過原資源 PATCH 儲存；刪除使用頁面的共用協調器，單筆 DELETE／批次 POST 各交給原後端資源 class 的同一個交易方法。DataTable／WarningModal 不自行執行 CRUD。
 
 ## 2. 快速開始：完整 API 範例
 
@@ -915,6 +917,7 @@ export function DeleteDialog({
   if (targets.length === 0) return null;
   return (
     <WarningModal
+      layout="prompt"
       title="確定要刪除嗎？"
       message={
         targets.length === 1
@@ -934,7 +937,7 @@ export function DeleteDialog({
 }
 ```
 
-確認窗有 warning icon、初始 Cancel 焦點、Tab 邊界與 Escape／關閉後焦點還原。`WarningModal layout="prompt"` 是編輯與 Save 的確認版型：頂部突出警告徽章、置中標題／說明、等寬取消與確認按鈕，寬度最多 420px。confirm.variant 支援 primary／danger／success；standard 預設版型保留既有提示與刪除呈現。owner 在換 query／帳號／資源時清除舊目標；刪除確認仍只關閉 modal，Save 確認只更新視窗內草稿。
+確認窗有 warning icon、初始 Cancel 焦點、Tab 邊界與 Escape／關閉後焦點還原。`WarningModal layout="prompt"` 用於編輯、Save 與單筆／批次刪除確認：頂部突出警告徽章、置中標題／說明、等寬取消與確認按鈕，寬度最多 420px。confirm.variant 支援 primary／danger／success；danger 呈現紅色警示方塊、白色三角驚嘆號及紅色確認按鈕；standard 預設版型保留既有提示。owner 在換 query／帳號／資源時清除舊目標；提交時以 busy 鎖住確認、取消與關閉。刪除的 API、目標、通知及列表更新由頁面的共用協調器負責，元件只呼叫注入的 callback。
 
 ```tsx
 <WarningModal

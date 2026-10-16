@@ -55,6 +55,7 @@ import funnel from 'bootstrap-icons/icons/funnel.svg?raw';
 import funnelFill from 'bootstrap-icons/icons/funnel-fill.svg?raw';
 import caretUpFill from 'bootstrap-icons/icons/caret-up-fill.svg?raw';
 import caretDownFill from 'bootstrap-icons/icons/caret-down-fill.svg?raw';
+import questionCircle from 'bootstrap-icons/icons/question-circle.svg?raw';
 import { memo, type ReactNode } from 'react';
 
 const icons = {
@@ -115,6 +116,7 @@ const icons = {
   funnelFill,
   caretUpFill,
   caretDownFill,
+  questionCircle,
 };
 export type IconName = keyof typeof icons;
 type IconPulse = 'chat' | 'disclosure';

@@ -1,6 +1,6 @@
 # 平台管理欄位與 Default 更新規則
 
-更新日期：2026-10-16。Platform PATCH 後端已實作；前端 Save 目前仍是本地草稿，刪除與新增尚未串接寫入 API。
+更新日期：2026-10-16。Platform PATCH 後端已實作；表格 Active／Default 即時保存已串接；Edit 內 Save 也使用同一 PATCH 持久化，刪除與新增尚未串接寫入 API。
 
 ## 表格欄位
 
@@ -12,14 +12,14 @@
 | 2    | Email   | `auth_user.email`             | SMTP 驗證的登入信箱、唯讀    |
 | 3    | Profile | `has_profile`                 | 目前語言是否有工作／教育紀錄 |
 | 4    | Publish | `portfolio_site.is_published` | 發布狀態                     |
-| 5    | Default | `portfolio_site.is_default`   | 平台預設首頁                 |
-| 6    | Active  | `auth_user.is_active`         | 帳號狀態、本輪不可修改       |
+| 5    | Default | `portfolio_site.is_default`   | 平台預設首頁、點擊即保存     |
+| 6    | Active  | `auth_user.is_active`         | 帳號狀態、點擊即保存         |
 | 7    | Updated | `auth_user.updatetime`        | UTC 帳號更新時間、唯讀       |
 | 8    | Actions | 編輯、預覽、刪除確認入口      | 刪除仍不執行寫入             |
 
 `has_site` 表示網站是否存在；`has_translation` 表示目前語言翻譯是否存在，與 `has_profile` 分開。缺網站時 Publish／Default 保留 API 的 `null`，不捏造為 false。完整網站設定與翻譯欄位保留在詳情。
 
-時間顯示為 `YYYY.MM.DD HH:mm:ss`，使用 UTC、24 小時制並保留秒數。Created／Updated 是帳號時間；網站與翻譯表目前沒有修改時間，因此更新內容不會改動帳號的 Updated。
+時間顯示為 `YYYY.MM.DD HH:mm:ss`，使用 UTC、24 小時制並保留秒數。Created／Updated 是帳號時間；網站與翻譯表目前沒有修改時間，因此更新內容不會改動帳號的 Updated。切換 Active 會由帳號原有 onupdate 更新 Updated；重送相同 Active 值不更新時間。
 
 ## PATCH 契約
 
@@ -27,7 +27,7 @@
 PATCH /management/sites/{account_id}?locale=zh-Hant
 Content-Type: application/json
 
-{"expected_owner_email":"person2@example.com","changes":{"is_default":true}}
+{"expected_owner_email":"person2@example.com","expected":{"is_default":false},"changes":{"is_default":true}}
 ```
 
 Body 的 `expected_owner_email` 與 Path 的帳號 ID 在同一交易內核對同一筆 `AuthUser`；不一致回 404。它是唯讀確認值，登入信箱不修改，SESSION／管理權限仍是授權依據。
@@ -36,7 +36,7 @@ Path 對應列表 `id`（帳號 PK）；module 依既有 `PortfolioSite.user_id`
 
 管理列表、`has_profile`、Preview 與內容修正不排除停用的目標帳號／語言；公開 Portfolio 才要求可見狀態，且在快取前檢查。操作者帳號／角色仍須啟用。
 
-所有 PK／FK、已驗證的登入 `owner_email`、公開代稱 `user`、帳號狀態、時間與衍生值都不能寫入。公開聯絡 `email` 與登入信箱獨立，可以更新。未知／唯讀欄位、null、空更新、錯誤型別與不合法內容回 422；未傳保持原值，false 和允許的空字串會正常保存。
+所有 PK／FK、已驗證的登入 `owner_email`、公開代稱 `user`、時間與衍生值都不能寫入。公開聯絡 `email` 與登入信箱獨立，可以更新。未知／唯讀欄位、null、空更新、錯誤型別與不合法內容回 422；未傳保持原值，false 和允許的空字串會正常保存。
 
 原本 `ManagementSites` CBV 增加 PATCH，原本 `ManagementSitesModule` 同時提供 `select()`、`update()`，共用 `_query()` 投影。權限仍是 `ManagementPermission(AuthRole.is_manage_sites)`；每次從 SESSION 的身份重查有效帳號與角色，其他 CRUD 或 management 旗標不能替代。
 
@@ -47,9 +47,9 @@ Path 對應列表 `id`（帳號 PK）；module 依既有 `PortfolioSite.user_id`
 1. 在共用 `transaction()` 內鎖定並重新讀取目標資料。
 2. 驗證這次提交後的最終 Publish 狀態與 owner Active。
 3. 若設新 Default，先取消其他網站的 Default，再設定目標；重選目前 Default 保持冪等。
-4. 若取消發布，自動將同一網站的 Default 改為 false；明確同時要求 Default=true 和最終 Publish=false 回 409。
+4. 若取消發布或停用帳號，自動將同一網站的 Default 改為 false；明確同時要求 Default=true 和最終 Publish=false 回 409。
 5. 網站與翻譯修改一起 commit；任何寫入或約束失敗全部 rollback，保留原 Default。
-6. Commit 後清除公開 portfolio cache。成功回傳完整的新 Platform row；未來前端還需重查列表，讓舊／新 Default 列同步。
+6. Commit 後清除公開 portfolio cache。成功回傳完整的新 Platform row；前端重查列表，讓舊／新 Default 列、分頁與篩選結果同步。
 
 PostgreSQL 發布／Default 更新使用交易級 advisory lock；SQLite 在讀取決策前取得 writer lock。既有單一 Default 唯一索引與 Default 必須發布的 check constraint 繼續作為資料庫防線。併發約束衝突回 409，不回傳內部例外。
 
@@ -63,3 +63,11 @@ PostgreSQL 發布／Default 更新使用交易級 advisory lock；SQLite 在讀�
 - 不提供 Multi-column sorting checkbox。直接點欄位的 ↑／↓ 按鈕選擇升冪／降冪，再點相同方向取消該欄。
 - 其他欄位排序保留，按初次點擊的順序決定優先權，最多三欄（沿用管理 API 上限）。改方向保留順位；取消後重新加入排在最後。
 - 首次進入沒有顯式排序時，箭頭不預先選取，前端省略 API 的 sort 參數。三支管理 GET 共用 `updatetime:desc` 預設順序，更新時間相同時依 `id:asc` 穩定分頁；有顯式排序時使用該條件。URL 的 `sort=` 保留使用者取消全部排序的狀態，API 不傳空字串。
+
+## 表格即時保存
+
+Platform 主表 Active／Default 開關直接送出單一 PATCH，包含該列 id、expected_owner_email 與 expected 原值。舊 Default 由同一後端交易先取消，再設定新 Default，前端不拆成兩次寫入。Publish／Profile 保留唯讀；詳細欄位仍由 Edit 開啟。
+
+保存中暫停其他開關與該表操作，避免重複提交；成功或失敗都重讀伺服器列表，同步新舊 Default、篩選、排序與 Updated。網路中斷／逾時不自動重送寫入，結果不明時提示先查看重讀資料。停用目前操作者時重新讀取 SESSION 並清除私有資料。停用目標帳號不移除管理列或 Preview 權限；公開頁仍排除停用帳號。
+
+完整 Edit 已透過同一 Platform PATCH 保存；前端與後端均使用 expected 原值防止覆寫。Role 的註冊 Default 和網站 Default 不同：註冊需保留有效 Default，不能直接照搬網站允許零 Default 的規則。詳情見後端 README 的 Role/User/Platform 編輯契約。

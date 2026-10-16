@@ -18,14 +18,20 @@ export function isNotificationCancellation(error: unknown) {
   );
 }
 
-/** Share safe request classification and translation keys without exposing response details. */
+/** Keep expected request rejections as warnings; red is reserved for system failures and bugs.
+ * Network interruptions remain recoverable warnings; response details never become display copy.
+ * @author ZhengLee 2026.10.16
+ */
 export function notificationFailure(error: unknown): NotificationFailure {
   if (error instanceof ApiError) {
     if (error.kind === 'network' || error.kind === 'timeout') {
       return { kind: 'warning', message: 'notifications.connectionFailed' };
     }
     if (error.kind === 'http') {
-      return { kind: 'error', message: 'notifications.requestFailed' };
+      return {
+        kind: error.status && error.status >= 400 && error.status < 500 ? 'warning' : 'error',
+        message: 'notifications.requestFailed',
+      };
     }
     return { kind: 'bug', message: 'notifications.invalidResponse' };
   }

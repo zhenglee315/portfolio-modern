@@ -10,6 +10,10 @@ This directory implements the React migration of `portfolio-web`, preserving its
 
 ## 網站畫面導覽 / Visual Website Tour
 
+User management 的 Role 指派共用 [`SearchableSelect`](src/shared/ui/SearchableSelect.tsx)，登記於 [shared README](src/shared/README.md)。表格選取即透過原本 User PATCH 儲存，完整編輯視窗先保留草稿；搜尋可翻頁並使用與 Role filter 相同的 `ChoiceChip` 彩色方塊。只有 role_id 可作為明確的角色指派欄位；email、PK 與其他 FK 不可編輯。停用角色及超出操作者權限的角色不可指派。Login history 的 Status 使用綠色／灰色 icon，讀取現有 Redis IP 心跳、每 45 秒更新；灰色空心表示來源暫時無法取得，GeoIP 結果仍保留為預設隱藏的獨立欄位。
+
+Platform management 的 Default 資料列停用 Active 開關；完整編輯視窗以可重用的 `editUnavailableReason(draft)` 約束欄位，保留欄位於草稿中，取消 Default 後才可編輯 Active。三語提示說明限制，強制提交不合法草稿亦無法保存；後端 409 `DEFAULT_SITE_DEACTIVATE_FORBIDDEN` 顯示 warning。Active 不會自動取消 Default。
+
 網站的[完整截圖圖解](../README.md#網站圖解--website-tour)位於專案 README，涵蓋首頁、旅程地圖、學經歷、專案時間軸／詳情、技能、主題、語言、聯絡、登入／註冊、草地牛與平板／手機版型。所有正式文件圖片集中在 [`../docs/images/`](../docs/images/README.md)，兩份 README 共用圖片，維持單一來源。
 
 The project README contains the [complete screenshot tour](../README.md#網站圖解--website-tour), covering the overview, map, experience, project timeline/detail, skills, appearance, language, contact, sign-in/registration, the cow workspace, tablet and mobile layouts. Both guides share the documentation assets in [`../docs/images/`](../docs/images/README.md).
@@ -262,6 +266,10 @@ Sign in and sign out share the upper-right AccountMenu. Sign in delegates to the
 `AppProviders` 掛載單一 `NotificationProvider`，注入三語狀態名稱、預設訊息和關閉文案。全站以 `useNotifications().notify({kind,message?,id?})` 呼叫：成功綠色、異常黃色、錯誤及 Bug 紅色。提示固定於視窗上方中央，3 秒後消失，亦可手動關閉；沒有遮罩、焦點移動或焦點圈限，文字區可點穿，僅關閉鈕接收點擊。最新訊息取代前一則；相同 ID、種類及文案不延長時間。持續掛載的 polite live region 提供讀屏回饋，計時器在替換、關閉及卸載時清理。完整介面和使用範例見[共用 UI 規格](src/shared/README.md#浮動通知--floating-notifications)。
 
 `AppProviders` mounts one `NotificationProvider` with injected localized labels, defaults and dismissal copy. Call `useNotifications().notify({kind,message?,id?})`: success is green, warning yellow, and error/bug red. Notifications sit at the viewport's upper center for three seconds, with optional manual dismissal. They have no backdrop or focus movement/trap; text allows click-through and only the close button intercepts input. The latest message replaces its predecessor; identical ID/kind/message does not extend its timer. A persistent polite live region announces copy, and timer cleanup covers replacement, dismissal and unmount. The [shared UI guide](src/shared/README.md#浮動通知--floating-notifications) defines the contract and examples.
+
+操作通知中的業務限制、資料衝突、權限拒絕、輸入或帳密／驗證碼錯誤，以及連線中斷，統一使用黃色 Warning。紅色 Error／Bug 保留給系統故障、不合法的回應契約與未預期程式異常。三個管理頁的表格與完整 Edit 共用此分級；已提交但快取更新失敗仍顯示 Warning 並重新核對伺服器資料。
+
+Business restrictions, edit conflicts, denied permissions, invalid input/credentials/codes and connection interruptions use yellow Warning notifications. Red Error/Bug is reserved for system failures, invalid response contracts and unexpected defects. Management inline/full edits share this policy; committed writes with cache failures remain warnings and reconcile authoritative state.
 
 `NotificationEvents` 僅在瀏覽器監聽主 Query cache 的最終失敗、離線／恢復及未捕捉的程式錯誤。相同 query 失敗直到恢復前只提示一次，排除取消、重試中及手動 cache 更新；一般 GET 成功不跳提示。成功恢復與明確的語言切換完成才顯示成功。`i18n/notification-copy.ts` 統一分類，僅顯示安全文案。局部請求／分頁的重試鈕保留；`SectionBoundary` 捕捉的渲染或 chunk 錯誤會顯示 Bug 提示，並保留局部恢復功能。SSR、建置及語言預備 cache 不發布瀏覽器提示。
 
@@ -577,9 +585,9 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.075 MB raw／370 KB gzip、CSS 333 KB raw／66.5 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁與刪除確認納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.116 MB raw／382 KB gzip、CSS 338 KB raw／67.5 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁、三個 management 的刪除與三語結果提示納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
 
-Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.075 MB raw/370 KB gzip for JavaScript, 333 KB raw/66.5 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination and delete confirmation. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.116 MB raw/382 KB gzip for JavaScript, 338 KB raw/67.5 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination, deletion for all management resources and localized outcomes. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
 
 手機載入目標：raw HTML ≤200KiB、基礎初始 JS gzip ≤250KiB、LCP ≤2.5 秒、CLS ≤0.1。初始離屏 Map／Auth／Cow／detail 按需載入，API 不自動讀第 2 頁；地圖已鄰近 viewport 時才載入。
 
@@ -621,7 +629,7 @@ Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:loca
 
 預覽 SSR 不讀取私有資料或轉送 cookie；hydration 先驗證最新 SESSION，後端六支 `/api/management/preview/{site,journey,experiences,projects,skill-categories,skills}` 每次再次驗證有效帳號／角色及 is_manage_sites。未發布與停用擁有者可預覽，但公開 API 的可見性保持不變。DTO、ORM 查詢、固定六筆分頁及技能標籤驗證共用既有規格；preview 使用 credentials=include、no-store、独立 query key 和 meta.private。缺少網站／語言不回退。iframe 訊息只有在來源與 iframe window 都符合時才接受，Escape 先交內層 Modal 處理，再關閉預覽及恢復眼睛焦點。
 
-新預覽路由、XXL 容器與來源模式增加少量整包資產。依實測將建置上限調整為 JS 1,075,000 raw／370,000 gzip、CSS 333,000 raw／66,500 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
+預覽路由、XXL 容器、來源模式及 Platform 即時保存增加少量整包資產。依實測將建置上限調整為 JS 1,105,000 raw／380,000 gzip、CSS 334,000 raw／66,500 gzip，仍逐次量測全部 client 產物並拒絕超限建置。
 
 元件的完整使用手冊、Filter／checkbox／switch／button 配置與圖示見 [DataTable 套件 README](src/shared/ui/README.md)。
 
@@ -646,9 +654,9 @@ A confirmed missing SESSION, false permission or SESSION HTTP 401/403 publishes 
 | 欄位及詳情 / Columns and details | Columns 只切換指定的主表欄位；其他完整資料由共用 ManagementDetails 呈現，API 字串保持純文字。布林欄位依欄位 renderer 呈現唯讀 checkbox 或 switch，缺資料 null 顯示破折號。 / Main-column visibility and shared plain-text record details; read-only status renderers and explicit missing values.  |
 | 主題 / Themes                    | Bootstrap table/forms/pagination 保留官方樣式；背景、表頭、列 hover、switch 與控制色透過既有語意 tokens 適應 mint／blue／amber／mist。 / Existing palette tokens adapt Bootstrap surfaces and hover states.                                                                                        |
 
-目前只串接三支 GET，沒有新增／修改／刪除或匯入操作。三個管理表格的工具列右上方放置 Add／Del 按鈕，分別使用 Bootstrap plus-lg／trash icon；Del 使用與其他工具列按鈕相同的文字與邊框配色；hover／focus-visible／active 才以 field-error 和淡紅底提示刪除。可見字樣為 Del，aria-label／title 保留完整 Delete。Add 目前僅有外觀；工具列 Delete 使用本頁選取列，未選取或 loading／error 時停用，透過共用 ManagementTable 的 toolbar 插槽配置。每列 Actions 的 pencil-square Edit 直接開啟可逐格編輯的詳情，紅色 trash 只指定該列，與其他勾選無關。兩種刪除入口共用 WarningModal 的確認模式，顯示驚嘆號與「確定要刪除嗎？」、單筆名稱或批次筆數，以及取消／確定刪除。全選僅涵蓋本頁，不使用 API total 推測未載入列；query／頁碼／語言／資源／帳號變更會作廢舊的確認目標。取消、關閉或確認皆不修改資料／選取，不發送刪除 API、重查或成功提示；確認 callback 預留給後續 mutation。詳情 footer 使用 Close／Save（floppy）；Save 初始灰色停用，修改後亮綠、Close 變紅。可更新欄位使用 InlineField 點選編輯，系統／衍生資料保持唯讀；Save 先以同樣的突出警告圖示／置中文案確認，取消保留草稿與捲動位置，接受後只確認視窗內草稿，關閉重開回到原查詢資料，沒有更新 API 或儲存成功通知。進入管理 route 後只讀取選定資源的一頁，不預讀其他資源或全部頁數；切換 query／卸載沿用 AbortSignal 取消舊請求。Platform 搜尋與文字內容只使用當前 locale，User／Platform 一人一列，Role 一角色一列。搜尋、排序、篩選及頁碼都交給資料庫。列詳情與欄位顯示只使用已讀取的資料，不額外請求。
+管理頁保留三支 GET，並完成 Role／User／Platform 的 PATCH。表格即時保存：Role 的七個權限及 Active／Default、User 的 Active、Platform 的 Active／Default；完整 Edit 使用相同資源 PATCH，只在 Save 確認後保存。登入 Email、PK／FK、關聯及統計欄位唯讀。Add／Delete 仍為預留介面，刪除確認不送出資料變更。詳情草稿不修改 query cache；保存中鎖定，失敗保留，原資料已變更時阻止覆寫。搜尋、篩選、排序及分頁仍由伺服器執行；管理列表與 Preview 包含停用的目標資料。
 
-Only the three GETs are integrated. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
+All three resources support GET and PATCH; inline controls and confirmed full-detail saves share each resource endpoint. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
 
 三個管理頁沒有前端排序條件時，`managementListParams` 省略 API 的 sort，由後端統一使用 `updatetime:desc`，同時間以 `id:asc` 穩定分頁。有條件時依點擊優先順序傳送，首次進入與取消全部排序後都不預選箭頭。URL 的 `sort=` 是 UI 狀態，API 不傳空 sort。
 
@@ -658,9 +666,9 @@ Without frontend sort criteria, managementListParams omits sort so all three bac
 
 三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。後續批次更新操作尚未串接。
 
-平台表格只提供 ID、Email、Profile（checkbox）、Publish（checkbox）、Default（toggle）、Active（toggle）、Updated、Actions 這八個欄位。Email 使用 `owner_email`，直接讀取 `auth_user.email`，全文顯示且在詳情永遠唯讀；作品集網址代號 `user` 僅供原公開路由與預覽使用。公開聯絡信箱 `email` 在詳情標示為 Contact email，可獨立編輯。Columns 只切換主表的七個資料欄位，其他完整資料集中在 Actions 詳情。Profile checkbox 對應 `has_site`，Active 對應 `owner_is_active`；Default 僅在 Active、Profile 與 Publish 皆為 true 時符合設定資格，不符合時淡化並提供原因提示。目前主表控制項維持唯讀；後續更新規則記錄於 [Default 更新規格](../docs/management-default-update.md)。
+平台表格只提供 ID、Email、Profile（checkbox）、Publish（checkbox）、Default（toggle）、Active（toggle）、Updated、Actions 這八個欄位。Email 使用 `owner_email`，直接讀取 `auth_user.email`，全文顯示且在詳情永遠唯讀；作品集網址代號 `user` 僅供原公開路由與預覽使用。公開聯絡信箱 `email` 在詳情標示為 Contact email，可獨立編輯。Columns 只切換主表的七個資料欄位，其他完整資料集中在 Actions 詳情。Profile checkbox 對應 `has_profile`（目前語言的工作／教育紀錄），Active 對應 `owner_is_active`；Default 需要帳號啟用、網站存在（`has_site`）且已發布，不以 Profile 紀錄作為條件。不符合時淡化並提供原因提示。主表 Active／Default 點擊即保存，其餘狀態保持唯讀；更新規則記錄於 [Default 更新規格](../docs/management-default-update.md)。
 
-The platform table offers only ID, Email, Profile (checkbox), Publish (checkbox), Default (switch), Active (switch), Updated and Actions in every locale. Email uses owner_email read directly from auth_user.email; the complete login address is read-only in Details. The public contact address remains editable as Contact email. Public handles remain available to routing and preview. Columns toggles the seven data columns; Actions presents the complete record separately. Default eligibility requires an active owner with an existing, published portfolio; ineligible controls are dimmed and explain the requirement. Table controls remain read-only pending the update integration described in the [Default update specification](../docs/management-default-update.md).
+The platform table offers only ID, Email, Profile (checkbox), Publish (checkbox), Default (switch), Active (switch), Updated and Actions in every locale. Email uses owner_email read directly from auth_user.email; the complete login address is read-only in Details. The public contact address remains editable as Contact email. Public handles remain available to routing and preview. Columns toggles the seven data columns; Actions presents the complete record separately. Default eligibility requires an active owner with an existing, published portfolio; ineligible controls are dimmed and explain the requirement. Active and Default save through PATCH as described in the [Default update specification](../docs/management-default-update.md).
 
 | 頁面     | 預設欄位                                                                                      |
 | -------- | --------------------------------------------------------------------------------------------- |
@@ -668,17 +676,19 @@ The platform table offers only ID, Email, Profile (checkbox), Publish (checkbox)
 | User     | ID、Email、Role、Login、LastLogin、Updated、Active、Actions                                   |
 | Role     | ID、Role、Create、Read、Update、Delete、Site、Users、Roles、Default、Active、Updated、Actions |
 
-Actions 全部使用 pencil-square Edit icon 直接進入詳情。Details 標題移除名稱副標，沿用 managementNavigation 的 Platform dashboard／Role shieldLock／User people 圖示。可編輯值點選後使用共用 InlineField 編輯，布林直接切換；登入 Email、ID、時間、統計與衍生資料保持唯讀。Save 初始灰色停用，有有效修改後亮綠，Close 變紅；還原值後恢復初始狀態。只有按下 Save 才開啟儲存確認，取消保留草稿並恢復位置，接受後只確認視窗內草稿，關閉重開回到 query 資料，不發送更新 API。欄位 editor 與 DTO 驗證集中於 management-edit，共享元件不擁有 management 規則。
+Actions 使用 pencil-square Edit 開啟詳情。共用 ManagementDetails 接收 onSave、busy、validate、changeDraft；頁面負責 API／通知／SESSION／快取。只有 Save 確認才送出已改欄位與 expected 原值；成功關閉並重讀，失敗保留草稿，衝突時要求關閉後重開最新資料。User 只有 Active 可編輯，角色名稱與所有 FK 均唯讀。
 
 三頁 Actions 詳情順序由 `pages/management/model/management-view.fields` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。Platform／User 先顯示唯讀登入 Email，方便識別；接著 Platform 為基本資料／品牌內容、聯絡社群、聊天、頁尾與發布設定，User 為 Role。Role 管理先名稱／描述、預設與權限。其他唯讀資訊放在後段，Active、Created、Updated 固定為最後三項；User 的 Role active 位於 Active 前。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Save 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
 
-User 主表固定使用上表的八個英文標籤，以登入 Email 識別，不另列 Account。Email 使用逐欄 `truncate: false`，完整顯示並可換行；Details、勾選標籤與刪除確認也使用 Email。User API 直接讀取 `auth_user.email`，不返回公開網址 handle 或衍生帳號名稱。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的七個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十二項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取，ManagementDetails 只接受 row、columns、icon、copy 與 onClose，擁有詳情視窗的本地草稿與 Save 確認狀態；shared DataTable 仍不依賴任何 management 型別或 API。
+User 主表固定使用上表的八個英文標籤，以登入 Email 識別，不另列 Account。Email 使用逐欄 `truncate: false`，完整顯示並可換行；Details、勾選標籤與刪除確認也使用 Email。User API 直接讀取 `auth_user.email`，不返回公開網址 handle 或衍生帳號名稱。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的七個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十二項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取；ManagementDetails 透過 onSave、busy、validate、changeDraft 與頁面協作，擁有未保存草稿與 Save 確認狀態；shared DataTable 仍不依賴任何 management 型別或 API。
 
-Role 主表固定使用上表的十三個英文標籤，Create、Read、Update、Delete、Site、Users、Roles、Default、Active 共九個欄位均使用唯讀 toggle，直接呈現對應的角色旗標。主表 Users 是 `is_manage_users` 權限；Actions 的 Users 是 `user_count`，顯示使用此角色的帳號數。Columns 只切換主表的十二個資料欄位；Description、Created 與帳號數保留在詳情中。
+Role 主表固定使用上表的十三個英文標籤，Create、Read、Update、Delete、Site、Users、Roles 七個權限及 Active／Default 均提供即時保存，完整 Edit 使用同一 Role PATCH。主表 Users 是 `is_manage_users` 權限；Actions 的 Users 是 `user_count`，顯示使用此角色的帳號數。Columns 只切換主表的十二個資料欄位；Description、Created 與帳號數保留在詳情中。註冊 Default 的四個內容權限仍可編輯，三個管理權限依既有規則停用並顯示原因；移除最後有效角色管理員時由後端拒絕，前端使用 Warning。
 
-Role Actions 的十五項順序為：Role、Description、Default、Create、Read、Update、Delete、Manage Site、Manage Roles、Manage Users、Users、ID、Active、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
+Role Actions 的十五項順序為：Role、Description、Default、Create、Read、Update、Delete、Manage Site、Manage Users、Manage Roles、Users、ID、Active、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
 
-Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 自動分配且在表格生命週期中維持固定，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用 UI 或選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 370,000／CSS 66,500 bytes，由建置驗證實際資產，未新增套件。
+`features/management/model/role-permissions.ts` 是 Role 權限欄位與群組的單一宣告，內容／管理群組、主表及詳情標籤、GET／PATCH 的布林 schema、表格編輯器與 Default 資格檢查由此共用。新增權限須先明確擴充後端 ORM／DTO／授權及 Auth SESSION 契約，再加入此宣告；不依不受信任的回應欄位自動授權。表格只提交該欄的 changes／expected 原值，保存後重讀 SESSION 及管理列表；修改自己的權限會立即同步入口與頁面存取。
+
+Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 依標籤穩定取色，與角色指派選單共用，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用篩選 UI 或額外篩選選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 380,000／CSS 66,500 bytes，由建置驗證實際資產，未新增套件。
 
 | 設計要求                     | 核對結果                                                                                                     |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -908,3 +918,35 @@ User management 的 Actions 提供登入紀錄入口，延遲載入 `LoginRecord
 The User management action lazily loads a read-only login-history dialog. It reuses DataTable controls and the existing private management query engine while keeping dialog controls separate from the background URL. Query identity includes the actor, target account, locale and server query. Geographic results are approximate stored snapshots; browser code never collects or resolves the login IP. The backend supports offline GeoIP data imported through the deployment process.
 
 登入紀錄沿用原本 Modal 樣式並延遲載入；其 API schema、唯讀查詢及三語文案納入目前有界資產預算。IP 地區使用後端部署包內的 DB-IP Lite MMDB，畫面提供 CC BY 4.0 來源連結；呈現畫面不觸發外部定位或下載。
+
+### Platform 即時開關 / Immediate Platform Switches
+
+Platform 主表只有 Active／Default 直接保存，沿用同一個 `PATCH /management/sites/{account_id}`，包含 `expected_owner_email` 和這組欄位的 changes；不新增開關專用 endpoint。`management-site-update.ts` 只負責型別驗證與傳輸，頁面 `usePlatformQuickEdit` 組合 mutation、權限更新、通知與快取同步。舊 Default 在同一後端交易先關閉，再設定新 Default；前端不拆成兩次請求。
+
+保存中鎖定開關並顯示保存狀態；明確成功／失敗與結果不明都重讀列表，讓篩選、排序、其他列與 Updated 同步。寫入不重試，網路中斷不能當作回滾；提交後快取失敗使用已提交文案。停用自己會重新讀取 SESSION 並清除私有內容。Publish／Profile 主表保留唯讀；完整 Edit Save 已串接同一資源 PATCH。即時開關沿用 Bootstrap 表格樣式、支援鍵盤 Space；共用 BooleanCell 只有明確 onChange 才能修改。新增傳輸／狀態與三語文案納入現有產物預算，未新增套件。
+
+表格即時編輯透過共用 `useDataTableEditGroup` 及 column.editing 綁定；欄位 editor、必填、nullable、父子相依與保存邊界集中宣告。Default 資料列禁止關閉 Active，須先取消或切換 Default；Active 不隱式清除 Default。文字／選單／數字等共用能力與相依清空規範見 [shared README](src/shared/README.md#表格欄位群組編輯--table-editing-groups)；Platform 主表仍僅開放 Active／Default；完整 Edit 使用後端已宣告的完整可寫欄位。
+
+Role／User／Platform 共用頁面 `useManagementEdit` 寫入協調器及 feature `management-update.ts` 契約。每次送 changes 與相同 key 的 expected 原值；後端在鎖內比對，衝突為 409。Role 名稱／描述／七個權限及狀態可編輯；description 可為 null，登入 Email 與其他 FK 不變，User 的 role_id 則透過角色指派選單修改。註冊 Default 必須啟用且無三個管理權限，先選其他角色才能取消舊 Default 或停用它。Role 停用影響登入與授權，不批改帳號 Active 或網站 Default。保存不自動重送；已提交但快取失敗與結果不明皆獨立提示。SESSION 比較全部七個權限，資料保存後的同步失敗不會被當成資料回滾。
+
+2026.10.16：搜尋下拉及在線圖示的共用 CSS 納入整包上限：337,000 raw／67,500 gzip；JS 上限維持不變。
+
+Role 的七個權限欄位以共用 DataTableColumn.help 與 HelpTooltip 提供繁體／簡體／英文說明，10px 的 question-circle 位於欄名左側。提示沿用一般資料表的圓角面板、邊框及陰影；不使用 pixel art。新增樣式後 CSS raw 上限為 338,000 bytes，gzip 與 JS 上限維持不變。
+
+2026.10.16：列內角色 selector 依選取內容收合、移除外框並保留下拉箭頭，選單依選項內容自適應寬度。共用 contentSizedMenuPosition 在非同步資料改變尺寸後重新定位；JS raw 上限為 1,106,000 bytes，gzip 上限維持 380,000 bytes。
+
+### Platform 網站刪除 / Website deletion
+
+三個 management 的單筆與勾選批次共用 `useManagementDelete` 協調器與 `deleteManagementRecords` 契約；Platform 沿用內部 `deleteManagementSites` 契約。單筆使用 DELETE `/management/sites/{account_id}`，多筆使用 POST `/management/sites/bulk-delete`；確認資料包含 owner ID、不可變登入 Email 與原網站 ID。紅色 `WarningModal layout="prompt"` 明確告知所有語系內容將永久刪除、帳號與登入紀錄保留。沒有網站或仍為 Default 的目標停用刪除，批次不偷偷排除無效目標。
+
+確認後 busy 鎖住刪除、編輯及視窗關閉；HTTP mutation 不自動重試。成功、被拒絕或結果不明都重新讀取 SESSION、management／portfolio cache 並清除本次勾選；Platform 保留帳號列，`has_site` 變成 false，Role／User 則移除對應列。刪除後若目前分頁超出範圍，返回有效分頁。已提交但公開 cache 更新失敗以 warning 提示，其他業務拒絕也維持 warning。
+
+此功能及三語結果文案使 JS raw 上限調整至 1,112,000 bytes；gzip／CSS 上限不變，沒有新增套件。
+
+### Role／User 刪除 / Role and account deletion
+
+Role：DELETE `/management/roles/{role_id}` 與 POST `/management/roles/bulk-delete`，核對原角色名稱；有任何帳號使用（包含停用帳號）或是註冊 Default 時禁止刪除。User：DELETE `/management/users/{account_id}` 與 POST `/management/users/bulk-delete`，核對不可變登入信箱及原網站 ID（沒有網站也須送明確 null）；永久刪除帳號、全部登入紀錄、網站及所有語系內容，保留共用角色與語言。User 的 Default 網站及最後有效角色管理員由伺服器在交易內保護，拒絕後顯示 warning 並更新資料。
+
+每批 1–100 筆、全部成功或全部回滾；共用紅色刪除彈窗、請求鎖定、嚴格回應 ID 核對及分頁修正。所有權與 FK 規則留在原後端業務 class；shared 元件不呼叫刪除 API。加入 Role／User 的契約與三語文案後，整包 JS 上限為 1,116,000 raw／382,000 gzip，CSS 上限不變，沒有新增套件。
+
+帳號物理刪除後，舊 SESSION 不能跟隨被重用的帳號 ID。伺服器以不公開的身份識別值驗證登入世代；舊格式 SESSION 會需要重新登入一次，前端仍透過既有 SESSION API 恢復身份，不在瀏覽器保存此識別值。

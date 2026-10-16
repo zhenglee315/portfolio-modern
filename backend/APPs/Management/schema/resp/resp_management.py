@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from COMMON.schema.resp import RespRecords
 from SYSTEM.constants import LoginGeoStatus, EnumLocal
+from APPs.Management.constants import MANAGEMENT_DELETE_MAX_TARGETS
 
 
 class RespManagementRole(BaseModel):
@@ -66,6 +67,19 @@ class RespManagementUser(BaseModel):
 
 class RespManagementUsers(RespRecords[RespManagementUser]):
     """Return items/total/pages/page/size with one item per matching account."""
+
+
+class RespManagementRoleOption(BaseModel):
+    """Expose role assignment choices without granting access to the role management list."""
+
+    id: int = Field(..., gt=0)
+    role: str = Field(..., min_length=1, max_length=64)
+    is_active: bool
+    can_assign: bool
+
+
+class RespManagementRoleOptions(RespRecords[RespManagementRoleOption]):
+    """Return searchable, paginated choices; server-side write checks remain authoritative."""
 
 
 # ■—< RESP >——————————————————————————————————————————————————————————————————————————■ Management - Platform
@@ -146,6 +160,9 @@ class RespManagementLoginRecord(BaseModel):
     geo_status: LoginGeoStatus = Field(
         ..., description="GeoIP result; missing geography does not invalidate the login."
     )
+    is_online: bool | None = Field(
+        ..., description="IP heartbeat exists now; null when Redis is unavailable. This is not account-session status."
+    )
 
     @field_validator("logintime")
     @classmethod
@@ -169,11 +186,46 @@ class RespManagementLoginRecords(RespRecords[RespManagementLoginRecord]):
     """
 
 
+class RespManagementDeletedSite(BaseModel):
+    """Return confirmed identifiers without exposing account email or credentials."""
+
+    account_id: int = Field(gt=0)
+    site_id: int = Field(gt=0)
+
+
+class RespManagementSiteDeletion(BaseModel):
+    deleted_count: int = Field(gt=0, le=MANAGEMENT_DELETE_MAX_TARGETS)
+    deleted: list[RespManagementDeletedSite]
+
+
+class RespManagementDeletedRole(BaseModel):
+    role_id: int = Field(gt=0)
+
+
+class RespManagementRoleDeletion(BaseModel):
+    deleted_count: int = Field(gt=0, le=MANAGEMENT_DELETE_MAX_TARGETS)
+    deleted: list[RespManagementDeletedRole]
+
+
+class RespManagementDeletedUser(BaseModel):
+    account_id: int = Field(gt=0)
+    site_id: int | None
+
+
+class RespManagementUserDeletion(BaseModel):
+    deleted_count: int = Field(gt=0, le=MANAGEMENT_DELETE_MAX_TARGETS)
+    deleted: list[RespManagementDeletedUser]
+
+
 __all__ = (
+    "RespManagementRoleDeletion",
+    "RespManagementUserDeletion",
+    "RespManagementSiteDeletion",
     "RespManagementRole",
     "RespManagementRoles",
     "RespManagementUser",
     "RespManagementUsers",
+    "RespManagementRoleOptions",
     "RespManagementSite",
     "RespManagementSites",
     "RespManagementLoginRecord",

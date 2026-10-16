@@ -95,6 +95,13 @@
   font-size: 42px;
   box-shadow: 0 6px 20px var(--shadow-subtle);
 }
+/* Destructive confirmations share the prompt layout with a red warning badge.
+ * @author ZhengLee 2026.10.16
+ */
+.badge[data-variant='danger'] {
+  background: var(--bs-danger);
+  color: var(--bs-white);
+}
 .prompt :global(.modal-header) {
   padding: 0;
 }

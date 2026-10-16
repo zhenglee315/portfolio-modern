@@ -10,11 +10,13 @@ import Dropdown from 'react-bootstrap/Dropdown';
 import { Icon } from './Icon';
 import { LoadingIndicator } from './LoadingIndicator';
 import { BooleanCell } from './BooleanCell';
+import { HelpTooltip } from './HelpTooltip';
 import { DataTableSearch, type DataTableSearchProps } from './DataTableSearch';
 import { DataTableFieldPicker } from './DataTableFieldPicker';
 import { DataTableColumnMenu, type DataTableFilterCopy } from './DataTableColumnMenu';
 import type { DataTableChoice, DataTableChoicesSource } from './DataTableChoices';
 import type { DataTableFilter, DataTableFilterSpec } from '../lib/table-filter';
+import type { DataTableCellEditing } from '../lib/data-table-edit';
 import { tableCsv, tablePrintHtml, tableTsv, tableXlsx } from '../lib/table-export';
 import { tableToolbarMenuPosition } from '../lib/menu-position';
 import menuStyles from './DataTableMenu.module.css';
@@ -37,6 +39,8 @@ export type DataTableExport<T> = {
 export type DataTableColumn<T> = {
   id: string;
   label: string;
+  /** Optional localized explanation, independent of the title, query controls and export label. */
+  help?: { label: string; text: string };
   /** Optional accessible menu name for otherwise ambiguous headings. */
   menuLabel?: string;
   /** Strings use one-line ellipsis by default; renderers and export values remain untouched. */
@@ -48,6 +52,8 @@ export type DataTableColumn<T> = {
   /** Required identity columns stay visible regardless of picker or initial visibility. */
   hideable?: boolean;
   render?: (row: T) => ReactNode;
+  /** Bind a typed edit group; omitted or inapplicable bindings keep the existing renderer. */
+  editing?: DataTableCellEditing<T>;
   /** Declared query capabilities, independent of value/render. */
   filter?: DataTableFilterSpec;
   /** Opt out of the optional toolbar search when a computed column has no server search mapping. */
@@ -230,7 +236,6 @@ function loadedChoices<T>(
   rows: T[],
   previous: Record<string, DataTableChoice[]>,
 ): Record<string, DataTableChoice[]> {
-  const colors = ['pink', 'cyan', 'violet', 'green', 'orange', 'red', 'blue'] as const;
   return Object.fromEntries(
     columns.flatMap((column) => {
       const spec = column.filter;
@@ -255,7 +260,6 @@ function loadedChoices<T>(
             spec.type === 'enum'
               ? (spec.options.find((item) => item.value === value)?.label ?? value)
               : value,
-          color: colors[options.length % colors.length],
         });
       }
       return [[column.id, options]];
@@ -379,6 +383,7 @@ export function DataTable<T>({
       ...(column.filter && onFiltersChange ? ['var(--table-filter-width)'] : []),
     ];
     return {
+      '--table-header-help': column.help ? 'var(--table-help-width, 20px)' : '0px',
       '--table-header-tools': widths.length
         ? `calc(${widths.join(' + ')} + ${widths.length + 1}px)`
         : '0px',
@@ -568,6 +573,11 @@ export function DataTable<T>({
                       }
                     >
                       <div className={styles.headerContent}>
+                        {column.help && (
+                          <span className={styles.headerHelp}>
+                            <HelpTooltip {...column.help} />
+                          </span>
+                        )}
                         <span data-column-title>{column.label}</span>
                         <span className={styles.headerControls}>
                           {column.sortable && (
@@ -668,9 +678,12 @@ export function DataTable<T>({
                   )}
                   {visibleColumns.map((column) => {
                     const value = column.value(row);
+                    const editor = column.editing?.render(row, column.label, rowKey(row));
                     return (
                       <td key={column.id} className={styles.cell}>
-                        {column.render ? (
+                        {editor !== undefined ? (
+                          editor
+                        ) : column.render ? (
                           column.render(row)
                         ) : typeof value === 'boolean' ? (
                           <BooleanCell

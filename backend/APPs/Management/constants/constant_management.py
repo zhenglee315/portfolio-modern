@@ -3,6 +3,7 @@
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.constants import (
     EnumLocal,
+    AUTH_MANAGEMENT_WRITE_LOCK_KEY,
     LOGIN_GEO_STATUSES,
     EnumHttpHeader,
     PRIVATE_CACHE_CONTROL,
@@ -76,6 +77,8 @@ class EnumManagementField(EnumUtils):
     REGION = "region"
     CITY = "city"
     GEO_STATUS = "geo_status"
+    IS_ONLINE = "is_online"
+    CAN_ASSIGN = "can_assign"
 
 
 class EnumSortDirection(EnumUtils):
@@ -93,6 +96,7 @@ class EnumManagementError(EnumUtils):
     AUTH_DATABASE_UNAVAILABLE = "AUTH_DATABASE_UNAVAILABLE"
     ACCOUNT_NOT_FOUND = "ACCOUNT_NOT_FOUND"
     DEFAULT_SITE_REQUIRES_ACTIVE_PUBLISHED = "DEFAULT_SITE_REQUIRES_ACTIVE_PUBLISHED"
+    DEFAULT_SITE_DEACTIVATE_FORBIDDEN = "DEFAULT_SITE_DEACTIVATE_FORBIDDEN"
     INVALID_ACCOUNT_ID = "INVALID_ACCOUNT_ID"
     INVALID_ACCOUNT_CONFIRMATION = "INVALID_ACCOUNT_CONFIRMATION"
     INVALID_USER_ID = "INVALID_USER_ID"
@@ -112,7 +116,28 @@ class EnumManagementError(EnumUtils):
     PLATFORM_UPDATE_CONFLICT = "PLATFORM_UPDATE_CONFLICT"
     PORTFOLIO_PREVIEW_FORBIDDEN = "PORTFOLIO_PREVIEW_FORBIDDEN"
     SITE_NOT_FOUND = "SITE_NOT_FOUND"
+    INVALID_SITE_DELETE = "INVALID_SITE_DELETE"
+    INVALID_ROLE_DELETE = "INVALID_ROLE_DELETE"
+    INVALID_USER_DELETE = "INVALID_USER_DELETE"
+    ROLE_DELETE_CONFLICT = "ROLE_DELETE_CONFLICT"
+    USER_DELETE_CONFLICT = "USER_DELETE_CONFLICT"
+    ROLE_IN_USE = "ROLE_IN_USE"
+    SITE_DELETE_CONFLICT = "SITE_DELETE_CONFLICT"
+    DEFAULT_SITE_DELETE_FORBIDDEN = "DEFAULT_SITE_DELETE_FORBIDDEN"
+    MANAGEMENT_DELETE_TOO_LARGE = "MANAGEMENT_DELETE_TOO_LARGE"
+    MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE = "MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE"
     SITE_TRANSLATION_NOT_FOUND = "SITE_TRANSLATION_NOT_FOUND"
+    ROLE_NOT_FOUND = "ROLE_NOT_FOUND"
+    INVALID_ROLE_ID = "INVALID_ROLE_ID"
+    INVALID_MANAGEMENT_PATCH = "INVALID_MANAGEMENT_PATCH"
+    MANAGEMENT_PATCH_TOO_LARGE = "MANAGEMENT_PATCH_TOO_LARGE"
+    MANAGEMENT_UPDATE_CONFLICT = "MANAGEMENT_UPDATE_CONFLICT"
+    MANAGEMENT_EDIT_CONFLICT = "MANAGEMENT_EDIT_CONFLICT"
+    DEFAULT_ROLE_REQUIRED = "DEFAULT_ROLE_REQUIRED"
+    DEFAULT_ROLE_REQUIRES_ACTIVE_UNPRIVILEGED = "DEFAULT_ROLE_REQUIRES_ACTIVE_UNPRIVILEGED"
+    LAST_ROLE_MANAGER_REQUIRED = "LAST_ROLE_MANAGER_REQUIRED"
+    ROLE_ASSIGNMENT_FORBIDDEN = "ROLE_ASSIGNMENT_FORBIDDEN"
+    ROLE_ASSIGNMENT_INACTIVE = "ROLE_ASSIGNMENT_INACTIVE"
 
 
 class EnumManagementUpdateState(EnumUtils):
@@ -129,6 +154,8 @@ MANAGEMENT_PRIVATE_HEADERS = {
 MANAGEMENT_DEFAULT_SIZE = 6
 MANAGEMENT_DEFAULT_SORT = f"{EnumManagementField.UPDATETIME}:{EnumSortDirection.DESC}"
 MANAGEMENT_MAX_SIZE = 100
+MANAGEMENT_DELETE_MAX_TARGETS = 100
+MANAGEMENT_DELETE_MAX_BYTES = 65536
 MANAGEMENT_MAX_PAGE = 9007199254740991
 MANAGEMENT_MAX_SORT_FIELDS = 3
 
@@ -144,6 +171,7 @@ SITE_CHAT_ICONS = (
 )
 # PostgreSQL transaction-scoped advisory lock shared by publication/default writes.
 SITE_PUBLICATION_LOCK_KEY = 7369746573
+MANAGEMENT_WRITE_LOCK_KEY = AUTH_MANAGEMENT_WRITE_LOCK_KEY
 
 # ■—< ORM >———————————————————————————————————————————————————————————————————————————■ Management - Field Bindings
 # Only these explicit bindings may cross from validated API fields into ORM operations.
@@ -168,6 +196,35 @@ ROLE_FIELD_COLUMNS = {
 
 ROLE_SORT_FIELDS = (*ROLE_FIELD_COLUMNS, EnumManagementField.USER_COUNT)
 
+ROLE_PERMISSION_COLUMNS = (
+    AuthRole.is_create,
+    AuthRole.is_read,
+    AuthRole.is_update,
+    AuthRole.is_delete,
+    AuthRole.is_manage_roles,
+    AuthRole.is_manage_users,
+    AuthRole.is_manage_sites,
+)
+
+ROLE_PATCH_COLUMNS = {
+    EnumManagementField.ROLE: AuthRole.role,
+    EnumManagementField.DESCRIPTION: AuthRole.description,
+    EnumManagementField.IS_CREATE: AuthRole.is_create,
+    EnumManagementField.IS_READ: AuthRole.is_read,
+    EnumManagementField.IS_UPDATE: AuthRole.is_update,
+    EnumManagementField.IS_DELETE: AuthRole.is_delete,
+    EnumManagementField.IS_MANAGE_ROLES: AuthRole.is_manage_roles,
+    EnumManagementField.IS_MANAGE_USERS: AuthRole.is_manage_users,
+    EnumManagementField.IS_MANAGE_SITES: AuthRole.is_manage_sites,
+    EnumManagementField.IS_DEFAULT: AuthRole.is_default,
+    EnumManagementField.IS_ACTIVE: AuthRole.is_active,
+}
+
+USER_PATCH_COLUMNS = {
+    EnumManagementField.IS_ACTIVE: AuthUser.is_active,
+    EnumManagementField.ROLE_ID: AuthUser.role_id,
+}
+
 USER_FIELD_COLUMNS = {
     EnumManagementField.ID: AuthUser.id,
     EnumManagementField.EMAIL: AuthUser.email,
@@ -186,6 +243,10 @@ USER_SORT_FIELDS = (
     EnumManagementField.LOGIN_COUNT,
     EnumManagementField.LAST_LOGIN,
 )
+
+SITE_ACCOUNT_PATCH_COLUMNS = {
+    EnumManagementField.OWNER_IS_ACTIVE: AuthUser.is_active,
+}
 
 SITE_PATCH_COLUMNS = {
     EnumManagementField.IS_PUBLISHED: PortfolioSite.is_published,

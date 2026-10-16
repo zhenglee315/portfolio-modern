@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
 import { fullName } from '@/features/site';
@@ -7,6 +7,7 @@ import {
   managementFilterSpecs,
   managementSortFields,
   useManagementList,
+  rolePermissionFields,
   type ManagementResource,
   type ManagementRow,
 } from '@/features/management';
@@ -14,7 +15,14 @@ import { DataTable } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
 import { ManagementDetails, type ManagementDetailColumn } from './ManagementDetails';
 import PortfolioPreview from './PortfolioPreview';
-import { managementEditor } from '../model/management-edit';
+import {
+  managementEditor,
+  managementDraftIssue,
+  managementDraftChanges,
+  managementFieldIssue,
+} from '../model/management-edit';
+import { useManagementEdit } from '../hooks/useManagementEdit';
+import { useManagementDelete } from '../hooks/useManagementDelete';
 import {
   fields,
   visible,
@@ -71,11 +79,51 @@ export function ManagementTable({
   const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
   if (deletion && deletion.scope !== scope) setDeletion(null);
   const query = useManagementList(resource, state, locale, enabled, accountId);
+  const completedDelete = useRef<string | null>(null);
+  const { remove: deleteRecords, busy: deleting } = useManagementDelete(
+    resource,
+    accountId,
+    enabled && !query.isFetching && !query.isError,
+  );
+  useEffect(() => {
+    if (completedDelete.current !== scope || deleting || query.isFetching || !query.data) return;
+    completedDelete.current = null;
+    // A has_site filter can remove the last matching row on a page even though its account survives.
+    //                                                                            ZhengLee 2026.10.16
+    if (state.page > Math.max(1, query.data.pages)) onPageChange(Math.max(1, query.data.pages));
+  }, [scope, deleting, query.isFetching, query.data, state.page, onPageChange]);
+  const {
+    columns: quickColumns,
+    busy: quickBusy,
+    save: saveRecord,
+    roleEditor,
+  } = useManagementEdit(
+    resource,
+    locale,
+    accountId,
+    enabled && !query.isFetching && !query.isError && !deleting,
+  );
   const nameField = resource === 'roles' ? 'role' : resource === 'users' ? 'email' : 'owner_email';
-  const actionsUnavailable = !enabled || query.isFetching || query.isError;
+  const actionsUnavailable = !enabled || query.isFetching || query.isError || quickBusy || deleting;
+  const deletionCopy =
+    resource === 'sites' ? 'deletion' : resource === 'roles' ? 'roleDeletion' : 'userDeletion';
+  const deleteReason = (row: ManagementRow) =>
+    resource === 'roles' && 'user_count' in row
+      ? row.is_default
+        ? t('management.deletion.defaultRole')
+        : row.user_count > 0
+          ? t('management.deletion.roleInUse')
+          : undefined
+      : resource === 'sites' && 'owner_email' in row
+        ? !row.has_site
+          ? t('management.deletion.noSite')
+          : row.is_default
+            ? t('management.deletion.default')
+            : undefined
+        : undefined;
   const selectedRows = (query.data?.items ?? []).filter((row) => selection.keys.includes(row.id));
   const openDelete = (rows: ManagementRow[]) => {
-    if (!actionsUnavailable && rows.length) {
+    if (!actionsUnavailable && rows.length && !rows.some((row) => deleteReason(row))) {
       setEditing(null);
       setPreview(null);
       setHistory(null);
@@ -94,6 +142,7 @@ export function ManagementTable({
     const makeColumn = (
       field: string,
       override?: string,
+      inline = false,
     ): ManagementDetailColumn<ManagementRow> => {
       const label =
         override ||
@@ -104,6 +153,13 @@ export function ManagementTable({
       return {
         id: field,
         label,
+        help:
+          resource === 'roles' && rolePermissionFields.some((permission) => permission === field)
+            ? {
+                label: t('management.permissionHelpLabel', { label }),
+                text: t(`management.permissionHelp.${field}`),
+              }
+            : undefined,
         value: (row) => {
           if (field !== 'profile_name' || !('has_translation' in row)) return rowValue(row, field);
           if (!row.has_site) return t('management.noPortfolio');
@@ -125,11 +181,29 @@ export function ManagementTable({
             ? false
             : undefined,
         filter: managementFilterSpecs[resource][field],
-        editor: (row) => managementEditor(resource, field, row),
+        editor: (row) =>
+          resource === 'users' && field === 'role'
+            ? roleEditor(row)
+            : managementEditor(resource, field, row),
+        editUnavailableReason: (row) => {
+          const issue = managementFieldIssue(resource, field, row);
+          return issue ? t(`management.write.${issue}`) : undefined;
+        },
+        assignment:
+          resource === 'users' && field === 'role'
+            ? {
+                field: 'role_id',
+                value: (row) => ('login_count' in row ? row.role_id : null),
+                project: (option) => ({ role: option.label, role_is_active: true }),
+              }
+            : undefined,
         filterStyle:
           (resource === 'roles' || resource === 'users') && field === 'role'
             ? 'dropdown-list'
             : undefined,
+        editing: inline
+          ? quickColumns[resource === 'users' && field === 'role' ? 'role_id' : field]
+          : undefined,
         render: booleanFields[resource].includes(field)
           ? (row) => {
               return (
@@ -145,6 +219,7 @@ export function ManagementTable({
                   unavailableReason={
                     field === 'is_default' &&
                     'owner_is_active' in row &&
+                    row.is_default !== true &&
                     !(row.owner_is_active && row.has_site && row.is_published)
                       ? t('management.defaultRequires')
                       : undefined
@@ -171,12 +246,12 @@ export function ManagementTable({
       };
     };
     return {
-      columns: visible[resource].map((field) => makeColumn(field)),
+      columns: visible[resource].map((field) => makeColumn(field, undefined, true)),
       detailColumns: fields[resource].map((field) =>
         makeColumn(field, detailLabels[resource][field]),
       ),
     };
-  }, [resource, t]);
+  }, [resource, t, quickColumns, roleEditor]);
   const copy = {
     ...dataTableCopy(t, title),
     actions: columnLabels[resource].actions ?? t('management.actions'),
@@ -197,8 +272,12 @@ export function ManagementTable({
         type="button"
         value="delete"
         aria-label="Delete"
-        title="Delete"
-        disabled={actionsUnavailable || !selectedRows.length}
+        title={selectedRows.map(deleteReason).find(Boolean) ?? 'Delete'}
+        disabled={
+          actionsUnavailable ||
+          !selectedRows.length ||
+          selectedRows.some((row) => !!deleteReason(row))
+        }
         onClick={() => openDelete(selectedRows)}
       >
         Del
@@ -226,6 +305,9 @@ export function ManagementTable({
         rowKey={(row) => row.id}
         selection={{
           ...selection,
+          onChange: (keys) => {
+            if (!deleting) selection.onChange(keys);
+          },
           allLabel: t('management.selectAll'),
           rowLabel: (row) =>
             t('management.selectRow', {
@@ -310,14 +392,17 @@ export function ManagementTable({
               className={`btn btn-link btn-sm ${styles.tableAction} ${styles.deleteRow}`}
               type="button"
               value="delete"
-              disabled={actionsUnavailable}
+              disabled={actionsUnavailable || !!deleteReason(row)}
               onClick={() => openDelete([row])}
               aria-label={t('management.deleteRow', {
                 name: rowValue(row, nameField),
               })}
-              title={t('management.deleteRow', {
-                name: rowValue(row, nameField),
-              })}
+              title={
+                deleteReason(row) ??
+                t('management.deleteRow', {
+                  name: rowValue(row, nameField),
+                })
+              }
             />
           </div>
         )}
@@ -346,7 +431,7 @@ export function ManagementTable({
       {editing?.scope === scope && (
         <ManagementDetails
           key={editing.row.id}
-          row={editing.row}
+          row={query.data?.items.find((row) => row.id === editing.row.id) ?? editing.row}
           columns={detailColumns}
           icon={managementNavigation.find((item) => item.resource === resource)!.icon}
           copy={{
@@ -363,29 +448,56 @@ export function ManagementTable({
               message: t('management.saveTarget', { name: rowValue(editing.row, nameField) }),
               confirm: t('management.confirmSave'),
               cancel: t('management.cancel'),
+              conflict: t('management.write.detailConflict'),
             },
           }}
-          onClose={() => setEditing(null)}
+          busy={quickBusy}
+          validate={(draft) => {
+            const issue = managementDraftIssue(resource, editing.row, draft);
+            return issue ? t(`management.write.${issue}`) : undefined;
+          }}
+          changeDraft={(draft, field, value) =>
+            managementDraftChanges(resource, draft, field, value)
+          }
+          onSave={async (changes) => {
+            await saveRecord(editing.row, changes);
+            setEditing(null);
+          }}
+          onClose={() => {
+            if (!quickBusy) setEditing(null);
+          }}
         />
       )}
       {deletion?.scope === scope && (
         <WarningModal
+          layout="prompt"
+          busy={deleting}
           title={t('management.deleteConfirmation')}
           message={
             deletion.rows.length === 1
-              ? t('management.deleteTarget', {
+              ? t(`management.${deletionCopy}.target`, {
                   name: rowValue(deletion.rows[0]!, nameField),
                 })
-              : t('management.deleteTargets', { count: deletion.rows.length })
+              : t(`management.${deletionCopy}.targets`, { count: deletion.rows.length })
           }
           closeLabel={t('management.close')}
-          onClose={() => setDeletion(null)}
+          onClose={() => {
+            if (!deleting) setDeletion(null);
+          }}
           confirm={{
-            label: t('management.confirmDelete'),
+            label: t(deleting ? 'management.deletion.deleting' : 'management.confirmDelete'),
             cancelLabel: t('management.cancel'),
             variant: 'danger',
-            // UI preview only: the future mutation belongs here, never in WarningModal.
-            onConfirm: () => setDeletion(null),
+            // All resources share one coordinator; each original business class owns its delete rules.
+            //                                                                            ZhengLee 2026.10.16
+            onConfirm: () => {
+              if (actionsUnavailable) return;
+              void deleteRecords(deletion.rows).then(() => {
+                completedDelete.current = scope;
+                selection.onChange([]);
+                setDeletion(null);
+              });
+            },
           }}
         />
       )}

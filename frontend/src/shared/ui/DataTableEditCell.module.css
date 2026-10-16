@@ -1,0 +1,44 @@
+/* Keep scalar editors within table cells; status and recovery controls wrap naturally.
+ * Touch targets match the shared field editor without changing the table's column rules.
+ * @author ZhengLee 2026.10.16
+ */
+.root {
+  min-width: 0;
+}
+.boolean {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.clear {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  min-width: 44px;
+  min-height: 44px;
+}
+.feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.feedback button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  padding: 4px;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: underline;
+}
+.error {
+  font-size: 12px;
+  color: var(--field-error);
+  margin: 4px 0;
+}
+.root[data-invalid] :global(.form-check-input) {
+  border-color: var(--field-error);
+}

@@ -790,6 +790,26 @@ class RedisAsync:
         expiry = now + timedelta(seconds=ttl if ttl > 0 else expire)
         return {"employee_id": identifier, "expiry": expiry.strftime("%Y-%m-%d %H:%M:%S")}
 
+    async def heartbeat_status(
+        self, identifiers: list[str] | tuple[str, ...], key_prefix: str = "online"
+    ) -> dict[str, bool]:
+        """
+        Observe requested heartbeat keys without scanning or changing the online roster.
+
+        :param identifiers: Nonempty identifiers from a bounded caller-owned collection.
+        :param key_prefix: Same prefix used by heartbeat_client.
+        :return: Unique identifiers mapped to key presence; raw values are never deserialized.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+        """
+        unique = tuple(dict.fromkeys(identifiers))
+        if any(not isinstance(value, str) or not value.strip() for value in unique):
+            raise ValueError("identifiers must be nonempty strings.")
+        if not unique:
+            return {}
+        values = await self.mget(tuple(f"{key_prefix}:{value}" for value in unique), deserialize=False)
+        return {identifier: value is not None for identifier, value in zip(unique, values, strict=True)}
+
     # —< Command >—————————————————————————————————————————● Heartbeat total (Online user count)
     async def heartbeat_total(self, set_key: str = "online_clients", key_prefix: str = "online") -> int:
         """

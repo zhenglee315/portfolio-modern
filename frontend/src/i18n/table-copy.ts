@@ -1,6 +1,25 @@
 import type { TFunction } from 'i18next';
 import type { DataTableCopy } from '@/shared/ui/DataTable';
 import type { DataTableSearchCopy } from '@/shared/ui/DataTableSearch';
+import type { DataTableEditCopy } from '@/shared/lib/data-table-edit';
+
+/** Inject editing vocabulary; shared controllers never import a domain or translator. */
+export function dataTableEditCopy(t: TFunction): DataTableEditCopy {
+  return {
+    edit: (label) => t('management.editField', { label }),
+    clear: (label) => t('management.clearField', { label }),
+    empty: '—',
+    required: t('management.editGroup.required'),
+    invalid: t('management.invalidField'),
+    incomplete: t('management.editGroup.incomplete'),
+    saving: t('management.quick.saving'),
+    failed: t('management.editGroup.failed'),
+    conflict: t('management.editGroup.conflict'),
+    retry: t('ui.retry'),
+    cancel: t('management.editGroup.cancel'),
+    readonly: t('management.readonly'),
+  };
+}
 
 /** Share the search/field-picker vocabulary across full-page tables and history dialogs.
  * @author ZhengLee 2026.10.15

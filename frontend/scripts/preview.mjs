@@ -64,6 +64,10 @@ const server = createServer((incoming, outgoing) => {
         ...(!incoming.headers['content-length'] &&
           incoming.headers['transfer-encoding'] && { 'transfer-encoding': 'chunked' }),
         ...(incoming.headers.cookie && { cookie: incoming.headers.cookie }),
+        ...(incoming.headers.origin && { origin: incoming.headers.origin }),
+        ...(incoming.headers['content-encoding'] && {
+          'content-encoding': incoming.headers['content-encoding'],
+        }),
       },
     },
     (response) => {
@@ -73,6 +77,9 @@ const server = createServer((incoming, outgoing) => {
         // Keep each cookie separate so session rotation reaches the browser intact.
         ...(response.headers['set-cookie'] && { 'set-cookie': response.headers['set-cookie'] }),
         ...(response.headers['retry-after'] && { 'retry-after': response.headers['retry-after'] }),
+        ...(response.headers['x-management-update-state'] && {
+          'x-management-update-state': response.headers['x-management-update-state'],
+        }),
       });
       response.on('error', () => outgoing.destroy());
       response.pipe(outgoing);

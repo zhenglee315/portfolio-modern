@@ -1,0 +1,9 @@
+.status {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  color: var(--bs-secondary-color);
+}
+.status[data-status='online'] {
+  color: var(--bs-success);
+}

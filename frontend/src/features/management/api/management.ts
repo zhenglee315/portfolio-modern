@@ -27,7 +27,9 @@ export const managementSortFields = {
   sites: Object.keys(managementSitesSchema.shape.items.element.shape).filter(
     (field) => field !== 'locale',
   ),
-  'login-records': Object.keys(managementLoginRecordsSchema.shape.items.element.shape),
+  'login-records': Object.keys(managementLoginRecordsSchema.shape.items.element.shape).filter(
+    (field) => field !== 'is_online',
+  ),
 } satisfies Record<ManagementQueryResource, string[]>;
 
 const booleans = [
@@ -69,35 +71,37 @@ export const managementFilterSpecs = Object.fromEntries(
   }).map(([resource, schema]) => [
     resource,
     Object.fromEntries(
-      Object.entries(schema.shape.items.element.shape).map(([field, validator]) => {
-        const type = booleans.includes(field)
-          ? 'boolean'
-          : numbers.includes(field)
-            ? 'number'
-            : dates.includes(field)
-              ? 'date'
-              : 'text';
-        return [
-          field,
-          field === 'locale'
-            ? {
-                type: 'enum',
-                options: ['en', 'zh-Hans', 'zh-Hant'].map((value) => ({ value, label: value })),
-              }
-            : {
-                type,
-                nullable: validator.safeParse(null).success,
-                ...(type === 'number'
-                  ? {
-                      integer: true,
-                      ...(boundedNumbers.includes(field)
-                        ? { minimum: -2147483648, maximum: 2147483647 }
-                        : {}),
-                    }
-                  : {}),
-              },
-        ];
-      }),
+      Object.entries(schema.shape.items.element.shape)
+        .filter(([field]) => field !== 'is_online')
+        .map(([field, validator]) => {
+          const type = booleans.includes(field)
+            ? 'boolean'
+            : numbers.includes(field)
+              ? 'number'
+              : dates.includes(field)
+                ? 'date'
+                : 'text';
+          return [
+            field,
+            field === 'locale'
+              ? {
+                  type: 'enum',
+                  options: ['en', 'zh-Hans', 'zh-Hant'].map((value) => ({ value, label: value })),
+                }
+              : {
+                  type,
+                  nullable: validator.safeParse(null).success,
+                  ...(type === 'number'
+                    ? {
+                        integer: true,
+                        ...(boundedNumbers.includes(field)
+                          ? { minimum: -2147483648, maximum: 2147483647 }
+                          : {}),
+                      }
+                    : {}),
+                },
+          ];
+        }),
     ),
   ]),
 ) as Record<ManagementQueryResource, Record<string, DataTableFilterSpec>>;
@@ -255,6 +259,8 @@ export function useManagementList<R extends ManagementQueryResource>(
   return useQuery({
     ...options,
     enabled,
+    refetchInterval: resource === 'login-records' && enabled ? 45_000 : false,
+    refetchIntervalInBackground: false,
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey.length === options.queryKey.length &&
       previousQuery.queryKey.slice(0, -1).every((value, index) => value === options.queryKey[index])

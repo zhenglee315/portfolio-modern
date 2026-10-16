@@ -14,6 +14,7 @@ import { cycleDialogTab } from '@/shared/lib/focus';
 import { CloseButton } from '@/shared/ui/CloseButton';
 import { DataTable, type DataTableColumn } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
+import { StatusIndicator } from '@/shared/ui/StatusIndicator';
 import styles from '../ManagementPage.module.css';
 
 /** Read one account's private audit history without changing the background table's URL state.
@@ -47,12 +48,13 @@ export default function LoginRecords({
     setState((previous) => ({ ...previous, page: 1, ...patch }));
   const columns = useMemo<DataTableColumn<LoginRecordRow>[]>(
     () =>
-      managementSortFields['login-records'].map((field) => ({
+      [...managementSortFields['login-records'], 'is_online'].map((field) => ({
         id: field,
         label: t(`management.loginHistory.fields.${field}`),
         value: (row) => row[field as keyof LoginRecordRow],
-        sortable: true,
-        initiallyHidden: ['user_id', 'email'].includes(field),
+        sortable: field !== 'is_online',
+        searchable: field !== 'is_online',
+        initiallyHidden: ['user_id', 'email', 'geo_status'].includes(field),
         hideable: field !== 'id',
         truncate: field === 'email' || field === 'ip_address' ? false : undefined,
         filter:
@@ -68,15 +70,26 @@ export default function LoginRecords({
               }
             : managementFilterSpecs['login-records'][field],
         render:
-          field === 'logintime'
+          field === 'is_online'
             ? (row) => (
-                <time dateTime={row.logintime} title={`${row.logintime} UTC`}>
-                  {row.logintime.slice(0, 19).replaceAll('-', '.').replace('T', ' ')}
-                </time>
+                <StatusIndicator
+                  value={row.is_online}
+                  copy={{
+                    online: t('management.loginHistory.presence.online'),
+                    offline: t('management.loginHistory.presence.offline'),
+                    unknown: t('management.loginHistory.presence.unknown'),
+                  }}
+                />
               )
-            : field === 'geo_status'
-              ? (row) => t(`management.loginHistory.statuses.${row.geo_status}`)
-              : undefined,
+            : field === 'logintime'
+              ? (row) => (
+                  <time dateTime={row.logintime} title={`${row.logintime} UTC`}>
+                    {row.logintime.slice(0, 19).replaceAll('-', '.').replace('T', ' ')}
+                  </time>
+                )
+              : field === 'geo_status'
+                ? (row) => t(`management.loginHistory.statuses.${row.geo_status}`)
+                : undefined,
       })),
     [t],
   );

@@ -1,12 +1,14 @@
 # 後端總覽 / Backend Overview
 
+User PATCH `/management/users/{account_id}` 現在接受 is_active／role_id，沿用 email 確認與 expected 原值比較。角色指派在同一交易及管理寫入鎖下檢查角色存在、啟用、操作者七項權限上限與最後角色管理員。新增 `/management/users/role-options` 提供 page／size／search，僅需 is_manage_users，回傳 can_assign。Login records GET 加入 nullable is_online：使用與 system heartbeat 相同的 Redis SYS online:<IP> TTL key，只批次讀取當頁 IP；不存在為 false，Redis 無法讀取為 null。此值表示 IP 活動，不代表帳號 session，無 SQL 排序／篩選。geo_status 仍保留原登入地理快照；沒有 migration 或額外寫入 API。
+
 本目錄是個人檔案系統的 FastAPI 後端。`APPs` 放業務 API，`COMMON` 放共用工具，`SYSTEM` 負責設定、模型、資料庫、middleware 與應用生命週期。整體產品方向見[專案 README](../README.md)。
 
 This directory contains the FastAPI backend for the personal profile system. `APPs` holds business APIs, `COMMON` holds shared tools, and `SYSTEM` owns configuration, models, the database, middleware, and the application lifecycle. See the [project README](../README.md) for the product overview.
 
-目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Platform PATCH、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。其他管理寫入 API 與 Portfolio 寫入 API 尚未實作。
+目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Role／User／Platform PATCH、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。管理新增／刪除 API 與 Portfolio 寫入 API 尚未實作。
 
-Six Portfolio read APIs, three management lists, Platform PATCH, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Other administration writes and Portfolio write APIs are not implemented yet.
+Six Portfolio read APIs, three management lists, Role/User/Platform PATCH, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Administration create/delete APIs and Portfolio write APIs are not implemented yet.
 
 ## 管理員 Portfolio 預覽
 
@@ -403,31 +405,31 @@ Management target visibility is independent of soft deletion, while actor authen
 
 ## 平台部分更新 / Platform Partial Updates
 
-`PATCH /management/sites/{account_id}?locale=zh-Hant` 在既有 `ManagementSites` CBV 宣告，沿用 `ManagementPermission(AuthRole.is_manage_sites)`。Path 使用列表 `id`（帳號 PK），後端自行解析網站歸屬；`locale` 只選擇現有翻譯，不修改 FK。Body 與 query 由 `BodyManagementSitePatchRequest`（內含 `BodyManagementSitePatch`）、`parser_management_site_patch` 驗證，原本 `ManagementSitesModule` 同時提供 `select()`、`update()`，透過 `_query()` 共用欄位投影。成功回傳單筆 `RespManagementSite`，不是分頁 envelope。此階段前端 Save 仍是本地草稿，尚未串接 mutation。
+`PATCH /management/sites/{account_id}?locale=zh-Hant` 在既有 `ManagementSites` CBV 宣告，沿用 `ManagementPermission(AuthRole.is_manage_sites)`。Path 使用列表 `id`（帳號 PK），後端自行解析網站歸屬；`locale` 只選擇現有翻譯，不修改 FK。Body 與 query 由 `BodyManagementSitePatchRequest`（內含 `BodyManagementSitePatch`）、`parser_management_site_patch` 驗證，原本 `ManagementSitesModule` 同時提供 `select()`、`update()`，透過 `_query()` 共用欄位投影。成功回傳單筆 `RespManagementSite`，不是分頁 envelope。Platform 表格 Active／Default 已串接單欄即時 PATCH；Edit 內完整 Save 使用同一支 PATCH 持久化。
 
 ORM／Enum 分層：驗證後的變更以 ORM 屬性作 key，`update()` 使用必要欄位的 entity；API 名稱透過明確白名單映射，不從欄名動態 getattr。CBV 接收不可變 `ManagementSitePatchParameters`；資料庫／語言沿用 `EnumDBType`／`EnumLocal`。共用權限宣告改為 `ManagementPermission(AuthRole.is_manage_sites)`，身份在邊界轉成嚴格的 `RespAuthUser`。HTTP 與快取 namespace 使用共用定義；詳細維護規則見[管理模組](APPs/Management/module/README.md#orm-欄位與外部契約--orm-bindings-and-wire-contracts)。
 
-The existing Platform CBV and business class own GET and PATCH together. The path selects the owner account, the query selects a language, and the module resolves the existing site/translation. A successful patch returns the complete row using the GET projection. Frontend Save is still local draft state; mutation wiring is separate work.
+The existing Platform CBV and business class own GET and PATCH together. The path selects the owner account, the query selects a language, and the module resolves the existing site/translation. A successful patch returns the complete row using the GET projection. Platform table Active/Default switches save immediately through PATCH. Full-detail Save persists through the same PATCH endpoint.
 
 ```http
 PATCH /management/sites/2?locale=zh-Hant
 Content-Type: application/json
 
-{"expected_owner_email":"person2@example.com","changes":{"first_name":"鄭","github":"https://github.com/example"}}
+{"expected_owner_email":"person2@example.com","expected":{"first_name":"原名","github":""},"changes":{"first_name":"鄭","github":"https://github.com/example"}}
 ```
 
 - Body 的 `expected_owner_email` 是唯讀目標確認值，與 path 的帳號 ID 在同一交易內同時比對 `AuthUser.id`／`AuthUser.email`；不匹配回 404 `ACCOUNT_NOT_FOUND`。信箱不放在 URL，也不作為可更新欄位；這是資料一致性核對，不能代替 SESSION 與管理權限。
 - `changes` 僅更新明確傳入欄位；未傳保持原值，空 `{}`、明確 `null`、未知欄位與型別轉換一律拒絕。`false` 與允許的空字串是有效值。文字保留原文，不作 HTML 執行。
-- PK／FK、登入信箱 `owner_email`、公開代稱 `user`、帳號狀態、時間與衍生欄位不在更新白名單；任何這些欄位出現在 `changes` 都回 422，不能透過關聯顯示值間接更新。
+- PK／FK、登入信箱 `owner_email`、公開代稱 `user`、時間與衍生欄位不在更新白名單；任何這些欄位出現在 `changes` 都回 422，不能透過關聯顯示值間接更新。
 - `email` 僅是公開聯絡信箱，與 SMTP 驗證的登入身分獨立；採既有信箱格式與 254 字上限，空字串隱藏。社群連結上限 2048 字，只接受無憑證及空白的 HTTP(S) URL，空字串隱藏；不由後端下載目標網址。圖示只接受前台目前信任的四個 bundled 路徑。
 - 短文字沿用儲存欄位長度；四個 Text 欄位各限 10,000 字，拒絕 NUL 與非法 Unicode。年份必須為 1900–9999 的整數；字串、浮點與 boolean 不能冒充整數。
 - `ManagementRoute` 在 JSON 解碼前限制實際串流為 256 KiB，包含無 Content-Length 的 chunked body。只接受未壓縮的 application/json；拒絕重複 JSON key、NaN／Infinity 和格式錯誤。驗證回應保留 loc/type/msg，不回傳原始 input、ctx 或資料庫例外內容。
-- 帶 Origin 的瀏覽器 PATCH 必須符合 backend 同源、既有 CORS origins 或 `SECURITY.management_write_origins`。Vite 改寫 Host 時，原始 Origin 仍須列入後者；開發設定包含 localhost／127.0.0.1:5173，部署時在私有 YAML 填正式網站 origin。CLI 沒有 Origin 時仍須提供有效 SESSION；不信任 client 提交的 forwarded origin。
-- 更新網站欄位要求網站存在；涉及翻譯欄位時，另外要求指定語言翻譯存在；語言停用不阻擋管理修正。PATCH 不建立缺少的資料。帳號及其 `updatetime` 不寫入，Created／Updated 繼續代表帳號時間。
-- 所有寫入透過 `SqlAlchemyExecAsync.transaction()` 一起提交／回滾。發布／Default 更新在 PostgreSQL 使用交易 advisory lock；SQLite 在讀取決策前取得 writer lock。設新 Default 先驗證最終發布狀態及啟用 owner，再取消舊 Default；重選目前 Default 冪等。取消發布同時清除 Default；明確要求 `is_default=true` 且最終未發布回 409。
+- 帶 Origin 的瀏覽器 PATCH 必須符合 backend 同源、既有 CORS origins 或 `SECURITY.management_write_origins`。Vite 改寫 Host 時，原始 Origin 仍須列入後者；開發設定包含 localhost／127.0.0.1:5173 與 :4173，部署時在私有 YAML 填正式網站 origin。CLI 沒有 Origin 時仍須提供有效 SESSION；不信任 client 提交的 forwarded origin。
+- 更新網站欄位要求網站存在；涉及翻譯欄位時，另外要求指定語言翻譯存在；語言停用不阻擋管理修正。PATCH 不建立缺少的資料。`owner_is_active` 是唯一可寫的帳號欄位；僅切換帳號啟用時由既有 onupdate 維護 Updated，其他內容修改不變更帳號時間。沒有網站的帳號也可只改 Active，重送相同值不改 Updated。
+- 所有寫入透過 `SqlAlchemyExecAsync.transaction()` 一起提交／回滾。發布／Default 更新在 PostgreSQL 使用交易 advisory lock；SQLite 在讀取決策前取得 writer lock。設新 Default 先驗證最終發布狀態及啟用 owner，再取消舊 Default；重選目前 Default 冪等。Default 網站的帳號禁止停用，回 409 `DEFAULT_SITE_DEACTIVATE_FORBIDDEN`；必須先取消／切換 Default，或在同一 Platform PATCH 明確取消 Default。Active 不隱式清除 Default；取消發布仍清除 Default，明確要求 `is_default=true` 且最終未發布回 409。
 - Commit 後沿用 `PortfolioManagementModule.invalidate_cache()` 清除公開 `portfolio` namespace。若快取清除失敗，回 503 `MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE` 與 `X-Management-Update-State: committed`，代表資料已寫入，呼叫端必須重新查詢。公開快取仍採原本最多 60 秒的期限。
 
-Only explicitly supplied mutable fields are written. Strict schemas reject coercion, nulls and identity/relationship changes; bounded transport validation rejects malformed or ambiguous JSON without echoing submitted values. One transaction owns both field groups and global-default replacement. Missing content is never created. Cache failure after commit explicitly distinguishes committed database state from a rollback. Existing account timestamps retain their original meaning.
+Only explicitly supplied mutable fields are written. Strict schemas reject coercion, nulls and identity/relationship changes; bounded transport validation rejects malformed or ambiguous JSON without echoing submitted values. One transaction owns account activation, both content field groups and global-default replacement. A Default website's owner cannot be disabled; clear or switch Default first, or explicitly clear it in the same Platform PATCH. Reactivation never selects a Default automatically. Missing content is never created. Cache failure after commit explicitly distinguishes committed database state from a rollback. Existing account timestamps retain their original meaning.
 
 | 狀態     | 說明                                           |
 | -------- | ---------------------------------------------- |
@@ -549,7 +551,7 @@ uv run --locked manage_fastapi.py
 The default API is `http://127.0.0.1:8080`, with Swagger at `http://127.0.0.1:8080/swagger`. In another terminal, check:
 
 ```bash
-curl -fsS http://127.0.0.1:8080/openapi > /dev/null
+curl -fsS http://127.0.0.1:8080/openapi.json > /dev/null
 curl -fsS 'http://127.0.0.1:8080/portfolio/projects?locale=en&page=1&size=6'
 ```
 
@@ -558,6 +560,10 @@ curl -fsS 'http://127.0.0.1:8080/portfolio/projects?locale=en&page=1&size=6'
 A new database has no portfolio content; `/portfolio/site?locale=en` returns 404 without a published default site in that locale. After creating your own content, use this endpoint to verify the profile. The generated `backend` console script still points to the `src/backend` sample and does not start the API; use `manage_fastapi.py`. This entry point passes an instantiated ASGI application to Uvicorn, so keep `SERVER.worker: 1`. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload. Multiple workers or reload require an importable application factory.
 
 ### 5. 常見問題 / Troubleshooting
+
+新增的 API 回傳 404、舊 GET 仍正常時，先檢查執行中的 `/openapi.json` 是否包含該路徑與 HTTP method。若原始碼已有路由、執行中的 schema 卻沒有，請在啟動後端的 terminal 按 Ctrl+C，再執行 `uv run --locked manage_fastapi.py`；目前入口不會自動重載程式碼。若路由已存在，才依回應的 detail 檢查身份確認、網站或翻譯資料是否存在。
+
+If a new endpoint returns 404 while existing GET requests work, check its path and HTTP method in the running `/openapi.json`. When source contains the route but the running schema does not, stop the backend with Ctrl+C in its terminal and run `uv run --locked manage_fastapi.py` again; this entry point does not reload source automatically. If the route is registered, inspect the response detail for missing identity confirmation, site or translation data.
 
 | 現象 / Symptom                                        | 處理方式 / Resolution                                                                                                                                                                       |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -591,3 +597,45 @@ The four resource responses specialize only the item type of the shared model. C
 套件準備階段以 `tool.uv.no-binary-package` 對 `charset-normalizer` 使用純 Python 版本，避免載入選用的原生加速檔。封閉網段仍需事先備妥與目標 OS／CPU／Python 相容的全部依賴；本機開發的虛擬環境不可直接搬到不同作業系統。
 
 The dependency preparation step builds the optional charset detector as pure Python. Prepare all locked dependencies for the actual target OS, CPU and Python before entering the isolated network; a development virtual environment is not a cross-platform deployment artifact.
+
+### Role / User / Platform 編輯契約
+
+三支 PATCH 均位於原 Management CBV，對應原 Module 的 select／update，查詢投影共用 `_query()`。Role：`PATCH /management/roles/{role_id}`，body 為 `{expected_role, expected, changes}`；User：`PATCH /management/users/{account_id}`，body 為 `{expected_email, expected, changes}`；Platform：`PATCH /management/sites/{account_id}?locale=en`，body 為 `{expected_owner_email, expected, changes}`。expected 必須和 changes 有相同欄位，承載使用者開始編輯時的原值，不能代替 SESSION 授權；原值不同回 409 MANAGEMENT_EDIT_CONFLICT。未送、null、false、空字串分別處理，只有 Role description 允許明確 null。此契約新增 expected，舊前端亦須更新。
+
+Role 允許 role（1–64 字元、無首尾空白且唯一）、description（最多 10,000 字元或 null）、七個權限、is_default、is_active。User 允許 is_active 與 role_id 角色指派；PK、其他 FK、已驗證 Email、public user、密碼、時間及統計不接受寫入。不同入口分別要求 AuthRole.is_manage_roles／is_manage_users／is_manage_sites，不以內容 is_update 替代。角色指派權限上限由明確的 ORM `ROLE_PERMISSION_COLUMNS` 定義；新增權限時須同步更新 ORM、授權／SESSION、DTO 與此清單。
+
+`ManagementWriteState` 接收既有交易，不自行提交。固定順序為 auth-management 交易鎖、publication 鎖、當前操作者、目標列；等待後重新查操作者權限。User 與 Platform 使用同一 activate 操作；Default 網站的帳號不可停用，先取消／切換 Default 後才可停用，恢復帳號不自動恢復 Default。Platform 可在同一交易明確取消 Default 再停用。Role 停用不批改 AuthUser.is_active。以有效帳號與有效角色的 is_manage_roles 判定最後管理員，禁止從 Role、User、Platform 任一入口移除最後有效管理員；既有零管理員資料可經授權的外部修復流程恢復，不自動選擇帳號。
+
+註冊角色 Default 必須啟用且無三個 management 權限。選新 Default 在同一交易取消舊值；唯一的 Default 不允許直接取消或停用。Role 名稱與權限更新不改寫既有帳號的 role_id。註冊 INSERT 在取得 `AUTH_MANAGEMENT_WRITE_LOCK_KEY` 後才讀 Default snapshot，避免等待鎖後使用舊狀態。PostgreSQL 使用交易級 advisory lock，SQLite 使用保留時間的 no-op writer lock；沿用既有資料表與唯一／check constraints，本次無 migration。
+
+成功回完整單筆 projection，包含關聯與統計，不受當前列表 filters／pagination 限制。User／Platform commit 後才清公開 cache；已提交但 cache 失敗使用 MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE 與 X-Management-Update-State: committed。更新相同值不無故修改 Updated。管理列表／Preview 不過濾停用目標；操作者必須有效。
+
+測試：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_*update.py'`。提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可同時執行 PostgreSQL 分支；不得指向應用程式資料庫。
+
+## 平台網站刪除 / Platform Website Deletion
+
+`ManagementSites` 原 CBV 提供 DELETE `/management/sites/{account_id}` 及 POST `/management/sites/bulk-delete`，兩者都由原 `ManagementSitesModule.delete()` 執行一個交易。登入及權限沿用 `ManagementPermission(AuthRole.is_manage_sites)`；交易取得既有 management／publication 鎖後再次檢查有效操作者。單筆 body 是 `{expected_owner_email, expected_site_id}`；批次 body 是 `{targets: [{account_id, expected_owner_email, expected_site_id}]}`。批次上限 100，目標帳號與網站不可重複；型別嚴格、不接受未知欄位、null 或強制轉型。DELETE／POST 套用 Origin、未壓縮 JSON、64 KiB 實際串流上限與重複 JSON key／NaN 防護；不接受 locale、搜尋或分頁 query。
+
+目標以帳號 ID／不可變登入 Email 核對，再比對該帳號的原網站 ID。目標依固定順序鎖定、全部驗證通過後才刪除，任一失敗整批回滾。Default 網站回 409 DEFAULT_SITE_DELETE_FORBIDDEN，必須先用既有 PATCH 切換 Default；網站 ID 已變更回 409 SITE_DELETE_CONFLICT，缺帳號／網站回 404。停用 owner／語言仍可管理。
+
+只物理刪除 PortfolioSite；既有 FK `ON DELETE CASCADE` 清除所有語言、經歷、專案、技能、分類與關聯內容。AuthUser、AuthRole、RecordLogin 及共用 PortfolioLocale 保留，因此 Platform 帳號列仍存在且 has_site=false；不修改 PK／FK／登入信箱，不需要 migration。網站 ID 是存在性確認，帳號 Updated 不作整站版本號；目前未提供涵蓋子內容異動的 revision 機制。
+
+成功回 `{deleted_count, deleted: [{account_id, site_id}]}`，不返回登入信箱。公開快取只在 commit 後清除；共用處理移至 `ManagementWriteState.invalidate_public_cache()`，保持原 PATCH 的錯誤契約。刪除已提交但 cache 失敗回 503 MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE 及 `X-Management-Update-State: committed`，呼叫端不得自動重試。
+
+驗證：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_site_delete.py'`。僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可重複執行 PostgreSQL 鎖、競態與真實級聯刪除測試；SQLite fixture 自動啟用 foreign_keys。
+
+## 角色與帳號刪除 / Role and Account Deletion
+
+Role 與 User 都在原 CBV／Module class 新增 `delete()`，與 `select()`、`update()` 放在一起。單筆使用 DELETE `/management/roles/{role_id}`／`/management/users/{account_id}`；批次使用 POST `/management/roles/bulk-delete`／`/management/users/bulk-delete`。共用管理寫入邊界限制未壓縮 JSON、64 KiB 串流上限、重複 key／非有限數字／不受信任 Origin；不接受 query selectors。嚴格型別、未知欄位禁止，批次 1–100 筆且不可重複。
+
+Role 單筆 body 是 `{expected_role}`，批次為 `{targets: [{role_id, expected_role}]}`。登入與交易內分別檢查目前有效操作者的 `AuthRole.is_manage_roles`。角色須無任何帳號指派（停用帳號也算），且不是註冊 Default；否則回 409 ROLE_IN_USE／DEFAULT_ROLE_REQUIRED。角色名稱已變更或不存在回 404 ROLE_NOT_FOUND。只刪角色，不連帶刪帳號／網站；AuthUser.role_id 的 RESTRICT FK 保留。
+
+User 單筆 body 是 `{expected_email, expected_site_id}`，批次為 `{targets: [{account_id, expected_email, expected_site_id}]}`。expected_site_id 沒有網站時也必須明確送 null；確認後網站新增、移除或更換時回 409 USER_DELETE_CONFLICT。授權沿用 `AuthRole.is_manage_users`；FK 擁有者資料清理由同一個 User 業務交易負責，不以內容 CRUD 的 is_delete 代替管理權限。先確認整批身份、網站、Default 與刪除後仍有有效角色管理員，全部通過後才刪 RecordLogin、PortfolioSite、AuthUser；網站子內容沿用既有 CASCADE。共用角色／語言與其他帳號資料保留，User 的帳號關聯 FK 保持 RESTRICT，不需 migration。
+
+單筆與批次使用相同交易、固定 ID 鎖定順序與既有 management／publication locks。任一筆衝突、缺資料、外鍵失敗或最後管理員保護都回滾整批。User 刪除只在 commit 後清公開 cache；已提交但清除失敗回 MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE 與 `X-Management-Update-State: committed`，不可自動重試。Role 刪除沒有指派帳號，因此不清公開內容 cache。成功回 `{deleted_count, deleted}`，Role 項目只含 role_id，User 項目含 account_id 及原 site_id，不返回信箱或密碼。
+
+### SESSION 世代驗證 / Session Generation Binding
+
+正常登入／註冊在伺服器 SESSION 加入 `AUTH_SESSION_IDENTITY_KEY`，內容為帳號 ID 與 Argon2 密碼雜湊的 keyed digest；密碼雜湊及此識別值都不加入公開 Auth DTO。每次 current_session 重新查有效帳號／角色並以 constant-time comparison 驗證。刪除帳號後，即使 SQLite 重用相同 ID 並以相同信箱／handle／明文密碼重新註冊，新 Argon2 salt 仍使舊 SESSION 失效；密碼更新亦撤銷舊身份。不掃描整個 Redis，不改共用 IP 在線鍵。舊格式或格式損壞的 SESSION 會清除身份，需重新登入一次；原有未完成的註冊驗證欄位仍保留。
+
+測試：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_role_user_delete.py'`，並可提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL`。涵蓋角色 FK／Default、User 全部子資料、批次回滾、權限撤回、最後管理員、並行角色指派／Default 切換、提交後 cache 失敗及真實 cookie 的 ID 重用／舊 SESSION 防護。

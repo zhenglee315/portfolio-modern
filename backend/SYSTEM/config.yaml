@@ -64,6 +64,8 @@ SECURITY:
   management_write_origins:
     - http://127.0.0.1:5173
     - http://localhost:5173
+    - http://127.0.0.1:4173
+    - http://localhost:4173
   # Private signing key; keep real values out of version control.
   # 公開的開發占位值；正式環境必須換成部署專用、隨機產生的 security key。
   # Public development placeholder; replace with a unique random security key in production.

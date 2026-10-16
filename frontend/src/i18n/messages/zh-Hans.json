@@ -268,6 +268,13 @@
     "expandNavigation": "展开导航",
     "openNavigation": "打开管理导航",
     "readonly": "只读",
+    "quick": {
+      "saving": "保存中…",
+      "saved": "已保存。",
+      "failed": "无法保存此项更改，已重新读取表格。",
+      "uncertain": "暂时无法确认保存结果，请先查看重新读取的表格再操作。",
+      "committed": "已保存，公开内容可能需要最多一分钟更新。"
+    },
     "defaultRequires": "需启用 Active、Publish，并已建立网站",
     "empty": "没有符合条件的数据。",
     "loadError": "无法加载数据，请重试。",
@@ -316,6 +323,32 @@
     "deleteTarget": "已选取数据：{{name}}",
     "deleteTargets": "已选取 {{count}} 条数据。",
     "confirmDelete": "确定删除",
+    "roleDeletion": {
+      "target": "永久删除角色“{{name}}”？此操作无法恢复。",
+      "targets": "永久删除 {{count}} 个角色？所有角色均须无账号使用，且不是注册 Default。此操作无法恢复。",
+      "saved": "已删除 {{count}} 个角色。"
+    },
+    "userDeletion": {
+      "target": "永久删除 {{name}}、其网站所有语言内容与全部登录记录？此操作无法恢复。",
+      "targets": "永久删除 {{count}} 个账号、其网站所有语言内容与全部登录记录？此操作无法恢复。",
+      "saved": "已删除 {{count}} 个账号及所属数据。"
+    },
+    "deletion": {
+      "roleInUse": "请先将使用此角色的所有账号改派到其他角色，再删除。停用账号也包含在内。",
+      "defaultRole": "请先指定另一个注册 Default，再删除此角色。",
+      "lastManager": "至少须保留一个启用且具有角色管理权限的账号。",
+      "target": "永久删除 {{name}} 的网站及所有语言内容？账号与登录记录会保留。此操作无法恢复。",
+      "targets": "永久删除 {{count}} 个网站及所有语言内容？账号与登录记录会保留。此操作无法恢复。",
+      "deleting": "删除中…",
+      "saved": "已删除 {{count}} 个网站，账号已保留。",
+      "default": "请先指定另一个 Default，再删除此网站。",
+      "noSite": "此账号没有可删除的网站。",
+      "conflict": "所选数据已变更或仍被使用，本次未删除任何数据。请确认重新读取的表格。",
+      "missing": "所选数据已不匹配，本次未删除任何数据。请确认重新读取的表格。",
+      "failed": "删除请求未获允许，本次未删除任何数据。请确认重新读取的表格。",
+      "uncertain": "无法确认删除结果，请先检查重新读取的表格，再决定是否重试。",
+      "committed": "删除已完成，但公开缓存更新失败，公开内容可能需要一分钟才会更新。"
+    },
     "cancel": "取消",
     "details": "详情",
     "noPortfolio": "尚未建立作品集",
@@ -444,7 +477,7 @@
     "loginHistory": {
       "title": "登录记录",
       "open": "查看 {{name}} 的登录记录",
-      "note": "地区根据登录 IP 推估；旧记录可能没有 IP 或地区资料。",
+      "note": "位置依登录 IP 估计。状态表示该 IP 的近期活动，并非账号会话；每 45 秒更新。",
       "fields": {
         "id": "ID",
         "user_id": "用户",
@@ -454,7 +487,8 @@
         "country_code": "国家",
         "region": "行政区",
         "city": "城市",
-        "geo_status": "状态"
+        "geo_status": "GeoIP",
+        "is_online": "状态"
       },
       "statuses": {
         "unknown": "未知",
@@ -462,7 +496,45 @@
         "not_found": "查无资料",
         "non_public": "内部地址",
         "unavailable": "暂不可用"
+      },
+      "presence": {
+        "online": "在线 — 此 IP 最近仍有活动",
+        "offline": "离线 — 此 IP 没有近期活动",
+        "unknown": "暂时无法获取状态，请刷新"
       }
+    },
+    "editGroup": {
+      "required": "此字段必填。",
+      "incomplete": "请完成这组字段的必要数据并修正错误，才会自动保存。",
+      "failed": "保存失败，已保留草稿；请重试或舍弃。",
+      "conflict": "编辑期间这条数据已变更，请舍弃草稿后编辑最新数据。",
+      "cancel": "舍弃草稿"
+    },
+    "write": {
+      "conflict": "数据已变更，请确认最新内容后再保存。",
+      "defaultRoleRequired": "请先选择其他注册默认角色，再停用或取消此角色的 Default。",
+      "defaultRoleEligible": "注册默认角色必须启用，且不能具有管理权限。",
+      "lastManager": "必须保留至少一个具有角色管理权限的有效账号。",
+      "siteEligible": "Default 必须为启用账号的已发布网站。",
+      "defaultSiteActiveRequired": "请先取消或切换此网站的 Default，再停用账号。",
+      "unique": "更新与现有名称或数据冲突，请重新确认。",
+      "detailConflict": "编辑期间数据已变更，请关闭窗口后重新打开最新数据再保存。",
+      "roleAssignmentForbidden": "无法分配包含您未持有权限的角色。",
+      "roleAssignmentInactive": "请选择启用中的角色。"
+    },
+    "roleAssignment": {
+      "forbidden": "此角色包含您未持有的权限。",
+      "inactive": "此角色已停用。"
+    },
+    "permissionHelpLabel": "关于 {{label}} 权限",
+    "permissionHelp": {
+      "is_create": "作品集内容的新增权限分组。",
+      "is_read": "作品集内容的读取权限分组；浏览公开页面不需要此权限。",
+      "is_update": "作品集现有内容的编辑权限分组。",
+      "is_delete": "作品集内容的删除权限分组。",
+      "is_manage_sites": "访问平台管理，修改作品集设置、发布状态、默认首页及所有者启用状态，并预览内容。",
+      "is_manage_users": "访问用户管理，查看账号与登录记录、修改启用状态，并分配可授予的角色。",
+      "is_manage_roles": "访问角色管理，修改名称、说明、权限、注册默认角色及启用状态。变更会影响所有使用此角色的账号。"
     }
   },
   "accessDenied": {

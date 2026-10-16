@@ -4,6 +4,7 @@ from .constants import *
 
 # ◆—< Pack >—————————————————————————————————◆ Extension
 from .extension import *
+from urllib.parse import urlsplit
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from .tools.tools_net import net_primary_ip
@@ -105,6 +106,44 @@ SEC_CORS = {
     "allow_headers": ["*"],
     "expose_headers": ["Content-Disposition"],
 }
+
+
+# Browser writes through a development/reverse proxy may retain a different Origin from its backend Host.
+# Trust only explicitly configured public origins; never infer trust from forwarded headers.
+#                                                                                               ♂ ZhengLee 2026.10.15
+def _management_write_origins() -> frozenset[str]:
+    """
+    Parse configured browser origins once, sharing URL schemes with public-link validation.
+
+    :return: Exact CORS/configured origins; views never read configuration dictionary keys.
+    :raises ValueError: An origin is not a credential-free HTTP(S) authority without a path.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+    """
+    origins = SYS_CONF.get("SECURITY", "management_write_origins", fallback=[])
+    if not isinstance(origins, list):
+        raise ValueError("SECURITY.management_write_origins must be a list of HTTP(S) origins.")
+    for origin in origins:
+        if not isinstance(origin, str):
+            raise ValueError("Management origins must be HTTP(S) origin strings.")
+        parsed = urlsplit(origin)
+        if (
+            parsed.scheme not in HTTP_URL_SCHEMES
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+            or parsed.port == 0
+            or any(character.isspace() for character in origin)
+            or "\\" in origin
+        ):
+            raise ValueError("Management origins must be exact HTTP(S) origins without paths or credentials.")
+    return frozenset((*SEC_CORS["allow_origins"], *origins))
+
+
+SEC_MANAGEMENT_ORIGINS = _management_write_origins()
 
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Redis
 REDIS_HOST = SVR_HOST_CONF if SVR_LOCALLY else SYS_CONF.get("CACHE", "host", fallback="127.0.0.1")

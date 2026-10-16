@@ -3,7 +3,8 @@ from COMMON.schema.schema_user import validate_public_user
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.models import AuthUser, PortfolioSite
+from SYSTEM.models import AuthUser, PortfolioSite, PortfolioLocale
+from SYSTEM.constants import EnumLocal
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
 from sqlalchemy import select
@@ -21,12 +22,15 @@ class PortfolioPublicScopeModule(SqlAlchemyExecAsync):
                                                                                                ♂ ZhengLee 2026.10.11
     """
 
-    async def resolve(self, user: str | None = None, site_id: int | None = None) -> int:
+    async def resolve(
+        self, user: str | None = None, site_id: int | None = None, *, locale: EnumLocal = EnumLocal.EN
+    ) -> int:
         """
         Select the published portfolio by public user, site ID, or the explicit default.
 
         :param user: Optional stable public account identifier.
         :param site_id: Optional positive portfolio ID; mutually exclusive with user.
+        :param locale: Requested public language; its activation is checked before any response cache lookup.
         :return: Resolved portfolio ID, independent of the visitor's login SESSION.
         :raises HTTPException: Selector is invalid, portfolio is hidden/missing, or storage fails.
 
@@ -44,7 +48,13 @@ class PortfolioPublicScopeModule(SqlAlchemyExecAsync):
         statement = (
             select(PortfolioSite.id)
             .join(AuthUser, AuthUser.id == PortfolioSite.user_id)
-            .where(PortfolioSite.is_published.is_(True), AuthUser.is_active.is_(True))
+            .where(
+                PortfolioSite.is_published.is_(True),
+                AuthUser.is_active.is_(True),
+                select(PortfolioLocale.code)
+                .where(PortfolioLocale.code == locale, PortfolioLocale.is_active.is_(True))
+                .exists(),
+            )
         )
         if user is not None:
             statement = statement.where(AuthUser.user == user)

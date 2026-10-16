@@ -7,7 +7,7 @@ from APPs.Portfolio.module import *
 from COMMON.decorator import cache
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import CacheExpiry
+from SYSTEM.constants import CacheExpiry, EnumCacheNamespace
 from SYSTEM.tools import FastApiRouter, cbv
 from SYSTEM.urls import PreFix, RoutePortfolio, Tags
 
@@ -19,7 +19,7 @@ router = FastApiRouter(prefix=PreFix.PORTFOLIO, tags=Tags.PORTFOLIO)
 # ■—< DESC >——————————————————————————————————————————————————————————————————————————■ Portfolio - Public Scope
 _PUBLIC_VISIBILITY_DESCRIPTION = (
     "- Drafts, disabled accounts, unknown portfolios, and a missing default return 404 without fallback.\n"
-    "- Visibility is checked before every cache lookup; role login status does not unpublish content.\n\n"
+    "- Owner and language activation plus publication are checked before every cache lookup; role login status does not unpublish content.\n\n"
 )
 
 _SITE_SCOPE_DESCRIPTION = (
@@ -102,7 +102,7 @@ class PortfolioSite:
         ),
         response_model=RespPortfolioSite,
     )
-    @cache(expire=CacheExpiry.MIN, namespace="portfolio")
+    @cache(expire=CacheExpiry.MIN, namespace=EnumCacheNamespace.PORTFOLIO)
     async def get_site(self, query_string: dict = Depends(parser_portfolio_site)) -> dict:
         """
         Return the localized site content assembled by the portfolio module.
@@ -169,7 +169,7 @@ class PortfolioJourney:
         response_model=list[RespPortfolioJourneyItem],
         response_model_exclude_unset=True,
     )
-    @cache(expire=CacheExpiry.MIN, namespace="portfolio")
+    @cache(expire=CacheExpiry.MIN, namespace=EnumCacheNamespace.PORTFOLIO)
     async def get_journey(self, query_string: dict = Depends(parser_portfolio_content)) -> list[dict]:
         """
         Return all localized journey stops in their stored order.
@@ -231,7 +231,7 @@ class PortfolioExperiences:
         response_model=RespPortfolioExperiences,
         response_model_exclude_unset=True,
     )
-    @cache(expire=CacheExpiry.MIN, namespace="portfolio")
+    @cache(expire=CacheExpiry.MIN, namespace=EnumCacheNamespace.PORTFOLIO)
     async def get_experiences(self, query_string: dict = Depends(parser_portfolio_records)) -> dict:
         """
         Return the requested localized experience page.
@@ -300,7 +300,7 @@ class PortfolioProjects:
         response_model=RespPortfolioProjects,
         response_model_exclude_unset=True,
     )
-    @cache(expire=CacheExpiry.MIN, namespace="portfolio")
+    @cache(expire=CacheExpiry.MIN, namespace=EnumCacheNamespace.PORTFOLIO)
     async def get_projects(self, query_string: dict = Depends(parser_portfolio_records)) -> dict:
         """
         Return the requested localized project page.
@@ -348,7 +348,7 @@ class PortfolioSkills:
         ),
         response_model=RespPortfolioSkillCategories,
     )
-    @cache(expire=CacheExpiry.MIN, namespace="portfolio")
+    @cache(expire=CacheExpiry.MIN, namespace=EnumCacheNamespace.PORTFOLIO)
     async def get_skill_categories(self, query_string: dict = Depends(parser_portfolio_records)) -> dict:
         """
         Return categories with a localized first skill page inside each item.
@@ -385,7 +385,7 @@ class PortfolioSkills:
         ),
         response_model=RespPortfolioSkills,
     )
-    @cache(expire=CacheExpiry.MIN, namespace="portfolio")
+    @cache(expire=CacheExpiry.MIN, namespace=EnumCacheNamespace.PORTFOLIO)
     async def get_skills(self, query_string: dict = Depends(parser_portfolio_skills)) -> dict:
         """
         Return the requested category's ordered numbered skill page.

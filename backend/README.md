@@ -4,13 +4,13 @@
 
 This directory contains the FastAPI backend for the personal profile system. `APPs` holds business APIs, `COMMON` holds shared tools, and `SYSTEM` owns configuration, models, the database, middleware, and the application lifecycle. See the [project README](../README.md) for the product overview.
 
-目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。管理寫入 API 與 Portfolio 寫入 API 尚未實作。
+目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Platform PATCH、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。其他管理寫入 API 與 Portfolio 寫入 API 尚未實作。
 
-Six Portfolio read APIs, three management lists for sites/accounts/roles, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Administration write APIs and Portfolio write APIs are not implemented yet.
+Six Portfolio read APIs, three management lists, Platform PATCH, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Other administration writes and Portfolio write APIs are not implemented yet.
 
 ## 管理員 Portfolio 預覽
 
-`APPs/Management/views_management.py` 的 `ManagementPortfolioPreview` 提供 `/management/preview/site`、`journey`、`experiences`、`projects`、`skill-categories`、`skills` 六支 GET。CBV class 直接使用共用 ManagementPermission(is_manage_sites=True)，每次透過既有 AuthSessionModule 讀取目前有效帳號與角色；未登入／停用管理員回 401，沒有管理權限回 403，儲存不可用回 503。必須明確指定 site_id，不以帳號 id 或 default 推測；可讀取未發布及停用用戶的網站，缺少網站／語言回 404。View 只呼叫既有 Portfolio module 的 `preview()`／`preview_categories()`／`preview_skills()`；目標存在性、內容讀取與私有錯誤處理由 module 負責。公開 Portfolio 的發布條件維持不變。
+`APPs/Management/views_management.py` 的 `ManagementPortfolioPreview` 提供 `/management/preview/site`、`journey`、`experiences`、`projects`、`skill-categories`、`skills` 六支 GET。CBV class 直接使用共用 ManagementPermission(AuthRole.is_manage_sites)，每次透過既有 AuthSessionModule 讀取目前有效帳號與角色；未登入／停用管理員回 401，沒有管理權限回 403，儲存不可用回 503。必須明確指定 site_id，不以帳號 id 或 default 推測；可讀取未發布及停用用戶的網站，缺少網站／語言回 404。View 只呼叫既有 Portfolio module 的 `preview()`／`preview_categories()`／`preview_skills()`；目標存在性、內容讀取與私有錯誤處理由 module 負責。公開 Portfolio 的發布條件維持不變。
 
 所有預覽 DTO 與資料查詢共用 APPs/Portfolio；四個集合仍為 page／size=6，Skills 仍使用 ownerType=category／ownerId。預覽不掛 public cache decorator，成功及已處理錯誤使用 private, no-store／Vary: Cookie。這些端點只讀取，不改資料庫；管理員 SESSION 依既有機制刷新。三支管理列表也已套用共用權限檢查；CUD 與細分操作授權保留於管理權限待辦。
 
@@ -28,11 +28,11 @@ backend/
 │   │   ├── module/              # Sign-in, sign-out, registration and session logic
 │   │   └── schema/              # Request validation and account responses
 │   ├── Management/
-│   │   ├── views_management.py   # Role/account/platform list GETs
+│   │   ├── views_management.py   # Management GETs and Platform PATCH in the existing CBVs
 │   │   ├── constants/
 │   │   │   └── constant_management.py # Query limits and allowed projection/sort fields
-│   │   ├── module/              # Filtered, sorted and paginated ORM projections
-│   │   └── schema/              # parser/ query validation and resp/ response models
+│   │   ├── module/              # ORM projections and transactional Platform updates
+│   │   └── schema/              # body/ writes, parser/ parameters, resp/ responses
 │   ├── Portfolio/
 │   │   ├── views_portfolio.py    # Six public CBV GET routes
 │   │   ├── module/               # ORM-backed business queries
@@ -144,7 +144,7 @@ For the confirmed direct-client → Nginx → FastAPI topology, overwrite incomi
 
 ### 管理端登入紀錄 / Management login history
 
-`GET /management/login-records` 沿用既有 Management router 與 `ManagementPermission(is_manage_users=True)`。每次讀取重新檢查登入中的啟用帳號／角色及管理用戶權限；目標用戶停用後仍保留歷史紀錄。支援選填 `user_id`、既有 page／size、sort、filters、search／search_fields，查詢先篩選再計算總數及分頁。預設最新登入在前；回應維持 `items/total/pages/page/size`，並設定 private／no-store／Vary Cookie。
+`GET /management/login-records` 沿用既有 Management router 與 `ManagementPermission(AuthRole.is_manage_users)`。每次讀取重新檢查登入中的啟用帳號／角色及管理用戶權限；目標用戶停用後仍保留歷史紀錄。支援選填 `user_id`、既有 page／size、sort、filters、search／search_fields，查詢先篩選再計算總數及分頁。預設最新登入在前；回應維持 `items/total/pages/page/size`，並設定 private／no-store／Vary Cookie。
 
 The private history endpoint reuses the management router, fresh user-management authorization and existing server-side DataTable controls. Optional user_id scopes an account; omitting it queries all authorized events. Disabled target accounts remain auditable. No new authentication or permission mechanism is introduced.
 
@@ -323,9 +323,9 @@ The User `role` field supports the same case-insensitive `in`/`not_in` string ar
 
 Both lists use one account per row, including inactive accounts and accounts without a portfolio. The row id is auth_user.id; site_id identifies the portfolio. Login records are aggregated before joining. Platform joins only the requested language, retaining accounts with missing translations without falling back. Missing portfolios and translations are explicit nulls, with has_site and has_translation flags. A missing portfolio's null publication/default state does not match a false state filter.
 
-Platform 的 Profile 使用 `has_profile`，以關聯 `EXISTS` 判斷該網站在指定啟用語言下是否至少有一筆 `portfolio_career` 工作／教育經歷及對應 `portfolio_career_locale`。只建立網站或填寫基本介紹不會打勾；沒有經歷、缺少該語言的經歷或語言停用時為 false。此判斷不受網站發布／帳號啟用狀態影響，亦不以專案／技能作為工作教育履歷。判斷直接放在列表 SQL 中，只回傳 boolean，不載入經歷資料、不增加逐列查詢；排序、篩選與總筆數共用同一個表達式。`has_site` 保留網站存在的原意，預覽、編輯及 Default 判斷仍使用它。
+Platform 的 Profile 使用 `has_profile`，以關聯 `EXISTS` 判斷該網站在指定語言下是否至少有一筆 `portfolio_career` 工作／教育經歷及對應 `portfolio_career_locale`。只建立網站或填寫基本介紹不會打勾；沒有經歷或缺少該語言的經歷時為 false；語言停用不隱藏管理資料。此判斷不受網站發布／帳號啟用狀態影響，亦不以專案／技能作為工作教育履歷。判斷直接放在列表 SQL 中，只回傳 boolean，不載入經歷資料、不增加逐列查詢；排序、篩選與總筆數共用同一個表達式。`has_site` 保留網站存在的原意，預覽、編輯及 Default 判斷仍使用它。
 
-The Profile column uses `has_profile`, a correlated EXISTS over careers and the requested active-language career translation. Basic site/profile text alone does not count; publication and owner activation do not affect existence. The list returns only a boolean, with no per-owner reads or career content transfer. Sorting, filtering and pagination counts share this expression; `has_site` continues to mean website existence.
+The Profile column uses `has_profile`, a correlated EXISTS over careers and the requested-language career translation, including inactive languages. Basic site/profile text alone does not count; publication and owner activation do not affect existence. The list returns only a boolean, with no per-owner reads or career content transfer. Sorting, filtering and pagination counts share this expression; `has_site` continues to mean website existence.
 
 ### User 返回欄位 / Account Response Fields
 
@@ -358,7 +358,7 @@ The User list reads the stored login email directly and neither returns nor deri
 | `owner_is_active` | `auth_user.is_active`                                                   | 擁有者狀態 / Owner state                                                                                                                                             |
 | `site_id`         | `portfolio_site.id`                                                     | 網站識別 / Nullable portfolio identity                                                                                                                               |
 | `has_site`        | `portfolio_site.id IS NOT NULL`                                         | 網站是否存在 / Portfolio presence                                                                                                                                    |
-| `has_profile`     | 關聯 `EXISTS`（site_id／locale／語言啟用） / Correlated EXISTS          | 至少一筆工作或教育履歷 / Localized career presence                                                                                                                   |
+| `has_profile`     | 關聯 `EXISTS`（site_id／locale，不過濾停用語言） / Correlated EXISTS    | 至少一筆工作或教育履歷 / Localized career presence                                                                                                                   |
 | `is_published`    | `portfolio_site.is_published`                                           | 發布旗標；無網站為 null / Nullable publication flag                                                                                                                  |
 | `is_default`      | `portfolio_site.is_default`                                             | 預設首頁旗標；無網站為 null / Nullable homepage flag                                                                                                                 |
 | `copyright_year`  | `portfolio_site.copyright_year`                                         | 版權年份 / Copyright year                                                                                                                                            |
@@ -389,9 +389,65 @@ The User list reads the stored login email directly and neither returns nor deri
 
 Localized fields use only the requested locale. Platform `createtime` and `updatetime` are the primary account's UTC creation/update timestamps, displayed as Created/Updated even when no portfolio exists. Portfolio and translation tables do not store these timestamps, so they do not describe website-content changes. User queries never select password data. Platform owner_email reads auth_user.email directly and identifies the account; Platform email remains public contact information. Both login email displays are read-only in the management editor. Every User response field is sortable; every Platform response field except the constant requested locale is sortable.
 
-三支管理列表都不使用快取 decorator、不另外設定 Cache-Control，權限 decorator 依原規劃後補；沒有新增表或 migration。無效查詢回 400 INVALID_PAGE／INVALID_SIZE／INVALID_SORT／INVALID_FILTERS／INVALID_QUERY，無效語言回 INVALID_LOCALE。資料庫錯誤統一回 503 MANAGEMENT_DATABASE_UNAVAILABLE。
+三支管理列表不使用快取 decorator，透過 ManagementPermission 檢查目前資料庫權限，回應包含 private, no-store／Vary Cookie；沒有新增表或 migration。無效查詢回 400 INVALID_PAGE／INVALID_SIZE／INVALID_SORT／INVALID_FILTERS／INVALID_QUERY，無效語言回 INVALID_LOCALE。資料庫錯誤統一回 503 MANAGEMENT_DATABASE_UNAVAILABLE。
 
-All three lists omit response-cache decorators and additional Cache-Control settings. Permission decorators remain deferred as planned, and no migration is required. Invalid queries return the corresponding INVALID_* error with status 400; database failures return 503 MANAGEMENT_DATABASE_UNAVAILABLE.
+All three lists omit response-cache decorators, check current database permissions through ManagementPermission, and return private/no-store headers varying by Cookie. No migration is required. Invalid queries return the corresponding INVALID_* error with status 400; database failures return 503 MANAGEMENT_DATABASE_UNAVAILABLE.
+
+## 管理與公開可見性 / Management and Public Visibility
+
+Management 列表及六支 Preview 包含停用的目標帳號／語言資料，不以目標 `is_active=true` 作隱藏條件；`has_profile` 也計算停用語言中的實際經歷。管理 PATCH 可以修正既有停用語言內容，不會順便重新啟用。操作者仍須通過啟用帳號、啟用角色與最新管理權限檢查；Default 的啟用 owner／發布條件是另外的業務規則。
+
+公開 Portfolio 由 `PortfolioPublicScopeModule.resolve(..., locale=...)` 在快取之前同時確認 owner 啟用、網站發布與語言啟用；不可見目標／語言統一回 404。內容查詢以 `_localized_query()` 保留公開的啟用條件；只有伺服器授權後的 Preview 內部呼叫會傳 `include_inactive=True`。這個參數不接收客戶端 query，也不會在 module instance 留下可變的預覽狀態。
+
+Management target visibility is independent of soft deletion, while actor authentication remains active-only. Public owner/language visibility is checked before caching. Preview passes a server-only read policy through the existing query methods; client query flags cannot enable inactive public content.
+
+## 平台部分更新 / Platform Partial Updates
+
+`PATCH /management/sites/{account_id}?locale=zh-Hant` 在既有 `ManagementSites` CBV 宣告，沿用 `ManagementPermission(AuthRole.is_manage_sites)`。Path 使用列表 `id`（帳號 PK），後端自行解析網站歸屬；`locale` 只選擇現有翻譯，不修改 FK。Body 與 query 由 `BodyManagementSitePatchRequest`（內含 `BodyManagementSitePatch`）、`parser_management_site_patch` 驗證，原本 `ManagementSitesModule` 同時提供 `select()`、`update()`，透過 `_query()` 共用欄位投影。成功回傳單筆 `RespManagementSite`，不是分頁 envelope。此階段前端 Save 仍是本地草稿，尚未串接 mutation。
+
+ORM／Enum 分層：驗證後的變更以 ORM 屬性作 key，`update()` 使用必要欄位的 entity；API 名稱透過明確白名單映射，不從欄名動態 getattr。CBV 接收不可變 `ManagementSitePatchParameters`；資料庫／語言沿用 `EnumDBType`／`EnumLocal`。共用權限宣告改為 `ManagementPermission(AuthRole.is_manage_sites)`，身份在邊界轉成嚴格的 `RespAuthUser`。HTTP 與快取 namespace 使用共用定義；詳細維護規則見[管理模組](APPs/Management/module/README.md#orm-欄位與外部契約--orm-bindings-and-wire-contracts)。
+
+The existing Platform CBV and business class own GET and PATCH together. The path selects the owner account, the query selects a language, and the module resolves the existing site/translation. A successful patch returns the complete row using the GET projection. Frontend Save is still local draft state; mutation wiring is separate work.
+
+```http
+PATCH /management/sites/2?locale=zh-Hant
+Content-Type: application/json
+
+{"expected_owner_email":"person2@example.com","changes":{"first_name":"鄭","github":"https://github.com/example"}}
+```
+
+- Body 的 `expected_owner_email` 是唯讀目標確認值，與 path 的帳號 ID 在同一交易內同時比對 `AuthUser.id`／`AuthUser.email`；不匹配回 404 `ACCOUNT_NOT_FOUND`。信箱不放在 URL，也不作為可更新欄位；這是資料一致性核對，不能代替 SESSION 與管理權限。
+- `changes` 僅更新明確傳入欄位；未傳保持原值，空 `{}`、明確 `null`、未知欄位與型別轉換一律拒絕。`false` 與允許的空字串是有效值。文字保留原文，不作 HTML 執行。
+- PK／FK、登入信箱 `owner_email`、公開代稱 `user`、帳號狀態、時間與衍生欄位不在更新白名單；任何這些欄位出現在 `changes` 都回 422，不能透過關聯顯示值間接更新。
+- `email` 僅是公開聯絡信箱，與 SMTP 驗證的登入身分獨立；採既有信箱格式與 254 字上限，空字串隱藏。社群連結上限 2048 字，只接受無憑證及空白的 HTTP(S) URL，空字串隱藏；不由後端下載目標網址。圖示只接受前台目前信任的四個 bundled 路徑。
+- 短文字沿用儲存欄位長度；四個 Text 欄位各限 10,000 字，拒絕 NUL 與非法 Unicode。年份必須為 1900–9999 的整數；字串、浮點與 boolean 不能冒充整數。
+- `ManagementRoute` 在 JSON 解碼前限制實際串流為 256 KiB，包含無 Content-Length 的 chunked body。只接受未壓縮的 application/json；拒絕重複 JSON key、NaN／Infinity 和格式錯誤。驗證回應保留 loc/type/msg，不回傳原始 input、ctx 或資料庫例外內容。
+- 帶 Origin 的瀏覽器 PATCH 必須符合 backend 同源、既有 CORS origins 或 `SECURITY.management_write_origins`。Vite 改寫 Host 時，原始 Origin 仍須列入後者；開發設定包含 localhost／127.0.0.1:5173，部署時在私有 YAML 填正式網站 origin。CLI 沒有 Origin 時仍須提供有效 SESSION；不信任 client 提交的 forwarded origin。
+- 更新網站欄位要求網站存在；涉及翻譯欄位時，另外要求指定語言翻譯存在；語言停用不阻擋管理修正。PATCH 不建立缺少的資料。帳號及其 `updatetime` 不寫入，Created／Updated 繼續代表帳號時間。
+- 所有寫入透過 `SqlAlchemyExecAsync.transaction()` 一起提交／回滾。發布／Default 更新在 PostgreSQL 使用交易 advisory lock；SQLite 在讀取決策前取得 writer lock。設新 Default 先驗證最終發布狀態及啟用 owner，再取消舊 Default；重選目前 Default 冪等。取消發布同時清除 Default；明確要求 `is_default=true` 且最終未發布回 409。
+- Commit 後沿用 `PortfolioManagementModule.invalidate_cache()` 清除公開 `portfolio` namespace。若快取清除失敗，回 503 `MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE` 與 `X-Management-Update-State: committed`，代表資料已寫入，呼叫端必須重新查詢。公開快取仍採原本最多 60 秒的期限。
+
+Only explicitly supplied mutable fields are written. Strict schemas reject coercion, nulls and identity/relationship changes; bounded transport validation rejects malformed or ambiguous JSON without echoing submitted values. One transaction owns both field groups and global-default replacement. Missing content is never created. Cache failure after commit explicitly distinguishes committed database state from a rollback. Existing account timestamps retain their original meaning.
+
+| 狀態     | 說明                                           |
+| -------- | ---------------------------------------------- |
+| 400      | 無效 JSON、帳號 selector、語言或 query         |
+| 401／403 | 目前身份無效／缺網站管理權限，或 Origin 不允許 |
+| 404      | ID／email 配對、網站或所需翻譯不存在           |
+| 409      | Default 條件矛盾或資料庫約束衝突；交易回滾     |
+| 413／415 | 實際 body 超限／不支援的 Content-Type 或編碼   |
+| 422      | 空更新、不可寫欄位、null、型別或欄位內容錯誤   |
+| 503      | 儲存不可用；提交後快取失敗使用獨立錯誤碼       |
+
+隔離測試不會連到設定檔中的資料庫、Redis 或 SMTP。以下指令從 `backend/` 執行；PostgreSQL 選項只應指向可拋棄的測試資料庫，每個測試使用獨立 schema 並於結束移除。
+
+Tests use temporary SQLite storage by default and never contact configured services. An optional disposable PostgreSQL URL repeats the HTTP/transaction suite in isolated, automatically removed schemas.
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+PLATFORM_PATCH_TEST_POSTGRES_URL='postgresql+asyncpg://user:password@127.0.0.1:5432/disposable_test' \
+  .venv/bin/python -m unittest discover -s tests -v
+```
 
 ## 設定與依賴 / Configuration and Dependencies
 

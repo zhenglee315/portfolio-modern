@@ -36,19 +36,34 @@ from typing import Any, TypeVar
 _PreviewResponse = TypeVar("_PreviewResponse")
 
 
+# ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ Portfolio - Language Visibility
+def _localized_query(statement: Select, *, include_inactive: bool = False) -> Select:
+    """
+    Apply active-language visibility only to public reads; authorized preview passes an internal override.
+
+    :param statement: Owner/language-scoped ORM statement shared by public and management readers.
+    :param include_inactive: Server-selected preview policy, never bound from a client query parameter.
+    :return: Public reads exclude disabled languages; management reads retain existing inactive data.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+    """
+    return statement if include_inactive else statement.where(PortfolioLocale.is_active.is_(True))
+
+
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ Portfolio - Career Query
-def _career_query(locale: str, site_id: int, *columns: Any) -> Select:
+def _career_query(locale: str, site_id: int, *columns: Any, include_inactive: bool = False) -> Select:
     """
     Build the localized, owner-scoped career projection shared by Journey and Experiences.
 
     :param locale: Supported content language selected by the request parser.
     :param site_id: Published portfolio ID resolved before querying or caching content.
     :param columns: Additional columns required by one career representation.
-    :return: ORM statement with the common career fields, translation and active-language filters.
+    :param include_inactive: Internal management/preview policy; public calls keep the default False.
+    :return: ORM statement with the common career fields, translation and explicit public/management visibility policy.
 
                                                                                                ♂ ZhengLee 2026.10.11
     """
-    return (
+    statement = (
         select(
             PortfolioCareer.id,
             PortfolioCareer.type,
@@ -73,9 +88,9 @@ def _career_query(locale: str, site_id: int, *columns: Any) -> Select:
         .where(
             PortfolioCareer.site_id == site_id,
             PortfolioCareerLocale.locale == locale,
-            PortfolioLocale.is_active.is_(True),
         )
     )
+    return _localized_query(statement, include_inactive=include_inactive)
 
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ Portfolio - Career Detail
@@ -177,13 +192,14 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
         if exists is None:
             raise HTTPException(status_code=404, detail="NOT_FOUND")
 
-    async def _read_preview(self, read: Callable[[], Awaitable[_PreviewResponse]]) -> _PreviewResponse:
+    async def _read_preview(self, read: Callable[..., Awaitable[_PreviewResponse]]) -> _PreviewResponse:
         """
         Run an authorized preview read while retaining private domain errors.
 
         ManagementPermission authorizes the HTTP request before the view calls a
         preview method. This module owns existence checks and content reads; no
-        role checks or response-cache lookup are performed here.
+        role checks or response-cache lookup are performed here. The internal read
+        override includes disabled language records without changing public defaults.
 
         :param read: Bound content query method; never a client-supplied method name.
         :return: The original response produced by the selected content query.
@@ -193,7 +209,7 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
         """
         try:
             await self.require_site()
-            return await read()
+            return await read(include_inactive=True)
         except HTTPException as error:
             error.headers = {**(error.headers or {}), **MANAGEMENT_PRIVATE_HEADERS}
             raise
@@ -248,12 +264,14 @@ class PortfolioSiteModule(_PortfolioScopedModule):
         """
         return await self._read_preview(self.select)
 
-    async def select(self) -> dict:
+    async def select(self, *, include_inactive: bool = False) -> dict:
         """
         Return the complete /site response for the selected language.
 
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
+
         :return: Resolved site_id/user and the four localized site content groups.
-        :raises HTTPException: The site or its active translation is missing.
+        :raises HTTPException: The site/translation is missing, or its language is disabled in public mode.
         :raises SQLAlchemyError: The owner-scoped site query fails.
 
                                                                                                ♂ ZhengLee 2026.10.11
@@ -266,11 +284,11 @@ class PortfolioSiteModule(_PortfolioScopedModule):
             .where(
                 PortfolioSite.id == self.site_id,
                 PortfolioSiteLocale.locale == self.locale,
-                PortfolioLocale.is_active.is_(True),
             )
             .order_by(PortfolioSite.id)
             .limit(1)
         )
+        stmt = _localized_query(stmt, include_inactive=include_inactive)
         row = (await self.execute_orm(stmt)).first()
         if row is None:
             raise HTTPException(status_code=404, detail="NOT_FOUND")
@@ -328,18 +346,24 @@ class PortfolioJourneyModule(_PortfolioScopedModule):
         """
         return await self._read_preview(self.select)
 
-    async def select(self) -> list[dict]:
+    async def select(self, *, include_inactive: bool = False) -> list[dict]:
         """
         Return journey records in their stored playback order.
+
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
 
         :return: Localized journey items, or an empty list when there are none.
         :raises SQLAlchemyError: The shared owner-scoped career query fails.
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
-        stmt = _career_query(self.locale, self.site_id, PortfolioCareer.latitude, PortfolioCareer.longitude).order_by(
-            PortfolioCareer.journey_position, PortfolioCareer.id
-        )
+        stmt = _career_query(
+            self.locale,
+            self.site_id,
+            PortfolioCareer.latitude,
+            PortfolioCareer.longitude,
+            include_inactive=include_inactive,
+        ).order_by(PortfolioCareer.journey_position, PortfolioCareer.id)
         rows = (await self.execute_orm(stmt)).mappings().all()
         journey = []
         for row in rows:
@@ -373,9 +397,11 @@ class PortfolioExperiencesModule(_PortfolioPageModule):
         """
         return await self._read_preview(self.select)
 
-    async def select(self) -> dict:
+    async def select(self, *, include_inactive: bool = False) -> dict:
         """
         Return an ordered experience page with total and page counts.
+
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
 
         :return: Page metadata and localized experience items.
         :raises SQLAlchemyError: The career page or its count query fails.
@@ -388,6 +414,7 @@ class PortfolioExperiencesModule(_PortfolioPageModule):
             PortfolioCareer.experience_order,
             PortfolioCareerLocale.content,
             PortfolioCareerLocale.skills,
+            include_inactive=include_inactive,
         ).order_by(PortfolioCareer.experience_order.desc(), PortfolioCareer.id.desc())
         result = await self.paginate_orm(stmt, page=self.page, size=self.size, unique=False)
         items = []
@@ -425,9 +452,11 @@ class PortfolioProjectsModule(_PortfolioPageModule):
         """
         return await self._read_preview(self.select)
 
-    async def select(self) -> dict:
+    async def select(self, *, include_inactive: bool = False) -> dict:
         """
         Return an ordered project page with complete localized details.
+
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
 
         :return: Page metadata and project items, including nullable details and skills.
         :raises SQLAlchemyError: The project page or its count query fails.
@@ -459,10 +488,10 @@ class PortfolioProjectsModule(_PortfolioPageModule):
             .where(
                 PortfolioProject.site_id == self.site_id,
                 PortfolioProjectLocale.locale == self.locale,
-                PortfolioLocale.is_active.is_(True),
             )
             .order_by(PortfolioProject.position, PortfolioProject.id)
         )
+        stmt = _localized_query(stmt, include_inactive=include_inactive)
         result = await self.paginate_orm(stmt, page=self.page, size=self.size, unique=False)
         items = []
         for row in result.items:
@@ -556,15 +585,17 @@ class PortfolioSkillsModule(_PortfolioPageModule):
         """
         return await self._read_preview(self.select_skills)
 
-    def _skill_query(self) -> Select:
+    def _skill_query(self, *, include_inactive: bool = False) -> Select:
         """
         Select ordered category membership with one localized label per skill.
+
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
 
         :return: A SQLAlchemy Select with category, skill, ordering and label columns.
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
-        return (
+        statement = (
             select(
                 PortfolioCategorySkill.category_id.label("category_id"),
                 PortfolioCategorySkill.skill_id.label("id"),
@@ -589,19 +620,21 @@ class PortfolioSkillsModule(_PortfolioPageModule):
             .where(
                 PortfolioCategorySkill.site_id == self.site_id,
                 PortfolioSkillLocale.locale == self.locale,
-                PortfolioLocale.is_active.is_(True),
             )
         )
+        return _localized_query(statement, include_inactive=include_inactive)
 
-    def _category_query(self) -> Select:
+    def _category_query(self, *, include_inactive: bool = False) -> Select:
         """
         Build the localized category projection used by listing and owner validation.
 
-        :return: ORM statement with composite owner joins and one active-language label per category.
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
+
+        :return: ORM statement with composite owner joins and one requested-language label per category.
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
-        return (
+        statement = (
             select(
                 PortfolioSkillCategory.id.label("id"),
                 PortfolioSkillCategory.position.label("position"),
@@ -618,26 +651,32 @@ class PortfolioSkillsModule(_PortfolioPageModule):
             .where(
                 PortfolioSkillCategory.site_id == self.site_id,
                 PortfolioSkillCategoryLocale.locale == self.locale,
-                PortfolioLocale.is_active.is_(True),
             )
         )
+        return _localized_query(statement, include_inactive=include_inactive)
 
-    async def select_categories(self) -> dict:
+    async def select_categories(self, *, include_inactive: bool = False) -> dict:
         """
         Return a numbered category page with the first skill page in each item.
+
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
 
         :return: The common items/total/pages/page/size response, including nested skill pages.
         :raises SQLAlchemyError: The category page, count or batched skill preview query fails.
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
-        category_query = self._category_query().order_by(PortfolioSkillCategory.position, PortfolioSkillCategory.id)
+        category_query = self._category_query(include_inactive=include_inactive).order_by(
+            PortfolioSkillCategory.position, PortfolioSkillCategory.id
+        )
         result = await self.paginate_orm(category_query, page=self.page, size=self.size, unique=False)
         category_rows = result.items
         items = []
         if category_rows:
             category_ids = [row["id"] for row in category_rows]
-            membership = self._skill_query().where(PortfolioCategorySkill.category_id.in_(category_ids))
+            membership = self._skill_query(include_inactive=include_inactive).where(
+                PortfolioCategorySkill.category_id.in_(category_ids)
+            )
             ranked = membership.add_columns(
                 func.row_number()
                 .over(
@@ -677,9 +716,11 @@ class PortfolioSkillsModule(_PortfolioPageModule):
                 )
         return RespRecords.from_records(items, total=result.total, page=result.page, size=result.size).model_dump()
 
-    async def select_skills(self) -> dict:
+    async def select_skills(self, *, include_inactive: bool = False) -> dict:
         """
         Return a numbered skill page in the requested category's membership order.
+
+        :param include_inactive: Internal management/preview policy; public calls keep the default False.
 
         :return: The common items/total/pages/page/size response with localized skill labels.
         :raises HTTPException: The owner is unsupported, empty, or absent in this language.
@@ -689,11 +730,15 @@ class PortfolioSkillsModule(_PortfolioPageModule):
         """
         if self.owner_type != "category" or not self.owner_id:
             raise HTTPException(status_code=400, detail="INVALID_OWNER")
-        owner = self._category_query().where(PortfolioSkillCategory.id == self.owner_id).limit(1)
+        owner = (
+            self._category_query(include_inactive=include_inactive)
+            .where(PortfolioSkillCategory.id == self.owner_id)
+            .limit(1)
+        )
         if (await self.execute_orm(owner)).first() is None:
             raise HTTPException(status_code=404, detail="NOT_FOUND")
         query = (
-            self._skill_query()
+            self._skill_query(include_inactive=include_inactive)
             .where(PortfolioCategorySkill.category_id == self.owner_id)
             .order_by(PortfolioCategorySkill.position, PortfolioCategorySkill.skill_id)
         )

@@ -333,22 +333,23 @@ Hydration, account feedback, denied routing, backgrounds, cow controls and loadi
 
 The backend exposes six public read APIs, a system diagnostic API, and management lists for sites, accounts, and roles:
 
-| 路徑 / Endpoint                   | 內容                                                      | Content                                                                  |
-| --------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `GET /portfolio/site`             | 品牌、個人介紹、社群與聯絡入口                            | Brand, profile, social links, and contact entry                          |
-| `GET /portfolio/journey`          | 完整旅程與地圖資料                                        | Complete journey and map data                                            |
-| `GET /portfolio/experiences`      | 學經歷與技能，每頁 6 筆                                   | Education/work experience and skills, six per page                       |
-| `GET /portfolio/projects`         | 專案、完整詳情與技能，每頁 6 筆                           | Projects with full details and skills, six per page                      |
-| `GET /portfolio/skill-categories` | 技能分類頁碼分頁；每類包含最多 6 個技能的內層 skills 分頁 | Numbered categories with nested skill preview pages                      |
-| `GET /portfolio/skills`           | 指定分類下的技能頁碼分頁                                  | Numbered skills in one category                                          |
-| `GET /system/heartbeat`           | 依近期心跳估算目前在線人數                                | Estimated online count from recent heartbeats                            |
-| `GET /management/roles`           | 角色列表、關聯帳號數、搜尋、篩選與多欄位排序              | Paginated roles with account counts, search, filters and ordered sorting |
-| `GET /management/users`           | 一人一列的帳號、角色狀態與成功登入統計                    | One account per row with role state and successful-login statistics      |
-| `GET /management/sites`           | 一人一列的網站設定及目前管理語言內容                      | One person per row with portfolio settings and selected-language content |
+| 路徑 / Endpoint                        | 內容                                                      | Content                                                                  |
+| -------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET /portfolio/site`                  | 品牌、個人介紹、社群與聯絡入口                            | Brand, profile, social links, and contact entry                          |
+| `GET /portfolio/journey`               | 完整旅程與地圖資料                                        | Complete journey and map data                                            |
+| `GET /portfolio/experiences`           | 學經歷與技能，每頁 6 筆                                   | Education/work experience and skills, six per page                       |
+| `GET /portfolio/projects`              | 專案、完整詳情與技能，每頁 6 筆                           | Projects with full details and skills, six per page                      |
+| `GET /portfolio/skill-categories`      | 技能分類頁碼分頁；每類包含最多 6 個技能的內層 skills 分頁 | Numbered categories with nested skill preview pages                      |
+| `GET /portfolio/skills`                | 指定分類下的技能頁碼分頁                                  | Numbered skills in one category                                          |
+| `GET /system/heartbeat`                | 依近期心跳估算目前在線人數                                | Estimated online count from recent heartbeats                            |
+| `GET /management/roles`                | 角色列表、關聯帳號數、搜尋、篩選與多欄位排序              | Paginated roles with account counts, search, filters and ordered sorting |
+| `GET /management/users`                | 一人一列的帳號、角色狀態與成功登入統計                    | One account per row with role state and successful-login statistics      |
+| `GET /management/sites`                | 一人一列的網站設定及目前管理語言內容                      | One person per row with portfolio settings and selected-language content |
+| `PATCH /management/sites/{account_id}` | 部分更新既有網站與指定語言內容，包含原子 Default 切換     | Partial platform updates with atomic default-homepage replacement        |
 
-Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。三支管理列表沿用 `{items,total,pages,page,size}`，Platform／User 每人一列，Role 每角色一列；每頁預設 6 筆，可調整為 1–100 筆。Platform 的搜尋和內容使用目前管理語言；管理權限 decorator 依規劃後補。管理寫入、Portfolio 寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
+Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。三支管理列表沿用 `{items,total,pages,page,size}`，Platform／User 每人一列，Role 每角色一列；每頁預設 6 筆，可調整為 1–100 筆。Platform 搜尋和內容使用目前管理語言；管理讀取、預覽及 Platform PATCH 已套用共用權限 dependency。Platform PATCH 排除 PK／FK 與登入身分，前端 Save 尚未串接；其他管理寫入、Portfolio 寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
 
-Portfolio APIs default to `locale=en` and also support `zh-Hans` and `zh-Hant`. All six GETs can opt into short-lived response caching with `is_caching=true`. Management lists share the numbered envelope, with one person per Platform/User row and one role per Role row; the default size of 6 is adjustable from 1 to 100. Platform search and content use the current management language. Permission decorators remain deferred. Management writes, Portfolio writes and uploads remain unimplemented. See the [backend README](backend/README.md) for parameters and response shapes.
+Portfolio APIs default to `locale=en` and also support `zh-Hans` and `zh-Hant`. All six GETs can opt into short-lived response caching with `is_caching=true`. Management lists share the numbered envelope, with one person per Platform/User row and one role per Role row; the default size of 6 is adjustable from 1 to 100. Platform search and content use the current management language. Management reads, previews and Platform PATCH use the shared permission dependency. Platform PATCH preserves keys and login identity; frontend Save is not wired yet. Other management writes, Portfolio writes and uploads remain unimplemented. See the [backend README](backend/README.md) for parameters and response shapes.
 
 ## 從乾淨 checkout 安裝 / Install from a Fresh Checkout
 

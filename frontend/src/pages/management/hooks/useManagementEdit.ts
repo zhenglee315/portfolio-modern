@@ -24,6 +24,7 @@ import type {
 import { useNotifications } from '@/shared/ui/NotificationProvider';
 import type { InlineFieldEditor } from '@/shared/ui/InlineField';
 import type { SelectSource } from '@/shared/ui/SearchableSelect';
+import { managementFieldIssue } from '../model/management-edit';
 
 /** Own one write coordinator for both the table and details; shared editors remain API-independent.
  * Every outcome reconciles authoritative data, including committed/uncertain failures.
@@ -109,6 +110,7 @@ export function useManagementEdit(
           DEFAULT_ROLE_REQUIRES_ACTIVE_UNPRIVILEGED: 'defaultRoleEligible',
           LAST_ROLE_MANAGER_REQUIRED: 'lastManager',
           DEFAULT_SITE_REQUIRES_ACTIVE_PUBLISHED: 'siteEligible',
+          DEFAULT_SITE_DEACTIVATE_FORBIDDEN: 'defaultSiteActiveRequired',
           MANAGEMENT_UPDATE_CONFLICT: 'unique',
           ROLE_ASSIGNMENT_FORBIDDEN: 'roleAssignmentForbidden',
           ROLE_ASSIGNMENT_INACTIVE: 'roleAssignmentInactive',
@@ -143,19 +145,21 @@ export function useManagementEdit(
     fields:
       resource === 'sites'
         ? {
-            owner_is_active: { editor: { type: 'boolean' }, required: true },
+            owner_is_active: {
+              editor: { type: 'boolean' },
+              required: true,
+              canEdit: (_values, row) =>
+                managementFieldIssue(resource, 'owner_is_active', row) === undefined,
+              unavailableReason: (_values, row) => {
+                const issue = managementFieldIssue(resource, 'owner_is_active', row);
+                return issue ? t(`management.write.${issue}`) : undefined;
+              },
+            },
             is_default: {
               editor: (_v, row) => ({
                 type: 'boolean',
                 nullable: 'has_site' in row && !row.has_site,
               }),
-              dependsOn: ['owner_is_active'],
-              clearValue: (v, row) =>
-                'owner_is_active' in row && row.has_site
-                  ? v.owner_is_active === false
-                    ? false
-                    : row.is_default
-                  : null,
               canEdit: (v, row) =>
                 'owner_is_active' in row &&
                 row.has_site &&

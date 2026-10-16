@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import Dropdown from 'react-bootstrap/Dropdown';
-import { portaledMenuPosition } from '../lib/menu-position';
+import { contentSizedMenuPosition } from '../lib/menu-position';
 import { ChoiceChip } from './ChoiceChip';
 import { Icon } from './Icon';
 import styles from './SearchableSelect.module.css';
@@ -218,13 +218,14 @@ export function SearchableSelect({
             ref={menu}
             data-bs-theme={theme}
             className={styles.menu}
-            popperConfig={portaledMenuPosition}
+            popperConfig={contentSizedMenuPosition}
             onKeyDown={keyboard}
             aria-labelledby={`${id}-trigger`}
           >
             <input
               ref={input}
               type="search"
+              size={1}
               className="form-control form-control-sm"
               aria-label={`${label}: ${copy.search}`}
               placeholder={copy.search}

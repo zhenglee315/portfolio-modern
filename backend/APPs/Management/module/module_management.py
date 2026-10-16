@@ -13,7 +13,6 @@ from APPs.Management.constants import (
     SITE_TRANSLATION_PATCH_COLUMNS,
     EnumManagementField,
     EnumManagementError,
-    EnumManagementUpdateState,
     EnumSortDirection,
     SITE_PUBLICATION_LOCK_KEY,
 )
@@ -23,11 +22,20 @@ from APPs.Management.schema.body import (
     BodyManagementUserPatch,
     BodyManagementRolePatchRequest,
     BodyManagementUserPatchRequest,
+    BodyManagementSiteBulkDelete,
+    BodyManagementRoleBulkDelete,
+    BodyManagementUserBulkDelete,
 )
 from .module_management_state import ManagementWriteState
 from APPs.Auth.schema.body import validate_auth_email
-from APPs.Management.schema.resp import RespManagementSite, RespManagementRole, RespManagementUser
-from APPs.Portfolio.module.module_portfolio_manage import PortfolioManagementModule
+from APPs.Management.schema.resp import (
+    RespManagementSite,
+    RespManagementRole,
+    RespManagementUser,
+    RespManagementSiteDeletion,
+    RespManagementRoleDeletion,
+    RespManagementUserDeletion,
+)
 
 # ◆—< Pack >—————————————————————————————————◆ Common
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
@@ -35,7 +43,7 @@ from COMMON.schema.resp import RespRecords
 from COMMON.tools.storage.redis import RedisAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import EnumDBType, EnumLocal, EnumHttpHeader, EnumCache
+from SYSTEM.constants import EnumDBType, EnumLocal, EnumCache
 from SYSTEM.models import (
     AuthRole,
     AuthUser,
@@ -52,7 +60,7 @@ from fastapi import HTTPException
 from redis.exceptions import RedisError
 
 # ◆—< Pack >—————————————————————————————————◆ SqlAlchemy
-from sqlalchemy import Select, and_, case, func, literal, select, update
+from sqlalchemy import Select, and_, case, func, literal, select, update, delete
 from COMMON.tools.storage.sqlalchemy.tools_column_filters import apply_column_filters, trim_column_text
 from COMMON.tools.storage.sqlalchemy.tools_table_search import apply_table_search
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -231,6 +239,67 @@ class ManagementRolesModule(ManagementListModule):
         except (SQLAlchemyError, ValidationError, RuntimeError, OSError):
             raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
 
+    async def delete(self, targets, *, actor_id: int) -> dict:
+        """Delete only unused, non-default roles; every account, including inactive owners, counts.
+
+        Single and bulk HTTP entries share this transaction and the existing management lock.
+        FK RESTRICT remains the final guard against assignments outside this application's writer order.
+
+        :param targets: Original role IDs and names; never SQL identifiers or mutable assignments.
+        :param actor_id: Current server-issued identity, rechecked after locking.
+        :return: Deleted role identifiers after one atomic commit.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+        """
+        if not isinstance(targets, (list, tuple)):
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_ROLE_DELETE)
+        try:
+            batch = BodyManagementRoleBulkDelete.model_validate({"targets": list(targets)})
+        except ValidationError:
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_ROLE_DELETE) from None
+        if type(actor_id) is not int or not 1 <= actor_id <= 2147483647:
+            raise HTTPException(status_code=401, detail=EnumManagementError.AUTH_REQUIRED)
+        ids = sorted(target.role_id for target in batch.targets)
+        try:
+            async with self.transaction() as transaction:
+                state = ManagementWriteState(transaction)
+                await state.begin(actor_id, AuthRole.is_manage_roles)
+                roles = (
+                    await transaction.execute_orm(
+                        select(AuthRole.id, AuthRole.role, AuthRole.is_default)
+                        .where(AuthRole.id.in_(ids))
+                        .order_by(AuthRole.id)
+                        .with_for_update()
+                    )
+                ).all()
+                by_id = {role.id: role for role in roles}
+                for target in batch.targets:
+                    role = by_id.get(target.role_id)
+                    if role is None or role.role != target.expected_role:
+                        raise HTTPException(status_code=404, detail=EnumManagementError.ROLE_NOT_FOUND)
+                    if role.is_default:
+                        raise HTTPException(status_code=409, detail=EnumManagementError.DEFAULT_ROLE_REQUIRED)
+                assigned = (
+                    await transaction.execute_orm(
+                        select(AuthUser.id)
+                        .where(AuthUser.role_id.in_(ids))
+                        .order_by(AuthUser.id)
+                        .limit(1)
+                        .with_for_update(read=True)
+                    )
+                ).first()
+                if assigned is not None:
+                    raise HTTPException(status_code=409, detail=EnumManagementError.ROLE_IN_USE)
+                await transaction.execute_orm(delete(AuthRole).where(AuthRole.id.in_(ids)))
+                result = RespManagementRoleDeletion(
+                    deleted_count=len(ids), deleted=[{"role_id": role_id} for role_id in ids]
+                ).model_dump()
+        except IntegrityError:
+            raise HTTPException(status_code=409, detail=EnumManagementError.ROLE_DELETE_CONFLICT) from None
+        except (SQLAlchemyError, ValidationError, RuntimeError, OSError):
+            raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
+        return result
+
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Management - Users
 class ManagementUsersModule(ManagementListModule):
@@ -380,20 +449,84 @@ class ManagementUsersModule(ManagementListModule):
             raise HTTPException(status_code=409, detail=EnumManagementError.MANAGEMENT_UPDATE_CONFLICT) from None
         except (SQLAlchemyError, ValidationError, RuntimeError, OSError):
             raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
-        await self.invalidate_public_cache()
+        await ManagementWriteState.invalidate_public_cache()
         return result
 
-    @staticmethod
-    async def invalidate_public_cache():
-        """Report post-commit cache failure explicitly; never imply a rolled-back account change."""
+    async def delete(self, targets, *, actor_id: int) -> dict:
+        """Delete accounts, owned websites and login history atomically, preserving shared roles/locales.
+
+        The original optional website ID is an explicit confirmation boundary. A website created,
+        replaced or removed after the dialog opened requires a fresh confirmation. Default and the
+        final effective role manager are protected before any owned rows are deleted.
+
+        :param targets: Account ID/email and original optional website ID confirmations.
+        :param actor_id: Current server-issued identity; User-management permission owns this operation.
+        :return: Confirmed account/site IDs after commit, with no email or credential data.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+        """
+        if not isinstance(targets, (list, tuple)):
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_USER_DELETE)
         try:
-            await PortfolioManagementModule.invalidate_cache()
-        except (HTTPException, AssertionError):
-            raise HTTPException(
-                status_code=503,
-                detail=EnumManagementError.MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE,
-                headers={EnumHttpHeader.MANAGEMENT_UPDATE_STATE: EnumManagementUpdateState.COMMITTED},
-            ) from None
+            batch = BodyManagementUserBulkDelete.model_validate({"targets": list(targets)})
+        except ValidationError:
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_USER_DELETE) from None
+        if type(actor_id) is not int or not 1 <= actor_id <= 2147483647:
+            raise HTTPException(status_code=401, detail=EnumManagementError.AUTH_REQUIRED)
+        ids = sorted(target.account_id for target in batch.targets)
+        try:
+            async with self.transaction() as transaction:
+                state = ManagementWriteState(transaction)
+                await state.begin(actor_id, AuthRole.is_manage_users)
+                owners = (
+                    await transaction.execute_orm(
+                        select(AuthUser.id, AuthUser.email)
+                        .where(AuthUser.id.in_(ids))
+                        .order_by(AuthUser.id)
+                        .with_for_update()
+                    )
+                ).all()
+                by_id = {owner.id: owner.email for owner in owners}
+                sites = (
+                    await transaction.execute_orm(
+                        select(PortfolioSite.id, PortfolioSite.user_id, PortfolioSite.is_default)
+                        .where(PortfolioSite.user_id.in_(ids))
+                        .order_by(PortfolioSite.id)
+                        .with_for_update()
+                    )
+                ).all()
+                by_owner = {site.user_id: site for site in sites}
+                for target in batch.targets:
+                    if by_id.get(target.account_id) != target.expected_email:
+                        raise HTTPException(status_code=404, detail=EnumManagementError.ACCOUNT_NOT_FOUND)
+                    site = by_owner.get(target.account_id)
+                    if (site.id if site else None) != target.expected_site_id:
+                        raise HTTPException(status_code=409, detail=EnumManagementError.USER_DELETE_CONFLICT)
+                    if site and site.is_default:
+                        raise HTTPException(status_code=409, detail=EnumManagementError.DEFAULT_SITE_DELETE_FORBIDDEN)
+                await state.preserve_manager(ids)
+                # Child roots cascade through existing FKs; account FKs stay RESTRICT.
+                await transaction.execute_orm(delete(RecordLogin).where(RecordLogin.user_id.in_(ids)))
+                await transaction.execute_orm(delete(PortfolioSite).where(PortfolioSite.user_id.in_(ids)))
+                await transaction.execute_orm(delete(AuthUser).where(AuthUser.id.in_(ids)))
+                result = RespManagementUserDeletion(
+                    deleted_count=len(ids),
+                    deleted=[
+                        {
+                            "account_id": account_id,
+                            "site_id": by_owner[account_id].id if account_id in by_owner else None,
+                        }
+                        for account_id in ids
+                    ],
+                ).model_dump()
+        except IntegrityError:
+            raise HTTPException(status_code=409, detail=EnumManagementError.USER_DELETE_CONFLICT) from None
+        except (SQLAlchemyError, ValidationError, RuntimeError, OSError):
+            raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
+        await ManagementWriteState.invalidate_public_cache(
+            EnumManagementError.MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE
+        )
+        return result
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Management - Sites
@@ -604,7 +737,9 @@ class ManagementSitesModule(ManagementListModule):
                     raise HTTPException(
                         status_code=409, detail=EnumManagementError.DEFAULT_SITE_REQUIRES_ACTIVE_PUBLISHED
                     )
-                if (not published or not active) and default:
+                if default and not active:
+                    raise HTTPException(status_code=409, detail=EnumManagementError.DEFAULT_SITE_DEACTIVATE_FORBIDDEN)
+                if not published and default:
                     site_changes[PortfolioSite.is_default] = False
                 if site_changes.get(PortfolioSite.is_default) is True:
                     await transaction.execute_orm(
@@ -617,12 +752,13 @@ class ManagementSitesModule(ManagementListModule):
                 # Account state is the only writable account field; its existing onupdate owns Updated.
                 # Skip an unchanged value so repeated activation requests remain idempotent.
                 #                                                                               ♂ ZhengLee 2026.10.16
-                await state.activate(owner, active)
-                await state.preserve_manager()
+                # Apply explicit Default changes before the shared activation guard; never infer them from Active.
                 if site_changes:
                     await transaction.execute_orm(
                         update(PortfolioSite).where(PortfolioSite.id == site.id).values(site_changes)
                     )
+                await state.activate(owner, active)
+                await state.preserve_manager()
                 if translation_changes:
                     await transaction.execute_orm(
                         update(PortfolioSiteLocale)
@@ -637,7 +773,82 @@ class ManagementSitesModule(ManagementListModule):
         except (SQLAlchemyError, ValidationError, RuntimeError, OSError):
             raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
 
-        await ManagementUsersModule.invalidate_public_cache()
+        await ManagementWriteState.invalidate_public_cache()
+        return result
+
+    async def delete(self, targets, *, actor_id: int) -> dict:
+        """Delete confirmed websites and all child content atomically, preserving account identities.
+
+        HTTP entry points normalize single/batch targets here. Identity confirmation is not
+        authorization: current server-issued authority is checked again under the shared lock.
+        Database FK cascades own child cleanup; shared locales, accounts and login history survive.
+
+        :param targets: Validated owner/email/site confirmations, never client-provided SQL names.
+        :param actor_id: Current server-session account; required even for direct module callers.
+        :return: Deleted account/site identifiers after one successful commit.
+        :raises HTTPException: Invalid targets, missing identities, changed sites, Default protection or storage failure.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+        """
+        # --------------------------------------------------● Step 1. Defend direct callers as well as the HTTP schema boundary.
+        if not isinstance(targets, (list, tuple)):
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_SITE_DELETE)
+        try:
+            batch = BodyManagementSiteBulkDelete.model_validate({"targets": list(targets)})
+        except ValidationError:
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_SITE_DELETE) from None
+        if type(actor_id) is not int or not 1 <= actor_id <= 2147483647:
+            raise HTTPException(status_code=401, detail=EnumManagementError.AUTH_REQUIRED)
+        ordered = sorted(batch.targets, key=lambda target: target.account_id)
+        try:
+            async with self.transaction() as transaction:
+                state = ManagementWriteState(transaction)
+                await state.begin(actor_id, AuthRole.is_manage_sites)
+                # --------------------------------------------------● Step 2. Confirm every owner and website before deleting any target.
+                owners = (
+                    await transaction.execute_orm(
+                        select(AuthUser.id, AuthUser.email)
+                        .where(AuthUser.id.in_([target.account_id for target in ordered]))
+                        .order_by(AuthUser.id)
+                        .with_for_update(read=True)
+                    )
+                ).all()
+                emails = {owner.id: owner.email for owner in owners}
+                sites = (
+                    await transaction.execute_orm(
+                        select(PortfolioSite.id, PortfolioSite.user_id, PortfolioSite.is_default)
+                        .where(PortfolioSite.user_id.in_([target.account_id for target in ordered]))
+                        .order_by(PortfolioSite.id)
+                        .with_for_update()
+                    )
+                ).all()
+                by_owner = {site.user_id: site for site in sites}
+                for target in ordered:
+                    if emails.get(target.account_id) != target.expected_owner_email:
+                        raise HTTPException(status_code=404, detail=EnumManagementError.ACCOUNT_NOT_FOUND)
+                    site = by_owner.get(target.account_id)
+                    if site is None:
+                        raise HTTPException(status_code=404, detail=EnumManagementError.SITE_NOT_FOUND)
+                    if site.id != target.expected_site_id:
+                        raise HTTPException(status_code=409, detail=EnumManagementError.SITE_DELETE_CONFLICT)
+                    if site.is_default:
+                        raise HTTPException(status_code=409, detail=EnumManagementError.DEFAULT_SITE_DELETE_FORBIDDEN)
+                # --------------------------------------------------● Step 3. Delete roots only; the existing FK cascade clears every language and relation.
+                await transaction.execute_orm(
+                    delete(PortfolioSite).where(PortfolioSite.id.in_([site.id for site in sites]))
+                )
+                result = RespManagementSiteDeletion(
+                    deleted_count=len(sites),
+                    deleted=[{"account_id": site.user_id, "site_id": site.id} for site in sites],
+                ).model_dump()
+        except IntegrityError:
+            raise HTTPException(status_code=409, detail=EnumManagementError.SITE_DELETE_CONFLICT) from None
+        except (SQLAlchemyError, ValidationError, RuntimeError, OSError):
+            raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
+        # --------------------------------------------------● Step 4. A committed deletion is never retried because cache invalidation failed.
+        await ManagementWriteState.invalidate_public_cache(
+            EnumManagementError.MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE
+        )
         return result
 
 

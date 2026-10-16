@@ -6,6 +6,7 @@
   max-width: 100%;
   color: var(--text);
   --table-control-size: 36px;
+  --table-action-width: 28px;
   --table-sort-width: 10px;
   --table-filter-width: 14px;
   --table-rank-width: 10px;
@@ -430,6 +431,7 @@
 }
 
 .actions {
+  width: 1%;
   white-space: nowrap;
 }
 /* The leading selector has a compact cell and a full control-size pointer target. */
@@ -449,9 +451,13 @@
 .selectionControl :global(.form-check-input) {
   margin: 0;
 }
-.actions :global(:is(button, a)) {
-  min-width: var(--table-control-size);
+/* Narrow desktop actions reduce overflow without shrinking icons or touch targets.
+ * @author ZhengLee 2026.10.16
+ */
+.table .actions :global(:is(button, a)) {
+  min-width: var(--table-action-width);
   min-height: var(--table-control-size);
+  padding-inline: 4px;
 }
 .actions :global(a) {
   display: inline-flex;
@@ -587,6 +593,7 @@
   .scroll,
   .feedback {
     --table-control-size: 44px;
+    --table-action-width: 44px;
     --table-sort-width: 44px;
     --table-filter-width: 44px;
   }
@@ -666,6 +673,7 @@
 @media (any-pointer: coarse) {
   .root {
     --table-control-size: 44px;
+    --table-action-width: 44px;
     --table-sort-width: 44px;
     --table-filter-width: 44px;
     --table-header-height: 44px;

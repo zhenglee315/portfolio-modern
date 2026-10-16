@@ -269,7 +269,6 @@
     "openNavigation": "Open management navigation",
     "readonly": "Read-only",
     "quick": {
-      "label": "Autosave",
       "saving": "Saving…",
       "saved": "Saved.",
       "failed": "Could not save this change. The table has been refreshed.",
@@ -324,6 +323,32 @@
     "deleteTarget": "Selected record: {{name}}",
     "deleteTargets": "Selected records: {{count}}",
     "confirmDelete": "Delete",
+    "roleDeletion": {
+      "target": "Permanently delete the role {{name}}? This cannot be undone.",
+      "targets": "Permanently delete {{count}} roles? Every role must be unused and must not be the registration Default. This cannot be undone.",
+      "saved": "Deleted roles: {{count}}."
+    },
+    "userDeletion": {
+      "target": "Permanently delete {{name}}, their website in every language and all login history? This cannot be undone.",
+      "targets": "Permanently delete {{count}} accounts, their websites in every language and all login history? This cannot be undone.",
+      "saved": "Deleted accounts and their owned data: {{count}}."
+    },
+    "deletion": {
+      "roleInUse": "Reassign every account using this role before deleting it. Disabled accounts also count.",
+      "defaultRole": "Choose another registration Default before deleting this role.",
+      "lastManager": "At least one active account must retain role-management permission.",
+      "target": "Permanently delete the website for {{name}} and all its content in every language? The account and login history will be kept. This cannot be undone.",
+      "targets": "Permanently delete {{count}} websites and all their content in every language? Accounts and login history will be kept. This cannot be undone.",
+      "deleting": "Deleting…",
+      "saved": "Deleted {{count}} website(s). Accounts have been kept.",
+      "default": "Choose another Default before deleting this website.",
+      "noSite": "This account has no website to delete.",
+      "conflict": "The selected data changed or is still referenced. Nothing was deleted. Review the refreshed table.",
+      "missing": "A selected record no longer matches. Nothing was deleted. Review the refreshed table.",
+      "failed": "The deletion was rejected. Nothing was deleted. Review the refreshed table.",
+      "uncertain": "Could not confirm the deletion. Review the refreshed table before trying again.",
+      "committed": "Deletion completed, but public caches could not be refreshed. Public content may take up to a minute to update."
+    },
     "cancel": "Cancel",
     "details": "Details",
     "noPortfolio": "No portfolio",
@@ -491,6 +516,7 @@
       "defaultRoleEligible": "The registration Default must be active and have no management permissions.",
       "lastManager": "At least one active account must retain role-management permission.",
       "siteEligible": "Default requires an active account and a published website.",
+      "defaultSiteActiveRequired": "Clear or switch this website's Default before disabling its account.",
       "unique": "The update conflicts with an existing name or record. Refresh and review the values.",
       "detailConflict": "This record changed while you were editing. Close this dialog and reopen the latest record before saving.",
       "roleAssignmentForbidden": "You cannot assign a role that grants permissions you do not have.",

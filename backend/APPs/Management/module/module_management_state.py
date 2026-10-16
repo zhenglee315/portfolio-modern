@@ -7,9 +7,11 @@ from APPs.Management.constants import (
     SITE_PUBLICATION_LOCK_KEY,
     ROLE_PERMISSION_COLUMNS,
     EnumManagementError,
+    EnumManagementUpdateState,
 )
-from SYSTEM.constants import EnumDBType
+from SYSTEM.constants import EnumDBType, EnumHttpHeader
 from SYSTEM.models import AuthRole, AuthUser, PortfolioSite
+from APPs.Portfolio.module.module_portfolio_manage import PortfolioManagementModule
 
 
 class ManagementWriteState:
@@ -24,6 +26,23 @@ class ManagementWriteState:
 
     def __init__(self, transaction):
         self.transaction = transaction
+
+    @staticmethod
+    async def invalidate_public_cache(
+        committed_error=EnumManagementError.MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE,
+    ):
+        """Invalidate only after commit; cache failure must never imply the database rolled back.
+
+        ♂ ZhengLee 2026.10.16
+        """
+        try:
+            await PortfolioManagementModule.invalidate_cache()
+        except (HTTPException, AssertionError):
+            raise HTTPException(
+                status_code=503,
+                detail=committed_error,
+                headers={EnumHttpHeader.MANAGEMENT_UPDATE_STATE: EnumManagementUpdateState.COMMITTED},
+            ) from None
 
     async def begin(self, actor_id, permission):
         """Acquire shared write ordering before resolving the server-issued actor again."""
@@ -62,7 +81,7 @@ class ManagementWriteState:
         """
         return [column.is_(False) for column in ROLE_PERMISSION_COLUMNS if not getattr(actor_role, column.key)]
 
-    async def manager_count(self):
+    async def manager_count(self, excluded_accounts=()):
         """Count enabled accounts with enabled role-management authority, independent of role names."""
         return (
             await self.transaction.execute_orm(
@@ -70,25 +89,36 @@ class ManagementWriteState:
                 .select_from(AuthUser)
                 .join(AuthRole, AuthRole.id == AuthUser.role_id)
                 .where(AuthUser.is_active.is_(True), AuthRole.is_active.is_(True), AuthRole.is_manage_roles.is_(True))
+                .where(AuthUser.id.not_in(excluded_accounts))
             )
         ).scalar_one()
 
-    async def preserve_manager(self):
+    async def preserve_manager(self, excluded_accounts=()):
         """Reject losing the final eligible manager; allow repair of pre-existing empty setups."""
-        if self.managers_before and not await self.manager_count():
+        if self.managers_before and not await self.manager_count(excluded_accounts):
             raise HTTPException(status_code=409, detail=EnumManagementError.LAST_ROLE_MANAGER_REQUIRED)
 
     async def activate(self, owner, active):
-        """Update account activation consistently for User and Platform, preserving identity and no-op time."""
+        """Keep a Default website's owner active across both User and Platform updates.
+
+        Callers hold the shared publication lock; a stale client cannot clear Default
+        implicitly by disabling its owner. Explicit Default changes must be persisted first.
+
+        ♂ ZhengLee 2026.10.16
+        """
+        if not active:
+            default_site = (
+                await self.transaction.execute_orm(
+                    select(PortfolioSite.id)
+                    .where(PortfolioSite.user_id == owner.id, PortfolioSite.is_default.is_(True))
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if default_site is not None:
+                raise HTTPException(status_code=409, detail=EnumManagementError.DEFAULT_SITE_DEACTIVATE_FORBIDDEN)
         if active != owner.is_active:
             await self.transaction.execute_orm(
                 update(AuthUser).where(AuthUser.id == owner.id).values({AuthUser.is_active: active})
-            )
-        if not active:
-            await self.transaction.execute_orm(
-                update(PortfolioSite)
-                .where(PortfolioSite.user_id == owner.id, PortfolioSite.is_default.is_(True))
-                .values({PortfolioSite.is_default: False})
             )
 
     @staticmethod

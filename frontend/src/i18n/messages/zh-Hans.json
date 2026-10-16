@@ -269,7 +269,6 @@
     "openNavigation": "打开管理导航",
     "readonly": "只读",
     "quick": {
-      "label": "即时保存",
       "saving": "保存中…",
       "saved": "已保存。",
       "failed": "无法保存此项更改，已重新读取表格。",
@@ -324,6 +323,32 @@
     "deleteTarget": "已选取数据：{{name}}",
     "deleteTargets": "已选取 {{count}} 条数据。",
     "confirmDelete": "确定删除",
+    "roleDeletion": {
+      "target": "永久删除角色“{{name}}”？此操作无法恢复。",
+      "targets": "永久删除 {{count}} 个角色？所有角色均须无账号使用，且不是注册 Default。此操作无法恢复。",
+      "saved": "已删除 {{count}} 个角色。"
+    },
+    "userDeletion": {
+      "target": "永久删除 {{name}}、其网站所有语言内容与全部登录记录？此操作无法恢复。",
+      "targets": "永久删除 {{count}} 个账号、其网站所有语言内容与全部登录记录？此操作无法恢复。",
+      "saved": "已删除 {{count}} 个账号及所属数据。"
+    },
+    "deletion": {
+      "roleInUse": "请先将使用此角色的所有账号改派到其他角色，再删除。停用账号也包含在内。",
+      "defaultRole": "请先指定另一个注册 Default，再删除此角色。",
+      "lastManager": "至少须保留一个启用且具有角色管理权限的账号。",
+      "target": "永久删除 {{name}} 的网站及所有语言内容？账号与登录记录会保留。此操作无法恢复。",
+      "targets": "永久删除 {{count}} 个网站及所有语言内容？账号与登录记录会保留。此操作无法恢复。",
+      "deleting": "删除中…",
+      "saved": "已删除 {{count}} 个网站，账号已保留。",
+      "default": "请先指定另一个 Default，再删除此网站。",
+      "noSite": "此账号没有可删除的网站。",
+      "conflict": "所选数据已变更或仍被使用，本次未删除任何数据。请确认重新读取的表格。",
+      "missing": "所选数据已不匹配，本次未删除任何数据。请确认重新读取的表格。",
+      "failed": "删除请求未获允许，本次未删除任何数据。请确认重新读取的表格。",
+      "uncertain": "无法确认删除结果，请先检查重新读取的表格，再决定是否重试。",
+      "committed": "删除已完成，但公开缓存更新失败，公开内容可能需要一分钟才会更新。"
+    },
     "cancel": "取消",
     "details": "详情",
     "noPortfolio": "尚未建立作品集",
@@ -491,6 +516,7 @@
       "defaultRoleEligible": "注册默认角色必须启用，且不能具有管理权限。",
       "lastManager": "必须保留至少一个具有角色管理权限的有效账号。",
       "siteEligible": "Default 必须为启用账号的已发布网站。",
+      "defaultSiteActiveRequired": "请先取消或切换此网站的 Default，再停用账号。",
       "unique": "更新与现有名称或数据冲突，请重新确认。",
       "detailConflict": "编辑期间数据已变更，请关闭窗口后重新打开最新数据再保存。",
       "roleAssignmentForbidden": "无法分配包含您未持有权限的角色。",

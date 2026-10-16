@@ -96,14 +96,6 @@
   line-height: 1.7;
   color: var(--muted);
 }
-.readonly {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
 .tablePanel {
   min-width: 0;
   border: 1px solid var(--border);
@@ -138,7 +130,11 @@
   gap: 6px;
 }
 .rowActions {
-  gap: 2px;
+  /* Keep button feedback darker than the row hover in every palette.
+   * @author ZhengLee 2026.10.16
+   */
+  --row-action-hover-bg: color-mix(in srgb, var(--control-hover) 88%, #000);
+  gap: 0;
 }
 .tableActions .tableAction[value='delete']:enabled:is(:hover, :focus-visible, :active) {
   color: var(--field-error);
@@ -191,10 +187,10 @@
 }
 .deleteRow:is(:hover, :focus-visible) {
   color: var(--field-error);
-  background: color-mix(in srgb, var(--field-error) 12%, transparent);
+  background: color-mix(in srgb, var(--field-error) 12%, var(--row-action-hover-bg));
 }
 .editRow:is(:hover, :focus-visible) {
-  background: var(--control-hover);
+  background: var(--row-action-hover-bg);
   color: var(--accent);
 }
 /* Detail reading uses Bootstrap's modal lifecycle and keeps all long text inside the dialog. */
@@ -373,13 +369,16 @@
   }
 }
 
-/* The shared header keeps its icon visible while the wordmark collapses. */
+/* Center the visible icon/wordmark together; the shared brand link owns the full hit area.
+ * Keep the icon visible while the wordmark collapses.
+ * @author ZhengLee 2026.10.16
+ */
 .brandIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 44px;
-  width: 44px;
+  flex: 0 0 28px;
+  width: 28px;
   height: 44px;
   color: var(--accent);
 }
@@ -388,6 +387,7 @@
   height: 28px;
 }
 .brandText {
+  display: block;
   color: var(--accent);
   font-size: 15px;
   font-weight: 750;

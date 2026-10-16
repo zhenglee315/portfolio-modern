@@ -62,7 +62,8 @@ class Tags(Enum):
             "roles use one row per permission set. Portfolio rows include the selected-language content and site "
             "publication settings; account rows include assigned roles and summarized successful sign-ins; "
             "role rows include permissions and assigned-account counts. Search, state filters, ordered multi-column "
-            "sorting, and numbered pagination support administrative review. Write operations are planned."
+            "sorting, and numbered pagination support administrative review. Partial updates and atomic website "
+            "deletion use current management permissions and strict identity confirmation."
         ),
     }
 
@@ -95,9 +96,12 @@ class RouteManagement(EnumUtils):
     """Management resource paths shared by views and documentation."""
 
     ROLES = "/roles"
+    ROLE_BULK_DELETE = "/roles/bulk-delete"
     USERS = "/users"
+    USER_BULK_DELETE = "/users/bulk-delete"
     ROLE_OPTIONS = "/role-options"
     SITES = "/sites"
+    SITE_BULK_DELETE = "/sites/bulk-delete"
     LOGIN_RECORDS = "/login-records"
     PREVIEW = "/preview"
 

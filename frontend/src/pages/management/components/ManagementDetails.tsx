@@ -16,6 +16,8 @@ import type { SelectOption } from '@/shared/ui/SearchableSelect';
 
 export type ManagementDetailColumn<T> = DataTableColumn<T> & {
   editor?: (row: T) => InlineFieldEditor | undefined;
+  /** Keep constrained fields in the draft while disabling edits for the current dependent values. */
+  editUnavailableReason?: (row: T) => string | undefined;
   /** Projected display columns may edit a separate validated assignment, without sending the label. */
   assignment?: {
     field: string;
@@ -165,17 +167,18 @@ export function ManagementDetails<T extends object>({
         <dl className={styles.details}>
           {columns.map((column) => {
             const editor = column.editor?.(preview);
+            const unavailableReason = column.editUnavailableReason?.(preview);
             return (
               <div key={column.id} data-editor={editor?.type}>
                 <dt>{column.label}</dt>
-                <dd>
+                <dd title={unavailableReason}>
                   {editor ? (
                     <InlineField
                       label={column.label}
                       value={assignmentValue(column, preview)}
                       editor={editor}
                       copy={copy.field}
-                      disabled={pending || conflict}
+                      disabled={pending || conflict || !!unavailableReason}
                       onChange={(value, option) =>
                         setDraft((previous) => ({
                           ...previous,

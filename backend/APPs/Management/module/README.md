@@ -60,7 +60,21 @@ The current model gates reads with management flags, and Platform PATCH also req
 
 Management／Preview 讀取包含停用目標；公開 Portfolio 才套用 active-language 條件，並在快取前檢查。`include_inactive=True` 僅由 `_read_preview()` 內部傳給共用查詢，不從 URL 注入，也不修改 instance 狀態。管理更新不要求語言啟用；缺網站／翻譯仍回 404。Default 的啟用 owner／發布規則維持獨立驗證。
 
+Default 網站的 Active 不可關閉：`ManagementWriteState.activate()` 在 publication lock 下由 ORM 檢查目前 Default，User／Platform 共用，違反回 409 `DEFAULT_SITE_DEACTIVATE_FORBIDDEN`。Active 不再隱式取消 Default。先取消／切換 Default，或在同一 Platform PATCH 明確取消 Default 後，才可停用帳號；任何衝突皆整筆回滾。
+
 The original Platform class owns both reads and transactional writes. Input validation stays in body/parser layers, permission checks stay in the existing dependency, and resource rules stay in update(). Cache invalidation runs only after commit. No new write service or independently committed publication operation is introduced.
+
+### Platform 刪除 / Website deletion
+
+同一個 `ManagementSitesModule.delete(targets, actor_id=...)` 處理單筆與批次，不呼叫會各自 commit 的單筆迴圈。驗證 owner ID／不可變登入信箱／原網站 ID，沿用 `ManagementWriteState.begin()` 的交易鎖與即時授權，固定順序鎖定所有目標。Default 必須先替換；任何一筆失敗整批回滾。只刪網站 root，由既有 FK cascade 刪除所有語系子內容，保留帳號、角色、登入歷史及共用語言。共用提交後 cache 處理由 `ManagementWriteState.invalidate_public_cache()` 負責，update／delete 使用各自的 committed error code，業務判斷仍留在原 class。
+
+### Role／User 刪除 / Role and User deletion
+
+`ManagementRolesModule.delete()` 確認原角色 ID／名稱，並在共用鎖內確認不是 Default、沒有任何指派帳號（不過濾 is_active）。角色使用中的 FK 問題回報衝突，不轉成連帶刪人或自動重新指派。
+
+`ManagementUsersModule.delete()` 確認帳號 ID／不可變登入信箱及原 optional site_id。整批目標先通過 Default 及 `ManagementWriteState.preserve_manager(excluded_accounts)` 檢查，再依序清登入紀錄、網站、帳號；FK 保持原本 RESTRICT／CASCADE，任一失敗完整回滾。允許刪除自己，但必須有其他有效角色管理員；目前 SESSION 在下一次讀取失效。刪帳號及網站同屬 User 管理操作，沿用 is_manage_users，不使用角色名稱或內容 CRUD 旗標授權。User 提交後才清公開 cache；Role 無帳號使用，不觸發內容 cache 清除。所有刪除方法都要求有效的 server actor_id，即使直接從 module 呼叫也驗證輸入。
+
+Auth 的 current_session 除資料庫有效性外，也驗證伺服器 SESSION 的帳號世代 digest；刪除後重用 ID 不會恢復舊登入權限。識別值不暴露於 response DTO，舊格式 SESSION 需重新登入。完整契約及隔離測試見[後端說明](../../../README.md#角色與帳號刪除--role-and-account-deletion)。
 
 ### ORM 欄位與外部契約 / ORM bindings and wire contracts
 

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from COMMON.schema.resp import RespRecords
 from SYSTEM.constants import LoginGeoStatus, EnumLocal
+from APPs.Management.constants import MANAGEMENT_DELETE_MAX_TARGETS
 
 
 class RespManagementRole(BaseModel):
@@ -185,7 +186,41 @@ class RespManagementLoginRecords(RespRecords[RespManagementLoginRecord]):
     """
 
 
+class RespManagementDeletedSite(BaseModel):
+    """Return confirmed identifiers without exposing account email or credentials."""
+
+    account_id: int = Field(gt=0)
+    site_id: int = Field(gt=0)
+
+
+class RespManagementSiteDeletion(BaseModel):
+    deleted_count: int = Field(gt=0, le=MANAGEMENT_DELETE_MAX_TARGETS)
+    deleted: list[RespManagementDeletedSite]
+
+
+class RespManagementDeletedRole(BaseModel):
+    role_id: int = Field(gt=0)
+
+
+class RespManagementRoleDeletion(BaseModel):
+    deleted_count: int = Field(gt=0, le=MANAGEMENT_DELETE_MAX_TARGETS)
+    deleted: list[RespManagementDeletedRole]
+
+
+class RespManagementDeletedUser(BaseModel):
+    account_id: int = Field(gt=0)
+    site_id: int | None
+
+
+class RespManagementUserDeletion(BaseModel):
+    deleted_count: int = Field(gt=0, le=MANAGEMENT_DELETE_MAX_TARGETS)
+    deleted: list[RespManagementDeletedUser]
+
+
 __all__ = (
+    "RespManagementRoleDeletion",
+    "RespManagementUserDeletion",
+    "RespManagementSiteDeletion",
     "RespManagementRole",
     "RespManagementRoles",
     "RespManagementUser",

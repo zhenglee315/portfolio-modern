@@ -34,7 +34,7 @@ export function HelpTooltip({ label, text }: { label: string; text: string }) {
         aria-label={label}
         onClick={show}
       >
-        <Icon name="patchQuestionFill" />
+        <Icon name="questionCircle" />
       </button>
       {tooltipProps && <HelpPanel {...tooltipProps} text={text} />}
     </>

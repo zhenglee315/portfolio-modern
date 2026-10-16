@@ -42,7 +42,7 @@ type RequestOptions = {
   signal?: AbortSignal;
   baseUrl?: string;
   timeoutMs?: number;
-  method?: 'GET' | 'POST' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   json?: unknown;
   credentials?: RequestCredentials;
   cache?: RequestCache;

@@ -4,7 +4,13 @@ from COMMON.tools.storage.redis import RedisAsync, RedisUpdate, RedisValue
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache, EnumDBType, AUTH_MANAGEMENT_WRITE_LOCK_KEY
+from SYSTEM.constants import (
+    AUTH_PERMISSION_FIELDS,
+    EnumCache,
+    EnumDBType,
+    AUTH_MANAGEMENT_WRITE_LOCK_KEY,
+    AUTH_SESSION_IDENTITY_KEY,
+)
 from SYSTEM.models import AuthRole, AuthUser, RecordLogin, AUTH_ROLE_PERMISSION_COLUMNS
 from SYSTEM.settings import SEC_SECRET_KEY
 from SYSTEM.tools.tools_net import net_client_ip
@@ -203,11 +209,23 @@ class AuthModule(SqlAlchemyExecAsync):
         except RedisError:
             raise HTTPException(status_code=503, detail="AUTH_STORAGE_UNAVAILABLE") from None
 
-    async def _start_session(self, account: dict[str, Any]) -> None:
+    @staticmethod
+    def session_identity(account_id: int, password_hash: str) -> str:
+        """Bind a server session to this account generation without exposing its password hash.
+
+        A fresh registration has a fresh Argon2 salt, even when ID/email are reused.
+        Password replacement also revokes old sessions. Only the keyed digest stays in SESSION.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+        """
+        return AuthModule._digest(f"session-identity:{account_id}:{password_hash}")
+
+    async def _start_session(self, account: dict[str, Any], password_hash: str) -> None:
         """
         Invalidate the previous server-side session and issue a new authenticated session.
 
         :param account: Public account identity and assigned role permissions.
+        :param password_hash: Server-selected salted hash; used only for the private SESSION identity digest.
         :return: None; middleware persists the replacement session and cookie.
         :raises HTTPException: The previous session cannot be removed from storage.
 
@@ -218,6 +236,7 @@ class AuthModule(SqlAlchemyExecAsync):
         self.request.session.clear()
         regenerate_session_id(self.request)
         self.request.session.update(account)
+        self.request.session[AUTH_SESSION_IDENTITY_KEY] = self.session_identity(account["id"], password_hash)
 
     async def _email_exists(self) -> bool:
         """
@@ -303,12 +322,12 @@ class AuthSessionModule(AuthModule):
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
-        for field in ("id", "email", "user", "role", "password", *AUTH_PERMISSION_FIELDS):
+        for field in ("id", "email", "user", "role", "password", AUTH_SESSION_IDENTITY_KEY, *AUTH_PERMISSION_FIELDS):
             self.request.session.pop(field, None)
 
     async def current_session(self) -> dict[str, Any] | None:
         """
-        Return the enabled account and role for SESSION's ID, or None for guests.
+        Return the enabled account/role for the bound SESSION generation, or None for guests.
 
         The database supplies email and permission values. Invalid or disabled
         identities are removed without rotating the session on ordinary reads.
@@ -320,7 +339,14 @@ class AuthSessionModule(AuthModule):
         """
         await self._load_session()
         account_id = self.request.session.get("id")
-        if type(account_id) is not int or not 1 <= account_id <= 2_147_483_647:
+        identity = self.request.session.get(AUTH_SESSION_IDENTITY_KEY)
+        if (
+            type(account_id) is not int
+            or not 1 <= account_id <= 2_147_483_647
+            or not isinstance(identity, str)
+            or len(identity) != 64
+            or any(character not in "0123456789abcdef" for character in identity)
+        ):
             self._clear_identity()
             return None
         stmt = (
@@ -330,7 +356,11 @@ class AuthSessionModule(AuthModule):
         )
         try:
             row = (await self.execute_orm(stmt)).one_or_none()
-            response = self._account_response(*row) if row is not None else None
+            response = (
+                self._account_response(*row)
+                if row is not None and hmac.compare_digest(identity, self.session_identity(row[0].id, row[0].password))
+                else None
+            )
         except (SQLAlchemyError, RuntimeError, OSError):
             raise HTTPException(status_code=503, detail="AUTH_DATABASE_UNAVAILABLE") from None
         if response is None:
@@ -423,7 +453,7 @@ class AuthSignInModule(AuthModule):
             response = self._account_response(account, role)
         except SQLAlchemyError:
             raise HTTPException(status_code=503, detail="AUTH_DATABASE_UNAVAILABLE") from None
-        await self._start_session(response)
+        await self._start_session(response, account.password)
         # Capture only the trusted ASGI client after successful authentication. GeoIP
         # failures retain the IP/status without blocking an otherwise valid sign-in.
         #                                                                                       ♂ ZhengLee 2026.10.15
@@ -986,7 +1016,7 @@ class AuthRegisterModule(AuthModule):
             await self._complete_challenge(challenge_id, claim_id)
         except RedisError:
             raise HTTPException(status_code=503, detail="AUTH_STORAGE_UNAVAILABLE") from None
-        await self._start_session(response)
+        await self._start_session(response, account.password)
         return response
 
 

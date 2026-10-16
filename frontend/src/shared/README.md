@@ -252,13 +252,17 @@ import { boundedMenuPosition } from '@/shared/lib/menu-position';
 
 ### 共用元件清單 / Shared Component Inventory
 
-`HelpTooltip`（[來源](ui/HelpTooltip.tsx)）是一般資料表／表單用的小型說明按鈕，接受已翻譯的 `label` 與純文字 `text`。使用 10px 的 `patchQuestionFill` 圖示、專案面板／邊框／焦點 tokens 及一般圓角提示框與箭頭；不使用 pixel shell。沿用 `useHoverTooltip` 的 hover bridge、鍵盤焦點、點按、Escape／外部點擊／scroll 等關閉生命週期；`useAnchoredPanel` 限制提示於視窗內，portal 掛在 body 或原 modal，避免被表格裁切。元件不載入業務資料、不讀取語系、不觸發資料更新。
+`HelpTooltip`（[來源](ui/HelpTooltip.tsx)）是一般資料表／表單用的小型說明按鈕，接受已翻譯的 `label` 與純文字 `text`。使用 10px 的 `questionCircle` 圖示、專案面板／邊框／焦點 tokens 及一般圓角提示框與箭頭；不使用 pixel shell。沿用 `useHoverTooltip` 的 hover bridge、鍵盤焦點、點按、Escape／外部點擊／scroll 等關閉生命週期；`useAnchoredPanel` 限制提示於視窗內，portal 掛在 body 或原 modal，避免被表格裁切。元件不載入業務資料、不讀取語系、不觸發資料更新。
 
 `DataTableColumn<T>.help={label,text}` 在欄名左側放置共用 `HelpTooltip`，保留原始 label 給搜尋、排序、Columns 與匯出。左右平衡的 header tracks 保持標題與資料置中；窄表格的整欄篩選點擊區不覆蓋說明按鈕。文案由 feature／page 決定，例如 Role 頁面沿用 `rolePermissionFields` 宣告為七個權限欄注入三語說明，其餘頁面沒有額外按鈕。
 
 `SearchableSelect`（[來源](ui/SearchableSelect.tsx)）是受控單選下拉，支援文字／數字值、搜尋、彩色 `ChoiceChip`、停用選項及原因、鍵盤方向鍵／Enter／Escape、選取後焦點還原。`SelectOption` 定義 value、label、disabled、reason；`SelectPage` 定義 items、page、pages；`SelectSource` 可提供靜態 options 或 `load(search, page, signal)`。`SelectCopy` 注入 search、empty、loading、error、retry、more。搜尋延遲 300ms，翻頁累積去重；新查詢及關閉會取消舊請求並忽略遲到結果。menu 使用 Popper 限制在視窗內，詳情視窗中 portal 留在 modal 內。owner 負責取得資料、權限與保存。`InlineFieldEditor.type='searchable-select'` 經 selection 傳入同一份設定，選取透過 onChange(value, option) 及 onComplete 通知 owner。
 
 `ChoiceChip`（[來源](ui/ChoiceChip.tsx)）共用篩選及編輯選項的七色方塊，預設按 label 穩定取色，也可傳 color。`StatusIndicator`（[來源](ui/StatusIndicator.tsx)）接受 boolean/null 的 value 與 online/offline/unknown 文案，以綠色實心／灰色實心／灰色空心圓呈現，含 accessible label 與 tooltip；不自行判斷在線狀態。
+
+`SearchableSelect` 的 trigger 隨目前文字／色塊收合，只保留下拉箭頭，外框及滑鼠 hover／按下狀態均無邊框；鍵盤焦點仍有 outline。展開選單以選項內容決定寬度，搜尋框不以原生預設 20 字元寬度撐開選單；長內容受 viewport／20rem 上限約束。`contentSizedMenuPosition` 延伸 `portaledMenuPosition`，以 Popper modifier 的 ResizeObserver 在非同步選項、搜尋或續頁改變選單尺寸後重新定位，關閉／卸載時清理 observer。
+
+展開清單沿用 `--table-font-size`（預設 13px）；選項按鈕明確繼承字型，色塊不放大。選項與搜尋框最小高度 32px，勾選圖示 12px，選單內距 6px，使用與 DataTable 相同的緊湊節奏。
 
 下表逐項涵蓋 `shared/ui` 的共用元件／Hook 匯出；型別、context 與時間常數另見各介面說明。場景道具拆件保持內部實作，呼叫端使用完整 `CowWorkspace` 及公開的角色插槽 `DeniedCowCharacter`。
 
@@ -382,7 +386,7 @@ Sort headings retain keyboard focus during loading with `aria-disabled` and guar
 
 All copy is injected, including captions, query feedback, navigation, column controls, ordering hints, read-only semantics and dynamic range/page/sort labels. Loading disables query controls and centers the shared indicator below the toolbar/sort summary and above the table header; its region collapses when loading ends. Errors provide an optional local retry. Supplied rows remain visible, with cache retention owned by the feature. Semantic application tokens bridge Bootstrap variables for every theme and row hover. Wide tables scroll within their own viewport.
 
-資料列使用緊湊的 `4px 8px` cell padding；表頭沿用原本間距。操作按鈕保留桌面的 36px 與手機／觸控的 44px 點擊範圍，列高由內容與控制項決定，不設定固定高度。
+資料列使用緊湊的 `4px 8px` cell padding；表頭沿用原本間距。Actions 欄依內容收窄，操作按鈕桌面至少 `28px × 36px`，手機／觸控至少 `44px × 44px`，左右內距 4px；管理頁圖示按鈕之間不額外加間距。列高由內容與控制項決定，不設定固定高度。
 
 RWD 依**元件容器寬度**處理：根節點是 `data-table` inline-size container，760px 以下工具列以兩排配置，管理 Add／Del 保留方形圖示與無障礙名稱，搜尋最寬 320px；640px 以下分頁與筆數控制分列，頁碼按鈕可換行；表頭標題與功能在同列置中，箭頭保留上下排列與各自 44px 觸控範圍。資料仍保持一列一筆，寬欄位保留在表格自己的水平捲動區；不縮小字體或把頁面本身撐寬。窄容器或 coarse pointer 裝置的主要控件至少 44px，長排序摘要與欄位標籤可以換行；欄位選單寬高受容器與 viewport 限制。Owner 注入的 toolbar 可使用同名 `@container data-table (max-width: 640px)`，應避免固定最小寬度超出父容器；外層 flex／grid item 要允許 `min-width: 0`。
 
@@ -435,7 +439,9 @@ function ItemsTable() {
 
 此範例只需替換 Item、columns 和 feature 的 `useItemsList`；filterSpecs／columns 宣告於元件外以保持穩定。若資料受帳號／語言限制，selection scope 應加上相同身份資訊。匯出及 rowActions 按需求注入，不需要另做一份 DataTable。匯入 `DataTable`／`DataTableColumn`、`DataTableFilterSpec`、`useDataTableQuery`／`useDataTableSelection` 與 `dataTableCopy` 的實際模組路徑如上。
 
-`WarningModal` 未傳 confirm 時維持原有提示模式；確認模式沿用 Bootstrap 的 dialog、aria-modal、標題／說明關聯，呈現驚嘆號 icon、取消與確認按鈕，預設聚焦取消，Escape／backdrop／右上關閉皆呼叫 onClose，確認僅呼叫 onConfirm。`layout="prompt"` 用於編輯與儲存確認，頂部警告徽章、置中標題／內容與等寬按鈕沿用主題；最大 420px 寬，短橫向畫面縮小徽章，長說明由 body 捲動。variant=success 用於儲存確認。variant=danger 使用固定的 Bootstrap 紅色 icon／確認按鈕；控件最小高度 44px，Modal body 可捲動，Bootstrap 擁有焦點圈限及還原。元件不讀取選取列、不 fetch、不執行刪除或自行顯示成功，owner 提供列名／筆數與實際操作。
+`WarningModal` 未傳 confirm 時維持原有提示模式；確認模式沿用 Bootstrap 的 dialog、aria-modal、標題／說明關聯，呈現驚嘆號 icon、取消與確認按鈕，預設聚焦取消，Escape／backdrop／右上關閉皆呼叫 onClose，確認僅呼叫 onConfirm。`layout="prompt"` 用於編輯、儲存及單筆／批次刪除確認，頂部警告徽章、置中標題／內容與等寬按鈕沿用主題；最大 420px 寬，短橫向畫面縮小徽章，長說明由 body 捲動。variant=success 用於儲存確認。variant=danger 在 prompt 版型使用 Bootstrap 紅色警示方塊、白色三角驚嘆號及紅色確認按鈕，standard 版型保留紅色行內 icon；控件最小高度 44px，Modal body 可捲動，Bootstrap 擁有焦點圈限及還原。元件不讀取選取列、不 fetch、不執行刪除或自行顯示成功，owner 提供列名／筆數與實際操作。
+
+`WarningModal busy` 由 owner 控制，預設 false。提交刪除期間停用確認、取消與關閉按鈕，忽略 Escape／backdrop 關閉並以 aria-busy 標示確認按鈕；shared 不執行刪除或自動重試。`requestJson` 的 method 支援 GET／POST／PATCH／DELETE，DELETE 的 JSON body 沿用相同型別驗證與錯誤分類。
 
 ## 浮動通知 / Floating Notifications
 

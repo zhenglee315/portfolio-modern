@@ -125,6 +125,13 @@ export function managementDraftIssue(
   original: ManagementRow,
   draft: ManagementRow,
 ): string | undefined {
+  if (
+    resource === 'sites' &&
+    'owner_is_active' in draft &&
+    draft.is_default &&
+    !draft.owner_is_active
+  )
+    return 'defaultSiteActiveRequired';
   if (resource === 'roles' && 'user_count' in original && 'user_count' in draft) {
     if (original.is_default && !draft.is_default) return 'defaultRoleRequired';
     if (draft.is_default && (!draft.is_active || hasRoleManagementPermission(draft)))
@@ -132,7 +139,25 @@ export function managementDraftIssue(
   }
 }
 
-/** Publication/account changes clear only the same website Default in the editable draft. */
+/** Share the Default activation restriction between table switches and detail drafts.
+ * @author ZhengLee 2026.10.16
+ */
+export function managementFieldIssue(
+  resource: ManagementResource,
+  field: string,
+  row: ManagementRow,
+): string | undefined {
+  if (
+    resource === 'sites' &&
+    field === 'owner_is_active' &&
+    'owner_is_active' in row &&
+    row.has_site &&
+    row.is_default
+  )
+    return 'defaultSiteActiveRequired';
+}
+
+/** Unpublishing clears the draft Default; account deactivation never silently removes it. */
 export function managementDraftChanges(
   resource: ManagementResource,
   row: ManagementRow,
@@ -143,7 +168,7 @@ export function managementDraftChanges(
     'has_site' in row &&
     row.has_site &&
     value === false &&
-    (field === 'owner_is_active' || field === 'is_published')
+    field === 'is_published'
     ? { [field]: value, is_default: false }
     : { [field]: value };
 }

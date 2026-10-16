@@ -212,7 +212,6 @@ export function ManagementPage({
               <h1>{title}</h1>
               <p className={styles.description}>{t(`management.descriptions.${resource}`)}</p>
             </div>
-            <span className={styles.readonly}>{t('management.quick.label')}</span>
           </div>
           <ManagementTable
             key={`${locale}:${resource}:${session.data?.id ?? 'session'}`}

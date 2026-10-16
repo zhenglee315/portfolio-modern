@@ -9,6 +9,7 @@ from APPs.Management.constants import (
     ROLE_PATCH_COLUMNS,
     USER_PATCH_COLUMNS,
     EnumManagementField,
+    MANAGEMENT_DELETE_MAX_TARGETS,
 )
 from SYSTEM.constants import EnumLocal, HTTP_URL_SCHEMES, TEXT_ENCODING
 
@@ -42,7 +43,9 @@ class BodyManagementSitePatch(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid", hide_input_in_errors=True)
 
     # ---------------------------------------------------------------------● Account State
-    owner_is_active: bool = Field(default=None, description="Account activation; disabling also clears its Default.")
+    owner_is_active: bool = Field(
+        default=None, description="Account activation; a Default website's owner must remain active."
+    )
     # ---------------------------------------------------------------------● Site
     is_published: bool = Field(default=None, description="Public visibility; false also clears Default.")
     is_default: bool = Field(default=None, description="Global homepage; requires an active owner and publication.")
@@ -332,7 +335,125 @@ class ManagementSitePatchParameters:
     expected: dict[str, Any]
 
 
+# ■—< BODY >————————————————————————————————————————————————————————————————————————————■ Management - Platform Delete
+class _ManagementDeleteConfirmation(BaseModel):
+    """Share strict, immutable identity contracts across management resources."""
+
+    model_config = ConfigDict(
+        strict=True, extra="forbid", hide_input_in_errors=True, frozen=True, revalidate_instances="always"
+    )
+
+
+class _ManagementDeleteBatch(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid", hide_input_in_errors=True)
+
+
+class BodyManagementSiteDeleteConfirmation(_ManagementDeleteConfirmation):
+    """Confirm an immutable owner and website; never accept mutable account assignments.
+
+    ♂ ZhengLee 2026.10.16
+    """
+
+    expected_owner_email: str = Field(min_length=5, max_length=254)
+    expected_site_id: int = Field(gt=0, le=2147483647)
+    _email = field_validator("expected_owner_email")(validate_auth_email)
+
+
+class BodyManagementSiteDeleteTarget(BodyManagementSiteDeleteConfirmation):
+    account_id: int = Field(gt=0, le=2147483647)
+
+
+class BodyManagementSiteBulkDelete(_ManagementDeleteBatch):
+    """Bound one atomic batch; repeated owners or websites are input errors, never silently deduplicated."""
+
+    targets: list[BodyManagementSiteDeleteTarget] = Field(min_length=1, max_length=MANAGEMENT_DELETE_MAX_TARGETS)
+
+    @model_validator(mode="after")
+    def unique_targets(self):
+        if len({target.account_id for target in self.targets}) != len(self.targets) or len(
+            {target.expected_site_id for target in self.targets}
+        ) != len(self.targets):
+            raise ValueError("Delete targets must have unique owners and websites.")
+        return self
+
+
+@dataclass(frozen=True)
+class ManagementSiteDeleteParameters:
+    targets: tuple[BodyManagementSiteDeleteTarget, ...]
+
+
+class BodyManagementRoleDeleteConfirmation(_ManagementDeleteConfirmation):
+    """Use the original role name as identity confirmation, never as permission authority.
+
+    ♂ ZhengLee 2026.10.16
+    """
+
+    expected_role: str = Field(min_length=1, max_length=64)
+    _text = field_validator("expected_role")(BodyManagementSitePatch.validate_storage_text)
+
+
+class BodyManagementRoleDeleteTarget(BodyManagementRoleDeleteConfirmation):
+    role_id: int = Field(gt=0, le=2147483647)
+
+
+class BodyManagementRoleBulkDelete(_ManagementDeleteBatch):
+    targets: list[BodyManagementRoleDeleteTarget] = Field(min_length=1, max_length=MANAGEMENT_DELETE_MAX_TARGETS)
+
+    @model_validator(mode="after")
+    def unique_targets(self):
+        if len({target.role_id for target in self.targets}) != len(self.targets):
+            raise ValueError("Delete targets must have unique roles.")
+        return self
+
+
+class BodyManagementUserDeleteConfirmation(_ManagementDeleteConfirmation):
+    """Confirm login identity and the selected website, including an explicit absent-site snapshot."""
+
+    expected_email: str = Field(min_length=5, max_length=254)
+    expected_site_id: int | None = Field(..., gt=0, le=2147483647)
+    _email = field_validator("expected_email")(validate_auth_email)
+
+
+class BodyManagementUserDeleteTarget(BodyManagementUserDeleteConfirmation):
+    account_id: int = Field(gt=0, le=2147483647)
+
+
+class BodyManagementUserBulkDelete(_ManagementDeleteBatch):
+    targets: list[BodyManagementUserDeleteTarget] = Field(min_length=1, max_length=MANAGEMENT_DELETE_MAX_TARGETS)
+
+    @model_validator(mode="after")
+    def unique_targets(self):
+        if len({target.account_id for target in self.targets}) != len(self.targets):
+            raise ValueError("Delete targets must have unique accounts.")
+        sites = [target.expected_site_id for target in self.targets if target.expected_site_id is not None]
+        if len(set(sites)) != len(sites):
+            raise ValueError("Delete targets must have unique websites.")
+        return self
+
+
+@dataclass(frozen=True)
+class ManagementRoleDeleteParameters:
+    targets: tuple[BodyManagementRoleDeleteTarget, ...]
+
+
+@dataclass(frozen=True)
+class ManagementUserDeleteParameters:
+    targets: tuple[BodyManagementUserDeleteTarget, ...]
+
+
 __all__ = (
+    "BodyManagementRoleDeleteConfirmation",
+    "BodyManagementRoleDeleteTarget",
+    "BodyManagementRoleBulkDelete",
+    "ManagementRoleDeleteParameters",
+    "BodyManagementUserDeleteConfirmation",
+    "BodyManagementUserDeleteTarget",
+    "BodyManagementUserBulkDelete",
+    "ManagementUserDeleteParameters",
+    "BodyManagementSiteDeleteConfirmation",
+    "BodyManagementSiteDeleteTarget",
+    "BodyManagementSiteBulkDelete",
+    "ManagementSiteDeleteParameters",
     "BodyManagementSitePatch",
     "BodyManagementSitePatchRequest",
     "ManagementSitePatchParameters",

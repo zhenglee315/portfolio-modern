@@ -60,10 +60,10 @@ export async function verifyPublic(directory) {
   }
   await inspect(directory);
   const ceilings = {
-    // Include lazy management mutations, strict PATCH contracts and localized save feedback.
-    js: 1_105_000,
+    // Include editing and atomic deletion for all three management resources with localized feedback.
+    js: 1_116_000,
     // Keep bounded headroom for settings controls and hash-dependent gzip variation between checkouts.
-    jsGzip: 380_000,
+    jsGzip: 382_000,
     // Searchable menus, presence indicators and compact table-header help.
     css: 338_000,
     cssGzip: 67_500,

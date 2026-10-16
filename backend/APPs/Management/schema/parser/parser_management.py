@@ -8,6 +8,18 @@ from APPs.Management.schema.body import (
     ManagementRolePatchParameters,
     BodyManagementUserPatchRequest,
     ManagementUserPatchParameters,
+    BodyManagementSiteDeleteConfirmation,
+    BodyManagementSiteDeleteTarget,
+    BodyManagementSiteBulkDelete,
+    ManagementSiteDeleteParameters,
+    BodyManagementRoleDeleteConfirmation,
+    BodyManagementRoleDeleteTarget,
+    BodyManagementRoleBulkDelete,
+    ManagementRoleDeleteParameters,
+    BodyManagementUserDeleteConfirmation,
+    BodyManagementUserDeleteTarget,
+    BodyManagementUserBulkDelete,
+    ManagementUserDeleteParameters,
 )
 from SYSTEM.constants import EnumLocal
 from APPs.Management.constants import (
@@ -306,7 +318,90 @@ def parser_management_login_records(
     }
 
 
+def parser_management_site_delete(
+    request: Request,
+    account_id: str = Path(...),
+    body: BodyManagementSiteDeleteConfirmation = Body(...),
+) -> ManagementSiteDeleteParameters:
+    """Normalize a single target into the same atomic batch contract; deletion always covers every language.
+
+    ♂ ZhengLee 2026.10.16
+    """
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    target = BodyManagementSiteDeleteTarget(
+        account_id=_positive_integer(account_id, 2147483647, EnumManagementError.INVALID_ACCOUNT_ID),
+        **body.model_dump(),
+    )
+    return ManagementSiteDeleteParameters(targets=(target,))
+
+
+def parser_management_site_bulk_delete(
+    request: Request, body: BodyManagementSiteBulkDelete = Body(...)
+) -> ManagementSiteDeleteParameters:
+    """Reject language/filter selectors instead of allowing a physical delete to imply a partial scope."""
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    return ManagementSiteDeleteParameters(targets=tuple(body.targets))
+
+
+def parser_management_role_delete(
+    request: Request, role_id: str = Path(...), body: BodyManagementRoleDeleteConfirmation = Body(...)
+) -> ManagementRoleDeleteParameters:
+    """Normalize a single role into the same transaction contract used by batch deletion.
+
+    ♂ ZhengLee 2026.10.16
+    """
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    return ManagementRoleDeleteParameters(
+        targets=(
+            BodyManagementRoleDeleteTarget(
+                role_id=_positive_integer(role_id, 2147483647, EnumManagementError.INVALID_ROLE_ID), **body.model_dump()
+            ),
+        )
+    )
+
+
+def parser_management_role_bulk_delete(
+    request: Request, body: BodyManagementRoleBulkDelete = Body(...)
+) -> ManagementRoleDeleteParameters:
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    return ManagementRoleDeleteParameters(targets=tuple(body.targets))
+
+
+def parser_management_user_delete(
+    request: Request, account_id: str = Path(...), body: BodyManagementUserDeleteConfirmation = Body(...)
+) -> ManagementUserDeleteParameters:
+    """Confirm an account and its original optional website without exposing mutable identity fields."""
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    return ManagementUserDeleteParameters(
+        targets=(
+            BodyManagementUserDeleteTarget(
+                account_id=_positive_integer(account_id, 2147483647, EnumManagementError.INVALID_ACCOUNT_ID),
+                **body.model_dump(),
+            ),
+        )
+    )
+
+
+def parser_management_user_bulk_delete(
+    request: Request, body: BodyManagementUserBulkDelete = Body(...)
+) -> ManagementUserDeleteParameters:
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    return ManagementUserDeleteParameters(targets=tuple(body.targets))
+
+
 __all__ = (
+    "parser_management_role_delete",
+    "parser_management_role_bulk_delete",
+    "parser_management_user_delete",
+    "parser_management_user_bulk_delete",
+    "parser_management_site_delete",
+    "parser_management_site_bulk_delete",
     "parser_management_pagination",
     "parser_management_roles",
     "parser_management_users",

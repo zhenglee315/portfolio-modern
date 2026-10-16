@@ -77,6 +77,7 @@ class RoleUserUpdateTests(_PlatformFixture):
         self.assertEqual(response.json()["email"], "person2@example.com")
         stale = await self.request_update("users", 2, {"role_id": 2}, expected={"role_id": 2})
         self.assertEqual(stale.status_code, 409, stale.text)
+        await self.patch_site("/management/sites/3", json={"is_default": True})
         combined = await self.request_update("users", 2, {"role_id": 2, "is_active": False})
         self.assertEqual(combined.status_code, 200, combined.text)
         self.assertFalse(combined.json()["is_active"])
@@ -221,7 +222,17 @@ class RoleUserUpdateTests(_PlatformFixture):
         async with self.sessions() as session:
             self.assertTrue(await session.scalar(select(AuthUser.is_active).where(AuthUser.id == 1)))
 
-    async def test_user_activation_uses_same_default_clearing_and_keeps_identity(self):
+    async def test_user_activation_cannot_bypass_platform_default_protection(self):
+        before = await self.snapshot()
+        response = await self.request_update("users", 2, {"is_active": False, "role_id": 3})
+        self.assertEqual(response.status_code, 409, response.text)
+        self.assertEqual(response.json()["detail"], "DEFAULT_SITE_DEACTIVATE_FORBIDDEN")
+        self.assertEqual(before, await self.snapshot())
+        async with self.sessions() as session:
+            self.assertEqual(await session.scalar(select(AuthUser.role_id).where(AuthUser.id == 2)), 2)
+        self.invalidate_cache.assert_not_awaited()
+        response = await self.patch_site("/management/sites/3", json={"is_default": True})
+        self.assertEqual(response.status_code, 200, response.text)
         response = await self.request_update("users", 2, {"is_active": False})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["email"], "person2@example.com")
@@ -326,12 +337,12 @@ class RoleUserUpdateTests(_PlatformFixture):
     async def test_user_cache_failure_reports_committed_activation_from_another_connection(self):
         async def failed_cache():
             async with self.sessions() as session:
-                self.assertFalse(await session.scalar(select(AuthUser.is_active).where(AuthUser.id == 2)))
-                self.assertFalse(await session.scalar(select(PortfolioSite.is_default).where(PortfolioSite.id == 11)))
+                self.assertFalse(await session.scalar(select(AuthUser.is_active).where(AuthUser.id == 3)))
+                self.assertTrue(await session.scalar(select(PortfolioSite.is_default).where(PortfolioSite.id == 11)))
             raise HTTPException(status_code=503, detail="private cache data")
 
         self.invalidate_cache.side_effect = failed_cache
-        response = await self.request_update("users", 2, {"is_active": False})
+        response = await self.request_update("users", 3, {"is_active": False})
         self.assertEqual(response.status_code, 503, response.text)
         self.assertEqual(response.json()["detail"], "MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE")
         self.assertEqual(response.headers["x-management-update-state"], "committed")
@@ -343,9 +354,11 @@ class RoleUserUpdateTests(_PlatformFixture):
             self.patch_site("/management/sites/2", json={"is_default": True}),
         )
         self.assertTrue(all(r.status_code in (200, 409) for r in results), [r.text for r in results])
+        self.assertEqual(results[0].status_code, 409, results[0].text)
+        self.assertEqual(results[1].status_code, 200, results[1].text)
         async with self.sessions() as session:
-            self.assertFalse(await session.scalar(select(AuthUser.is_active).where(AuthUser.id == 2)))
-            self.assertFalse(await session.scalar(select(PortfolioSite.is_default).where(PortfolioSite.id == 11)))
+            self.assertTrue(await session.scalar(select(AuthUser.is_active).where(AuthUser.id == 2)))
+            self.assertTrue(await session.scalar(select(PortfolioSite.is_default).where(PortfolioSite.id == 11)))
 
     async def test_last_manager_guard_serializes_two_delegated_account_disables(self):
         async with self.sessions.begin() as session:

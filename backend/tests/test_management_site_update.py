@@ -276,6 +276,16 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         @app.middleware("http")
         async def loaded_session(request, call_next):
             request.scope["session"] = self.identity.copy()
+            # This fixture issues a loaded server identity; real-cookie tests exercise proof persistence/revocation.
+            from APPs.Auth.module.module_auth import AuthModule
+            from SYSTEM.constants import AUTH_SESSION_IDENTITY_KEY
+
+            async with self.sessions() as session:
+                actor = await session.get(AuthUser, self.identity.get("id")) if self.identity.get("id") else None
+                if actor is not None:
+                    request.scope["session"][AUTH_SESSION_IDENTITY_KEY] = AuthModule.session_identity(
+                        actor.id, actor.password
+                    )
             request.scope["session_handler"] = SimpleNamespace(is_loaded=True)
             return await call_next(request)
 
@@ -472,9 +482,21 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.assertEqual(response.json()["owner_email"], "person2@example.com")
         self.assertEqual(before[0], (await self.snapshot())[0])
 
-    async def test_activation_clears_default_without_changing_identity(self):
-        """Soft deletion cancels the current homepage atomically; reactivation never chooses a homepage."""
+    async def test_default_owner_activation_is_protected_until_default_changes(self):
+        """Reject implicit Default removal, then allow activation edits after the homepage moves."""
         before = await self.snapshot()
+        for changes in [
+            {"owner_is_active": False},
+            {"owner_is_active": False, "first_name": "must roll back"},
+            {"owner_is_active": False, "is_published": False},
+        ]:
+            response = await self.patch_site("/management/sites/2", json=changes)
+            self.assertEqual(response.status_code, 409, response.text)
+            self.assertEqual(response.json()["detail"], "DEFAULT_SITE_DEACTIVATE_FORBIDDEN")
+            self.assertEqual(before, await self.snapshot())
+        self.invalidate_cache.assert_not_awaited()
+        response = await self.patch_site("/management/sites/3", json={"is_default": True})
+        self.assertEqual(response.status_code, 200, response.text)
         response = await self.patch_site("/management/sites/2", json={"owner_is_active": False})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertFalse(response.json()["owner_is_active"])
@@ -493,6 +515,13 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         await self.patch_site("/management/sites/2", json={"owner_is_active": True})
         self.assertEqual(restored, await self.snapshot())
 
+    async def test_explicit_default_removal_and_deactivation_share_one_transaction(self):
+        """A full draft may explicitly clear Default before disabling; Active alone never clears it."""
+        response = await self.patch_site("/management/sites/2", json={"is_default": False, "owner_is_active": False})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()["owner_is_active"])
+        self.assertFalse(response.json()["is_default"])
+
     async def test_activation_without_site_and_self_deactivation(self):
         """Activation applies to every account row; disabling the actor removes access on the next request."""
         response = await self.patch_site("/management/sites/4", json={"owner_is_active": False})
@@ -509,6 +538,7 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         before = await self.snapshot()
         response = await self.patch_site("/management/sites/2", json={"owner_is_active": False, "is_default": True})
         self.assertEqual(response.status_code, 409, response.text)
+        self.assertEqual(response.json()["detail"], "DEFAULT_SITE_REQUIRES_ACTIVE_PUBLISHED")
         self.assertEqual(before, await self.snapshot())
         response = await self.patch_site(
             "/management/sites/5", json={"owner_is_active": True, "is_published": True, "is_default": True}
@@ -526,7 +556,7 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             self.patch_site("/management/sites/3", json={"owner_is_active": False}),
             self.patch_site("/management/sites/3", json={"is_default": True}),
         )
-        self.assertEqual(responses[0].status_code, 200, responses[0].text)
+        self.assertIn(responses[0].status_code, (200, 409), responses[0].text)
         self.assertIn(responses[1].status_code, (200, 409), responses[1].text)
         async with self.sessions() as session:
             invalid = (

@@ -33,3 +33,27 @@ export const portaledMenuPosition: MenuPopperConfig = {
   ...boundedMenuPosition,
   strategy: 'fixed',
 };
+
+/** Reposition intrinsic menus after async choices/search change their measured size.
+ * Popper owns observer cleanup alongside its ordinary scroll/resize listeners.
+ * @author ZhengLee 2026.10.16
+ */
+export const contentSizedMenuPosition: MenuPopperConfig = {
+  ...portaledMenuPosition,
+  modifiers: [
+    ...(portaledMenuPosition.modifiers ?? []),
+    {
+      name: 'contentSize',
+      enabled: true,
+      phase: 'write',
+      fn: () => undefined,
+      effect: ({ state, instance }) => {
+        const observer = new ResizeObserver(() => {
+          void instance.update();
+        });
+        observer.observe(state.elements.popper);
+        return () => observer.disconnect();
+      },
+    },
+  ],
+};

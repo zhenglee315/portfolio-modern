@@ -426,10 +426,10 @@ Content-Type: application/json
 - `ManagementRoute` 在 JSON 解碼前限制實際串流為 256 KiB，包含無 Content-Length 的 chunked body。只接受未壓縮的 application/json；拒絕重複 JSON key、NaN／Infinity 和格式錯誤。驗證回應保留 loc/type/msg，不回傳原始 input、ctx 或資料庫例外內容。
 - 帶 Origin 的瀏覽器 PATCH 必須符合 backend 同源、既有 CORS origins 或 `SECURITY.management_write_origins`。Vite 改寫 Host 時，原始 Origin 仍須列入後者；開發設定包含 localhost／127.0.0.1:5173 與 :4173，部署時在私有 YAML 填正式網站 origin。CLI 沒有 Origin 時仍須提供有效 SESSION；不信任 client 提交的 forwarded origin。
 - 更新網站欄位要求網站存在；涉及翻譯欄位時，另外要求指定語言翻譯存在；語言停用不阻擋管理修正。PATCH 不建立缺少的資料。`owner_is_active` 是唯一可寫的帳號欄位；僅切換帳號啟用時由既有 onupdate 維護 Updated，其他內容修改不變更帳號時間。沒有網站的帳號也可只改 Active，重送相同值不改 Updated。
-- 所有寫入透過 `SqlAlchemyExecAsync.transaction()` 一起提交／回滾。發布／Default 更新在 PostgreSQL 使用交易 advisory lock；SQLite 在讀取決策前取得 writer lock。設新 Default 先驗證最終發布狀態及啟用 owner，再取消舊 Default；重選目前 Default 冪等。取消發布或停用帳號同時清除 Default；明確要求 `is_default=true` 且最終未發布回 409。
+- 所有寫入透過 `SqlAlchemyExecAsync.transaction()` 一起提交／回滾。發布／Default 更新在 PostgreSQL 使用交易 advisory lock；SQLite 在讀取決策前取得 writer lock。設新 Default 先驗證最終發布狀態及啟用 owner，再取消舊 Default；重選目前 Default 冪等。Default 網站的帳號禁止停用，回 409 `DEFAULT_SITE_DEACTIVATE_FORBIDDEN`；必須先取消／切換 Default，或在同一 Platform PATCH 明確取消 Default。Active 不隱式清除 Default；取消發布仍清除 Default，明確要求 `is_default=true` 且最終未發布回 409。
 - Commit 後沿用 `PortfolioManagementModule.invalidate_cache()` 清除公開 `portfolio` namespace。若快取清除失敗，回 503 `MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE` 與 `X-Management-Update-State: committed`，代表資料已寫入，呼叫端必須重新查詢。公開快取仍採原本最多 60 秒的期限。
 
-Only explicitly supplied mutable fields are written. Strict schemas reject coercion, nulls and identity/relationship changes; bounded transport validation rejects malformed or ambiguous JSON without echoing submitted values. One transaction owns account activation, both content field groups and global-default replacement. Disabling an owner clears its Default; reactivation never selects a Default automatically. Missing content is never created. Cache failure after commit explicitly distinguishes committed database state from a rollback. Existing account timestamps retain their original meaning.
+Only explicitly supplied mutable fields are written. Strict schemas reject coercion, nulls and identity/relationship changes; bounded transport validation rejects malformed or ambiguous JSON without echoing submitted values. One transaction owns account activation, both content field groups and global-default replacement. A Default website's owner cannot be disabled; clear or switch Default first, or explicitly clear it in the same Platform PATCH. Reactivation never selects a Default automatically. Missing content is never created. Cache failure after commit explicitly distinguishes committed database state from a rollback. Existing account timestamps retain their original meaning.
 
 | 狀態     | 說明                                           |
 | -------- | ---------------------------------------------- |
@@ -604,10 +604,38 @@ The dependency preparation step builds the optional charset detector as pure Pyt
 
 Role 允許 role（1–64 字元、無首尾空白且唯一）、description（最多 10,000 字元或 null）、七個權限、is_default、is_active。User 允許 is_active 與 role_id 角色指派；PK、其他 FK、已驗證 Email、public user、密碼、時間及統計不接受寫入。不同入口分別要求 AuthRole.is_manage_roles／is_manage_users／is_manage_sites，不以內容 is_update 替代。角色指派權限上限由明確的 ORM `ROLE_PERMISSION_COLUMNS` 定義；新增權限時須同步更新 ORM、授權／SESSION、DTO 與此清單。
 
-`ManagementWriteState` 接收既有交易，不自行提交。固定順序為 auth-management 交易鎖、publication 鎖、當前操作者、目標列；等待後重新查操作者權限。User 與 Platform 使用同一 activate 操作；停用帳號會清除自己的網站 Default，恢復帳號不自動恢復 Default。Role 停用不批改 AuthUser.is_active。以有效帳號與有效角色的 is_manage_roles 判定最後管理員，禁止從 Role、User、Platform 任一入口移除最後有效管理員；既有零管理員資料可經授權的外部修復流程恢復，不自動選擇帳號。
+`ManagementWriteState` 接收既有交易，不自行提交。固定順序為 auth-management 交易鎖、publication 鎖、當前操作者、目標列；等待後重新查操作者權限。User 與 Platform 使用同一 activate 操作；Default 網站的帳號不可停用，先取消／切換 Default 後才可停用，恢復帳號不自動恢復 Default。Platform 可在同一交易明確取消 Default 再停用。Role 停用不批改 AuthUser.is_active。以有效帳號與有效角色的 is_manage_roles 判定最後管理員，禁止從 Role、User、Platform 任一入口移除最後有效管理員；既有零管理員資料可經授權的外部修復流程恢復，不自動選擇帳號。
 
 註冊角色 Default 必須啟用且無三個 management 權限。選新 Default 在同一交易取消舊值；唯一的 Default 不允許直接取消或停用。Role 名稱與權限更新不改寫既有帳號的 role_id。註冊 INSERT 在取得 `AUTH_MANAGEMENT_WRITE_LOCK_KEY` 後才讀 Default snapshot，避免等待鎖後使用舊狀態。PostgreSQL 使用交易級 advisory lock，SQLite 使用保留時間的 no-op writer lock；沿用既有資料表與唯一／check constraints，本次無 migration。
 
 成功回完整單筆 projection，包含關聯與統計，不受當前列表 filters／pagination 限制。User／Platform commit 後才清公開 cache；已提交但 cache 失敗使用 MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE 與 X-Management-Update-State: committed。更新相同值不無故修改 Updated。管理列表／Preview 不過濾停用目標；操作者必須有效。
 
 測試：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_*update.py'`。提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可同時執行 PostgreSQL 分支；不得指向應用程式資料庫。
+
+## 平台網站刪除 / Platform Website Deletion
+
+`ManagementSites` 原 CBV 提供 DELETE `/management/sites/{account_id}` 及 POST `/management/sites/bulk-delete`，兩者都由原 `ManagementSitesModule.delete()` 執行一個交易。登入及權限沿用 `ManagementPermission(AuthRole.is_manage_sites)`；交易取得既有 management／publication 鎖後再次檢查有效操作者。單筆 body 是 `{expected_owner_email, expected_site_id}`；批次 body 是 `{targets: [{account_id, expected_owner_email, expected_site_id}]}`。批次上限 100，目標帳號與網站不可重複；型別嚴格、不接受未知欄位、null 或強制轉型。DELETE／POST 套用 Origin、未壓縮 JSON、64 KiB 實際串流上限與重複 JSON key／NaN 防護；不接受 locale、搜尋或分頁 query。
+
+目標以帳號 ID／不可變登入 Email 核對，再比對該帳號的原網站 ID。目標依固定順序鎖定、全部驗證通過後才刪除，任一失敗整批回滾。Default 網站回 409 DEFAULT_SITE_DELETE_FORBIDDEN，必須先用既有 PATCH 切換 Default；網站 ID 已變更回 409 SITE_DELETE_CONFLICT，缺帳號／網站回 404。停用 owner／語言仍可管理。
+
+只物理刪除 PortfolioSite；既有 FK `ON DELETE CASCADE` 清除所有語言、經歷、專案、技能、分類與關聯內容。AuthUser、AuthRole、RecordLogin 及共用 PortfolioLocale 保留，因此 Platform 帳號列仍存在且 has_site=false；不修改 PK／FK／登入信箱，不需要 migration。網站 ID 是存在性確認，帳號 Updated 不作整站版本號；目前未提供涵蓋子內容異動的 revision 機制。
+
+成功回 `{deleted_count, deleted: [{account_id, site_id}]}`，不返回登入信箱。公開快取只在 commit 後清除；共用處理移至 `ManagementWriteState.invalidate_public_cache()`，保持原 PATCH 的錯誤契約。刪除已提交但 cache 失敗回 503 MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE 及 `X-Management-Update-State: committed`，呼叫端不得自動重試。
+
+驗證：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_site_delete.py'`。僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可重複執行 PostgreSQL 鎖、競態與真實級聯刪除測試；SQLite fixture 自動啟用 foreign_keys。
+
+## 角色與帳號刪除 / Role and Account Deletion
+
+Role 與 User 都在原 CBV／Module class 新增 `delete()`，與 `select()`、`update()` 放在一起。單筆使用 DELETE `/management/roles/{role_id}`／`/management/users/{account_id}`；批次使用 POST `/management/roles/bulk-delete`／`/management/users/bulk-delete`。共用管理寫入邊界限制未壓縮 JSON、64 KiB 串流上限、重複 key／非有限數字／不受信任 Origin；不接受 query selectors。嚴格型別、未知欄位禁止，批次 1–100 筆且不可重複。
+
+Role 單筆 body 是 `{expected_role}`，批次為 `{targets: [{role_id, expected_role}]}`。登入與交易內分別檢查目前有效操作者的 `AuthRole.is_manage_roles`。角色須無任何帳號指派（停用帳號也算），且不是註冊 Default；否則回 409 ROLE_IN_USE／DEFAULT_ROLE_REQUIRED。角色名稱已變更或不存在回 404 ROLE_NOT_FOUND。只刪角色，不連帶刪帳號／網站；AuthUser.role_id 的 RESTRICT FK 保留。
+
+User 單筆 body 是 `{expected_email, expected_site_id}`，批次為 `{targets: [{account_id, expected_email, expected_site_id}]}`。expected_site_id 沒有網站時也必須明確送 null；確認後網站新增、移除或更換時回 409 USER_DELETE_CONFLICT。授權沿用 `AuthRole.is_manage_users`；FK 擁有者資料清理由同一個 User 業務交易負責，不以內容 CRUD 的 is_delete 代替管理權限。先確認整批身份、網站、Default 與刪除後仍有有效角色管理員，全部通過後才刪 RecordLogin、PortfolioSite、AuthUser；網站子內容沿用既有 CASCADE。共用角色／語言與其他帳號資料保留，User 的帳號關聯 FK 保持 RESTRICT，不需 migration。
+
+單筆與批次使用相同交易、固定 ID 鎖定順序與既有 management／publication locks。任一筆衝突、缺資料、外鍵失敗或最後管理員保護都回滾整批。User 刪除只在 commit 後清公開 cache；已提交但清除失敗回 MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE 與 `X-Management-Update-State: committed`，不可自動重試。Role 刪除沒有指派帳號，因此不清公開內容 cache。成功回 `{deleted_count, deleted}`，Role 項目只含 role_id，User 項目含 account_id 及原 site_id，不返回信箱或密碼。
+
+### SESSION 世代驗證 / Session Generation Binding
+
+正常登入／註冊在伺服器 SESSION 加入 `AUTH_SESSION_IDENTITY_KEY`，內容為帳號 ID 與 Argon2 密碼雜湊的 keyed digest；密碼雜湊及此識別值都不加入公開 Auth DTO。每次 current_session 重新查有效帳號／角色並以 constant-time comparison 驗證。刪除帳號後，即使 SQLite 重用相同 ID 並以相同信箱／handle／明文密碼重新註冊，新 Argon2 salt 仍使舊 SESSION 失效；密碼更新亦撤銷舊身份。不掃描整個 Redis，不改共用 IP 在線鍵。舊格式或格式損壞的 SESSION 會清除身份，需重新登入一次；原有未完成的註冊驗證欄位仍保留。
+
+測試：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_role_user_delete.py'`，並可提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL`。涵蓋角色 FK／Default、User 全部子資料、批次回滾、權限撤回、最後管理員、並行角色指派／Default 切換、提交後 cache 失敗及真實 cookie 的 ID 重用／舊 SESSION 防護。

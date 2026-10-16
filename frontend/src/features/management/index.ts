@@ -32,6 +32,8 @@ export {
   type EditableManagementResource,
 } from './api/management-update';
 export { loadUserRoleOptions } from './api/role-options';
+export { deleteManagementSites } from './api/site-delete';
+export { deleteManagementRecords } from './api/management-delete';
 
 export {
   rolePermissionDefinitions,

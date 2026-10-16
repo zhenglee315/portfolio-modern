@@ -269,7 +269,6 @@
     "openNavigation": "開啟管理導覽",
     "readonly": "唯讀",
     "quick": {
-      "label": "即時儲存",
       "saving": "儲存中…",
       "saved": "已儲存。",
       "failed": "無法儲存這項變更，已重新讀取表格。",
@@ -324,6 +323,32 @@
     "deleteTarget": "已選取資料：{{name}}",
     "deleteTargets": "已選取 {{count}} 筆資料。",
     "confirmDelete": "確定刪除",
+    "roleDeletion": {
+      "target": "永久刪除角色「{{name}}」？此操作無法復原。",
+      "targets": "永久刪除 {{count}} 個角色？所有角色皆須無帳號使用，且不是註冊 Default。此操作無法復原。",
+      "saved": "已刪除 {{count}} 個角色。"
+    },
+    "userDeletion": {
+      "target": "永久刪除 {{name}}、其網站所有語系內容與全部登入紀錄？此操作無法復原。",
+      "targets": "永久刪除 {{count}} 個帳號、其網站所有語系內容與全部登入紀錄？此操作無法復原。",
+      "saved": "已刪除 {{count}} 個帳號及所屬資料。"
+    },
+    "deletion": {
+      "roleInUse": "請先將使用此角色的所有帳號改派到其他角色，再刪除。停用帳號也包含在內。",
+      "defaultRole": "請先指定另一個註冊 Default，再刪除此角色。",
+      "lastManager": "至少須保留一個啟用且具有角色管理權限的帳號。",
+      "target": "永久刪除 {{name}} 的網站及所有語系內容？帳號與登入紀錄會保留。此操作無法復原。",
+      "targets": "永久刪除 {{count}} 個網站及所有語系內容？帳號與登入紀錄會保留。此操作無法復原。",
+      "deleting": "刪除中…",
+      "saved": "已刪除 {{count}} 個網站，帳號已保留。",
+      "default": "請先指定另一個 Default，再刪除此網站。",
+      "noSite": "此帳號沒有可刪除的網站。",
+      "conflict": "所選資料已變更或仍被使用，本次未刪除任何資料。請確認重新讀取的表格。",
+      "missing": "所選資料已不符合，本次未刪除任何資料。請確認重新讀取的表格。",
+      "failed": "刪除請求未獲允許，本次未刪除任何資料。請確認重新讀取的表格。",
+      "uncertain": "無法確認刪除結果，請先檢查重新讀取的表格，再決定是否重試。",
+      "committed": "刪除已完成，但公開快取更新失敗，公開內容可能需要一分鐘才會更新。"
+    },
     "cancel": "取消",
     "details": "詳情",
     "noPortfolio": "尚未建立作品集",
@@ -491,6 +516,7 @@
       "defaultRoleEligible": "註冊預設角色必須啟用，且不能具有管理權限。",
       "lastManager": "必須保留至少一個具有角色管理權限的有效帳號。",
       "siteEligible": "Default 必須為啟用帳號的已發布網站。",
+      "defaultSiteActiveRequired": "請先取消或切換此網站的 Default，再停用帳號。",
       "unique": "更新與既有名稱或資料衝突，請重新確認。",
       "detailConflict": "編輯期間資料已變更，請關閉視窗後重新開啟最新資料再保存。",
       "roleAssignmentForbidden": "無法指派包含您未持有權限的角色。",

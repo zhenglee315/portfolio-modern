@@ -1,0 +1,85 @@
+.root {
+  min-width: 0;
+  max-width: 100%;
+}
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+  min-height: 44px;
+  max-width: 100%;
+  width: 100%;
+}
+.trigger:global(.btn) {
+  --bs-btn-color: var(--text);
+  --bs-btn-border-color: var(--control-border);
+  --bs-btn-hover-color: var(--text);
+  --bs-btn-hover-bg: var(--control-hover);
+  --bs-btn-hover-border-color: var(--accent);
+  --bs-btn-active-color: var(--text);
+  --bs-btn-active-bg: var(--control-hover);
+  font: inherit;
+}
+/* Portals inherit canonical palette tokens, including the originating dialog's theme. */
+.menu:global(.dropdown-menu) {
+  --bs-dropdown-border-color: var(--control-border);
+  z-index: 1080;
+  width: min(20rem, calc(100vw - 16px));
+  max-height: min(30rem, calc(100dvh - 16px));
+  overflow: auto;
+  padding: 0.5rem;
+  color: var(--text);
+  background: var(--panel2);
+  box-shadow: 0 10px 30px var(--shadow-medium);
+}
+.menu :global(.form-control) {
+  min-height: 44px;
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--control-border);
+}
+.menu :global(.form-control:focus) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow-low);
+}
+.menu :global(.form-control)::placeholder {
+  color: var(--muted);
+}
+.options {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.5rem;
+}
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem;
+  border: 0;
+  text-align: start;
+  color: inherit;
+  background: transparent;
+}
+.option > span {
+  min-width: 0;
+}
+.option small {
+  display: block;
+  white-space: normal;
+}
+.option:hover,
+.option:focus-visible,
+.option[aria-selected='true'] {
+  background: var(--control-hover);
+}
+.option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.option:disabled {
+  opacity: 0.55;
+}

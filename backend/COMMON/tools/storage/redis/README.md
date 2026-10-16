@@ -55,6 +55,7 @@ All commands below are asynchronous. / 以下方法均為非同步。
 | `expire_stat(match="*")` | 掃描 key、逐一讀取 TTL；回傳 `avg`、`max`、`min` 及 `overview`。沒有具期限的 key 時統計值為 `None`。 | Scan keys and query each TTL; return `avg`, `max`, `min`, and `overview`. Aggregate values are `None` if no timed keys exist. |
 | `heartbeat_client(identifier, expire=60, set_key="online_clients", key_prefix="online")` | 將識別值加入 roster set，並更新 `<key_prefix>:<identifier>` 的 TTL；回傳 `employee_id` 與預估 `expiry`。識別值不可空，`expire` 須為正數。 | Add an identifier to a roster set and refresh its TTL key; return `employee_id` and estimated `expiry`. Identifier must be nonempty and expiry positive. |
 | `heartbeat_total(set_key="online_clients", key_prefix="online")` | 檢查 roster 中仍有心跳 key 的識別值數量，並清理已過期項目。 | Count roster identifiers whose heartbeat keys still exist, and prune expired entries. |
+| `heartbeat_status(identifiers, key_prefix="online")` | 對指定識別值去重後以 raw MGET 讀取心跳是否存在；不掃描 roster、不更新 TTL，也不反序列化 pickle。Redis 錯誤交由 owner 呈現未知。 | Observe only requested heartbeat keys without roster scans, TTL renewal or deserialization. |
 
 ## Watched updates / 原子更新
 

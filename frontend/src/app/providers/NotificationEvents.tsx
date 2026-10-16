@@ -30,7 +30,9 @@ export function NotificationEvents() {
       if (offline) return;
       offline = true;
       // A request can fail immediately before the browser announces the same outage.
-      const alreadyReported = [...failures.values()].some((failure) => failure.kind === 'warning');
+      const alreadyReported = [...failures.values()].some(
+        (failure) => failure.message === 'notifications.connectionFailed',
+      );
       if (!alreadyReported) reportOffline();
       offlineReported = true;
     };
@@ -41,7 +43,7 @@ export function NotificationEvents() {
       offlineReported = false;
       // Resumed queries must not repeat the connection recovery announcement.
       for (const [hash, failure] of failures) {
-        if (failure.kind === 'warning') failures.delete(hash);
+        if (failure.message === 'notifications.connectionFailed') failures.delete(hash);
       }
     };
     const onError = (event: ErrorEvent) => {
@@ -72,7 +74,7 @@ export function NotificationEvents() {
         if (isNotificationCancellation(event.action.error) || failures.has(hash)) return;
         const failure = notificationFailure(event.action.error);
         // Browser connection changes already explain requests paused by an outage.
-        if (offline && failure.kind === 'warning') return;
+        if (offline && failure.message === 'notifications.connectionFailed') return;
         failures.set(hash, failure);
         report(failure, `query:${hash}`);
       } else if (event.action.type === 'success' && !event.action.manual && failures.delete(hash)) {

@@ -62,6 +62,8 @@ class PlatformPatchBodyTests(TestCase):
             {},
             {"is_published": "false"},
             {"is_default": 1},
+            {"owner_is_active": "false"},
+            {"owner_is_active": 0},
             {"copyright_year": True},
             {"copyright_year": "2026"},
             {"copyright_year": 2026.0},
@@ -103,7 +105,6 @@ class PlatformPatchBodyTests(TestCase):
                 "locale": "en",
                 "owner_email": "replacement@example.com",
                 "user": "replacement",
-                "owner_is_active": False,
                 "has_site": True,
                 "has_profile": True,
                 "has_translation": True,
@@ -166,6 +167,7 @@ class PlatformPatchBodyTests(TestCase):
             {
                 "expected_owner_email": "person2@example.com",
                 "changes": {"first_name": "name"},
+                "expected": {"first_name": "original"},
             }
         )
         self.assertEqual(request.expected_owner_email, "person2@example.com")
@@ -301,10 +303,45 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         """Build the identity-confirmed request envelope; raw content cases bypass JSON wrapping."""
         if "json" in kwargs:
             target = urlsplit(path).path.rsplit("/", 1)[-1]
+            from urllib.parse import parse_qs
+
+            locale = (kwargs.get("params") or {}).get("locale", parse_qs(urlsplit(path).query).get("locale", ["en"])[0])
+            from APPs.Management.constants import (
+                SITE_ACCOUNT_PATCH_COLUMNS,
+                SITE_PATCH_COLUMNS,
+                SITE_TRANSLATION_PATCH_COLUMNS,
+            )
+
+            bindings = {**SITE_ACCOUNT_PATCH_COLUMNS, **SITE_PATCH_COLUMNS, **SITE_TRANSLATION_PATCH_COLUMNS}
+            stmt = (
+                select(*(column.label(field) for field, column in bindings.items()))
+                .select_from(AuthUser)
+                .outerjoin(PortfolioSite, PortfolioSite.user_id == AuthUser.id)
+                .outerjoin(
+                    PortfolioSiteLocale,
+                    (PortfolioSiteLocale.site_id == PortfolioSite.id) & (PortfolioSiteLocale.locale == locale),
+                )
+            )
+            async with self.sessions() as session:
+                original = (
+                    (
+                        await session.execute(
+                            stmt.where(
+                                AuthUser.id == int(target)
+                                if target.isdecimal() and 1 <= int(target) <= 2147483647
+                                else AuthUser.id == 2
+                            )
+                        )
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+            changes = kwargs["json"]
             kwargs["json"] = {
                 "expected_owner_email": expected_owner_email
                 or f"person{target if target.isdecimal() else '2'}@example.com",
-                "changes": kwargs["json"],
+                "changes": changes,
+                "expected": {field: original.get(field) if original else value for field, value in changes.items()},
             }
         return await self.client.patch(path, **kwargs)
 
@@ -345,7 +382,7 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             return [
                 [
                     {column: row[column] for column in columns}
-                    for row in (await session.execute(select(*columns))).mappings()
+                    for row in (await session.execute(select(*columns).order_by(columns[0]))).mappings()
                 ]
                 for columns in groups
             ]
@@ -434,6 +471,76 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["owner_email"], "person2@example.com")
         self.assertEqual(before[0], (await self.snapshot())[0])
+
+    async def test_activation_clears_default_without_changing_identity(self):
+        """Soft deletion cancels the current homepage atomically; reactivation never chooses a homepage."""
+        before = await self.snapshot()
+        response = await self.patch_site("/management/sites/2", json={"owner_is_active": False})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()["owner_is_active"])
+        self.assertFalse(response.json()["is_default"])
+        self.assertTrue(response.json()["is_published"])
+        self.assertEqual((await self.client.get("/portfolio/site", params={"site_id": 11})).status_code, 404)
+        after = await self.snapshot()
+        for original, current in zip(before[0], after[0]):
+            for column in original:
+                if column not in {AuthUser.is_active, AuthUser.updatetime}:
+                    self.assertEqual(original[column], current[column])
+        response = await self.patch_site("/management/sites/2", json={"owner_is_active": True})
+        self.assertTrue(response.json()["owner_is_active"])
+        self.assertFalse(response.json()["is_default"])
+        restored = await self.snapshot()
+        await self.patch_site("/management/sites/2", json={"owner_is_active": True})
+        self.assertEqual(restored, await self.snapshot())
+
+    async def test_activation_without_site_and_self_deactivation(self):
+        """Activation applies to every account row; disabling the actor removes access on the next request."""
+        response = await self.patch_site("/management/sites/4", json={"owner_is_active": False})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()["owner_is_active"])
+        self.assertIsNone(response.json()["site_id"])
+        self.assertFalse(response.json()["has_site"])
+        response = await self.patch_site("/management/sites/1", json={"owner_is_active": False})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual((await self.client.get("/management/sites")).status_code, 401)
+
+    async def test_final_activation_and_default_are_validated_together(self):
+        """Conflicting fields roll back; a disabled owner can be reactivated and selected in one transaction."""
+        before = await self.snapshot()
+        response = await self.patch_site("/management/sites/2", json={"owner_is_active": False, "is_default": True})
+        self.assertEqual(response.status_code, 409, response.text)
+        self.assertEqual(before, await self.snapshot())
+        response = await self.patch_site(
+            "/management/sites/5", json={"owner_is_active": True, "is_published": True, "is_default": True}
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["owner_is_active"])
+        self.assertTrue(response.json()["is_default"])
+        async with self.sessions() as session:
+            defaults = (await session.execute(select(PortfolioSite.id).where(PortfolioSite.is_default))).scalars().all()
+        self.assertEqual(defaults, [13])
+
+    async def test_concurrent_activation_and_default_cannot_leave_inactive_homepage(self):
+        """The same publication lock serializes activation with global homepage replacement."""
+        responses = await asyncio.gather(
+            self.patch_site("/management/sites/3", json={"owner_is_active": False}),
+            self.patch_site("/management/sites/3", json={"is_default": True}),
+        )
+        self.assertEqual(responses[0].status_code, 200, responses[0].text)
+        self.assertIn(responses[1].status_code, (200, 409), responses[1].text)
+        async with self.sessions() as session:
+            invalid = (
+                (
+                    await session.execute(
+                        select(PortfolioSite.id)
+                        .join(AuthUser, AuthUser.id == PortfolioSite.user_id)
+                        .where(PortfolioSite.is_default, AuthUser.is_active.is_(False))
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        self.assertEqual(invalid, [])
 
     async def test_inactive_target_owner_is_visible_editable_and_previewable(self):
         """Target activation does not filter management; inactive actors and public visibility remain guarded."""
@@ -547,7 +654,7 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             {"owner_email": "secret@example.com", "first_name": "changed"},
             {"site_id": 12},
             {"locale": "en"},
-            {"owner_is_active": False},
+            {"owner_is_active": "false"},
             {"is_published": "false"},
             {"copyright_year": True},
             {"first_name": None},
@@ -727,9 +834,37 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.assertFalse(target["is_active"])
         self.assertFalse(target["role_is_active"])
 
+    async def test_projected_locale_filters_keep_an_explicit_database_type(self):
+        """Negative filters on the selected language must work in PostgreSQL as well as SQLite.
+
+        ♂ ZhengLee 2026.10.16
+        """
+        async with self.sessions() as session:
+            account_count = len((await session.scalars(select(AuthUser.id))).all())
+        for locale in EnumLocal:
+            for operator, expected in (("equals", account_count), ("not_equals", 0)):
+                with self.subTest(locale=locale, operator=operator):
+                    response = await self.client.get(
+                        "/management/sites",
+                        params={
+                            "locale": locale,
+                            "filters": json.dumps([{"field": "locale", "operator": operator, "value": locale}]),
+                        },
+                    )
+                    self.assertEqual(response.status_code, 200, response.text)
+                    self.assertEqual(response.json()["total"], expected)
+            # The selected language belongs to the owner projection even when its content is missing.
+            response = await self.client.get(
+                "/management/sites",
+                params={"locale": locale, "search": locale, "search_fields": json.dumps(["locale"])},
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json()["total"], account_count)
+
     async def test_registration_permission_projection_still_uses_the_default_role(self):
         """Exercise the shared Auth projection with real storage while replacing proof/session transport only."""
         async with self.sessions.begin() as session:
+            await session.execute(update(AuthRole).values({AuthRole.is_default: False}))
             await session.execute(update(AuthRole).where(AuthRole.id == 2).values({AuthRole.is_default: True}))
         module = AuthRegisterModule(
             Request({"type": "http", "session": {}}), "new-person@example.com", "test-password-only", user="new-person"
@@ -807,8 +942,12 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
                         "WHEN NEW.brand_title = '__fail__' BEGIN SELECT RAISE(ABORT, 'private database detail'); END"
                     )
                 )
+        async with self.sessions.begin() as session:
+            await session.execute(update(AuthUser).where(AuthUser.id == 3).values({AuthUser.is_active: False}))
         before = await self.snapshot()
-        response = await self.patch_site("/management/sites/3", json={"is_default": True, "brand_title": "__fail__"})
+        response = await self.patch_site(
+            "/management/sites/3", json={"owner_is_active": True, "is_default": True, "brand_title": "__fail__"}
+        )
         self.assertEqual(response.status_code, 409, response.text)
         self.assertNotIn("private database detail", response.text)
         self.assertEqual(before, await self.snapshot())
@@ -901,7 +1040,7 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.assertEqual(body["properties"]["is_default"]["type"], "boolean")
         self.assertNotIn("owner_email", body["properties"])
         envelope = schema["components"]["schemas"]["BodyManagementSitePatchRequest"]
-        self.assertEqual(set(envelope["required"]), {"expected_owner_email", "changes"})
+        self.assertEqual(set(envelope["required"]), {"expected_owner_email", "changes", "expected"})
 
 
 # ■—< TEST >——————————————————————————————————————————————————————————————————————————■ Platform - Optional PostgreSQL

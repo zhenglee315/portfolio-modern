@@ -33,7 +33,7 @@ Shared modules may import other shared modules and packages, but never features,
 
 | 模組 / Module                                                | 公開介面與行為 / Public interface and behavior                                                                                                                                                                                                                                                                                                                                              |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`api/http.ts`](api/http.ts)                                 | `requestJson(path, schema, options?)` 驗證未知 JSON 後回傳型別化資料；支援 `signal`、SSR 專用 `baseUrl` 及 `timeoutMs`。`ApiError` 將失敗分為 `network`、`timeout`、`http`、`parse`、`contract`；`retryRead` 僅對暫時性讀取失敗重試一次。 / Validated reads with cancellation, optional server origin, and timeout; classified errors and one transient-read retry.                         |
+| [`api/http.ts`](api/http.ts)                                 | `requestJson(path, schema, options?)` 驗證未知 JSON 後回傳型別化資料；支援 `signal`、SSR 專用 `baseUrl` 及 `timeoutMs`。`ApiError` 將失敗分為 `network`、`timeout`、`http`、`parse`、`contract`；`retryRead` 僅對暫時性讀取失敗重試一次。 / Validated GET/POST/PATCH requests with cancellation, optional server origin, and timeout; classified errors and one transient-read retry.       |
 | [`schemas/records.ts`](schemas/records.ts)                   | `recordIdSchema`、`stableIdSchema`、`monthSchema`、`periodShape`、`validatePeriod`、`uniqueRecords` 提供基礎契約。`numberedPageSchema(itemSchema)` 特化公開 Portfolio 的 `{ items, total, pages, page, size }` 與固定 `pageSize=6`；可調大小的管理契約由 management feature 驗證。 / Common identities/periods and fixed-size public pages; management owns its adjustable page validation. |
 | [`schemas/career.ts`](schemas/career.ts)                     | `careerShape`、`careerDetailSchema` 共用 Journey 與 Experiences 的職涯欄位；各 feature 加上自己的欄位。 / Shared Journey/Experiences career fields extended by each feature.                                                                                                                                                                                                                |
 | [`api/numbered-query.ts`](api/numbered-query.ts)             | `numberedQuery(resource, locale, schema, options?)` 統一 query key、頁碼、owner 參數、取消與續頁；`assertPageAppend` 防止頁碼、筆數資訊漂移或重複 ID。`fillNumberedPages` 沿用已驗證快取補齊指定範圍；`pageRecords` 衍生攤平列表。 / One continuation policy, append validation, cache-preserving range completion, and derived record lists.                                               |
@@ -252,6 +252,14 @@ import { boundedMenuPosition } from '@/shared/lib/menu-position';
 
 ### 共用元件清單 / Shared Component Inventory
 
+`HelpTooltip`（[來源](ui/HelpTooltip.tsx)）是一般資料表／表單用的小型說明按鈕，接受已翻譯的 `label` 與純文字 `text`。使用 10px 的 `patchQuestionFill` 圖示、專案面板／邊框／焦點 tokens 及一般圓角提示框與箭頭；不使用 pixel shell。沿用 `useHoverTooltip` 的 hover bridge、鍵盤焦點、點按、Escape／外部點擊／scroll 等關閉生命週期；`useAnchoredPanel` 限制提示於視窗內，portal 掛在 body 或原 modal，避免被表格裁切。元件不載入業務資料、不讀取語系、不觸發資料更新。
+
+`DataTableColumn<T>.help={label,text}` 在欄名左側放置共用 `HelpTooltip`，保留原始 label 給搜尋、排序、Columns 與匯出。左右平衡的 header tracks 保持標題與資料置中；窄表格的整欄篩選點擊區不覆蓋說明按鈕。文案由 feature／page 決定，例如 Role 頁面沿用 `rolePermissionFields` 宣告為七個權限欄注入三語說明，其餘頁面沒有額外按鈕。
+
+`SearchableSelect`（[來源](ui/SearchableSelect.tsx)）是受控單選下拉，支援文字／數字值、搜尋、彩色 `ChoiceChip`、停用選項及原因、鍵盤方向鍵／Enter／Escape、選取後焦點還原。`SelectOption` 定義 value、label、disabled、reason；`SelectPage` 定義 items、page、pages；`SelectSource` 可提供靜態 options 或 `load(search, page, signal)`。`SelectCopy` 注入 search、empty、loading、error、retry、more。搜尋延遲 300ms，翻頁累積去重；新查詢及關閉會取消舊請求並忽略遲到結果。menu 使用 Popper 限制在視窗內，詳情視窗中 portal 留在 modal 內。owner 負責取得資料、權限與保存。`InlineFieldEditor.type='searchable-select'` 經 selection 傳入同一份設定，選取透過 onChange(value, option) 及 onComplete 通知 owner。
+
+`ChoiceChip`（[來源](ui/ChoiceChip.tsx)）共用篩選及編輯選項的七色方塊，預設按 label 穩定取色，也可傳 color。`StatusIndicator`（[來源](ui/StatusIndicator.tsx)）接受 boolean/null 的 value 與 online/offline/unknown 文案，以綠色實心／灰色實心／灰色空心圓呈現，含 accessible label 與 tooltip；不自行判斷在線狀態。
+
 下表逐項涵蓋 `shared/ui` 的共用元件／Hook 匯出；型別、context 與時間常數另見各介面說明。場景道具拆件保持內部實作，呼叫端使用完整 `CowWorkspace` 及公開的角色插槽 `DeniedCowCharacter`。
 
 `InlineField`（[來源](ui/InlineField.tsx)）以點選值啟用文字／信箱／URL／數字／多行編輯，布林值直接使用 checkbox 或 switch。`InlineFieldValue` 是 string／number／boolean／null；`InlineFieldEditor` 設定 type、nullable、checkbox、maxLength 與 validate；`InlineFieldCopy` 注入 edit(label)、clear(label)、invalid、empty。`value`／`onChange` 由 owner 控制；元件不讀取資料、不保存草稿或呼叫 API。Enter 完成單行、Ctrl／Cmd+Enter 完成多行、Escape 還原該格，Tab 或點選別處完成編輯；輸入法組字不觸發完成。無效值透過 aria-invalid 與描述文案標示，焦點／點擊區至少 44px。
@@ -356,7 +364,7 @@ The table grows to its rows by default. Horizontal scrolling appears only when c
 
 每頁筆數下拉選單依目前數值的位數調整寬度，保留至少 44px 寬及數字／箭頭間距；左右內距一致，數字在整個選單框內置中，6、10、100 都使用相同對齊方式。
 
-`BooleanCell({ value, label, rowId, readonly, checkbox?, unavailableReason? })` 共用唯讀布林狀態呈現，預設為 switch，傳入 `checkbox=true` 改為 checkbox；`null` 顯示「—」。`unavailableReason` 由頁面決定並提供文案，讓不符合條件的控制淡化，同時提供 title 與讀屏說明。DataTable 的預設布林 cell 與管理詳情共用此元件；個別欄位仍透過 `render(row)` 選擇呈現。
+`BooleanCell({ value, label, rowId, readonly, checkbox?, unavailableReason?, onChange?, disabled?, busy?, saving? })` 共用布林狀態呈現；預設唯讀，明確提供 onChange 才能編輯。disabled／busy 在保存期間停用，saving 提供讀屏與 title 的保存中說明，頁面負責保存、回復及業務條件。保存後若焦點仍在 body，元件會將鍵盤焦點還給原開關，不搶走其他控制的焦點。元件預設為 switch，傳入 `checkbox=true` 改為 checkbox；`null` 顯示「—」。`unavailableReason` 由頁面決定並提供文案，讓不符合條件的控制淡化，同時提供 title 與讀屏說明。DataTable 的預設布林 cell 與管理詳情共用此元件；個別欄位仍透過 `render(row)` 選擇呈現。
 
 每個可排序欄位提供獨立的 ↑／↓ 按鈕；點擊指定升冪／降冪，再次點擊同方向會取消該欄排序。其他欄位保留，依初次加入的順序最多累積三欄；修改方向保留原順位，取消後重新加入則排在最後。不需要多欄排序模式或 Shift。`sort` 的每項是 `{ field, direction: 'asc' | 'desc' }`，欄位 ID 對應後端白名單。搜尋、篩選、排序或 size 變更回第一頁。元件只呈現 API 的列順序；按鈕以 `aria-pressed` 表示選取方向，表頭保留 `aria-sort`，摘要顯示順位。達三欄上限時，其他欄的箭頭使用 `aria-disabled`，不替換既有排序。
 
@@ -486,9 +494,9 @@ export function useOperationFeedback(copy: OperationCopy) {
 }
 ```
 
-[`NotificationEvents`](../app/providers/NotificationEvents.tsx) 負責瀏覽器整合：監聽未捕捉的 `error`／`unhandledrejection`、offline／online，以及 query cache 的最終失敗。連線／timeout 顯示 warning、HTTP 顯示 error、parse／contract 或未知程式錯誤顯示 bug；分類與安全文案 key 由 [`i18n/notification-copy.ts`](../i18n/notification-copy.ts) 提供。取消不通知，同一 query 失敗直到恢復或移除前只回報一次；離線與後續 query 回饋避免重複報告同一中斷。已回報失敗的真實 query 恢復，或離線後重新連線，才顯示恢復 success。初次 GET、一般成功 polling 與手動 `setQueryData` 不顯示成功通知。事件 listener 與 cache 訂閱於卸載時清理。
+[`NotificationEvents`](../app/providers/NotificationEvents.tsx) 負責瀏覽器整合：監聽未捕捉的 `error`／`unhandledrejection`、offline／online，以及 query cache 的最終失敗。連線／timeout、HTTP 4xx 的可預期拒絕顯示 warning，系統 HTTP 失敗顯示 error，parse／contract 或未知程式錯誤顯示 bug；紅色保留給系統故障與程式異常。分類與安全文案 key 由 [`i18n/notification-copy.ts`](../i18n/notification-copy.ts) 提供。取消不通知，同一 query 失敗直到恢復或移除前只回報一次；離線去重只辨識連線失敗，不會吞掉業務規則或權限 warning。已回報失敗的真實 query 恢復，或離線後重新連線，才顯示恢復 success。初次 GET、一般成功 polling 與手動 `setQueryData` 不顯示成功通知。事件 listener 與 cache 訂閱於卸載時清理。
 
-[`NotificationEvents`](../app/providers/NotificationEvents.tsx) integrates uncaught browser errors/rejections, connection changes and terminal query-cache failures. Its locale-layer classifier maps connection/timeout to warning, HTTP to error, and parsing/contract or unexpected defects to bug. Cancellations are silent; each query failure is reported once until recovery/removal, and outage reporting avoids duplicate connection messages. Recovery success follows a previously reported failed query's real recovery or an offline-to-online transition. Initial GETs, ordinary successful polling and manual `setQueryData` do not produce success toasts. Unmount removes listeners and cache subscriptions.
+[`NotificationEvents`](../app/providers/NotificationEvents.tsx) integrates uncaught browser errors/rejections, connection changes and terminal query-cache failures. Its locale-layer classifier maps connection/timeout and HTTP 4xx rejections to warning, server HTTP failures to error, and parsing/contract or unexpected defects to bug. Red is reserved for system failures and defects. Cancellations are silent; each query failure is reported once until recovery/removal. Outage deduplication recognizes connection failures specifically and preserves business/permission warnings. Recovery success follows a previously reported failed query's real recovery or an offline-to-online transition. Initial GETs, ordinary successful polling and manual `setQueryData` do not produce success toasts. Unmount removes listeners and cache subscriptions.
 
 通知補充局部回饋：`QueryStatus`、`LoadMoreControl` 與 `SectionBoundary` 保留可用的重試按鈕，欄位驗證仍在欄位標題右側。登入 feature 透過 ConnectedAuthPanel 串接 SESSION API，已知帳密／限流／格式／服務錯誤有本地化提示；只有 `onAuthenticate` 真正 resolve 後才顯示 success 並觸發 welcome 牛姿勢。註冊 send-code／驗證均以真實 API 成功結果顯示提示，email 重複的鎖定操作使用共用 WarningModal；未接 API 的帳號操作顯示 warning。共用層不顯示密碼、驗證碼、原始回應或 stack。
 
@@ -555,3 +563,17 @@ Export 按鈕使用 Bootstrap Icons 的 download，Columns 按鈕使用 ui-check
 `NumberedPage<T>` 定義 `{ items: T[], total, pages, page, size }` 的共用傳輸型別；schema 決定允許的 size 與頁數算術，UI 不另保存或重算一份資料來源。
 
 `useHydrated` provides one SSR-safe boundary. Shared finite transition and background geometry helpers have no account/API dependency. Table export helpers operate on projected cell matrices; the component cleans up downloads/print work and callers own rows, scope and copy. Public transport, scope, motion and notification types are indexed above. `check:docs` uses source AST declarations to detect missing README entries without importing browser modules.
+
+## 表格欄位群組編輯 / Table Editing Groups
+
+`DataTableColumn<T>.editing` 接受 `DataTableCellEditing<T>`。以 `useDataTableEditGroup({ scope, group, rowKey, enabled, copy })` 宣告一組需要共同驗證、共同保存的欄位，透過 `controller.column(field)` 綁定欄位；未綁定的欄位維持原有 render。`column(field, render)` 可替換欄位元件，仍沿用控制器提供的 change／complete／cancel；`DataTableEditCell` 提供預設文字、數字、多行、select 與布林呈現。Hook 回傳 busy、pending、dirty 及 change／complete／cancel。不同保存群組使用不同 hook，scope 必須包含資源、帳號、語系等身份邊界；切換 scope 或卸載後，舊回應不會恢復草稿。分頁可保留尚未完成的草稿，owner 若要切頁捨棄，須把頁面身份納入 scope。
+
+`DataTableEditGroup<T,V>` 的 fields 是可編輯欄位白名單；read(row) 只回傳該組資料，null 表示此列不適用；save 接收 `DataTableEditSubmission<T,V>` 的 row、changes、values，必須在失敗時 reject。`DataTableEditValues` 定義 scalar DTO；`DataTableEditDraft<V>` 容許輸入中尚未有效的值。`DataTableEditField<T,V>` 宣告 editor、required、dependsOn、clearValue、canEdit 及 unavailableReason，條件可依目前整組草稿與該列動態決定。editor 的 select options 保留數字／字串型別，實際儲存值必須在選項內；`InlineFieldEditor` 同時支援 options。`InlineField` 新增 disabled、required、onComplete、onCancel：既有詳情編輯仍由 owner 控制，只有提供 completion callback 才會啟用保存邊界。
+
+`editFieldOrder` 拒絕未知相依欄位、循環及未宣告 clearValue 的子欄位；`changeEditDraft` 依父子順序清空所有後代。`validateEditDraft` 回傳整組 valid 與逐欄 `DataTableEditIssue`，檢查必填、nullable、型別、有限數字、長度、選項、欄位及群組自訂規則。false／0 都是有效的必填值；null 和空字串不等價。`editDraftChanges` 只投影已宣告且改變的欄位。
+
+文字在 blur／Enter、多行在 blur／Ctrl 或 Cmd+Enter、布林及選單在選擇後呼叫 complete；輸入法組字完成前不提交，不使用 typing debounce 或 render effect 保存。相依必填欄位尚未完成時，整組草稿留在本地；全部有效後才一次保存。例如 country 改變會將 province／town 清為 null；province 必填時先等待新值，town 可空時可連同 null 一次保存。Escape 或「捨棄草稿」還原整組，包括被清空的後代。保存期間鎖定該 controller，避免連點重複寫入；預設失敗保留草稿，同版本 blur 不重試，只有新修改或明確 Retry 才再提交。伺服器已顯示不同的原始欄位值時，標示衝突並要求捨棄後重編；這不是後端的版本鎖。
+
+`DataTableEditCopy` 的 edit／clear／empty／required／invalid／incomplete／saving／failed／conflict／retry／cancel／readonly 全由 owner 注入。API、身份驗證、權限、欄位白名單、資料庫交易、通知與 query 同步由功能擁有；前端驗證不能取代後端驗證父子資料關係或併發控制。`failure: 'discard'` 僅用於自行重讀伺服器狀態的功能。display 可顯示跨列業務預覽，預覽永遠不會加入 changes 或保存草稿；Platform 用於顯示舊 Default 關閉，真正的原子替換由既有 PATCH 處理。
+
+Nullable 的非布林 `InlineField` 同樣提供 clear(label) 控制，明確送出 null，不把空字串和 null 混為一談；clear 的 pointer down 保留輸入焦點，避免先 blur 保存舊值再清空。Management 詳情屬頁面層，由 owner 接收保存、跨欄位驗證及相依變更 callbacks，共用元件不讀 API。

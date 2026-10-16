@@ -10,6 +10,8 @@ DataTable 負責呈現與發出操作事件；頁面／feature 負責查詢、�
 
 ## 目錄
 
+欄位說明可設定 `column.help = { label: 'About Create permission', text: '…' }`，在標題左側顯示小型 question 圖示。共用 `HelpTooltip` 使用一般圓角提示框，支援 hover、鍵盤焦點與 touch 點按；可按 Escape 關閉，水平捲動時也會關閉。label／text 由 owner 翻譯；說明文字不加入欄位標題、排序、篩選或匯出值。
+
 1. [套件結構與資料流程](#1-套件結構與資料流程)
 2. [快速開始：完整 API 範例](#2-快速開始完整-api-範例)
 3. [DataTable props](#3-datatable-props)

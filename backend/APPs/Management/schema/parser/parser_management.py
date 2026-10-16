@@ -1,7 +1,14 @@
 """Validate management pages, ordered sorting and typed column predicates."""
 
 from fastapi import Body, Depends, HTTPException, Path, Query, Request
-from APPs.Management.schema.body import BodyManagementSitePatchRequest, ManagementSitePatchParameters
+from APPs.Management.schema.body import (
+    BodyManagementSitePatchRequest,
+    ManagementSitePatchParameters,
+    BodyManagementRolePatchRequest,
+    ManagementRolePatchParameters,
+    BodyManagementUserPatchRequest,
+    ManagementUserPatchParameters,
+)
 from SYSTEM.constants import EnumLocal
 from APPs.Management.constants import (
     MANAGEMENT_DEFAULT_SIZE,
@@ -129,6 +136,27 @@ def parser_management_users(
     }
 
 
+def parser_management_role_options(
+    request: Request,
+    search: str | None = Query(default=None, description="Literal role-name search."),
+    pagination: dict[str, int] = Depends(parser_management_pagination),
+) -> dict:
+    """Bound dropdown reads and reuse literal-search validation; no arbitrary SQL controls.
+
+    ♂ ZhengLee 2026.10.16
+    """
+    if set(request.query_params) - {"page", "size", "search"}:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    if any(len(request.query_params.getlist(key)) > 1 for key in ("page", "size", "search")):
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    return {
+        **pagination,
+        "search": _parse_search(
+            request, search, None, {EnumManagementField.ROLE: ROLE_FILTER_FIELDS[EnumManagementField.ROLE]}
+        ),
+    }
+
+
 def parser_management_sites(
     request: Request,
     search: str | None = Query(default=None, description="Case-insensitive literal substring search."),
@@ -190,6 +218,42 @@ def parser_management_site_patch(
         expected_owner_email=body.expected_owner_email,
         locale=EnumLocal(locale),
         changes=body.changes.model_dump(exclude_unset=True),
+        expected=body.expected,
+    )
+
+
+def parser_management_role_patch(
+    request: Request, role_id: str = Path(...), body: BodyManagementRolePatchRequest = Body(...)
+) -> ManagementRolePatchParameters:
+    """Validate only target confirmation, original values and writable role assignments.
+
+    ♂ ZhengLee 2026.10.16
+    """
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    if not role_id.isascii() or not role_id.isdecimal():
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_ROLE_ID)
+    return ManagementRolePatchParameters(
+        _positive_integer(role_id, 2147483647, EnumManagementError.INVALID_ROLE_ID),
+        body.expected_role,
+        body.changes.model_dump(exclude_unset=True),
+        body.expected,
+    )
+
+
+def parser_management_user_patch(
+    request: Request, account_id: str = Path(...), body: BodyManagementUserPatchRequest = Body(...)
+) -> ManagementUserPatchParameters:
+    """Keep account identity/FKs immutable; the expected email confirms rather than changes identity."""
+    if request.query_params:
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
+    if not account_id.isascii() or not account_id.isdecimal():
+        raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_ACCOUNT_ID)
+    return ManagementUserPatchParameters(
+        _positive_integer(account_id, 2147483647, EnumManagementError.INVALID_ACCOUNT_ID),
+        body.expected_email,
+        body.changes.model_dump(exclude_unset=True),
+        body.expected,
     )
 
 
@@ -246,7 +310,10 @@ __all__ = (
     "parser_management_pagination",
     "parser_management_roles",
     "parser_management_users",
+    "parser_management_role_options",
     "parser_management_sites",
     "parser_management_site_patch",
+    "parser_management_role_patch",
+    "parser_management_user_patch",
     "parser_management_login_records",
 )

@@ -7,6 +7,7 @@ import {
   managementFilterSpecs,
   managementSortFields,
   useManagementList,
+  rolePermissionFields,
   type ManagementResource,
   type ManagementRow,
 } from '@/features/management';
@@ -14,7 +15,12 @@ import { DataTable } from '@/shared/ui/DataTable';
 import { Icon } from '@/shared/ui/Icon';
 import { ManagementDetails, type ManagementDetailColumn } from './ManagementDetails';
 import PortfolioPreview from './PortfolioPreview';
-import { managementEditor } from '../model/management-edit';
+import {
+  managementEditor,
+  managementDraftIssue,
+  managementDraftChanges,
+} from '../model/management-edit';
+import { useManagementEdit } from '../hooks/useManagementEdit';
 import {
   fields,
   visible,
@@ -71,8 +77,19 @@ export function ManagementTable({
   const [deletion, setDeletion] = useState<{ scope: string; rows: ManagementRow[] } | null>(null);
   if (deletion && deletion.scope !== scope) setDeletion(null);
   const query = useManagementList(resource, state, locale, enabled, accountId);
+  const {
+    columns: quickColumns,
+    busy: quickBusy,
+    save: saveRecord,
+    roleEditor,
+  } = useManagementEdit(
+    resource,
+    locale,
+    accountId,
+    enabled && !query.isFetching && !query.isError,
+  );
   const nameField = resource === 'roles' ? 'role' : resource === 'users' ? 'email' : 'owner_email';
-  const actionsUnavailable = !enabled || query.isFetching || query.isError;
+  const actionsUnavailable = !enabled || query.isFetching || query.isError || quickBusy;
   const selectedRows = (query.data?.items ?? []).filter((row) => selection.keys.includes(row.id));
   const openDelete = (rows: ManagementRow[]) => {
     if (!actionsUnavailable && rows.length) {
@@ -94,6 +111,7 @@ export function ManagementTable({
     const makeColumn = (
       field: string,
       override?: string,
+      inline = false,
     ): ManagementDetailColumn<ManagementRow> => {
       const label =
         override ||
@@ -104,6 +122,13 @@ export function ManagementTable({
       return {
         id: field,
         label,
+        help:
+          resource === 'roles' && rolePermissionFields.some((permission) => permission === field)
+            ? {
+                label: t('management.permissionHelpLabel', { label }),
+                text: t(`management.permissionHelp.${field}`),
+              }
+            : undefined,
         value: (row) => {
           if (field !== 'profile_name' || !('has_translation' in row)) return rowValue(row, field);
           if (!row.has_site) return t('management.noPortfolio');
@@ -125,11 +150,25 @@ export function ManagementTable({
             ? false
             : undefined,
         filter: managementFilterSpecs[resource][field],
-        editor: (row) => managementEditor(resource, field, row),
+        editor: (row) =>
+          resource === 'users' && field === 'role'
+            ? roleEditor(row)
+            : managementEditor(resource, field, row),
+        assignment:
+          resource === 'users' && field === 'role'
+            ? {
+                field: 'role_id',
+                value: (row) => ('login_count' in row ? row.role_id : null),
+                project: (option) => ({ role: option.label, role_is_active: true }),
+              }
+            : undefined,
         filterStyle:
           (resource === 'roles' || resource === 'users') && field === 'role'
             ? 'dropdown-list'
             : undefined,
+        editing: inline
+          ? quickColumns[resource === 'users' && field === 'role' ? 'role_id' : field]
+          : undefined,
         render: booleanFields[resource].includes(field)
           ? (row) => {
               return (
@@ -145,6 +184,7 @@ export function ManagementTable({
                   unavailableReason={
                     field === 'is_default' &&
                     'owner_is_active' in row &&
+                    row.is_default !== true &&
                     !(row.owner_is_active && row.has_site && row.is_published)
                       ? t('management.defaultRequires')
                       : undefined
@@ -171,12 +211,12 @@ export function ManagementTable({
       };
     };
     return {
-      columns: visible[resource].map((field) => makeColumn(field)),
+      columns: visible[resource].map((field) => makeColumn(field, undefined, true)),
       detailColumns: fields[resource].map((field) =>
         makeColumn(field, detailLabels[resource][field]),
       ),
     };
-  }, [resource, t]);
+  }, [resource, t, quickColumns, roleEditor]);
   const copy = {
     ...dataTableCopy(t, title),
     actions: columnLabels[resource].actions ?? t('management.actions'),
@@ -346,7 +386,7 @@ export function ManagementTable({
       {editing?.scope === scope && (
         <ManagementDetails
           key={editing.row.id}
-          row={editing.row}
+          row={query.data?.items.find((row) => row.id === editing.row.id) ?? editing.row}
           columns={detailColumns}
           icon={managementNavigation.find((item) => item.resource === resource)!.icon}
           copy={{
@@ -363,9 +403,24 @@ export function ManagementTable({
               message: t('management.saveTarget', { name: rowValue(editing.row, nameField) }),
               confirm: t('management.confirmSave'),
               cancel: t('management.cancel'),
+              conflict: t('management.write.detailConflict'),
             },
           }}
-          onClose={() => setEditing(null)}
+          busy={quickBusy}
+          validate={(draft) => {
+            const issue = managementDraftIssue(resource, editing.row, draft);
+            return issue ? t(`management.write.${issue}`) : undefined;
+          }}
+          changeDraft={(draft, field, value) =>
+            managementDraftChanges(resource, draft, field, value)
+          }
+          onSave={async (changes) => {
+            await saveRecord(editing.row, changes);
+            setEditing(null);
+          }}
+          onClose={() => {
+            if (!quickBusy) setEditing(null);
+          }}
         />
       )}
       {deletion?.scope === scope && (

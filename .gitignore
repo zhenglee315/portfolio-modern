@@ -1,7 +1,8 @@
 /agent/
 *test*.py
-# Keep the Platform PATCH contract/transaction regression suite reviewable.
+# Keep management PATCH contract/transaction regression suites reviewable.
 !/backend/tests/test_management_site_update.py
+!/backend/tests/test_management_role_user_update.py
 /test/
 # macOS Finder metadata.
 .DS_Store

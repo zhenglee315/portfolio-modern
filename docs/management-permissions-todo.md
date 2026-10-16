@@ -1,6 +1,6 @@
 # 後端管理 API 權限
 
-更新日期：2026-10-16。現有管理讀取 API 與 Platform PATCH 已套用權限檢查；其他 CUD API 與各模組獨立 CRUD 授權尚未實作。
+更新日期：2026-10-16。現有管理讀取 API 與 Platform PATCH 已套用權限檢查；Role／User PATCH 亦已實作；新增／刪除 API 與各模組獨立 CRUD 授權仍不在本次範圍。
 
 `APPs/Management/module/module_permission.py` 的 `ManagementPermission` 以 class 的 `__call__` 提供 FastAPI dependency。API 宣告所需旗標；同一請求共用身份讀取，下一個請求重新以伺服器 SESSION 的使用者 ID 查詢有效帳號、角色及最新權限。前端傳入的旗標、角色名稱及登入時的舊旗標不能授權。
 
@@ -10,6 +10,8 @@
 | `GET /management/users`                  | `is_manage_users`      |
 | `GET /management/sites`                  | `is_manage_sites`      |
 | `PATCH /management/sites/{account_id}`   | `is_manage_sites`      |
+| `PATCH /management/roles/{role_id}`      | `is_manage_roles`      |
+| `PATCH /management/users/{account_id}`   | `is_manage_users`      |
 | 六支 `GET /management/preview/*` preview | `is_manage_sites`      |
 
 目前已實作：
@@ -26,9 +28,13 @@
 後續工作：
 
 - [ ] 依討論設計權限目錄與角色權限關聯，支援各管理模組獨立 read/create/update/delete。現有七個旗標尚不能表達這種粒度，勿以內容 `is_read`／`is_update` 代替管理模組操作權限。
-- [ ] Add／Save／單筆與批次 Delete 接上 CUD API 後，套用對應操作權限及資料範圍檢查。
-- [ ] 特殊資料規則在交易內處理：限制可授予權限、保留最後有效管理員、先移轉使用中的角色。
-- [x] Platform 更新 DTO 排除 PK／FK、登入 Email、帳號狀態、時間與衍生欄位；後端嚴格拒絕額外欄位。
-- [ ] 其他更新 DTO 套用相同限制；補上操作者與前後差異稽核。
+- [ ] Add／單筆與批次 Delete 接上 API 後，套用對應操作權限及資料範圍檢查。
+- [x] 更新交易跨 Role／User／Platform 保留最後有效角色管理員，並驗證註冊 Default 的最終權限及啟用狀態。
+- [ ] 後續權限目錄設計須定義授權範圍；刪除使用中的角色前須設計移轉流程。
+- [x] Platform 更新 DTO 排除 PK／FK、登入 Email、時間與衍生欄位；後端嚴格拒絕額外欄位。
+- [x] Role／User 更新 DTO 套用同樣的唯讀限制；User 允許 Active 與明確的 role_id 指派，email、PK 與其他 FK 維持唯讀。指派要求角色啟用且其七項權限不超過操作者，並保留最後有效角色管理員。
+- [ ] 補上操作者與前後差異的持久化稽核紀錄。
 
-Add／Save／Del 目前仍是介面與本地草稿；Platform PATCH 已完成後端驗證與交易，尚未串接前端 Save。沒有新增權限資料表或變更既有角色授權。
+Role／User／Platform 表格指定狀態欄位與完整 Edit Save 已串接對應資源 PATCH；Add／Del 仍是預留介面。沒有新增權限資料表或變更既有角色授權。
+
+`PATCH /management/roles/{role_id}` 要求 AuthRole.is_manage_roles；`PATCH /management/users/{account_id}` 要求 AuthRole.is_manage_users。三支 management PATCH 均在交易鎖取得後重查目前操作者，並跨 Role／User／Platform 保護最後有效角色管理員。SESSION 權限變更會比較全部七個旗標；其他登入者於下一個請求重新驗證，沒有新增即時推播。

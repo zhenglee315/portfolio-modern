@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import type { DataTableCopy } from './DataTable';
-import { tableChoiceColor, type TableChoiceColor } from '../lib/table-choice-color';
+import type { TableChoiceColor } from '../lib/table-choice-color';
+import { ChoiceChip } from './ChoiceChip';
 import {
   parseTableFilters,
   type DataTableFilter,
@@ -229,13 +230,13 @@ export function DataTableChoices({
               aria-label={option.label}
               onChange={(event) => update([option.value], event.target.checked)}
             />
-            <span
-              className={source.colored ? styles.chip : styles.choiceLabel}
-              data-color={source.colored ? tableChoiceColor(option.value, option.color) : undefined}
-              title={option.label}
-            >
-              {option.label}
-            </span>
+            {source.colored ? (
+              <ChoiceChip label={option.label} color={option.color} />
+            ) : (
+              <span className={styles.choiceLabel} title={option.label}>
+                {option.label}
+              </span>
+            )}
             {selected(option.value) && <Icon name="check" />}
           </label>
         ))}

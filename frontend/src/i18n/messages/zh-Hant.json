@@ -268,6 +268,14 @@
     "expandNavigation": "展開導覽",
     "openNavigation": "開啟管理導覽",
     "readonly": "唯讀",
+    "quick": {
+      "label": "即時儲存",
+      "saving": "儲存中…",
+      "saved": "已儲存。",
+      "failed": "無法儲存這項變更，已重新讀取表格。",
+      "uncertain": "尚無法確認儲存結果，請先查看重新讀取的表格再操作。",
+      "committed": "已儲存，公開內容可能需要最多一分鐘更新。"
+    },
     "defaultRequires": "需啟用 Active、Publish，並已建立網站",
     "empty": "沒有符合條件的資料。",
     "loadError": "無法載入資料，請再試一次。",
@@ -444,7 +452,7 @@
     "loginHistory": {
       "title": "登入紀錄",
       "open": "查看 {{name}} 的登入紀錄",
-      "note": "地區根據登入 IP 推估；舊紀錄可能沒有 IP 或地區資料。",
+      "note": "位置依登入 IP 推估。狀態表示該 IP 的近期活動，並非帳號工作階段；每 45 秒更新。",
       "fields": {
         "id": "ID",
         "user_id": "用戶",
@@ -454,7 +462,8 @@
         "country_code": "國家",
         "region": "行政區",
         "city": "城市",
-        "geo_status": "狀態"
+        "geo_status": "GeoIP",
+        "is_online": "狀態"
       },
       "statuses": {
         "unknown": "未知",
@@ -462,7 +471,44 @@
         "not_found": "查無資料",
         "non_public": "內部位址",
         "unavailable": "暫不可用"
+      },
+      "presence": {
+        "online": "在線 — 此 IP 最近仍有活動",
+        "offline": "離線 — 此 IP 沒有近期活動",
+        "unknown": "暫時無法取得狀態，請重新整理"
       }
+    },
+    "editGroup": {
+      "required": "此欄位必填。",
+      "incomplete": "請完成這組欄位的必要資料並修正錯誤，才會自動保存。",
+      "failed": "保存失敗，已保留草稿；請重試或捨棄。",
+      "conflict": "編輯期間這筆資料已變更，請捨棄草稿後編輯最新資料。",
+      "cancel": "捨棄草稿"
+    },
+    "write": {
+      "conflict": "資料已變更，請確認最新內容後再保存。",
+      "defaultRoleRequired": "請先選擇其他註冊預設角色，再停用或取消此角色的 Default。",
+      "defaultRoleEligible": "註冊預設角色必須啟用，且不能具有管理權限。",
+      "lastManager": "必須保留至少一個具有角色管理權限的有效帳號。",
+      "siteEligible": "Default 必須為啟用帳號的已發布網站。",
+      "unique": "更新與既有名稱或資料衝突，請重新確認。",
+      "detailConflict": "編輯期間資料已變更，請關閉視窗後重新開啟最新資料再保存。",
+      "roleAssignmentForbidden": "無法指派包含您未持有權限的角色。",
+      "roleAssignmentInactive": "請選擇啟用中的角色。"
+    },
+    "roleAssignment": {
+      "forbidden": "此角色包含您未持有的權限。",
+      "inactive": "此角色已停用。"
+    },
+    "permissionHelpLabel": "關於 {{label}} 權限",
+    "permissionHelp": {
+      "is_create": "作品集內容的新增權限分組。",
+      "is_read": "作品集內容的讀取權限分組；瀏覽公開頁面不需要此權限。",
+      "is_update": "作品集既有內容的編輯權限分組。",
+      "is_delete": "作品集內容的刪除權限分組。",
+      "is_manage_sites": "存取平台管理，修改作品集設定、發布狀態、預設首頁及擁有者啟用狀態，並預覽內容。",
+      "is_manage_users": "存取使用者管理，查看帳號與登入紀錄、修改啟用狀態，並指派可授予的角色。",
+      "is_manage_roles": "存取角色管理，修改名稱、說明、權限、註冊預設角色及啟用狀態。變更會影響所有使用此角色的帳號。"
     }
   },
   "accessDenied": {

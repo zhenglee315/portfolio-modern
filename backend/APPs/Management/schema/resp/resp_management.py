@@ -68,6 +68,19 @@ class RespManagementUsers(RespRecords[RespManagementUser]):
     """Return items/total/pages/page/size with one item per matching account."""
 
 
+class RespManagementRoleOption(BaseModel):
+    """Expose role assignment choices without granting access to the role management list."""
+
+    id: int = Field(..., gt=0)
+    role: str = Field(..., min_length=1, max_length=64)
+    is_active: bool
+    can_assign: bool
+
+
+class RespManagementRoleOptions(RespRecords[RespManagementRoleOption]):
+    """Return searchable, paginated choices; server-side write checks remain authoritative."""
+
+
 # ■—< RESP >——————————————————————————————————————————————————————————————————————————■ Management - Platform
 class RespManagementSite(BaseModel):
     """Keep the account ID as row identity even when no portfolio or translation exists."""
@@ -146,6 +159,9 @@ class RespManagementLoginRecord(BaseModel):
     geo_status: LoginGeoStatus = Field(
         ..., description="GeoIP result; missing geography does not invalidate the login."
     )
+    is_online: bool | None = Field(
+        ..., description="IP heartbeat exists now; null when Redis is unavailable. This is not account-session status."
+    )
 
     @field_validator("logintime")
     @classmethod
@@ -174,6 +190,7 @@ __all__ = (
     "RespManagementRoles",
     "RespManagementUser",
     "RespManagementUsers",
+    "RespManagementRoleOptions",
     "RespManagementSite",
     "RespManagementSites",
     "RespManagementLoginRecord",

@@ -4,14 +4,14 @@ from COMMON.tools.storage.redis import RedisAsync, RedisUpdate, RedisValue
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache
+from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache, EnumDBType, AUTH_MANAGEMENT_WRITE_LOCK_KEY
 from SYSTEM.models import AuthRole, AuthUser, RecordLogin, AUTH_ROLE_PERMISSION_COLUMNS
 from SYSTEM.settings import SEC_SECRET_KEY
 from SYSTEM.tools.tools_net import net_client_ip
 from SYSTEM.tools.tools_geoip import GeoIpReader
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
-from sqlalchemy import insert, literal, select
+from sqlalchemy import insert, literal, select, update, func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -851,6 +851,27 @@ class AuthRegisterModule(AuthModule):
             except (RedisError, HTTPException):
                 pass
 
+    async def _insert_registration(self, stmt):
+        """Lock before the INSERT statement obtains its default-role snapshot.
+
+        Role edits acquire the same transaction lock. Taking it in a separate statement
+        inside this transaction prevents a waiting signup from retaining a stale default
+        snapshot. External-session mode leaves the transaction lifetime with its owner.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+        """
+        async with self.transaction() as transaction:
+            dialect = transaction.session.get_bind().dialect.name
+            if dialect == EnumDBType.POSTGRESQL:
+                await transaction.execute_orm(select(func.pg_advisory_xact_lock(AUTH_MANAGEMENT_WRITE_LOCK_KEY)))
+            elif dialect == EnumDBType.SQLLite:
+                await transaction.execute_orm(
+                    update(AuthRole)
+                    .where(AuthRole.id == -1)
+                    .values({AuthRole.is_active: AuthRole.is_active, AuthRole.updatetime: AuthRole.updatetime})
+                )
+            return (await transaction.execute_orm(stmt)).mappings().one_or_none()
+
     async def register(self) -> dict[str, Any]:
         """
         Create a verified account with the active default role and initialize its SESSION.
@@ -934,7 +955,7 @@ class AuthRegisterModule(AuthModule):
                     )
                 )
                 try:
-                    row = (await self.execute_orm(stmt)).mappings().one_or_none()
+                    row = await self._insert_registration(stmt)
                 except IntegrityError as error:
                     if not self._unique_conflict(error, "uq_auth_user_user", "auth_user.user"):
                         raise

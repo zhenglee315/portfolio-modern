@@ -268,6 +268,14 @@
     "expandNavigation": "Expand navigation",
     "openNavigation": "Open management navigation",
     "readonly": "Read-only",
+    "quick": {
+      "label": "Autosave",
+      "saving": "Saving…",
+      "saved": "Saved.",
+      "failed": "Could not save this change. The table has been refreshed.",
+      "uncertain": "Could not confirm the save. Check the refreshed table before trying again.",
+      "committed": "Saved, but public content may take up to a minute to refresh."
+    },
     "defaultRequires": "Requires Active, a website and Publish",
     "empty": "No matching records.",
     "loadError": "Could not load these records. Please try again.",
@@ -444,7 +452,7 @@
     "loginHistory": {
       "title": "Login history",
       "open": "View login history for {{name}}",
-      "note": "Location is estimated from the login IP. Older records may have no location.",
+      "note": "Location is estimated from the login IP. Status reflects recent activity from that IP, not an account session. Refreshes every 45 seconds.",
       "fields": {
         "id": "ID",
         "user_id": "User",
@@ -454,7 +462,8 @@
         "country_code": "Country",
         "region": "Region",
         "city": "City",
-        "geo_status": "Status"
+        "geo_status": "GeoIP",
+        "is_online": "Status"
       },
       "statuses": {
         "unknown": "Unknown",
@@ -462,7 +471,44 @@
         "not_found": "No match",
         "non_public": "Private",
         "unavailable": "Unavailable"
+      },
+      "presence": {
+        "online": "Online — recent IP activity",
+        "offline": "Offline — no recent IP activity",
+        "unknown": "Status unavailable — try refreshing"
       }
+    },
+    "editGroup": {
+      "required": "This field is required.",
+      "incomplete": "Complete the required fields with valid values to save this group.",
+      "failed": "Saving failed. Your draft is retained; retry or discard it.",
+      "conflict": "This record changed while you were editing. Discard the draft and edit the latest values.",
+      "cancel": "Discard draft"
+    },
+    "write": {
+      "conflict": "This record changed. Review the latest values before saving again.",
+      "defaultRoleRequired": "Choose another registration Default before disabling or clearing this role.",
+      "defaultRoleEligible": "The registration Default must be active and have no management permissions.",
+      "lastManager": "At least one active account must retain role-management permission.",
+      "siteEligible": "Default requires an active account and a published website.",
+      "unique": "The update conflicts with an existing name or record. Refresh and review the values.",
+      "detailConflict": "This record changed while you were editing. Close this dialog and reopen the latest record before saving.",
+      "roleAssignmentForbidden": "You cannot assign a role that grants permissions you do not have.",
+      "roleAssignmentInactive": "Choose an active role."
+    },
+    "roleAssignment": {
+      "forbidden": "This role grants permissions you do not have.",
+      "inactive": "This role is inactive."
+    },
+    "permissionHelpLabel": "About {{label}} permission",
+    "permissionHelp": {
+      "is_create": "Permission group for creating portfolio content.",
+      "is_read": "Permission group for reading portfolio content. Public pages do not require this permission.",
+      "is_update": "Permission group for editing existing portfolio content.",
+      "is_delete": "Permission group for deleting portfolio content.",
+      "is_manage_sites": "Access Platform management to edit portfolio settings, publication, homepage defaults and owner activation, and preview content.",
+      "is_manage_users": "Access User management to view accounts and login history, change activation and assign eligible roles.",
+      "is_manage_roles": "Access Role management to edit names, descriptions, permissions, registration defaults and activation. Changes affect all assigned accounts."
     }
   },
   "accessDenied": {

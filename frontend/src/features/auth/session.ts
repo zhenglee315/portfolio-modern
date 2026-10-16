@@ -76,6 +76,10 @@ export async function refreshAuthSession(client: QueryClient, signal: AbortSigna
     !identity ||
     previous?.id !== identity.id ||
     previous?.role !== identity.role ||
+    previous?.is_create !== identity.is_create ||
+    previous?.is_read !== identity.is_read ||
+    previous?.is_update !== identity.is_update ||
+    previous?.is_delete !== identity.is_delete ||
     previous?.is_manage_sites !== identity.is_manage_sites ||
     previous?.is_manage_users !== identity.is_manage_users ||
     previous?.is_manage_roles !== identity.is_manage_roles

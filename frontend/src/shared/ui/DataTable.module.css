@@ -10,6 +10,7 @@
   --table-filter-width: 14px;
   --table-rank-width: 10px;
   --table-header-height: 20px;
+  --table-help-width: 20px;
   --bs-border-color: var(--border);
   --bs-body-color: var(--text);
   --bs-body-bg: var(--panel);
@@ -321,7 +322,10 @@
 .headerContent {
   position: relative;
   display: grid;
-  grid-template-columns: var(--table-header-tools) max-content var(--table-header-tools);
+  grid-template-columns:
+    max(var(--table-header-tools), var(--table-header-help, 0px))
+    max-content
+    max(var(--table-header-tools), var(--table-header-help, 0px));
   justify-content: center;
   align-items: center;
   min-height: var(--table-header-height);
@@ -340,6 +344,18 @@
   gap: 1px;
   padding-inline-start: 2px;
   width: var(--table-header-tools);
+}
+.headerHelp {
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+}
+@media (any-pointer: coarse) {
+  .root {
+    --table-help-width: 24px;
+  }
 }
 .table .headerControls :global(.btn) {
   min-width: var(--table-filter-width);
@@ -397,6 +413,20 @@
 }
 .boolean[data-unavailable] :global(.form-check-input) {
   opacity: 0.35;
+}
+/* Preserve table geometry while giving editable switches a full pointer target.
+ * @author ZhengLee 2026.10.16
+ */
+.boolean[data-editable] {
+  min-height: var(--table-control-size, 36px);
+  min-width: var(--table-control-size, 36px);
+  cursor: pointer;
+}
+.boolean[data-editable] :global(.form-check-input) {
+  cursor: inherit;
+}
+.boolean[data-busy] {
+  cursor: progress;
 }
 
 .actions {

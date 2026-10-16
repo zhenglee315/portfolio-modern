@@ -1,24 +1,19 @@
 import { z } from 'zod';
 import { localeSchema } from '@/i18n/config';
 import { recordIdSchema, uniqueRecords } from '@/shared/schemas/records';
+import { rolePermissionSchema } from '../model/role-permissions';
 
 const countSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const utcTimestampSchema = z.iso
   .datetime({ offset: true })
   .refine((value) => /(?:Z|\+00:00)$/.test(value));
 
-/** Validate one role, preserving nullable description and server-owned permission flags. */
+/** Validate one role, preserving nullable description and explicitly declared permission groups. */
 export const managementRoleSchema = z.object({
   id: recordIdSchema,
   role: z.string().min(1).max(64),
   description: z.string().nullable(),
-  is_create: z.boolean(),
-  is_read: z.boolean(),
-  is_update: z.boolean(),
-  is_delete: z.boolean(),
-  is_manage_sites: z.boolean(),
-  is_manage_users: z.boolean(),
-  is_manage_roles: z.boolean(),
+  ...rolePermissionSchema.shape,
   is_default: z.boolean(),
   is_active: z.boolean(),
   createtime: utcTimestampSchema,
@@ -123,6 +118,7 @@ export const managementLoginRecordSchema = z.object({
   region: z.string().max(128).nullable(),
   city: z.string().max(128).nullable(),
   geo_status: z.enum(['unknown', 'resolved', 'not_found', 'non_public', 'unavailable']),
+  is_online: z.boolean().nullable(),
 });
 export const managementLoginRecordsSchema = managementPageSchema(managementLoginRecordSchema);
 export type LoginRecordRow = z.infer<typeof managementLoginRecordSchema>;

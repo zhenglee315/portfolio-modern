@@ -5,6 +5,10 @@ from APPs.Management.constants import (
     SITE_TEXT_MAX_LENGTH,
     SITE_PATCH_COLUMNS,
     SITE_TRANSLATION_PATCH_COLUMNS,
+    SITE_ACCOUNT_PATCH_COLUMNS,
+    ROLE_PATCH_COLUMNS,
+    USER_PATCH_COLUMNS,
+    EnumManagementField,
 )
 from SYSTEM.constants import EnumLocal, HTTP_URL_SCHEMES, TEXT_ENCODING
 
@@ -18,6 +22,7 @@ from typing import Any
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
 from sqlalchemy.orm import InstrumentedAttribute
+from SYSTEM.models import AuthUser
 
 _HTTP_URL = TypeAdapter(AnyHttpUrl)
 
@@ -29,13 +34,15 @@ class BodyManagementSitePatch(BaseModel):
 
     Defaults represent omission only and are excluded with exclude_unset=True.
     Submitted values are strictly typed and non-null; defaults are never persisted.
-    PKs, FKs, account identity/state and projected facts are intentionally absent.
+    PKs, FKs, account identity and projected facts are intentionally absent.
 
                                                                                                ♂ ZhengLee 2026.10.15
     """
 
     model_config = ConfigDict(strict=True, extra="forbid", hide_input_in_errors=True)
 
+    # ---------------------------------------------------------------------● Account State
+    owner_is_active: bool = Field(default=None, description="Account activation; disabling also clears its Default.")
     # ---------------------------------------------------------------------● Site
     is_published: bool = Field(default=None, description="Public visibility; false also clears Default.")
     is_default: bool = Field(default=None, description="Global homepage; requires an active owner and publication.")
@@ -165,12 +172,116 @@ class BodyManagementSitePatch(BaseModel):
 
                                                                                                ♂ ZhengLee 2026.10.16
         """
-        bindings = {**SITE_PATCH_COLUMNS, **SITE_TRANSLATION_PATCH_COLUMNS}
+        bindings = {**SITE_ACCOUNT_PATCH_COLUMNS, **SITE_PATCH_COLUMNS, **SITE_TRANSLATION_PATCH_COLUMNS}
         return {bindings[field]: value for field, value in self.model_dump(exclude_unset=True).items()}
 
 
+# ■—< BODY >————————————————————————————————————————————————————————————————————————————■ Management - Role/User Patch
+class BodyManagementRolePatch(BaseModel):
+    """Explicit writable role values; description alone permits an explicit null.
+
+    ♂ ZhengLee 2026.10.16
+    """
+
+    model_config = ConfigDict(strict=True, extra="forbid", hide_input_in_errors=True)
+    role: str = Field(default=None, min_length=1, max_length=64)
+    description: str | None = Field(default=None, max_length=SITE_TEXT_MAX_LENGTH)
+    is_create: bool = None
+    is_read: bool = None
+    is_update: bool = None
+    is_delete: bool = None
+    is_manage_roles: bool = None
+    is_manage_users: bool = None
+    is_manage_sites: bool = None
+    is_default: bool = None
+    is_active: bool = None
+
+    @field_validator("*")
+    @classmethod
+    def valid_text(cls, value):
+        return BodyManagementSitePatch.validate_storage_text(value)
+
+    @field_validator("role")
+    @classmethod
+    def valid_role(cls, value):
+        if value != value.strip():
+            raise ValueError("Role name must not have leading or trailing whitespace.")
+        return value
+
+    @model_validator(mode="after")
+    def nonempty(self):
+        if not self.model_fields_set:
+            raise ValueError("Submit at least one mutable field.")
+        return self
+
+    def orm_changes(self):
+        return {ROLE_PATCH_COLUMNS[field]: value for field, value in self.model_dump(exclude_unset=True).items()}
+
+
+class BodyManagementUserPatch(BaseModel):
+    """Allow activation and explicit role assignment; login identity and other relations stay immutable.
+
+    Role existence, availability, grant authority and final-manager rules belong to the transaction.
+                                                                                               ♂ ZhengLee 2026.10.16
+    """
+
+    model_config = ConfigDict(strict=True, extra="forbid", hide_input_in_errors=True)
+    is_active: bool = Field(default=None)
+    role_id: int = Field(default=None, gt=0, le=2147483647)
+
+    @model_validator(mode="after")
+    def nonempty(self):
+        if not self.model_fields_set:
+            raise ValueError("Submit at least one mutable field.")
+        return self
+
+    def orm_changes(self):
+        return {USER_PATCH_COLUMNS[field]: value for field, value in self.model_dump(exclude_unset=True).items()}
+
+
+class ManagementPatchRequest(BaseModel):
+    """Require one original scalar for every changed field, separate from mutable assignments."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", hide_input_in_errors=True)
+    expected: dict[str, bool | int | str | None] = Field(min_length=1, max_length=32)
+
+    @model_validator(mode="after")
+    def same_fields(self):
+        if set(self.expected) != self.changes.model_fields_set:
+            raise ValueError("Original values must match the changed fields exactly.")
+        return self
+
+
+class BodyManagementRolePatchRequest(ManagementPatchRequest):
+    expected_role: str = Field(min_length=1, max_length=64)
+    changes: BodyManagementRolePatch
+    _role_text = field_validator("expected_role")(BodyManagementSitePatch.validate_storage_text)
+
+
+class BodyManagementUserPatchRequest(ManagementPatchRequest):
+    expected_email: str = Field(min_length=5, max_length=254)
+    changes: BodyManagementUserPatch
+    _email = field_validator("expected_email")(validate_auth_email)
+
+
+@dataclass(frozen=True)
+class ManagementRolePatchParameters:
+    role_id: int
+    expected_role: str
+    changes: dict[str, Any]
+    expected: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ManagementUserPatchParameters:
+    account_id: int
+    expected_email: str
+    changes: dict[str, Any]
+    expected: dict[str, Any]
+
+
 # ■—< BODY >——————————————————————————————————————————————————————————————————————————■ Management - Platform Request
-class BodyManagementSitePatchRequest(BaseModel):
+class BodyManagementSitePatchRequest(ManagementPatchRequest):
     """
     Separate immutable target confirmation from mutable portfolio assignments.
 
@@ -218,6 +329,17 @@ class ManagementSitePatchParameters:
     expected_owner_email: str
     locale: EnumLocal
     changes: dict[str, Any]
+    expected: dict[str, Any]
 
 
-__all__ = ("BodyManagementSitePatch", "BodyManagementSitePatchRequest", "ManagementSitePatchParameters")
+__all__ = (
+    "BodyManagementSitePatch",
+    "BodyManagementSitePatchRequest",
+    "ManagementSitePatchParameters",
+    "BodyManagementRolePatch",
+    "BodyManagementRolePatchRequest",
+    "ManagementRolePatchParameters",
+    "BodyManagementUserPatch",
+    "BodyManagementUserPatchRequest",
+    "ManagementUserPatchParameters",
+)

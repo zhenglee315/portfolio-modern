@@ -1,19 +1,13 @@
 import { z } from 'zod';
 import {
   managementFilterSpecs,
-  managementRoleSchema,
-  managementUserSchema,
-  managementSiteSchema,
+  managementPatchSchemas,
+  hasRoleManagementPermission,
   type ManagementResource,
   type ManagementRow,
 } from '@/features/management';
 import type { InlineFieldEditor } from '@/shared/ui/InlineField';
 
-const schemas = {
-  roles: managementRoleSchema,
-  users: managementUserSchema,
-  sites: managementSiteSchema,
-};
 const derived = new Set([
   'login_count',
   'user_count',
@@ -43,7 +37,7 @@ const siteFields = new Set([
   'chat_icon',
 ]);
 
-/** Declare editable values from the existing DTO contracts; IDs, timestamps and projections stay read-only. */
+/** Declare editable values from the resource write contracts; IDs, timestamps and projections stay read-only. */
 export function managementEditor(
   resource: ManagementResource,
   field: string,
@@ -56,11 +50,11 @@ export function managementEditor(
     field.endsWith('_id') ||
     spec.type === 'date' ||
     derived.has(field) ||
-    (resource === 'users' && field === 'email') ||
+    (resource === 'users' && field !== 'is_active') ||
     (resource === 'sites' && ['owner_email', 'user'].includes(field))
   )
     return;
-  const shape: Record<string, z.ZodType> = schemas[resource].shape;
+  const shape: Record<string, z.ZodType> = managementPatchSchemas[resource].shape;
   const response = shape[field];
   if (!response) return;
   if (
@@ -70,9 +64,9 @@ export function managementEditor(
     (!row.has_site || (!siteFields.has(field) && !row.has_translation))
   )
     return;
-  // Missing joins are nullable in a GET, but existing site/translation columns are not nullable in storage.
-  const scalar = response instanceof z.ZodNullable ? response.unwrap() : response;
-  const validator = resource === 'sites' ? scalar : response;
+  // Write contracts own nullability/limits; nullable GET joins do not grant write access.
+  const validator = response instanceof z.ZodOptional ? response.unwrap() : response;
+  const scalar = validator instanceof z.ZodNullable ? validator.unwrap() : validator;
   const type =
     spec.type === 'boolean'
       ? 'boolean'
@@ -92,6 +86,8 @@ export function managementEditor(
     maxLength: scalar instanceof z.ZodString ? (scalar.maxLength ?? undefined) : undefined,
     validate: (value) => {
       if (!z.safeParse(validator, value).success) return false;
+      if (!managementPatchSchemas[resource].safeParse({ [field]: value }).success) return false;
+
       if (
         resource === 'sites' &&
         field === 'copyright_year' &&
@@ -121,4 +117,33 @@ export function managementEditor(
       return true;
     },
   };
+}
+
+/** Validate dependent final state without clearing a registration default or mutating related accounts. */
+export function managementDraftIssue(
+  resource: ManagementResource,
+  original: ManagementRow,
+  draft: ManagementRow,
+): string | undefined {
+  if (resource === 'roles' && 'user_count' in original && 'user_count' in draft) {
+    if (original.is_default && !draft.is_default) return 'defaultRoleRequired';
+    if (draft.is_default && (!draft.is_active || hasRoleManagementPermission(draft)))
+      return 'defaultRoleEligible';
+  }
+}
+
+/** Publication/account changes clear only the same website Default in the editable draft. */
+export function managementDraftChanges(
+  resource: ManagementResource,
+  row: ManagementRow,
+  field: string,
+  value: import('@/shared/ui/InlineField').InlineFieldValue,
+) {
+  return resource === 'sites' &&
+    'has_site' in row &&
+    row.has_site &&
+    value === false &&
+    (field === 'owner_is_active' || field === 'is_published')
+    ? { [field]: value, is_default: false }
+    : { [field]: value };
 }

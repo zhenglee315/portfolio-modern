@@ -96,6 +96,7 @@ class RouteManagement(EnumUtils):
 
     ROLES = "/roles"
     USERS = "/users"
+    ROLE_OPTIONS = "/role-options"
     SITES = "/sites"
     LOGIN_RECORDS = "/login-records"
     PREVIEW = "/preview"

@@ -5,7 +5,7 @@ from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache
-from SYSTEM.models import AuthRole, AuthUser, RecordLogin
+from SYSTEM.models import AuthRole, AuthUser, RecordLogin, AUTH_ROLE_PERMISSION_COLUMNS
 from SYSTEM.settings import SEC_SECRET_KEY
 from SYSTEM.tools.tools_net import net_client_ip
 from SYSTEM.tools.tools_geoip import GeoIpReader
@@ -165,7 +165,13 @@ class AuthModule(SqlAlchemyExecAsync):
             "email": account.email,
             "user": account.user,
             "role": role.role,
-            **{permission: getattr(role, permission) for permission in AUTH_PERMISSION_FIELDS},
+            "is_create": role.is_create,
+            "is_read": role.is_read,
+            "is_update": role.is_update,
+            "is_delete": role.is_delete,
+            "is_manage_roles": role.is_manage_roles,
+            "is_manage_users": role.is_manage_users,
+            "is_manage_sites": role.is_manage_sites,
         }
 
     async def _load_session(self) -> None:
@@ -879,9 +885,9 @@ class AuthRegisterModule(AuthModule):
             # The locked role supplies both the insert and returned permissions in one atomic statement.
             role = (
                 select(
-                    AuthRole.id.label("role_id"),
+                    AuthRole.id.label(AuthUser.role_id.key),
                     AuthRole.role,
-                    *(getattr(AuthRole, field) for field in AUTH_PERMISSION_FIELDS),
+                    *AUTH_ROLE_PERMISSION_COLUMNS,
                 )
                 .where(
                     AuthRole.is_default.is_(True),
@@ -908,9 +914,13 @@ class AuthRegisterModule(AuthModule):
                 stmt = (
                     insert(AuthUser)
                     .from_select(
-                        ("email", "user", "password", "role_id", "is_active"),
+                        (AuthUser.email, AuthUser.user, AuthUser.password, AuthUser.role_id, AuthUser.is_active),
                         select(
-                            literal(self.email), literal(user), literal(account.password), role.c.role_id, literal(True)
+                            literal(self.email),
+                            literal(user),
+                            literal(account.password),
+                            role.c[AuthUser.role_id.key],
+                            literal(True),
                         ),
                     )
                     .returning(
@@ -919,7 +929,7 @@ class AuthRegisterModule(AuthModule):
                         AuthUser.user,
                         *(
                             select(role.c[field]).scalar_subquery().label(field)
-                            for field in ("role", *AUTH_PERMISSION_FIELDS)
+                            for field in (AuthRole.role.key, *(column.key for column in AUTH_ROLE_PERMISSION_COLUMNS))
                         ),
                     )
                 )

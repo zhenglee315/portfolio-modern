@@ -8,13 +8,16 @@ from COMMON.schema.parser import (
 
 # ◆—< Pack >—————————————————————————————————◆ Project
 from APPs.Portfolio.module.module_portfolio_scope import PortfolioPublicScopeModule
+from SYSTEM.constants import EnumLocal
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import Depends, HTTPException, Query, Request
 
 
 # ■—< FUNC >———————————————————————————————————————————————————————————————————————————■ Portfolio - Public Identity
-async def _resolve_portfolio_site(site_id: int | str | None, user: str | None = None) -> int:
+async def _resolve_portfolio_site(
+    site_id: int | str | None, user: str | None = None, *, locale: EnumLocal = EnumLocal.EN
+) -> int:
     """
     Normalize the query ID and resolve one published portfolio through the common scope module.
 
@@ -30,7 +33,7 @@ async def _resolve_portfolio_site(site_id: int | str | None, user: str | None = 
             site_id = int(site_id)
         except (TypeError, ValueError):
             raise HTTPException(status_code=400, detail="INVALID_SITE_ID") from None
-    return await PortfolioPublicScopeModule().resolve(user=user, site_id=site_id)
+    return await PortfolioPublicScopeModule().resolve(user=user, site_id=site_id, locale=locale)
 
 
 # ■—< PARAM >———————————————————————————————————————————————————————————————————————————■ Portfolio - Language and Caching
@@ -54,6 +57,7 @@ async def parser_portfolio_site(
     ),
     site_id: int | str | None = Query(default=None, description="Resolved portfolio ID; mutually exclusive with user."),
     query_string: dict = Depends(_parser_portfolio_common),
+    locale: str = Depends(parser_locale),
 ) -> dict:
     """
     Resolve a public account, pinned ID or default for the Site lookup before response caching.
@@ -66,7 +70,10 @@ async def parser_portfolio_site(
 
                                                                                                ♂ ZhengLee 2026.10.12
     """
-    return {"site_id": await _resolve_portfolio_site(site_id=site_id, user=user), **query_string}
+    return {
+        "site_id": await _resolve_portfolio_site(site_id=site_id, user=user, locale=EnumLocal(locale)),
+        **query_string,
+    }
 
 
 # ■—< PARAM >———————————————————————————————————————————————————————————————————————————■ Portfolio - Content Identity
@@ -75,6 +82,7 @@ async def _parser_portfolio_site_id(
     site_id: int | str | None = Query(
         default=None, description="Portfolio ID returned by the Site API; omit it to read the published default."
     ),
+    locale: str = Depends(parser_locale),
 ) -> int:
     """
     Resolve content by site ID or default while rejecting obsolete account selectors before caching.
@@ -88,7 +96,7 @@ async def _parser_portfolio_site_id(
     """
     if "user" in request.query_params:
         raise HTTPException(status_code=400, detail="INVALID_SITE_SELECTOR")
-    return await _resolve_portfolio_site(site_id=site_id)
+    return await _resolve_portfolio_site(site_id=site_id, locale=EnumLocal(locale))
 
 
 # ■—< PARAM >———————————————————————————————————————————————————————————————————————————■ Portfolio - Public Content

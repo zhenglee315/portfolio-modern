@@ -1,11 +1,30 @@
 # ◆—< Pack >—————————————————————————————————◆ Project
-from APPs.Management.constants import ROLE_COLUMNS, SITE_COLUMNS, SITE_LOCALE_COLUMNS, LOGIN_SORT_FIELDS
+from APPs.Management.constants import (
+    ROLE_FIELD_COLUMNS,
+    SITE_COLUMNS,
+    SITE_LOCALE_COLUMNS,
+    LOGIN_FIELD_COLUMNS,
+    SITE_PATCH_COLUMNS,
+    SITE_OWNER_COLUMNS,
+    USER_FIELD_COLUMNS,
+    SITE_TRANSLATION_PATCH_COLUMNS,
+    EnumManagementField,
+    EnumManagementError,
+    EnumManagementUpdateState,
+    EnumSortDirection,
+    SITE_PUBLICATION_LOCK_KEY,
+)
+from APPs.Management.schema.body import BodyManagementSitePatch
+from APPs.Auth.schema.body import validate_auth_email
+from APPs.Management.schema.resp import RespManagementSite
+from APPs.Portfolio.module.module_portfolio_manage import PortfolioManagementModule
 
 # ◆—< Pack >—————————————————————————————————◆ Common
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 from COMMON.schema.resp import RespRecords
 
 # ◆—< Pack >—————————————————————————————————◆ System
+from SYSTEM.constants import EnumDBType, EnumLocal, EnumHttpHeader
 from SYSTEM.models import (
     AuthRole,
     AuthUser,
@@ -21,10 +40,15 @@ from SYSTEM.models import (
 from fastapi import HTTPException
 
 # ◆—< Pack >—————————————————————————————————◆ SqlAlchemy
-from sqlalchemy import Select, and_, case, func, literal, select
+from sqlalchemy import Select, and_, case, func, literal, select, update
 from COMMON.tools.storage.sqlalchemy.tools_column_filters import apply_column_filters, trim_column_text
 from COMMON.tools.storage.sqlalchemy.tools_table_search import apply_table_search
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
+
+# ◆—< Pack >—————————————————————————————————◆ Pydantic
+from pydantic import ValidationError
 
 # Generated from ECMAScript Script=Han to share the browser name-order rule.
 HAN_NAME_PATTERN = "^[⺀-⺙⺛-⻳⼀-⿕々〇〡-〩〸-〻㐀-䶿一-\u9fff豈-舘並-龎𖿢-𖿣𖿰-\U00016ff6𠀀-\U0002a6df𪜀-𫠝𫠠-\U0002cead𬺰-𮯠\U0002ebf0-\U0002ee5d丽-𪘀𰀀-𱍊\U00031350-\U00033479]+$"
@@ -45,9 +69,11 @@ class ManagementListModule(SqlAlchemyExecAsync):
         filters: tuple[dict, ...],
         sort: tuple[tuple[str, str], ...],
         search: dict | None = None,
+        *,
+        session: AsyncSession | None = None,
     ) -> None:
         """Own validated page controls; resource projections supply allowed column expressions."""
-        super().__init__()
+        super().__init__(session=session)
         self.page_number, self.page_size = page, size
         self.filters, self.sort = filters, sort
         self.search = search
@@ -68,7 +94,9 @@ class ManagementListModule(SqlAlchemyExecAsync):
         """
         for field, direction in self.sort:
             expression = columns[field]
-            stmt = stmt.order_by((expression.asc() if direction == "asc" else expression.desc()).nulls_last())
+            stmt = stmt.order_by(
+                (expression.asc() if direction == EnumSortDirection.ASC else expression.desc()).nulls_last()
+            )
         return stmt
 
     async def page(self, stmt: Select) -> dict:
@@ -84,7 +112,7 @@ class ManagementListModule(SqlAlchemyExecAsync):
         try:
             result = await self.paginate_orm(stmt, page=self.page_number, size=self.page_size, unique=False)
         except (SQLAlchemyError, RuntimeError, OSError):
-            raise HTTPException(status_code=503, detail="MANAGEMENT_DATABASE_UNAVAILABLE") from None
+            raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
         return RespRecords.from_records(
             result.items, total=result.total, page=result.page, size=result.size
         ).model_dump()
@@ -108,11 +136,15 @@ class ManagementRolesModule(ManagementListModule):
                                                                                                ♂ ZhengLee 2026.10.12
         """
         assigned = (
-            select(AuthUser.role_id, func.count(AuthUser.id).label("user_count")).group_by(AuthUser.role_id).subquery()
+            select(AuthUser.role_id, func.count(AuthUser.id).label(EnumManagementField.USER_COUNT))
+            .group_by(AuthUser.role_id)
+            .subquery()
         )
-        columns = {name: getattr(AuthRole, name) for name in ROLE_COLUMNS}
-        columns["user_count"] = func.coalesce(assigned.c.user_count, 0).label("user_count")
-        stmt = select(*columns.values()).outerjoin(assigned, assigned.c.role_id == AuthRole.id)
+        columns = dict(ROLE_FIELD_COLUMNS)
+        columns[EnumManagementField.USER_COUNT] = func.coalesce(assigned.c[EnumManagementField.USER_COUNT], 0)
+        stmt = select(*(expression.label(field) for field, expression in columns.items())).outerjoin(
+            assigned, assigned.c[AuthUser.role_id.key] == AuthRole.id
+        )
         return await self.page(self.apply_sort(self.apply_filters(stmt, columns), columns))
 
 
@@ -136,32 +168,24 @@ class ManagementUsersModule(ManagementListModule):
         logins = (
             select(
                 RecordLogin.user_id,
-                func.count(RecordLogin.id).label("login_count"),
-                func.max(RecordLogin.logintime).label("last_login"),
+                func.count(RecordLogin.id).label(EnumManagementField.LOGIN_COUNT),
+                func.max(RecordLogin.logintime).label(EnumManagementField.LAST_LOGIN),
             )
             .group_by(RecordLogin.user_id)
             .subquery()
         )
         columns = {
-            "id": AuthUser.id,
-            "email": AuthUser.email,
-            "role_id": AuthUser.role_id,
-            "role": AuthRole.role.label("role"),
-            "is_active": AuthUser.is_active,
-            "role_is_active": AuthRole.is_active.label("role_is_active"),
-            "site_id": PortfolioSite.id.label("site_id"),
-            "has_site": PortfolioSite.id.is_not(None).label("has_site"),
-            "login_count": func.coalesce(logins.c.login_count, 0).label("login_count"),
-            "last_login": logins.c.last_login,
-            "createtime": AuthUser.createtime,
-            "updatetime": AuthUser.updatetime,
+            **USER_FIELD_COLUMNS,
+            EnumManagementField.HAS_SITE: PortfolioSite.id.is_not(None),
+            EnumManagementField.LOGIN_COUNT: func.coalesce(logins.c[EnumManagementField.LOGIN_COUNT], 0),
+            EnumManagementField.LAST_LOGIN: logins.c[EnumManagementField.LAST_LOGIN],
         }
         stmt = (
-            select(*columns.values())
+            select(*(expression.label(field) for field, expression in columns.items()))
             .select_from(AuthUser)
             .join(AuthRole, AuthRole.id == AuthUser.role_id)
             .outerjoin(PortfolioSite, PortfolioSite.user_id == AuthUser.id)
-            .outerjoin(logins, logins.c.user_id == AuthUser.id)
+            .outerjoin(logins, logins.c[RecordLogin.user_id.key] == AuthUser.id)
         )
         return await self.page(self.apply_sort(self.apply_filters(stmt, columns), columns))
 
@@ -169,32 +193,33 @@ class ManagementUsersModule(ManagementListModule):
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Management - Sites
 class ManagementSitesModule(ManagementListModule):
     """
-    Read person-based portfolio settings and the requested language, including missing sites.
+    Read and update person-based platform settings within the same resource module.
 
                                                                                                ♂ ZhengLee 2026.10.12
     """
 
     def __init__(
         self,
-        page: int,
-        size: int,
-        filters: tuple[dict, ...],
-        sort: tuple[tuple[str, str], ...],
-        locale: str,
+        page: int = 1,
+        size: int = 6,
+        filters: tuple[dict, ...] = (),
+        sort: tuple[tuple[str, str], ...] = (),
+        locale: EnumLocal = EnumLocal.EN,
         search: dict | None = None,
+        *,
+        session: AsyncSession | None = None,
     ) -> None:
         """Restrict joined profile fields and derived names to one requested language."""
-        super().__init__(page, size, filters, sort, search)
-        self.locale = locale
+        super().__init__(page, size, filters, sort, search, session=session)
+        self.locale = EnumLocal(locale)
 
-    async def select(self) -> dict:
+    def _query(self) -> tuple[Select, dict]:
         """
-        Query all account owners with only their requested language joined before filtering and pagination.
+        Build one shared projection for list reads and post-update row responses.
 
-        :return: One page of person-based platform records, including missing-site/translation placeholders.
-        :raises HTTPException: Storage is unavailable.
+        :return: Owner-based statement and filter expressions, without pagination or target selection.
 
-                                                                                               ♂ ZhengLee 2026.10.12
+                                                                                               ♂ ZhengLee 2026.10.15
         """
         has_profile = (
             select(literal(1))
@@ -204,28 +229,21 @@ class ManagementSitesModule(ManagementListModule):
             .where(
                 PortfolioCareer.site_id == PortfolioSite.id,
                 PortfolioCareerLocale.locale == self.locale,
-                PortfolioLocale.is_active.is_(True),
             )
             .correlate(PortfolioSite)
             .exists()
         )
         columns = {
-            "id": AuthUser.id,
-            "user": AuthUser.user,
-            "owner_email": AuthUser.email.label("owner_email"),
-            "owner_is_active": AuthUser.is_active.label("owner_is_active"),
-            "site_id": PortfolioSite.id.label("site_id"),
-            "has_site": PortfolioSite.id.is_not(None).label("has_site"),
-            "has_profile": has_profile.label("has_profile"),
-            **{name: getattr(PortfolioSite, name) for name in SITE_COLUMNS},
-            "locale": literal(self.locale).label("locale"),
-            "has_translation": PortfolioSiteLocale.id.is_not(None).label("has_translation"),
-            **{name: getattr(PortfolioSiteLocale, name) for name in SITE_LOCALE_COLUMNS},
-            "createtime": AuthUser.createtime,
-            "updatetime": AuthUser.updatetime,
+            **SITE_OWNER_COLUMNS,
+            **SITE_PATCH_COLUMNS,
+            **SITE_TRANSLATION_PATCH_COLUMNS,
+            EnumManagementField.HAS_SITE: PortfolioSite.id.is_not(None),
+            EnumManagementField.HAS_PROFILE: has_profile,
+            EnumManagementField.LOCALE: literal(self.locale),
+            EnumManagementField.HAS_TRANSLATION: PortfolioSiteLocale.id.is_not(None),
         }
         stmt = (
-            select(*columns.values())
+            select(*(expression.label(field) for field, expression in columns.items()))
             .select_from(AuthUser)
             .outerjoin(PortfolioSite, PortfolioSite.user_id == AuthUser.id)
             .outerjoin(
@@ -240,10 +258,180 @@ class ManagementSitesModule(ManagementListModule):
             (and_(first.regexp_match(HAN_NAME_PATTERN), family.regexp_match(HAN_NAME_PATTERN)), family + first),
             else_=trim_column_text(first + literal(" ") + family),
         )
-        columns["profile_name"] = func.coalesce(
+        columns[EnumManagementField.PROFILE_NAME] = func.coalesce(
             func.nullif(name, ""), func.nullif(trim_column_text(PortfolioSiteLocale.nick_name), "")
         )
+        return stmt, columns
+
+    async def select(self) -> dict:
+        """
+        Query all owners with the requested language joined before filtering and pagination.
+
+        :return: One page, including owners whose website or requested translation is missing.
+        :raises HTTPException: Storage failures return the shared sanitized 503 response.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        stmt, columns = self._query()
         return await self.page(self.apply_sort(self.apply_filters(stmt, columns), columns))
+
+    async def update(self, account_id: int, changes: dict, *, expected_owner_email: str) -> dict:
+        """
+        Atomically patch an existing owner's website and selected translation without changing identity.
+
+        The view checks current management permission. This method owns all resource
+        rules and commits once through the shared executor; AuthUser is never updated.
+        Publication writes serialize in PostgreSQL with a transaction advisory lock.
+        SQLite acquires its writer lock before reading the state used by this patch.
+
+        :param account_id: Existing account PK, matching the Platform row identity.
+        :param expected_owner_email: Immutable target confirmation; must match the same account under lock.
+        :param changes: Explicit mutable assignments; omitted values remain unchanged.
+        :return: Complete RespManagementSite projection read inside the write transaction.
+        :raises HTTPException: Invalid input (422), missing records (404), state conflicts (409),
+                               or unavailable storage (503). Cache failure after commit is explicit.
+
+                                                                                               ♂ ZhengLee 2026.10.15
+        """
+        # --------------------------------------------------● Step 1. Defend the module boundary as well as HTTP input.
+        if type(account_id) is not int or not 1 <= account_id <= 2147483647:
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_ACCOUNT_ID)
+        try:
+            expected_owner_email = validate_auth_email(expected_owner_email)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_ACCOUNT_CONFIRMATION) from None
+        if not isinstance(changes, dict):
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_PLATFORM_PATCH)
+        try:
+            changes = BodyManagementSitePatch.model_validate(changes).orm_changes()
+        except ValidationError:
+            raise HTTPException(status_code=422, detail=EnumManagementError.INVALID_PLATFORM_PATCH) from None
+        site_changes = {column: value for column, value in changes.items() if column in frozenset(SITE_COLUMNS)}
+        translation_changes = {
+            column: value for column, value in changes.items() if column in frozenset(SITE_LOCALE_COLUMNS)
+        }
+
+        try:
+            async with self.transaction() as transaction:
+                # ------------------------------------------● Step 2. Lock before reading publication decisions.
+                dialect = transaction.session.get_bind().dialect.name
+                if dialect == EnumDBType.POSTGRESQL and {
+                    PortfolioSite.is_published,
+                    PortfolioSite.is_default,
+                }.intersection(changes):
+                    await transaction.execute_orm(select(func.pg_advisory_xact_lock(SITE_PUBLICATION_LOCK_KEY)))
+                elif dialect == EnumDBType.SQLLite:
+                    # A no-op write acquires SQLite's database writer lock without touching account timestamps.
+                    await transaction.execute_orm(
+                        update(PortfolioSite)
+                        .where(
+                            PortfolioSite.user_id.in_(
+                                select(AuthUser.id).where(
+                                    AuthUser.id == account_id, AuthUser.email == expected_owner_email
+                                )
+                            )
+                        )
+                        .values({PortfolioSite.is_published: PortfolioSite.is_published})
+                    )
+                owner = (
+                    (
+                        await transaction.execute_orm(
+                            select(AuthUser)
+                            .options(load_only(AuthUser.id, AuthUser.is_active, raiseload=True))
+                            .where(AuthUser.id == account_id, AuthUser.email == expected_owner_email)
+                            .with_for_update(read=True)
+                        )
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if owner is None:
+                    raise HTTPException(status_code=404, detail=EnumManagementError.ACCOUNT_NOT_FOUND)
+                site = (
+                    (
+                        await transaction.execute_orm(
+                            select(PortfolioSite)
+                            .options(
+                                load_only(
+                                    PortfolioSite.id,
+                                    PortfolioSite.is_published,
+                                    PortfolioSite.is_default,
+                                    raiseload=True,
+                                )
+                            )
+                            .where(PortfolioSite.user_id == account_id)
+                            .with_for_update()
+                        )
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if site is None:
+                    raise HTTPException(status_code=404, detail=EnumManagementError.SITE_NOT_FOUND)
+
+                # ------------------------------------------● Step 3. Include inactive translations in management; require existence only.
+                if translation_changes:
+                    translation_id = (
+                        await transaction.execute_orm(
+                            select(PortfolioSiteLocale.id)
+                            .join(PortfolioLocale, PortfolioLocale.code == PortfolioSiteLocale.locale)
+                            .where(
+                                PortfolioSiteLocale.site_id == site.id,
+                                PortfolioSiteLocale.locale == self.locale,
+                            )
+                            # Lock this site's translation, not the shared language row across every website.
+                            .with_for_update(of=PortfolioSiteLocale)
+                        )
+                    ).scalar_one_or_none()
+                    if translation_id is None:
+                        raise HTTPException(status_code=404, detail=EnumManagementError.SITE_TRANSLATION_NOT_FOUND)
+
+                # ------------------------------------------● Step 4. Validate the final publication/default state, then replace the old default.
+                published = site_changes.get(PortfolioSite.is_published, site.is_published)
+                default = site_changes.get(PortfolioSite.is_default, site.is_default)
+                if site_changes.get(PortfolioSite.is_default) is True and (not published or not owner.is_active):
+                    raise HTTPException(
+                        status_code=409, detail=EnumManagementError.DEFAULT_SITE_REQUIRES_ACTIVE_PUBLISHED
+                    )
+                if not published and default:
+                    site_changes[PortfolioSite.is_default] = False
+                if site_changes.get(PortfolioSite.is_default) is True:
+                    await transaction.execute_orm(
+                        update(PortfolioSite)
+                        .where(PortfolioSite.is_default.is_(True), PortfolioSite.id != site.id)
+                        .values({PortfolioSite.is_default: False})
+                    )
+
+                # ------------------------------------------● Step 5. Persist both field groups and validate the shared response before commit.
+                if site_changes:
+                    await transaction.execute_orm(
+                        update(PortfolioSite).where(PortfolioSite.id == site.id).values(site_changes)
+                    )
+                if translation_changes:
+                    await transaction.execute_orm(
+                        update(PortfolioSiteLocale)
+                        .where(PortfolioSiteLocale.id == translation_id)
+                        .values(translation_changes)
+                    )
+                stmt, _ = self._query()
+                row = (await transaction.execute_orm(stmt.where(AuthUser.id == account_id))).mappings().one()
+                result = RespManagementSite.model_validate(row).model_dump()
+        except IntegrityError:
+            raise HTTPException(status_code=409, detail=EnumManagementError.PLATFORM_UPDATE_CONFLICT) from None
+        except (SQLAlchemyError, ValidationError, RuntimeError, OSError):
+            raise HTTPException(status_code=503, detail=EnumManagementError.MANAGEMENT_DATABASE_UNAVAILABLE) from None
+
+        # --------------------------------------------------● Step 6. Reuse namespace invalidation only after the transaction commits.
+        try:
+            await PortfolioManagementModule.invalidate_cache()
+        except (HTTPException, AssertionError):
+            # The database already committed; callers must refetch instead of assuming rollback.
+            raise HTTPException(
+                status_code=503,
+                detail=EnumManagementError.MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE,
+                headers={EnumHttpHeader.MANAGEMENT_UPDATE_STATE: EnumManagementUpdateState.COMMITTED},
+            ) from None
+        return result
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Management - Login Records
@@ -279,17 +467,19 @@ class ManagementLoginRecordsModule(ManagementListModule):
 
                                                                                                ♂ ZhengLee 2026.10.15
         """
-        columns = {
-            name: AuthUser.email if name == "email" else getattr(RecordLogin, name)
-            for name in LOGIN_SORT_FIELDS
-        }
-        stmt = select(*columns.values()).join(AuthUser, AuthUser.id == RecordLogin.user_id)
+        columns = dict(LOGIN_FIELD_COLUMNS)
+        stmt = select(*(expression.label(field) for field, expression in columns.items())).join(
+            AuthUser, AuthUser.id == RecordLogin.user_id
+        )
         if self.user_id is not None:
             stmt = stmt.where(RecordLogin.user_id == self.user_id)
         return await self.page(self.apply_sort(self.apply_filters(stmt, columns), columns))
 
 
 __all__ = (
-    "ManagementListModule", "ManagementRolesModule", "ManagementUsersModule", "ManagementSitesModule",
+    "ManagementListModule",
+    "ManagementRolesModule",
+    "ManagementUsersModule",
+    "ManagementSitesModule",
     "ManagementLoginRecordsModule",
 )

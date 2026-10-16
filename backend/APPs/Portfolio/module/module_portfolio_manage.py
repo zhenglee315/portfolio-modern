@@ -6,7 +6,7 @@ from COMMON.tools.storage.redis import RedisAsync
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache
+from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache, EnumCacheNamespace, EnumCacheError
 from SYSTEM.models import AuthUser, PortfolioSite
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
@@ -63,9 +63,9 @@ class PortfolioManagementModule(SqlAlchemyExecAsync):
         """
         try:
             prefix = FastAPICache.get_prefix()
-            await RedisAsync(key=EnumCache.WEB).delete_pattern(f"{prefix}:portfolio:*")
+            await RedisAsync(key=EnumCache.WEB).delete_pattern(f"{prefix}:{EnumCacheNamespace.PORTFOLIO}:*")
         except (RedisError, KeyError, RuntimeError, OSError):
-            raise HTTPException(status_code=503, detail="PORTFOLIO_CACHE_UNAVAILABLE") from None
+            raise HTTPException(status_code=503, detail=EnumCacheError.PORTFOLIO_CACHE_UNAVAILABLE) from None
 
     async def owned_site(self, request: Request, site_id: int, permission: str) -> dict:
         """

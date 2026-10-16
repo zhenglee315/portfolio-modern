@@ -269,4 +269,17 @@ class AuthUser(BASE):
             return False
 
 
-__all__ = ('AuthRole', 'AuthUser')
+# ■—< ORM >———————————————————————————————————————————————————————————————————————————■ Auth - Permission Columns
+# Explicit ORM references support registration projections without dynamic getattr lookups.
+#                                                                                               ♂ ZhengLee 2026.10.16
+AUTH_ROLE_PERMISSION_COLUMNS = (
+    AuthRole.is_create,
+    AuthRole.is_read,
+    AuthRole.is_update,
+    AuthRole.is_delete,
+    AuthRole.is_manage_roles,
+    AuthRole.is_manage_users,
+    AuthRole.is_manage_sites,
+)
+
+__all__ = ("AuthRole", "AuthUser", "AUTH_ROLE_PERMISSION_COLUMNS")

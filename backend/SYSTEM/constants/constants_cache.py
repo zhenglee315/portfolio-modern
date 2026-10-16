@@ -1,7 +1,23 @@
 # ◆—< Pack >—————————————————————————————————◆ Tools
 from COMMON.tools.tools_enum import EnumUtils, IntEnumUtils
 
-__all__ = ["EnumCache", "CacheIdx", "CacheRedisRange", "CacheExpiry"]
+__all__ = ["EnumCache", "EnumCacheNamespace", "EnumCacheError", "CacheIdx", "CacheRedisRange", "CacheExpiry"]
+
+
+# ■—< Enum >——————————————————————————————————————————————————————————————————————————■ Cache namespaces
+class EnumCacheNamespace(EnumUtils):
+    """Keep response-cache readers and invalidation on the same namespace.
+
+    ♂ ZhengLee 2026.10.16
+    """
+
+    PORTFOLIO = "portfolio"
+
+
+class EnumCacheError(EnumUtils):
+    """Share cache failure codes between public-content and management operations."""
+
+    PORTFOLIO_CACHE_UNAVAILABLE = "PORTFOLIO_CACHE_UNAVAILABLE"
 
 
 # ■—< Enum >——————————————————————————————————————————————————————————————————————————■ Cache roles

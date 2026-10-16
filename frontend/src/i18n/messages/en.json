@@ -384,7 +384,7 @@
       "excel": "Excel",
       "csv": "CSV",
       "print": "Print",
-      "scope": "Current page · visible columns",
+      "scope": "Current page",
       "busy": "Preparing export…",
       "error": "Could not export these records. Please try again.",
       "copied": "Copied to clipboard."

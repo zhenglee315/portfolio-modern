@@ -1,9 +1,17 @@
 # ◆—< Pack >—————————————————————————————————◆ Project
 from APPs.Auth.module import AuthSessionModule
-from APPs.Management.constants import MANAGEMENT_PRIVATE_HEADERS
+from APPs.Management.constants import MANAGEMENT_PRIVATE_HEADERS, EnumManagementError
+from APPs.Auth.schema.resp import RespAuthUser
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import AUTH_PERMISSION_FIELDS
+from SYSTEM.models import AuthRole
+
+# ◆—< Pack >—————————————————————————————————◆ SQLAlchemy / Pydantic
+from sqlalchemy.orm import InstrumentedAttribute
+from pydantic import ValidationError
+
+# ◆—< Pack >—————————————————————————————————◆ Python
+from collections.abc import Callable
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import Depends, HTTPException, Request, Response
@@ -21,7 +29,7 @@ class _ManagementIdentity:
                                                                                                ♂ ZhengLee 2026.10.15
     """
 
-    async def __call__(self, request: Request, response: Response) -> dict:
+    async def __call__(self, request: Request, response: Response) -> RespAuthUser:
         """
         Restore the active account and role through the established SESSION reader.
 
@@ -42,8 +50,17 @@ class _ManagementIdentity:
             raise
         # --------------------------------------------------● Step 3. Reject absent or disabled identities.
         if account is None:
-            raise HTTPException(status_code=401, detail="AUTH_REQUIRED", headers=MANAGEMENT_PRIVATE_HEADERS)
-        return account
+            raise HTTPException(
+                status_code=401, detail=EnumManagementError.AUTH_REQUIRED, headers=MANAGEMENT_PRIVATE_HEADERS
+            )
+        try:
+            return RespAuthUser.model_validate(account, strict=True)
+        except ValidationError:
+            raise HTTPException(
+                status_code=503,
+                detail=EnumManagementError.AUTH_DATABASE_UNAVAILABLE,
+                headers=MANAGEMENT_PRIVATE_HEADERS,
+            ) from None
 
 
 # One dependency instance enables FastAPI's request-local reuse across permission rules.
@@ -55,7 +72,7 @@ class ManagementPermission:
     """
     Declare reusable permission conditions as a parameterized FastAPI dependency.
 
-    Example: Depends(ManagementPermission(is_manage_roles=True)). Multiple flags
+    Example: Depends(ManagementPermission(AuthRole.is_manage_roles)). Multiple columns
     combine with AND and require an explicit database boolean True. This class
     checks authorization only; resource ownership and transactional business rules
     remain with the resource module. Existing flags do not express per-module CRUD.
@@ -63,42 +80,53 @@ class ManagementPermission:
                                                                                                ♂ ZhengLee 2026.10.15
     """
 
-    def __init__(self, *, denied_detail: str = "PERMISSION_DENIED", **required: bool) -> None:
-        """
-        Validate a server-declared rule when the API is registered.
+    # Each gate binds a real ORM permission to an explicit typed identity property.
+    # External identity keys are parsed once by _ManagementIdentity, never indexed here.
+    #                                                                                           ♂ ZhengLee 2026.10.16
+    _CHECKS: dict[InstrumentedAttribute, Callable[[RespAuthUser], bool]] = {
+        AuthRole.is_create: lambda account: account.is_create,
+        AuthRole.is_read: lambda account: account.is_read,
+        AuthRole.is_update: lambda account: account.is_update,
+        AuthRole.is_delete: lambda account: account.is_delete,
+        AuthRole.is_manage_roles: lambda account: account.is_manage_roles,
+        AuthRole.is_manage_users: lambda account: account.is_manage_users,
+        AuthRole.is_manage_sites: lambda account: account.is_manage_sites,
+    }
 
-        :param denied_detail: Stable 403 code; preview routes may retain their existing error contract.
-        :param required: Recognized permission names set to True; every specified permission is required.
-        :return: None; immutable conditions are retained without any request-specific state.
-        :raises ValueError: Conditions are empty, unknown, non-True, or the denial code is invalid.
-
-                                                                                               ♂ ZhengLee 2026.10.15
+    def __init__(
+        self, *required: InstrumentedAttribute, denied_detail: str = EnumManagementError.PERMISSION_DENIED
+    ) -> None:
         """
-        # --------------------------------------------------● Step 1. Reject incomplete or misspelled rules.
+        Validate explicitly referenced ORM permission columns when a route is registered.
+
+        :param required: Allowlisted AuthRole boolean attributes; multiple gates combine with AND.
+        :param denied_detail: Stable public error code, preserving the preview contract.
+        :raises ValueError: No gates, duplicate gates, string names or non-permission columns were supplied.
+
+                                                                                               ♂ ZhengLee 2026.10.16
+        """
         if not required:
-            raise ValueError("At least one permission condition is required.")
-        unknown = set(required).difference(AUTH_PERMISSION_FIELDS)
-        if unknown:
-            raise ValueError(f"Unknown permission conditions: {', '.join(sorted(unknown))}.")
-        if any(expected is not True for expected in required.values()):
-            raise ValueError("Permission conditions must be the boolean True.")
+            raise ValueError("At least one ORM permission is required.")
+        if any(not isinstance(column, InstrumentedAttribute) or column not in self._CHECKS for column in required):
+            raise ValueError("Only explicitly allowlisted AuthRole permission attributes are accepted.")
+        if len(set(required)) != len(required):
+            raise ValueError("Duplicate ORM permission conditions are not accepted.")
         if not isinstance(denied_detail, str) or not denied_detail.strip():
             raise ValueError("Permission denial detail must be a non-empty string.")
-        # --------------------------------------------------● Step 2. Retain server-side configuration only.
-        self.required = tuple(required)
+        self.required = tuple(self._CHECKS[column] for column in required)
         self.denied_detail = denied_detail
 
-    async def __call__(self, account: dict = Depends(_CURRENT_IDENTITY)) -> dict:
+    async def __call__(self, account: RespAuthUser = Depends(_CURRENT_IDENTITY)) -> RespAuthUser:
         """
-        Enforce every declared permission before the protected API executes.
+        Check typed identity properties refreshed from the database for this request.
 
-        :param account: Current identity supplied by the shared FastAPI sub-dependency.
-        :return: Authorized account, available to APIs that declare this dependency as a parameter.
-        :raises HTTPException: A missing, false, or non-boolean permission returns 403.
+        :param account: Validated current identity; stale SESSION flags never grant permission.
+        :return: Authorized typed identity, available to handlers that need the actor.
+        :raises HTTPException: A required permission that is not True returns 403.
 
-                                                                                               ♂ ZhengLee 2026.10.15
+                                                                                               ♂ ZhengLee 2026.10.16
         """
-        if any(account.get(field) is not True for field in self.required):
+        if any(check(account) is not True for check in self.required):
             raise HTTPException(status_code=403, detail=self.denied_detail, headers=MANAGEMENT_PRIVATE_HEADERS)
         return account
 

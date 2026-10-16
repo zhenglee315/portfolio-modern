@@ -1,12 +1,11 @@
 """Describe role, account and platform rows within the common numbered response envelope."""
 
 from datetime import datetime, timezone
-from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 from COMMON.schema.resp import RespRecords
-from SYSTEM.constants import LoginGeoStatus
+from SYSTEM.constants import LoginGeoStatus, EnumLocal
 
 
 class RespManagementRole(BaseModel):
@@ -80,7 +79,8 @@ class RespManagementSite(BaseModel):
     site_id: int | None = Field(..., description="Portfolio ID; null when this person has no portfolio.")
     has_site: bool = Field(..., description="Whether the owner has created a portfolio.")
     has_profile: bool = Field(
-        ..., description="Whether this site has a work or education record in the requested active language."
+        ...,
+        description="Whether this site has a work or education record in the requested language, including disabled languages.",
     )
     is_published: bool | None = Field(..., description="Publication flag; null when no portfolio exists.")
     is_default: bool | None = Field(..., description="Default homepage flag; null when no portfolio exists.")
@@ -90,7 +90,7 @@ class RespManagementSite(BaseModel):
     medium: str | None = Field(..., description="Public Medium URL; empty string hides the link.")
     email: str | None = Field(..., description="Public portfolio contact email; separate from the login email.")
     chat_icon: str | None = Field(..., description="Bundled contact-bubble icon path.")
-    locale: Literal["en", "zh-Hans", "zh-Hant"] = Field(..., description="Requested management content language.")
+    locale: EnumLocal = Field(..., description="Requested management content language.")
     has_translation: bool = Field(..., description="Whether this portfolio has content in the requested language.")
     brand_title: str | None = Field(..., description="Localized brand title; null without the requested translation.")
     brand_title_sub: str | None = Field(..., description="Localized brand subtitle.")
@@ -138,10 +138,14 @@ class RespManagementLoginRecord(BaseModel):
     email: str = Field(..., max_length=254, description="Read-only account login email.")
     logintime: datetime = Field(..., description="Original login time serialized in UTC ISO 8601.")
     ip_address: str | None = Field(..., max_length=45, description="Normalized request IP, or null when unknown.")
-    country_code: str | None = Field(..., min_length=2, max_length=2, description="Approximate IP-derived country code.")
+    country_code: str | None = Field(
+        ..., min_length=2, max_length=2, description="Approximate IP-derived country code."
+    )
     region: str | None = Field(..., max_length=128, description="Approximate region captured at login time.")
     city: str | None = Field(..., max_length=128, description="Approximate city captured at login time.")
-    geo_status: LoginGeoStatus = Field(..., description="GeoIP result; missing geography does not invalidate the login.")
+    geo_status: LoginGeoStatus = Field(
+        ..., description="GeoIP result; missing geography does not invalidate the login."
+    )
 
     @field_validator("logintime")
     @classmethod

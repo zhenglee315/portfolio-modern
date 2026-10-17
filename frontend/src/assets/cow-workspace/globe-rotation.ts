@@ -9,11 +9,6 @@ export interface CowGlobeRotationFrame {
   readonly paths: readonly CowGlobeRotationPath[];
 }
 export const COW_GLOBE_ROTATION_DURATION = 36;
-export const COW_GLOBE_ROTATION_FRAME_COUNT = 120;
-export const COW_GLOBE_ROTATION_GRID = 4;
-export const COW_GLOBE_ROTATION_GEOMETRY = { cx: 367.374, cy: 1046.167, r: 73.166 } as const;
-export const COW_GLOBE_ROTATION_SOURCE_SHA =
-  'e018ee077e906faa0be82d381969683c9c88baf1c3c09aae6bfa0ab6787c7a91';
 export const COW_GLOBE_ROTATION_BASE: readonly CowGlobeRotationPath[] = [
   {
     fill: '#1b4e89',

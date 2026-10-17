@@ -1,5 +1,10 @@
 # ◆—< Pack >—————————————————————————————————◆ Project
-from APPs.Auth.module import AuthRegisterModule, AuthSessionModule, AuthSignInModule, AuthSignOutModule
+from APPs.Auth.module import (
+    AuthRegisterModule,
+    AuthSessionModule,
+    AuthSignInModule,
+    AuthSignOutModule,
+)
 from APPs.Auth.schema.parser import (
     parser_auth_email,
     parser_auth_email_available,
@@ -57,7 +62,11 @@ class AuthRoute(APIRoute):
                 response = await route_handler(request)
             except RequestValidationError as error:
                 detail = [{"loc": item["loc"], "type": item["type"], "msg": item["msg"]} for item in error.errors()]
-                raise HTTPException(status_code=422, detail=detail, headers={"Cache-Control": "no-store"}) from None
+                raise HTTPException(
+                    status_code=422,
+                    detail=detail,
+                    headers={"Cache-Control": "no-store"},
+                ) from None
             except HTTPException as error:
                 error.headers = {**(error.headers or {}), "Cache-Control": "no-store"}
                 raise

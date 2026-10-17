@@ -1,10 +1,30 @@
 # ◆—< Pack >—————————————————————————————————◆ Core
 from SYSTEM.lifespan import lifespan
+from SYSTEM.constants import EnumCache
+from SYSTEM.extension import sio
+from fastapi import FastAPI
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.middleware import *
-from SYSTEM.settings import *
-from SYSTEM.tools import *
+from SYSTEM.middleware import MIDDLEWARES, MonitorMiddleware
+from SYSTEM.settings import (
+    DIR_APPS,
+    DIR_STATIC,
+    SVR_HOST_CONF,
+    SVR_PORT,
+    SVR_TRUSTED_PROXIES,
+    SVR_WORKERS,
+    MONITOR_CYCLE_SEC,
+    URL_DOCS,
+    URL_REDOC,
+    CACHE_CONF,
+    FASTAPI_CONF,
+)
+from SYSTEM.tools import (
+    socketio_init_app,
+    fastapi_include_routers,
+    FastApiLocalDocs,
+    WorkerMonitor,
+)
 
 # ◆—< Pack >—————————————————————————————————◆ Server
 from starlette.types import ASGIApp
@@ -13,6 +33,7 @@ import uvicorn
 # ◆—< Pack >—————————————————————————————————◆ Python
 from pathlib import Path
 from socket import gethostname
+from COMMON.tools.storage.redis import RedisSync
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ MAIN-FastAPI
@@ -41,7 +62,11 @@ class FastApiServer:
 
     def __init_static(self):
         FastApiLocalDocs(
-            self.app, dir_path="SYSTEM", dir_static=self.dir_static, docs_url=URL_DOCS, redoc_url=URL_REDOC
+            self.app,
+            dir_path="SYSTEM",
+            dir_static=self.dir_static,
+            docs_url=URL_DOCS,
+            redoc_url=URL_REDOC,
         ).load()
 
     def __init_router(self):
@@ -97,7 +122,12 @@ if __name__ == "__main__":
     """
 
     try:
-        with WorkerMonitor.supervise(workers=SVR_WORKERS, instance_id=f"{gethostname()}:{SVR_PORT}"):
+        with WorkerMonitor.supervise(
+            workers=SVR_WORKERS,
+            instance_id=f"{gethostname()}:{SVR_PORT}",
+            storage_factory=lambda: RedisSync.from_config(CACHE_CONF[EnumCache.SYS]),
+            interval=MONITOR_CYCLE_SEC,
+        ):
             uvicorn.run(
                 app=f"{Path(__file__).stem}:{create_app.__name__}",
                 factory=True,

@@ -12,7 +12,10 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # ◆—< Pack >—————————————————————————————————◆ Redis
-from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
+from redis.exceptions import (
+    ConnectionError as RedisConnectionError,
+    TimeoutError as RedisTimeoutError,
+)
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Middleware - Heartbeat

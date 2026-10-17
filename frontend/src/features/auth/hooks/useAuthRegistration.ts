@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { isNotificationCancellation } from '@/i18n/notification-copy';
 import { ApiError } from '@/shared/api/http';
 import { useNotifications } from '@/shared/ui/NotificationProvider';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { authFailure } from '../lib/auth-failure';
 import { useVerificationCooldown } from './useVerificationCooldown';
 

@@ -40,7 +40,12 @@ _RESERVED_USERS = frozenset(
         "system",
     )
 )
-_PARENT_TABLES = ("portfolio_career", "portfolio_project", "portfolio_skill", "portfolio_skill_category")
+_PARENT_TABLES = (
+    "portfolio_career",
+    "portfolio_project",
+    "portfolio_skill",
+    "portfolio_skill_category",
+)
 
 
 # —< Identity >————————————————————————————————————————● Handle
@@ -81,7 +86,12 @@ def upgrade() -> None:
     if op.get_context().as_sql:
         raise RuntimeError("Public handle and portfolio ownership backfill requires an online migration.")
     connection = op.get_bind()
-    account = sa.table("auth_user", sa.column("id", sa.Integer()), sa.column("email"), sa.column("user"))
+    account = sa.table(
+        "auth_user",
+        sa.column("id", sa.Integer()),
+        sa.column("email"),
+        sa.column("user"),
+    )
     rows = connection.execute(sa.select(account.c.id, account.c.email, account.c.user).order_by(account.c.id)).all()
     occupied = {row.user for row in rows if row.user is not None}
     for row in rows:
@@ -92,7 +102,12 @@ def upgrade() -> None:
 
     role = sa.table("auth_role", sa.column("role"), sa.column("is_manage_sites"))
     connection.execute(role.update().values(is_manage_sites=role.c.role == "admin"))
-    site = sa.table("portfolio_site", sa.column("id", sa.Integer()), sa.column("is_published"), sa.column("is_default"))
+    site = sa.table(
+        "portfolio_site",
+        sa.column("id", sa.Integer()),
+        sa.column("is_published"),
+        sa.column("is_default"),
+    )
     sites = connection.execute(sa.select(site.c.id).order_by(site.c.id)).scalars().all()
     has_unassigned = False
     for name in _PARENT_TABLES:

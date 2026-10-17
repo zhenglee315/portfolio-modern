@@ -3,7 +3,7 @@ from SYSTEM.database import CONN_MANAGER
 from SYSTEM.settings import TIME_ZONE
 
 # ◆—< Pack >—————————————————————————————————◆ Redis
-from redis.exceptions import RedisError, ResponseError, WatchError
+from redis.exceptions import ResponseError, WatchError
 from redis.asyncio import Redis
 
 # ◆—< Pack >—————————————————————————————————◆ Standard
@@ -129,6 +129,79 @@ class RedisAsync:
                                                                                                ♂ ZhengLee 2026.10.03
         """
         return await func(*args, **kwargs)
+
+    async def ping(self) -> bool:
+        """Check the selected server; construction itself never opens a connection."""
+        return await self._execute(self.redis.ping)
+
+    async def eval(self, script: str, numkeys: int, *keys_and_args):
+        """Execute an atomic Lua operation using raw keys/arguments and raw results."""
+        return await self._execute(self.redis.eval, script, numkeys, *keys_and_args)
+
+    async def zrem(self, key: str, *members) -> int:
+        """Remove sorted-set members without serialization; no members is a no-op."""
+        if not members:
+            return 0
+        return await self._execute(self.redis.zrem, key, *members)
+
+    def lock(
+        self,
+        name: str,
+        *,
+        timeout: float,
+        blocking: bool = False,
+        thread_local: bool = False,
+    ):
+        """Create a token-owned redis-py lease; callers own acquire/renew/release."""
+        return self.redis.lock(name, timeout=timeout, blocking=blocking, thread_local=thread_local)
+
+    async def stream_group_create(self, key: str, group: str):
+        """Create a durable consumer group from the oldest entry, including an empty stream."""
+        try:
+            return await self._execute(self.redis.xgroup_create, key, group, id="0-0", mkstream=True)
+        except ResponseError as exc:
+            if "BUSYGROUP" not in str(exc):
+                raise
+            return False
+
+    async def stream_claim(self, key: str, group: str, consumer: str, *, count: int):
+        """Reclaim pending events. Caller must own its consumer's distributed mutex."""
+        result = await self._execute(
+            self.redis.xautoclaim,
+            key,
+            group,
+            consumer,
+            min_idle_time=0,
+            start_id="0-0",
+            count=count,
+        )
+        return result[1]
+
+    async def stream_read(self, key: str, group: str, consumer: str, *, count: int):
+        """Read new events into the group's pending list without deleting them."""
+        result = await self._execute(self.redis.xreadgroup, group, consumer, {key: ">"}, count=count)
+        return result[0][1] if result else []
+
+    async def stream_ack_delete(self, key: str, group: str, entry_ids: list):
+        """Acknowledge and remove committed events atomically; for single-group queues."""
+        if not entry_ids:
+            return 0
+        script = """
+            local acked = redis.call('XACK', KEYS[1], ARGV[1], unpack(ARGV, 2))
+            redis.call('XDEL', KEYS[1], unpack(ARGV, 2))
+            return acked
+        """
+        return await self.eval(script, 1, key, group, *entry_ids)
+
+    async def stream_reject(self, key: str, group: str, entry_id, dead_letter_key: str, payload, reason: str):
+        """Quarantine a malformed event before acknowledging/removing the original."""
+        script = """
+            if #redis.call('XRANGE', KEYS[1], ARGV[2], ARGV[2], 'COUNT', 1) == 0 then return 0 end
+            redis.call('XADD', KEYS[2], '*', 'source_id', ARGV[2], 'payload', ARGV[3], 'reason', ARGV[4])
+            redis.call('XACK', KEYS[1], ARGV[1], ARGV[2])
+            return redis.call('XDEL', KEYS[1], ARGV[2])
+        """
+        return await self.eval(script, 2, key, dead_letter_key, group, entry_id, payload, reason[:1000])
 
     # —< Command >—————————————————————————————————————————● SET
     async def set(
@@ -748,7 +821,11 @@ class RedisAsync:
 
     # —< Command >—————————————————————————————————————————● Heartbeat (Set user online status)
     async def heartbeat_client(
-        self, identifier: str, expire: int = 60, set_key: str = "online_clients", key_prefix: str = "online"
+        self,
+        identifier: str,
+        expire: int = 60,
+        set_key: str = "online_clients",
+        key_prefix: str = "online",
     ) -> dict:
         """
         Refresh a heartbeat TTL key and add its identifier to the roster set.
@@ -788,7 +865,10 @@ class RedisAsync:
 
         now = datetime.now(tz=ZoneInfo(TIME_ZONE))
         expiry = now + timedelta(seconds=ttl if ttl > 0 else expire)
-        return {"employee_id": identifier, "expiry": expiry.strftime("%Y-%m-%d %H:%M:%S")}
+        return {
+            "employee_id": identifier,
+            "expiry": expiry.strftime("%Y-%m-%d %H:%M:%S"),
+        }
 
     async def heartbeat_status(
         self, identifiers: list[str] | tuple[str, ...], key_prefix: str = "online"

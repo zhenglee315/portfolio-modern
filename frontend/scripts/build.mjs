@@ -6,9 +6,12 @@ import { gzipSync } from 'node:zlib';
 import { verifyPublic } from './verify-public.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const output = new URL('../build/', import.meta.url);
-const staging = new URL('../.build-staging/', import.meta.url);
-const previous = new URL('../.build-previous/', import.meta.url);
+const project = new URL('../', import.meta.url);
+const directory = process.env.PORTFOLIO_BUILD_DIR;
+// Tests use the same validation/compression pipeline with their own atomic output directories.
+const output = new URL(`${directory || 'build'}/`, project);
+const staging = new URL(`${directory ? `${directory}-staging` : '.build-staging'}/`, project);
+const previous = new URL(`${directory ? `${directory}-previous` : '.build-previous'}/`, project);
 
 /** Test artifact presence without treating an absent previous build as a failure. */
 async function exists(path) {
@@ -45,7 +48,7 @@ async function build() {
     const child = spawn(process.execPath, ['node_modules/@react-router/dev/bin.cjs', 'build'], {
       cwd: root,
       stdio: 'inherit',
-      env: { ...process.env, PORTFOLIO_BUILD_DIR: '.build-staging' },
+      env: { ...process.env, PORTFOLIO_BUILD_DIR: fileURLToPath(staging) },
     });
     child.once('error', reject);
     child.once('exit', (status) => resolve(status ?? 1));

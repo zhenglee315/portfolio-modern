@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
 import { tagPreviewCount } from '@/shared/lib/tag-layout';
 import { pageSize } from '@/shared/schemas/records';
-import { LoadMoreControl } from './LoadMoreControl';
-import { Icon } from './Icon';
+import { useEffect, useId, useRef, useState } from 'react';
 import styles from './ExpandableTagList.module.css';
+import { Icon } from './Icon';
+import { LoadMoreControl } from './LoadMoreControl';
 
 export type TagCopy = {
   more: (count: number) => string;

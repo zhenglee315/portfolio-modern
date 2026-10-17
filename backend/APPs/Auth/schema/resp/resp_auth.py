@@ -40,4 +40,10 @@ class RespAuthEmailVerified(BaseModel):
     verified: bool = Field(..., description="Whether the email verification succeeded.")
 
 
-__all__ = ("RespAuthUser", "RespAuthSignOut", "RespAuthEmailAvailability", "RespAuthCode", "RespAuthEmailVerified")
+__all__ = (
+    "RespAuthUser",
+    "RespAuthSignOut",
+    "RespAuthEmailAvailability",
+    "RespAuthCode",
+    "RespAuthEmailVerified",
+)

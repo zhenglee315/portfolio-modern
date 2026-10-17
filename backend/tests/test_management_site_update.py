@@ -1,17 +1,25 @@
 """Verify Platform PATCH against real isolated SQLite storage and the existing permission dependency."""
 
 # ◆—< Pack >—————————————————————————————————◆ Project
-from APPs.Management.constants import SITE_LOCALE_COLUMNS, SITE_PATCH_MAX_BYTES, SITE_TEXT_MAX_LENGTH, SITE_CHAT_ICONS
-from APPs.Management.module.module_management import ManagementSitesModule
+from APPs.Management.constants import (
+    SITE_LOCALE_COLUMNS,
+    SITE_PATCH_MAX_BYTES,
+    SITE_TEXT_MAX_LENGTH,
+    SITE_CHAT_ICONS,
+)
+from APPs.Management.module import ManagementSitesModule
 from APPs.Management.module.module_permission import ManagementPermission
-from APPs.Auth.module.module_auth import AuthRegisterModule
-from APPs.Management.schema.body import BodyManagementSitePatch, BodyManagementSitePatchRequest
+from APPs.Auth.module import AuthRegisterModule
+from APPs.Management.schema.body import (
+    BodyManagementSitePatch,
+    BodyManagementSitePatchRequest,
+)
 from APPs.Management.views_management import router
 from APPs.Portfolio.module.module_portfolio_manage import PortfolioManagementModule
 from APPs.Portfolio.views_portfolio import router as public_portfolio_router
 from APPs.Portfolio.module import PortfolioSiteModule
 from SYSTEM.database import CONN_MANAGER
-from SYSTEM.constants import EnumLocal
+from SYSTEM.constants import EnumLocal, EnumSess
 from SYSTEM.models import (
     BASE,
     AuthRole,
@@ -129,7 +137,10 @@ class PlatformPatchBodyTests(TestCase):
             "edu_code": "UCL",
             "copyright_year": 2026,
         }
-        self.assertEqual(BodyManagementSitePatch.model_validate(payload).model_dump(exclude_unset=True), payload)
+        self.assertEqual(
+            BodyManagementSitePatch.model_validate(payload).model_dump(exclude_unset=True),
+            payload,
+        )
 
     def test_patch_boundary_produces_orm_attributes_and_keeps_false(self):
         """One boundary translates external names; identity columns never enter writable ORM assignments."""
@@ -146,7 +157,7 @@ class PlatformPatchBodyTests(TestCase):
             ("is_manage_sites",),
             (AuthRole.role,),
             (AuthUser.is_active,),
-            (AuthRole.is_manage_sites == True,),
+            (AuthRole.is_manage_sites.is_(True),),
             (AuthRole.is_manage_sites, AuthRole.is_manage_sites),
         ]:
             with self.subTest(gates=gates), self.assertRaises(ValueError):
@@ -159,7 +170,10 @@ class PlatformPatchBodyTests(TestCase):
             {"expected_owner_email": None, "changes": {"first_name": "name"}},
             {"expected_owner_email": "invalid", "changes": {"first_name": "name"}},
             {"expected_owner_email": "person2@example.com", "changes": {}},
-            {"expected_owner_email": "person2@example.com", "changes": {"owner_email": "other@example.com"}},
+            {
+                "expected_owner_email": "person2@example.com",
+                "changes": {"owner_email": "other@example.com"},
+            },
         ]:
             with self.subTest(payload=payload), self.assertRaises(ValidationError):
                 BodyManagementSitePatchRequest.model_validate(payload)
@@ -193,7 +207,8 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.schema = f"platform_patch_{uuid4().hex}"
         if self.postgres_url:
             self.engine = create_async_engine(
-                self.postgres_url, connect_args={"server_settings": {"search_path": self.schema}}
+                self.postgres_url,
+                connect_args={"server_settings": {"search_path": self.schema}},
             )
         else:
             self.engine = create_async_engine(f"sqlite+aiosqlite:///{self.directory.name}/platform.sqlite")
@@ -277,13 +292,12 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         async def loaded_session(request, call_next):
             request.scope["session"] = self.identity.copy()
             # This fixture issues a loaded server identity; real-cookie tests exercise proof persistence/revocation.
-            from APPs.Auth.module.module_auth import AuthModule
-            from SYSTEM.constants import AUTH_SESSION_IDENTITY_KEY
+            from APPs.Auth.module import AuthModule
 
             async with self.sessions() as session:
                 actor = await session.get(AuthUser, self.identity.get("id")) if self.identity.get("id") else None
                 if actor is not None:
-                    request.scope["session"][AUTH_SESSION_IDENTITY_KEY] = AuthModule.session_identity(
+                    request.scope["session"][EnumSess.AUTH_IDENTITY] = AuthModule.session_identity(
                         actor.id, actor.password
                     )
             request.scope["session_handler"] = SimpleNamespace(is_loaded=True)
@@ -322,7 +336,11 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
                 SITE_TRANSLATION_PATCH_COLUMNS,
             )
 
-            bindings = {**SITE_ACCOUNT_PATCH_COLUMNS, **SITE_PATCH_COLUMNS, **SITE_TRANSLATION_PATCH_COLUMNS}
+            bindings = {
+                **SITE_ACCOUNT_PATCH_COLUMNS,
+                **SITE_PATCH_COLUMNS,
+                **SITE_TRANSLATION_PATCH_COLUMNS,
+            }
             stmt = (
                 select(*(column.label(field) for field, column in bindings.items()))
                 .select_from(AuthUser)
@@ -420,7 +438,12 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
                     ),
                     PortfolioProject(id=201, site_id=11, position=0, start_month=date(2020, 1, 1)),
                     PortfolioSkill(site_id=11, id="python", label_key="skill.python"),
-                    PortfolioSkillCategory(site_id=11, id="engineering", label_key="category.engineering", position=0),
+                    PortfolioSkillCategory(
+                        site_id=11,
+                        id="engineering",
+                        label_key="category.engineering",
+                        position=0,
+                    ),
                 ]
             )
             await session.flush()
@@ -449,22 +472,44 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
                         skills=["Python"],
                         detail_kind="null",
                     ),
-                    PortfolioSkillLocale(site_id=11, skill_id="python", locale=EnumLocal.ZH_HANT, label="Python"),
-                    PortfolioSkillCategoryLocale(
-                        site_id=11, category_id="engineering", locale=EnumLocal.ZH_HANT, label="工程"
+                    PortfolioSkillLocale(
+                        site_id=11,
+                        skill_id="python",
+                        locale=EnumLocal.ZH_HANT,
+                        label="Python",
                     ),
-                    PortfolioCategorySkill(site_id=11, category_id="engineering", skill_id="python", position=0),
+                    PortfolioSkillCategoryLocale(
+                        site_id=11,
+                        category_id="engineering",
+                        locale=EnumLocal.ZH_HANT,
+                        label="工程",
+                    ),
+                    PortfolioCategorySkill(
+                        site_id=11,
+                        category_id="engineering",
+                        skill_id="python",
+                        position=0,
+                    ),
                 ]
             )
 
-    async def test_confirmation_must_match_the_same_account_and_never_changes_login_email(self):
+    async def test_confirmation_must_match_the_same_account_and_never_changes_login_email(
+        self,
+    ):
         """A valid email for a different ID still fails; confirmation never becomes a writable account field."""
         before = await self.snapshot()
         response = await self.patch_site(
-            "/management/sites/2", expected_owner_email="person3@example.com", json={"first_name": "wrong target"}
+            "/management/sites/2",
+            expected_owner_email="person3@example.com",
+            json={"first_name": "wrong target"},
         )
         self.assertEqual(response.status_code, 404, response.text)
-        for confirmation in [None, 123, "invalid", "person2@example.com\r\nBcc:other@example.com"]:
+        for confirmation in [
+            None,
+            123,
+            "invalid",
+            "person2@example.com\r\nBcc:other@example.com",
+        ]:
             response = await self.client.patch(
                 "/management/sites/2",
                 json={
@@ -502,7 +547,10 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.assertFalse(response.json()["owner_is_active"])
         self.assertFalse(response.json()["is_default"])
         self.assertTrue(response.json()["is_published"])
-        self.assertEqual((await self.client.get("/portfolio/site", params={"site_id": 11})).status_code, 404)
+        self.assertEqual(
+            (await self.client.get("/portfolio/site", params={"site_id": 11})).status_code,
+            404,
+        )
         after = await self.snapshot()
         for original, current in zip(before[0], after[0]):
             for column in original:
@@ -515,7 +563,9 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         await self.patch_site("/management/sites/2", json={"owner_is_active": True})
         self.assertEqual(restored, await self.snapshot())
 
-    async def test_explicit_default_removal_and_deactivation_share_one_transaction(self):
+    async def test_explicit_default_removal_and_deactivation_share_one_transaction(
+        self,
+    ):
         """A full draft may explicitly clear Default before disabling; Active alone never clears it."""
         response = await self.patch_site("/management/sites/2", json={"is_default": False, "owner_is_active": False})
         self.assertEqual(response.status_code, 200, response.text)
@@ -541,7 +591,8 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.assertEqual(response.json()["detail"], "DEFAULT_SITE_REQUIRES_ACTIVE_PUBLISHED")
         self.assertEqual(before, await self.snapshot())
         response = await self.patch_site(
-            "/management/sites/5", json={"owner_is_active": True, "is_published": True, "is_default": True}
+            "/management/sites/5",
+            json={"owner_is_active": True, "is_published": True, "is_default": True},
         )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertTrue(response.json()["owner_is_active"])
@@ -550,7 +601,9 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             defaults = (await session.execute(select(PortfolioSite.id).where(PortfolioSite.is_default))).scalars().all()
         self.assertEqual(defaults, [13])
 
-    async def test_concurrent_activation_and_default_cannot_leave_inactive_homepage(self):
+    async def test_concurrent_activation_and_default_cannot_leave_inactive_homepage(
+        self,
+    ):
         """The same publication lock serializes activation with global homepage replacement."""
         responses = await asyncio.gather(
             self.patch_site("/management/sites/3", json={"owner_is_active": False}),
@@ -589,7 +642,9 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         denied = await self.client.get("/management/preview/site", params={"site_id": 13})
         self.assertEqual(denied.status_code, 401, denied.text)
 
-    async def test_inactive_language_is_visible_in_all_previews_but_hidden_publicly(self):
+    async def test_inactive_language_is_visible_in_all_previews_but_hidden_publicly(
+        self,
+    ):
         """Management profile/preview paths include disabled language rows; public reads cannot opt out."""
         await self.seed_inactive_language_content()
         listed = await self.client.get("/management/sites", params={"locale": "zh-Hant"})
@@ -597,7 +652,14 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         target = next(item for item in listed.json()["items"] if item["id"] == 2)
         self.assertTrue(target["has_profile"])
         self.assertTrue(target["has_translation"])
-        for resource in ["site", "journey", "experiences", "projects", "skill-categories", "skills"]:
+        for resource in [
+            "site",
+            "journey",
+            "experiences",
+            "projects",
+            "skill-categories",
+            "skills",
+        ]:
             params = {"site_id": 11, "locale": "zh-Hant"}
             if resource == "skills":
                 params.update(ownerType="category", ownerId="engineering")
@@ -610,11 +672,15 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
                     self.assertEqual(preview.json()["total"], 1)
                     if resource == "skill-categories":
                         self.assertEqual(preview.json()["items"][0]["skills"]["total"], 1)
-                public = await self.client.get(f"/portfolio/{resource}", params={**params, "include_inactive": "true"})
+                public = await self.client.get(
+                    f"/portfolio/{resource}",
+                    params={**params, "include_inactive": "true"},
+                )
                 self.assertEqual(public.status_code, 404, public.text)
         # Public visibility dependencies reject inactive languages before even optional cache access.
         cached = await self.client.get(
-            "/portfolio/site", params={"site_id": 11, "locale": "zh-Hant", "is_caching": "true"}
+            "/portfolio/site",
+            params={"site_id": 11, "locale": "zh-Hant", "is_caching": "true"},
         )
         self.assertEqual(cached.status_code, 404, cached.text)
         # Preview does not mutate policy on a reusable module instance.
@@ -629,19 +695,40 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
                 .where(PortfolioLocale.code == EnumLocal.ZH_HANT)
                 .values({PortfolioLocale.is_active: True})
             )
-        for resource in ["site", "journey", "experiences", "projects", "skill-categories", "skills"]:
+        for resource in [
+            "site",
+            "journey",
+            "experiences",
+            "projects",
+            "skill-categories",
+            "skills",
+        ]:
             params = {"site_id": 11, "locale": "zh-Hant"}
             if resource == "skills":
                 params.update(ownerType="category", ownerId="engineering")
             public = await self.client.get(f"/portfolio/{resource}", params=params)
             self.assertEqual(public.status_code, 200, public.text)
 
-    async def test_inactive_content_preview_still_requires_current_management_permission(self):
+    async def test_inactive_content_preview_still_requires_current_management_permission(
+        self,
+    ):
         """Knowing IDs, email or inactive state never authorizes a non-manager's preview request."""
         await self.seed_inactive_language_content()
         self.identity = {"id": 2, "is_manage_sites": True}
-        for resource in ["site", "journey", "experiences", "projects", "skill-categories", "skills"]:
-            params = {"site_id": 11, "locale": "zh-Hant", "ownerType": "category", "ownerId": "engineering"}
+        for resource in [
+            "site",
+            "journey",
+            "experiences",
+            "projects",
+            "skill-categories",
+            "skills",
+        ]:
+            params = {
+                "site_id": 11,
+                "locale": "zh-Hant",
+                "ownerType": "category",
+                "ownerId": "engineering",
+            }
             response = await self.client.get(f"/management/preview/{resource}", params=params)
             self.assertEqual(response.status_code, 403, response.text)
 
@@ -713,7 +800,9 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             b"\xff",
         ]:
             response = await self.patch_site(
-                "/management/sites/2", content=body, headers={"Content-Type": "application/json"}
+                "/management/sites/2",
+                content=body,
+                headers={"Content-Type": "application/json"},
             )
             self.assertEqual(response.status_code, 400, response.text)
         response = await self.patch_site(
@@ -722,7 +811,15 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             headers={"Content-Type": "application/json"},
         )
         self.assertEqual(response.status_code, 422, response.text)
-        for target in ["0", "-1", "2147483648", "abc", "2?locale=en&locale=zh-Hant", "2?site_id=12", "2?page=1"]:
+        for target in [
+            "0",
+            "-1",
+            "2147483648",
+            "abc",
+            "2?locale=en&locale=zh-Hant",
+            "2?site_id=12",
+            "2?page=1",
+        ]:
             response = await self.patch_site(f"/management/sites/{target}", json={"first_name": "changed"})
             self.assertEqual(response.status_code, 400, response.text)
         response = await self.patch_site("/management/sites/2?locale=fr", json={"first_name": "changed"})
@@ -734,7 +831,9 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         response = await self.patch_site("/management/sites/2", content='{"first_name":"x"}')
         self.assertEqual(response.status_code, 415)
         response = await self.patch_site(
-            "/management/sites/2", json={"first_name": "x"}, headers={"Content-Encoding": "gzip"}
+            "/management/sites/2",
+            json={"first_name": "x"},
+            headers={"Content-Encoding": "gzip"},
         )
         self.assertEqual(response.status_code, 415)
 
@@ -745,19 +844,27 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             yield b'"}'
 
         response = await self.patch_site(
-            "/management/sites/2", content=oversized_stream(), headers={"Content-Type": "application/json"}
+            "/management/sites/2",
+            content=oversized_stream(),
+            headers={"Content-Type": "application/json"},
         )
         self.assertEqual(response.status_code, 413)
         response = await self.patch_site(
-            "/management/sites/2", json={"first_name": "x"}, headers={"Origin": "https://evil.example"}
+            "/management/sites/2",
+            json={"first_name": "x"},
+            headers={"Origin": "https://evil.example"},
         )
         self.assertEqual(response.status_code, 403)
         response = await self.patch_site(
-            "/management/sites/2", json={"first_name": "x"}, headers={"Origin": "http://testserver"}
+            "/management/sites/2",
+            json={"first_name": "x"},
+            headers={"Origin": "http://testserver"},
         )
         self.assertEqual(response.status_code, 200, response.text)
         response = await self.patch_site(
-            "/management/sites/2", json={"first_name": "x"}, headers={"Origin": "http://127.0.0.1:5173"}
+            "/management/sites/2",
+            json={"first_name": "x"},
+            headers={"Origin": "http://127.0.0.1:5173"},
         )
         self.assertEqual(response.status_code, 200, response.text)
 
@@ -783,13 +890,18 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 401)
         self.invalidate_cache.assert_not_awaited()
 
-    async def test_missing_records_do_not_create_data_or_partially_update_settings(self):
+    async def test_missing_records_do_not_create_data_or_partially_update_settings(
+        self,
+    ):
         """Only translation edits require the selected translation; missing rows never trigger inserts."""
         before = await self.snapshot()
         for target, payload in [
             ("999", {"github": ""}),
             ("4", {"github": ""}),
-            ("3?locale=zh-Hant", {"github": "https://example.com", "first_name": "changed"}),
+            (
+                "3?locale=zh-Hant",
+                {"github": "https://example.com", "first_name": "changed"},
+            ),
         ]:
             response = await self.patch_site(f"/management/sites/{target}", json=payload)
             self.assertEqual(response.status_code, 404, response.text)
@@ -878,7 +990,15 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
                         "/management/sites",
                         params={
                             "locale": locale,
-                            "filters": json.dumps([{"field": "locale", "operator": operator, "value": locale}]),
+                            "filters": json.dumps(
+                                [
+                                    {
+                                        "field": "locale",
+                                        "operator": operator,
+                                        "value": locale,
+                                    }
+                                ]
+                            ),
                         },
                     )
                     self.assertEqual(response.status_code, 200, response.text)
@@ -886,7 +1006,11 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             # The selected language belongs to the owner projection even when its content is missing.
             response = await self.client.get(
                 "/management/sites",
-                params={"locale": locale, "search": locale, "search_fields": json.dumps(["locale"])},
+                params={
+                    "locale": locale,
+                    "search": locale,
+                    "search_fields": json.dumps(["locale"]),
+                },
             )
             self.assertEqual(response.status_code, 200, response.text)
             self.assertEqual(response.json()["total"], account_count)
@@ -897,7 +1021,10 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             await session.execute(update(AuthRole).values({AuthRole.is_default: False}))
             await session.execute(update(AuthRole).where(AuthRole.id == 2).values({AuthRole.is_default: True}))
         module = AuthRegisterModule(
-            Request({"type": "http", "session": {}}), "new-person@example.com", "test-password-only", user="new-person"
+            Request({"type": "http", "session": {}}),
+            "new-person@example.com",
+            "test-password-only",
+            user="new-person",
         )
         with (
             patch.object(module, "_load_session", new_callable=AsyncMock),
@@ -923,7 +1050,10 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         response = await self.patch_site("/management/sites/3", json={"is_default": True})
         self.assertEqual(response.status_code, 200, response.text)
         rows = (await self.snapshot())[1]
-        self.assertEqual([row[PortfolioSite.id] for row in rows if row[PortfolioSite.is_default]], [12])
+        self.assertEqual(
+            [row[PortfolioSite.id] for row in rows if row[PortfolioSite.is_default]],
+            [12],
+        )
         response = await self.patch_site("/management/sites/3", json={"is_published": False, "github": ""})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertFalse(response.json()["is_default"])
@@ -976,21 +1106,29 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
             await session.execute(update(AuthUser).where(AuthUser.id == 3).values({AuthUser.is_active: False}))
         before = await self.snapshot()
         response = await self.patch_site(
-            "/management/sites/3", json={"owner_is_active": True, "is_default": True, "brand_title": "__fail__"}
+            "/management/sites/3",
+            json={
+                "owner_is_active": True,
+                "is_default": True,
+                "brand_title": "__fail__",
+            },
         )
         self.assertEqual(response.status_code, 409, response.text)
         self.assertNotIn("private database detail", response.text)
         self.assertEqual(before, await self.snapshot())
         self.invalidate_cache.assert_not_awaited()
 
-    async def test_cache_invalidation_runs_after_commit_and_reports_committed_failure(self):
+    async def test_cache_invalidation_runs_after_commit_and_reports_committed_failure(
+        self,
+    ):
         """Cache failure cannot be described as a rollback once another connection sees committed content."""
 
         async def failed_cache():
             async with self.sessions() as session:
                 name = await session.scalar(
                     select(PortfolioSiteLocale.first_name).where(
-                        PortfolioSiteLocale.site_id == 11, PortfolioSiteLocale.locale == EnumLocal.EN
+                        PortfolioSiteLocale.site_id == 11,
+                        PortfolioSiteLocale.locale == EnumLocal.EN,
                     )
                 )
                 self.assertEqual(name, "committed")
@@ -1016,7 +1154,12 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
     async def test_module_revalidates_direct_assignments(self):
         """An internal caller cannot bypass the field allowlist or strict scalar validation."""
         module = ManagementSitesModule(session=self.sessions())
-        for payload in [{"owner_email": "changed@example.com"}, {"is_default": "true"}, {"first_name": None}, []]:
+        for payload in [
+            {"owner_email": "changed@example.com"},
+            {"is_default": "true"},
+            {"first_name": None},
+            [],
+        ]:
             with self.assertRaises(HTTPException) as caught:
                 await module.update(2, payload, expected_owner_email="person2@example.com")
             self.assertEqual(caught.exception.status_code, 422)
@@ -1024,7 +1167,11 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
     async def test_storage_error_is_sanitized_and_rolls_back(self):
         """A readback/storage failure rolls back earlier writes and never exposes driver credentials."""
         before = await self.snapshot()
-        with patch.object(ManagementSitesModule, "_query", side_effect=RuntimeError("private driver password")):
+        with patch.object(
+            ManagementSitesModule,
+            "_query",
+            side_effect=RuntimeError("private driver password"),
+        ):
             response = await self.patch_site("/management/sites/2", json={"first_name": "must roll back"})
         self.assertEqual(response.status_code, 503, response.text)
         self.assertEqual(response.json()["detail"], "MANAGEMENT_DATABASE_UNAVAILABLE")
@@ -1045,12 +1192,18 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
         """Different sites sharing a language can update content while the global default moves."""
         responses = await asyncio.gather(
             self.patch_site("/management/sites/2", json={"first_name": "old default content"}),
-            self.patch_site("/management/sites/3", json={"first_name": "new default content", "is_default": True}),
+            self.patch_site(
+                "/management/sites/3",
+                json={"first_name": "new default content", "is_default": True},
+            ),
         )
         for response in responses:
             self.assertEqual(response.status_code, 200, response.text)
         snapshot = await self.snapshot()
-        self.assertEqual([row[PortfolioSite.id] for row in snapshot[1] if row[PortfolioSite.is_default]], [12])
+        self.assertEqual(
+            [row[PortfolioSite.id] for row in snapshot[1] if row[PortfolioSite.is_default]],
+            [12],
+        )
         self.assertEqual(
             {
                 row[PortfolioSiteLocale.site_id]: row[PortfolioSiteLocale.first_name]
@@ -1075,7 +1228,8 @@ class PlatformPatchTests(IsolatedAsyncioTestCase):
 
 # ■—< TEST >——————————————————————————————————————————————————————————————————————————■ Platform - Optional PostgreSQL
 @skipUnless(
-    os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL"), "Set a disposable PostgreSQL test URL to run this suite."
+    os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL"),
+    "Set a disposable PostgreSQL test URL to run this suite.",
 )
 class PostgreSQLPlatformPatchTests(PlatformPatchTests):
     """

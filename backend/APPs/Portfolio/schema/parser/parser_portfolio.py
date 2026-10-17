@@ -53,7 +53,8 @@ def _parser_portfolio_common(locale: str = Depends(parser_locale), is_caching: b
 # ■—< PARAM >———————————————————————————————————————————————————————————————————————————■ Portfolio - Site Lookup
 async def parser_portfolio_site(
     user: str | None = Query(
-        default=None, description="Stable public account identifier; omit both selectors for the default portfolio."
+        default=None,
+        description="Stable public account identifier; omit both selectors for the default portfolio.",
     ),
     site_id: int | str | None = Query(default=None, description="Resolved portfolio ID; mutually exclusive with user."),
     query_string: dict = Depends(_parser_portfolio_common),
@@ -80,7 +81,8 @@ async def parser_portfolio_site(
 async def _parser_portfolio_site_id(
     request: Request,
     site_id: int | str | None = Query(
-        default=None, description="Portfolio ID returned by the Site API; omit it to read the published default."
+        default=None,
+        description="Portfolio ID returned by the Site API; omit it to read the published default.",
     ),
     locale: str = Depends(parser_locale),
 ) -> int:

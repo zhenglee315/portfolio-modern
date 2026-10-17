@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import { publicUserSchema } from '@/shared/schemas/portfolio';
+import { z } from 'zod';
 
 /** Server-issued identity and permissions; session cookies remain browser-managed. */
 export const authUserSchema = z.object({

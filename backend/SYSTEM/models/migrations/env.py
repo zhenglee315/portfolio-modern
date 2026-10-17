@@ -1,10 +1,11 @@
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.database import CONN_MANAGER
+from SYSTEM.database.migration_policy import require_migration_backend
 from SYSTEM import models
 
 # ◆—< Pack >—————————————————————————————————◆ SqlAlchemy
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Connection, make_url
 from sqlalchemy import pool
 
 # ◆—< Pack >—————————————————————————————————◆ Alembic
@@ -18,8 +19,12 @@ import asyncio
 # access to the values within the .ini file in use.
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Sqlalchemy - URL
 config = context.config
-database_url = CONN_MANAGER.get_db_url().render_as_string(hide_password=False).replace('%', '%%')
-config.set_main_option('sqlalchemy.url', database_url)
+url = config.attributes.get("database_url") or CONN_MANAGER.get_db_url()
+
+url = make_url(url)
+require_migration_backend(url.get_backend_name())
+database_url = url.render_as_string(hide_password=False).replace("%", "%%")
+config.set_main_option("sqlalchemy.url", database_url)
 
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Sqlalchemy - Logging
 if config.config_file_name is not None:
@@ -59,7 +64,10 @@ def run_migrations_offline() -> None:
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=target_metadata, literal_binds=True, dialect_opts={"paramstyle": "named"}
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
     )
 
     with context.begin_transaction():
@@ -80,7 +88,9 @@ async def run_async_migrations() -> None:
     """
 
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}), prefix="sqlalchemy.", poolclass=pool.NullPool
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
     )
 
     async with connectable.connect() as connection:
@@ -91,8 +101,12 @@ async def run_async_migrations() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-
-    asyncio.run(run_async_migrations())
+    # Deployment opens its own engine; migration tests borrow a schema-scoped connection.
+    connection = config.attributes.get("connection")
+    if connection is not None:
+        do_run_migrations(connection)
+    else:
+        asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():

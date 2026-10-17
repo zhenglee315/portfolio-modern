@@ -66,7 +66,10 @@ class GeoIpDatabaseImporter:
             with (
                 opener(self.source, "rb") as source,
                 tempfile.NamedTemporaryFile(
-                    dir=self.destination.parent, prefix=".geoip-", suffix=".mmdb", delete=False
+                    dir=self.destination.parent,
+                    prefix=".geoip-",
+                    suffix=".mmdb",
+                    delete=False,
                 ) as output,
             ):
                 candidate = Path(output.name)

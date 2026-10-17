@@ -1,6 +1,6 @@
+import { Icon } from '@/shared/ui/Icon';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Icon } from '@/shared/ui/Icon';
 import styles from './AuthPanel.module.css';
 
 /** Render server-verified code feedback and a guarded, rate-limited send action. */

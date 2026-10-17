@@ -38,7 +38,13 @@ class SqlAlchemyExecAsync:
                                                                                                ♂ ZhengLee 2026.10.03
     """
 
-    def __init__(self, key: str | None = None, session: AsyncSession | None = None, *, manage_transaction: bool = True):
+    def __init__(
+        self,
+        key: str | None = None,
+        session: AsyncSession | None = None,
+        *,
+        manage_transaction: bool = True,
+    ):
         """
         Select the configured database or an injected async session without opening a connection.
 
@@ -420,7 +426,12 @@ class SqlAlchemyExecAsync:
 
     # —< Transaction >—————————————————————————————————————● Query to List in specific index.
     @sql_validate
-    async def query_list_idx(self, sql: str, params: Optional[Dict[str, Any]] = None, index: Optional[int] = 0) -> list:
+    async def query_list_idx(
+        self,
+        sql: str,
+        params: Optional[Dict[str, Any]] = None,
+        index: Optional[int] = 0,
+    ) -> list:
         """
         Execute the raw SQL query and return a list of values from a specific column index.
 
@@ -455,7 +466,12 @@ class SqlAlchemyExecAsync:
 
     # —< Transaction >—————————————————————————————————————● Query the first data in specific index.
     @sql_validate
-    async def query_first(self, sql: str, params: Optional[Dict[str, Any]] = None, index: Optional[int] = 0) -> Any:
+    async def query_first(
+        self,
+        sql: str,
+        params: Optional[Dict[str, Any]] = None,
+        index: Optional[int] = 0,
+    ) -> Any:
         """
         Execute the raw SQL query and return the first value from a specific column index.
 
@@ -475,7 +491,12 @@ class SqlAlchemyExecAsync:
 
     # —< Transaction >—————————————————————————————————————● Query to List in specific column name.
     @sql_validate
-    async def query_list_col(self, sql: str, params: Optional[Dict[str, Any]] = None, column_name: str = "N/A") -> list:
+    async def query_list_col(
+        self,
+        sql: str,
+        params: Optional[Dict[str, Any]] = None,
+        column_name: str = "N/A",
+    ) -> list:
         """
         Execute the raw SQL query and return a list of values from a specific column by name.
 
@@ -635,7 +656,13 @@ class SqlAlchemyExecAsync:
         try:
             async with self._session_scope() as session:
                 params = BigParams(page=max(int(page), 1), size=max(int(size), 1))
-                page_obj = await apaginate(session, stmt, params=params, subquery_count=subquery_count, unique=unique)
+                page_obj = await apaginate(
+                    session,
+                    stmt,
+                    params=params,
+                    subquery_count=subquery_count,
+                    unique=unique,
+                )
 
             # --------------------------------------------------● Step 4.  Row → dict conversion
             page_obj = page_obj.model_copy(update={"items": [self._item_to_dict(item) for item in page_obj.items]})
@@ -694,7 +721,11 @@ class SqlAlchemyExecAsync:
         params = BigParams(page=max(int(page), 1), size=max(int(size), 1))
         async with self._session_scope() as session:
             page_obj = await apaginate(
-                session, text(sql), params=params, unwrap_mode="no-unwrap", bind_params=sql_params
+                session,
+                text(sql),
+                params=params,
+                unwrap_mode="no-unwrap",
+                bind_params=sql_params,
             )
 
         # --------------------------------------------------------------● Step 4. Row → list / scalar

@@ -22,14 +22,24 @@ down_revision: Union[str, None] = "4c7e2b90d615"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-_PARENT_TABLES = ("portfolio_career", "portfolio_project", "portfolio_skill", "portfolio_skill_category")
+_PARENT_TABLES = (
+    "portfolio_career",
+    "portfolio_project",
+    "portfolio_skill",
+    "portfolio_skill_category",
+)
 _OWNED_TABLES = _PARENT_TABLES + (
     "portfolio_skill_locale",
     "portfolio_skill_category_locale",
     "portfolio_category_skill",
 )
 _COMPOSITE_LINKS = (
-    ("portfolio_skill_locale", "skill_id", "portfolio_skill", "fk_portfolio_skill_locale_site_skill"),
+    (
+        "portfolio_skill_locale",
+        "skill_id",
+        "portfolio_skill",
+        "fk_portfolio_skill_locale_site_skill",
+    ),
     (
         "portfolio_skill_category_locale",
         "category_id",
@@ -42,22 +52,51 @@ _COMPOSITE_LINKS = (
         "portfolio_skill_category",
         "fk_portfolio_category_skill_site_category",
     ),
-    ("portfolio_category_skill", "skill_id", "portfolio_skill", "fk_portfolio_category_skill_site_skill"),
+    (
+        "portfolio_category_skill",
+        "skill_id",
+        "portfolio_skill",
+        "fk_portfolio_category_skill_site_skill",
+    ),
 )
 _SCOPED_UNIQUES = (
     ("portfolio_career", ("journey_position",), "uq_portfolio_career_journey_position"),
     ("portfolio_project", ("position",), "uq_portfolio_project_position"),
     ("portfolio_skill", ("label_key",), "uq_portfolio_skill_label_key"),
-    ("portfolio_skill_category", ("label_key",), "uq_portfolio_skill_category_label_key"),
+    (
+        "portfolio_skill_category",
+        ("label_key",),
+        "uq_portfolio_skill_category_label_key",
+    ),
     ("portfolio_skill_category", ("position",), "uq_portfolio_skill_category_position"),
     ("portfolio_skill_locale", ("skill_id", "locale"), "uq_portfolio_skill_locale"),
-    ("portfolio_skill_category_locale", ("category_id", "locale"), "uq_portfolio_skill_category_locale"),
-    ("portfolio_category_skill", ("category_id", "skill_id"), "uq_portfolio_category_skill"),
-    ("portfolio_category_skill", ("category_id", "position"), "uq_portfolio_category_skill_position"),
+    (
+        "portfolio_skill_category_locale",
+        ("category_id", "locale"),
+        "uq_portfolio_skill_category_locale",
+    ),
+    (
+        "portfolio_category_skill",
+        ("category_id", "skill_id"),
+        "uq_portfolio_category_skill",
+    ),
+    (
+        "portfolio_category_skill",
+        ("category_id", "position"),
+        "uq_portfolio_category_skill_position",
+    ),
 )
 _SCOPED_INDEXES = (
-    ("portfolio_career", ("experience_order", "id"), "ix_portfolio_career_experience_order"),
-    ("portfolio_skill_locale", ("locale", "skill_id"), "ix_portfolio_skill_locale_locale_skill_id"),
+    (
+        "portfolio_career",
+        ("experience_order", "id"),
+        "ix_portfolio_career_experience_order",
+    ),
+    (
+        "portfolio_skill_locale",
+        ("locale", "skill_id"),
+        "ix_portfolio_skill_locale_locale_skill_id",
+    ),
     (
         "portfolio_skill_category_locale",
         ("locale", "category_id"),
@@ -131,7 +170,9 @@ def upgrade() -> None:
     op.create_unique_constraint("uq_auth_user_user", "auth_user", ["user"])
     user = sa.column("user")
     op.create_check_constraint(
-        "ck_auth_user_user_format", "auth_user", user.regexp_match(r"\A[a-z0-9][a-z0-9_-]{1,30}[a-z0-9]\Z")
+        "ck_auth_user_user_format",
+        "auth_user",
+        user.regexp_match(r"\A[a-z0-9][a-z0-9_-]{1,30}[a-z0-9]\Z"),
     )
     op.create_check_constraint("ck_auth_user_user_reserved", "auth_user", ~user.in_(_RESERVED_USERS))
     op.alter_column("auth_role", "is_manage_sites", existing_type=sa.Boolean(), nullable=False)
@@ -146,7 +187,9 @@ def upgrade() -> None:
     _drop_existing_index("portfolio_site", "ix_portfolio_site_user_id")
     op.create_unique_constraint("uq_portfolio_site_user_id", "portfolio_site", ["user_id"])
     op.create_check_constraint(
-        "ck_portfolio_site_default_published", "portfolio_site", "NOT is_default OR is_published"
+        "ck_portfolio_site_default_published",
+        "portfolio_site",
+        "NOT is_default OR is_published",
     )
     op.create_index(
         "uq_portfolio_site_one_default",
@@ -159,7 +202,12 @@ def upgrade() -> None:
         op.alter_column(table, "site_id", existing_type=sa.Integer(), nullable=False)
     for table in _PARENT_TABLES:
         op.create_foreign_key(
-            f"fk_{table}_site_id_portfolio_site", table, "portfolio_site", ["site_id"], ["id"], ondelete="CASCADE"
+            f"fk_{table}_site_id_portfolio_site",
+            table,
+            "portfolio_site",
+            ["site_id"],
+            ["id"],
+            ondelete="CASCADE",
         )
 
     # Remove child references before replacing the global string primary keys.

@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { pageSize } from '@/shared/schemas/records';
-import { LoadMoreControl } from './LoadMoreControl';
-import { Icon } from './Icon';
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import styles from './ExpandableCollection.module.css';
+import { Icon } from './Icon';
+import { LoadMoreControl } from './LoadMoreControl';
 
 type Props<T> = {
   items: T[];

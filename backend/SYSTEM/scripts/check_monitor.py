@@ -14,6 +14,7 @@ from redis.exceptions import RedisError
 from redis.retry import Retry
 
 from SYSTEM.tools.tools_monitor import MONITOR_PREFIX, WorkerMonitor
+from COMMON.tools.storage.redis import RedisAsync
 
 
 def render(snapshot: dict, *, requests: bool = False) -> str:
@@ -36,7 +37,7 @@ def render(snapshot: dict, *, requests: bool = False) -> str:
             str(row["active_transactions"]) if live else "?",
             str(row["restarts"]) if row["restarts"] is not None else "?",
             str(row["reloads"]) if row["reloads"] is not None else "?",
-            f'{row["requests_per_second"]:.1f}' if row.get("requests_per_second") is not None else "?",
+            (f'{row["requests_per_second"]:.1f}' if row.get("requests_per_second") is not None else "?"),
         ]
         lines.append(" ".join(values))
     if not snapshot["workers"]:
@@ -84,7 +85,10 @@ def render(snapshot: dict, *, requests: bool = False) -> str:
 async def inspect(options) -> None:
     if options.redis_url:
         client = Redis.from_url(
-            options.redis_url, socket_connect_timeout=1, socket_timeout=1, retry=Retry(NoBackoff(), 0)
+            options.redis_url,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+            retry=Retry(NoBackoff(), 0),
         )
     else:
         from SYSTEM.constants import EnumCache
@@ -102,16 +106,20 @@ async def inspect(options) -> None:
     previous = {}
     try:
         while True:
-            snapshot = await WorkerMonitor.read_snapshot(client, prefix=options.prefix)
+            snapshot = await WorkerMonitor.read_snapshot(RedisAsync(redis=client), prefix=options.prefix)
             for row in snapshot["workers"]:
                 identity = (row["run_id"], row["process_uid"])
                 before = previous.get(identity)
                 row["requests_per_second"] = None
                 if before and row["status"] == "running" and row["sampled_at"] > before[0]:
                     row["requests_per_second"] = max(
-                        0.0, (row["completed_requests_total"] - before[1]) / (row["sampled_at"] - before[0])
+                        0.0,
+                        (row["completed_requests_total"] - before[1]) / (row["sampled_at"] - before[0]),
                     )
-                previous[identity] = (row["sampled_at"], row["completed_requests_total"])
+                previous[identity] = (
+                    row["sampled_at"],
+                    row["completed_requests_total"],
+                )
             identities = {(row["run_id"], row["process_uid"]) for row in snapshot["workers"]}
             previous = {key: value for key, value in previous.items() if key in identities}
             print(
@@ -136,11 +144,16 @@ def main() -> None:
     parser.add_argument("--watch", action="store_true", help="Read periodically; otherwise print once.")
     parser.add_argument("--json", action="store_true", help="Print snapshots as JSON.")
     parser.add_argument(
-        "--requests", action="store_true", help="Include short-lived request events, client IP and location."
+        "--requests",
+        action="store_true",
+        help="Include short-lived request events, client IP and location.",
     )
     parser.add_argument("--interval", type=float, default=MONITOR_CYCLE_SEC)
     parser.add_argument("--prefix", default=MONITOR_PREFIX)
-    parser.add_argument("--redis-url", help="Optional isolated test Redis; default is the configured SYS client.")
+    parser.add_argument(
+        "--redis-url",
+        help="Optional isolated test Redis; default is the configured SYS client.",
+    )
     options = parser.parse_args()
     if options.interval <= 0:
         parser.error("--interval must be positive")

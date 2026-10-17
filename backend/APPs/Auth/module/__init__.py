@@ -1,4 +1,13 @@
-# ◆—< Pack >—————————————————————————————————◆ Auth
-from .module_auth import AuthRegisterModule, AuthSessionModule, AuthSignInModule, AuthSignOutModule
+# ◆—< Pack >—————————————————————————————————◆ Project
+from .module_base import AuthModule
+from .module_register import AuthRegisterModule
+from .module_session import AuthSessionModule, AuthSignOutModule
+from .module_sign_in import AuthSignInModule
 
-__all__ = ("AuthSessionModule", "AuthSignInModule", "AuthSignOutModule", "AuthRegisterModule")
+__all__ = (
+    "AuthModule",
+    "AuthSessionModule",
+    "AuthSignInModule",
+    "AuthSignOutModule",
+    "AuthRegisterModule",
+)

@@ -10,8 +10,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
 import test_management_site_update as platform_fixture
-from APPs.Management.module.module_management import ManagementSitesModule
-from APPs.Management.module.module_management_state import ManagementWriteState
+from APPs.Management.module import ManagementSitesModule
+from APPs.Management.module.module_state import ManagementWriteState
 from APPs.Management.constants import MANAGEMENT_DELETE_MAX_BYTES
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 from SYSTEM.constants import EnumLocal
@@ -48,7 +48,11 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
 
     @staticmethod
     def target(account=3, site=12):
-        return {"account_id": account, "expected_owner_email": f"person{account}@example.com", "expected_site_id": site}
+        return {
+            "account_id": account,
+            "expected_owner_email": f"person{account}@example.com",
+            "expected_site_id": site,
+        }
 
     async def single(self, account=3, site=12, **kwargs):
         target = self.target(account, site)
@@ -59,7 +63,10 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
         before = await self.snapshot()
         response = await self.single()
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json(), {"deleted_count": 1, "deleted": [{"account_id": 3, "site_id": 12}]})
+        self.assertEqual(
+            response.json(),
+            {"deleted_count": 1, "deleted": [{"account_id": 3, "site_id": 12}]},
+        )
         async with self.sessions() as session:
             self.assertIsNotNone(await session.get(AuthUser, 3))
             self.assertIsNone(await session.get(PortfolioSite, 12))
@@ -81,12 +88,19 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
         before = await self.client.get("/portfolio/site?user=person3&locale=en")
         self.assertEqual(before.status_code, 200, before.text)
         self.assertEqual((await self.single()).status_code, 200)
-        self.assertEqual((await self.client.get("/portfolio/site?user=person3&locale=en")).status_code, 404)
-        self.assertEqual((await self.client.get("/management/preview/site?site_id=12&locale=en")).status_code, 404)
+        self.assertEqual(
+            (await self.client.get("/portfolio/site?user=person3&locale=en")).status_code,
+            404,
+        )
+        self.assertEqual(
+            (await self.client.get("/management/preview/site?site_id=12&locale=en")).status_code,
+            404,
+        )
 
     async def test_batch_deletes_inactive_owner_and_keeps_other_site(self):
         response = await self.client.post(
-            "/management/sites/bulk-delete", json={"targets": [self.target(5, 13), self.target()]}
+            "/management/sites/bulk-delete",
+            json={"targets": [self.target(5, 13), self.target()]},
         )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["deleted_count"], 2)
@@ -95,7 +109,9 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
             self.assertIsNotNone(await session.get(AuthUser, 5))
         self.invalidate_cache.assert_awaited_once()
 
-    async def test_all_content_cascades_but_shared_locales_history_and_account_survive(self):
+    async def test_all_content_cascades_but_shared_locales_history_and_account_survive(
+        self,
+    ):
         await self.seed_inactive_language_content()
         async with self.sessions.begin() as session:
             await session.execute(
@@ -106,17 +122,35 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
             session.add_all(
                 [
                     PortfolioSkill(site_id=12, id="python", label_key="skill.python"),
-                    PortfolioSkillCategory(site_id=12, id="engineering", label_key="category.engineering", position=0),
+                    PortfolioSkillCategory(
+                        site_id=12,
+                        id="engineering",
+                        label_key="category.engineering",
+                        position=0,
+                    ),
                 ]
             )
             await session.flush()
             session.add_all(
                 [
-                    PortfolioSkillLocale(site_id=12, skill_id="python", locale=EnumLocal.EN, label="Python"),
-                    PortfolioSkillCategoryLocale(
-                        site_id=12, category_id="engineering", locale=EnumLocal.EN, label="Engineering"
+                    PortfolioSkillLocale(
+                        site_id=12,
+                        skill_id="python",
+                        locale=EnumLocal.EN,
+                        label="Python",
                     ),
-                    PortfolioCategorySkill(site_id=12, category_id="engineering", skill_id="python", position=0),
+                    PortfolioSkillCategoryLocale(
+                        site_id=12,
+                        category_id="engineering",
+                        locale=EnumLocal.EN,
+                        label="Engineering",
+                    ),
+                    PortfolioCategorySkill(
+                        site_id=12,
+                        category_id="engineering",
+                        skill_id="python",
+                        position=0,
+                    ),
                 ]
             )
         response = await self.single(2, 11)
@@ -157,15 +191,22 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
                 ).scalar_one(),
                 0,
             )
-            self.assertEqual((await session.execute(select(func.count()).select_from(PortfolioLocale))).scalar_one(), 3)
-            self.assertEqual((await session.execute(select(func.count()).select_from(RecordLogin))).scalar_one(), 1)
+            self.assertEqual(
+                (await session.execute(select(func.count()).select_from(PortfolioLocale))).scalar_one(),
+                3,
+            )
+            self.assertEqual(
+                (await session.execute(select(func.count()).select_from(RecordLogin))).scalar_one(),
+                1,
+            )
             self.assertIsNotNone(await session.get(AuthUser, 2))
             self.assertIsNotNone(await session.get(PortfolioSite, 12))
 
     async def test_default_in_batch_rolls_back_every_target(self):
         before = await self.snapshot()
         response = await self.client.post(
-            "/management/sites/bulk-delete", json={"targets": [self.target(), self.target(2, 11)]}
+            "/management/sites/bulk-delete",
+            json={"targets": [self.target(), self.target(2, 11)]},
         )
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["detail"], "DEFAULT_SITE_DELETE_FORBIDDEN")
@@ -173,12 +214,17 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
         self.invalidate_cache.assert_not_awaited()
 
     async def test_one_invalid_confirmation_rolls_back_batch(self):
-        for change in ({"expected_owner_email": "person2@example.com"}, {"expected_site_id": 11}, {"account_id": 4}):
+        for change in (
+            {"expected_owner_email": "person2@example.com"},
+            {"expected_site_id": 11},
+            {"account_id": 4},
+        ):
             with self.subTest(change=change):
                 before = await self.snapshot()
                 target = {**self.target(), **change}
                 response = await self.client.post(
-                    "/management/sites/bulk-delete", json={"targets": [self.target(5, 13), target]}
+                    "/management/sites/bulk-delete",
+                    json={"targets": [self.target(5, 13), target]},
                 )
                 self.assertIn(response.status_code, (404, 409), response.text)
                 self.assertEqual(before, await self.snapshot())
@@ -207,14 +253,32 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
         self.assertEqual(before, await self.snapshot())
 
     async def test_transport_boundaries_apply_to_both_methods(self):
-        for method, path in (("DELETE", "/management/sites/3"), ("POST", "/management/sites/bulk-delete")):
+        for method, path in (
+            ("DELETE", "/management/sites/3"),
+            ("POST", "/management/sites/bulk-delete"),
+        ):
             for content, headers, status in (
                 ('{"x":1,"x":2}', {"Content-Type": "application/json"}, 400),
                 ('{"x":NaN}', {"Content-Type": "application/json"}, 400),
                 ("{}", {"Content-Type": "text/plain"}, 415),
-                ("{}", {"Content-Type": "application/json", "Content-Encoding": "gzip"}, 415),
-                ("{}", {"Content-Type": "application/json", "Origin": "https://untrusted.example"}, 403),
-                (" " * (MANAGEMENT_DELETE_MAX_BYTES + 1), {"Content-Type": "application/json"}, 413),
+                (
+                    "{}",
+                    {"Content-Type": "application/json", "Content-Encoding": "gzip"},
+                    415,
+                ),
+                (
+                    "{}",
+                    {
+                        "Content-Type": "application/json",
+                        "Origin": "https://untrusted.example",
+                    },
+                    403,
+                ),
+                (
+                    " " * (MANAGEMENT_DELETE_MAX_BYTES + 1),
+                    {"Content-Type": "application/json"},
+                    413,
+                ),
             ):
                 with self.subTest(method=method, status=status):
                     response = await self.client.request(method, path, content=content, headers=headers)
@@ -274,7 +338,9 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
         self.assertEqual(before, await self.snapshot())
         self.invalidate_cache.assert_not_awaited()
 
-    async def test_cache_failure_reports_commit_and_retry_cannot_delete_another_site(self):
+    async def test_cache_failure_reports_commit_and_retry_cannot_delete_another_site(
+        self,
+    ):
         async def cache_failure():
             async with self.sessions() as session:
                 self.assertIsNone(await session.get(PortfolioSite, 12))
@@ -322,6 +388,9 @@ class PlatformDeleteTests(IsolatedAsyncioTestCase):
         self.invalidate_cache.assert_not_awaited()
 
 
-@skipUnless(os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL"), "Disposable PostgreSQL URL not supplied")
+@skipUnless(
+    os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL"),
+    "Disposable PostgreSQL URL not supplied",
+)
 class PostgreSQLPlatformDeleteTests(PlatformDeleteTests):
     postgres_url = os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL")

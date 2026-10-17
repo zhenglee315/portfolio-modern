@@ -1,6 +1,13 @@
 {
   "include": ["src/**/*", "*.ts", ".react-router/types/**/*"],
-  "exclude": ["node_modules", "build", "coverage", "test-results", "playwright-report"],
+  "exclude": [
+    "node_modules",
+    "build",
+    ".test-build",
+    "coverage",
+    "test-results",
+    "playwright-report"
+  ],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "types": ["node", "vite/client"],

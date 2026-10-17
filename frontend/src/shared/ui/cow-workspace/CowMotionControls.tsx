@@ -1,6 +1,6 @@
 import { CowControl } from './CowControl';
-import type { useCowMotionControls } from './useCowMotionControls';
 import styles from './CowMotionControls.module.css';
+import type { useCowMotionControls } from './useCowMotionControls';
 
 const toggles = [
   {

@@ -1,8 +1,8 @@
 import { useId } from 'react';
 import type { DataTableEditCopy } from '../lib/data-table-edit';
 import { BooleanCell } from './BooleanCell';
-import { InlineField, type InlineFieldEditor, type InlineFieldValue } from './InlineField';
 import styles from './DataTableEditCell.module.css';
+import { InlineField, type InlineFieldEditor, type InlineFieldValue } from './InlineField';
 
 /** Reuse scalar editors and table switch styling; the group controller owns all saving.
  * Text completes on blur/Enter, multiline on blur/Ctrl+Enter, discrete values on selection.

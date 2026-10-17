@@ -1,5 +1,7 @@
 # 前端架構總覽 / Frontend Architecture
 
+**文件責任：** 前端分層、各 feature／page 的整合行為、SSR 與 API 串接、建置部署及排錯。共用介面以 [shared 契約](src/shared/README.md) 為準，表格 props／範例以 [DataTable 指南](src/shared/ui/README.md) 為準；草地牛與 403 頁面的素材／版面規則各有專屬 README。API 的伺服器端行為以 [後端總覽](../backend/README.md) 為準。
+
 本目錄以 React 重構既有 `portfolio-web`，沿用其版型、三語內容與互動規則，並串接本專案的 FastAPI。前端負責呈現、互動與資料取得；後端負責業務資料、驗證、權限與儲存。整體產品方向見[專案 README](../README.md)，API 現況見[後端 README](../backend/README.md)。
 
 This directory implements the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
@@ -97,9 +99,9 @@ Query identity includes the public selector or resolved Site, locale, resource, 
 
 ## 目錄分層 / Directory Layout
 
-目錄圖只呈現主要分層，個別檔案與功能內部分工在後續章節說明。React Router 的 `appDirectory` 已設為 `src`，框架根入口與路由設定放在此處；`src/app` 則是本專案的應用組裝層。目錄依實際責任建立；測試工具集中於根目錄的 `agent/`，不提交到版本控制。[官方目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)
+目錄圖只呈現主要分層，個別檔案與功能內部分工在後續章節說明。React Router 的 `appDirectory` 已設為 `src`，框架根入口與路由設定放在此處；`src/app` 則是本專案的應用組裝層。目錄依實際責任建立；正式測試、fixtures 與測試設定隨專案維護於 `tests/`；一次性造資料與證據保留於忽略的根目錄 `agent/`。[官方目錄設定](https://reactrouter.com/api/framework-conventions/react-router.config.ts#appdirectory)
 
-This tree shows the main layers rather than every implementation file. React Router's application directory is configured as `src`; `src/app` is the project's assembly layer. Create directories as needed. Local test tooling stays in the ignored root `agent/` directory.
+This tree shows the main layers rather than every implementation file. React Router's application directory is configured as `src`; `src/app` is the project's assembly layer. Create directories as needed. Maintained suites and fixtures ship in tests/; disposable evidence stays in the ignored root agent/ directory.
 
 ```text
 frontend/
@@ -313,9 +315,9 @@ Email availability is checked on registration input blur or pointer departure. D
 
 Sending and verification use the real APIs. While SMTP is being prepared, the backend stores temporary code 123 in the System Redis cache at verify_<email> with a 300-second expiry. A successful send starts the server's 60-second retry delay; only its deadline is stored in sessionStorage. The checked icon follows server verification, not nonempty input. Registration verifies the current email proof before creating an account, recovers from wrong/expired codes and raced duplicates, and receives the server-selected default role and session.
 
-`AuthPanel.onAuthenticate({mode,fields,signal})` 是由頁面注入的真實登入／註冊服務接入點，帳密只存在表單及單次 FormData 呼叫，不放入 React state、儲存或提示內容。只有這個 Promise 真正成功時，才顯示綠色成功提示，牛切為看你，並以共用 PixelBubble 的箭頭尾巴顯示三語「歡迎」。模式切換或卸載取消待辦請求並忽略過期結果；失敗沿用共用錯誤分類。頁面延後載入 ConnectedAuthPanel，登入透過 POST /api/authority/sign-in 傳送 JSON，使用 credentials: include 與 no-store，驗證帳號／角色／六項權限契約後才顯示成功。SESSION cookie 由瀏覽器管理；登入成功清空密碼並恢復遮蔽，編輯欄位清除歡迎狀態。401、429、422 及服務故障有三語安全提示，註冊沿用上述查重、寄碼與驗證流程；忘記密碼仍顯示未開放。欄位檢查仍保留在欄位旁，密碼不一致以紅色提示，其他操作訊息統一走全站提示。
+`AuthPanel.onAuthenticate({mode,fields,signal})` 是由頁面注入的真實登入／註冊服務接入點，帳密只存在表單及單次 FormData 呼叫，不放入 React state、儲存或提示內容。只有這個 Promise 真正成功時，才顯示綠色成功提示，牛切為看你，並以共用 PixelBubble 的箭頭尾巴顯示三語「歡迎」。模式切換或卸載取消待辦請求並忽略過期結果；失敗沿用共用錯誤分類。頁面延後載入 ConnectedAuthPanel，登入透過 POST /api/authority/sign-in 傳送 JSON，使用 credentials: include 與 no-store，驗證帳號／角色／七項權限契約後才顯示成功。SESSION cookie 由瀏覽器管理；登入成功清空密碼並恢復遮蔽，編輯欄位清除歡迎狀態。401、429、422 及服務故障有三語安全提示，註冊沿用上述查重、寄碼與驗證流程；忘記密碼仍顯示未開放。欄位檢查仍保留在欄位旁，密碼不一致以紅色提示，其他操作訊息統一走全站提示。
 
-`AuthPanel.onAuthenticate({mode,fields,signal})` is the page-injected real sign-in/registration service boundary. Credentials remain in the form and one FormData call, never React state, storage or notifications. Only successful resolution produces a green notice and the watching cow with a translated Welcome speech bubble using shared PixelBubble/tail. Mode changes and unmount abort pending work and ignore late results; failures reuse shared classification. The page lazily loads ConnectedAuthPanel. Sign-in posts JSON to /api/authority/sign-in with credentials: include and no-store, validates identity/role/six permissions, and displays success only after the response passes. The browser manages the session cookie; success clears and hides passwords, and editing clears the welcome state. Known 401/429/422/service failures have safe localized copy. Registration uses the availability/code/verification flow above; password reset remains unavailable. Field validation stays local, with password mismatch shown in red; operation messages use the global host.
+`AuthPanel.onAuthenticate({mode,fields,signal})` is the page-injected real sign-in/registration service boundary. Credentials remain in the form and one FormData call, never React state, storage or notifications. Only successful resolution produces a green notice and the watching cow with a translated Welcome speech bubble using shared PixelBubble/tail. Mode changes and unmount abort pending work and ignore late results; failures reuse shared classification. The page lazily loads ConnectedAuthPanel. Sign-in posts JSON to /api/authority/sign-in with credentials: include and no-store, validates identity/role/seven permissions, and displays success only after the response passes. The browser manages the session cookie; success clears and hides passwords, and editing clears the welcome state. Known 401/429/422/service failures have safe localized copy. Registration uses the availability/code/verification flow above; password reset remains unavailable. Field validation stays local, with password mismatch shown in red; operation messages use the global host.
 
 登入或註冊成功後，頁面會先保存 API 回傳的帳號身份，再返回主頁；Overview 介紹標籤始終顯示公開 Site 的 `profile.introContent`。首頁使用輕量 `auth/session` 訂閱身份，控制齒輪選單的身份與登入／登出操作；`GET /api/authority/session` 在瀏覽器掛載後恢復身份，支援重新整理及跨語系導覽。身份只保留在 QueryClient 記憶體，排除 SSR／dehydration；成功登入先取消舊恢復查詢，避免晚到的訪客回應覆蓋新身份。登出使用不帶 body 的 `POST /api/authority/sign-out`，透過 `credentials: include` 傳送目前 cookie 並使用 `no-store`；驗證回應 `signed_out: true` 後才清除瀏覽器身份並顯示成功提示。登出期間暫停身份恢復，清除身份前再取消舊查詢；失敗保留原身份並沿用全站安全錯誤提示，公開作品集資料不受影響。
 
@@ -524,6 +526,8 @@ React Router renders both development and production pages in Node. Its developm
 
 Browser optimization scans root and route entries, including lazy components, before initial loading. Both optimizers reuse `bootstrapComponents`; extend this list when introducing another interactive React-Bootstrap component.
 
+隔離驗證可使用 `PORTFOLIO_VITE_CACHE_DIR` 避開既有 dev cache；建議將 cache 放在前端目錄內，例如 `node_modules/.vite-smoke`。外置 cache 必須仍能解析同一份應用 `node_modules`，否則 SSR 的 CommonJS 相依可能出現 `Cannot find module 'react'`；這項路徑配置不改變瀏覽器或 SSR 的 React 共用規則。
+
 See [Vite dependency optimization](https://vite.dev/config/dep-optimization-options) and [SSR options](https://vite.dev/config/ssr-options) for the configuration boundaries.
 
 ### 環境變數與 API / Environment and API Configuration
@@ -569,15 +573,15 @@ Deploy public client assets and the private Node server build. The Node runtime 
 
 Public SSR resolves content on each request without rebuilding frontend code. Queries remain fresh for one minute; inactive browser data expires after five minutes with a six-identity public-cache cap. Category previews seed skill page one, and changed previews reset obsolete owner continuations. Identity/count/page checks detect common changes without claiming a shared database transaction across APIs.
 
-專案主體保留型別、lint、格式、共用文件與正式建置檢查；執行 `npm run check`。測試腳本、fixtures、Vitest／Playwright 設定、造資料工具及壓測報告集中於根目錄的 `agent/`，已排除於 Git，不隨專案提交。
+`npm run check` 統一執行型別、lint、格式、共用文件、Vitest 與正式建置。`tests/` 維護單元／瀏覽器案例與 fixtures；Vitest／Playwright 設定位於前端根目錄。`npm run test:e2e` 使用隔離產物及 fixture API；真實 API 另用 `test:integration`。一次性造資料工具與驗證報告保留在忽略的 `agent/`。
 
-Run `npm run check` for types, lint, formatting, shared documentation and production builds. Local tests, fixtures, test-runner configuration, seeding tools and load reports are kept in the ignored root `agent/` directory.
+Run npm run check for types, lint, formatting, shared documentation, Vitest and production builds. Tests, fixtures and runner configs ship with the project; E2E uses an isolated build and fixture API, while live API tests have a separate integration command. Disposable evidence stays under agent/.
 
 後端管理列表與 Portfolio preview 已共用 class 權限驗證器，每次依 SESSION 的 ID 讀取目前帳號與角色權限；CUD 與各模組獨立 CRUD 權限仍記錄於 [權限待辦](../docs/management-permissions-todo.md)。
 
 Management lists and portfolio previews share a class-based permission dependency that refreshes the current account and role from the SESSION ID on every request. CUD and per-module CRUD grants remain in the [permission TODO](../docs/management-permissions-todo.md).
 
-原始碼、CSS、字典、字型／地圖／圖片及授權、建置 scripts、deploy 範例與必要工具設定隨功能提交。本機測試工具、依賴、環境及可重建產物不提交；`.react-router` 由 typecheck／dev／build 產生，正式產物由 build 產生。
+原始碼、CSS、字典、字型／地圖／圖片及授權、建置 scripts、deploy 範例與必要工具設定隨功能提交。正式 tests／fixtures／設定隨專案維護；一次性測試證據、依賴環境及可重建產物不提交；`.react-router` 由 typecheck／dev／build 產生，正式產物由 build 產生。
 
 Commit source, styles, locales, assets/licenses, build scripts, deployment examples and required configuration. Exclude local test tooling, dependencies, environment files and reproducible output. Framework commands regenerate route types; production builds generate runtime artifacts.
 
@@ -721,9 +725,9 @@ Profile name 是詳情的 presentation 欄位，組合當前語言的 `first_nam
 
 The complete 31-field Actions record follows the configured order independently of table visibility. Its Profile name is a non-sortable presentation value derived only from the selected language's name/nickname fields, reusing public name ordering and explicit missing-content labels. Status renderers are shared by table cells and details while exports keep primitive values. Created and Updated are genuine account timestamps supplied by the list API; no database migration is required. Display uses YYYY.MM.DD HH:mm:ss in UTC with 24-hour hours and seconds, while API/export timestamps retain ISO values.
 
-若三支管理 GET 都回 `404`，先確認後端目前程序是否已載入新路由；`/openapi.json` 應列出 `/management/sites`、`/management/users`、`/management/roles`。目前 `manage_fastapi.py` 在啟動時建立路由，新增後端路由後須重啟該開發服務，前端再按 Refresh。
+若三支管理 GET 都回 `404`，先確認後端目前程序是否已載入新路由；`/openapi.json` 應列出 `/management/sites`、`/management/users`、`/management/roles`。FastAPI 在啟動時建立路由，新增後端路由後，從 `backend/` 透過 `uv run --locked manage.py` 重啟 FastAPI 與 APScheduler，前端再按 Refresh。
 
-If all three management GETs return `404`, check whether the running backend has loaded the routes: `/openapi.json` should list `/management/sites`, `/management/users` and `/management/roles`. The current backend entry builds routes at startup, so restart that development service after adding routes and refresh the table.
+If all three management GETs return `404`, check whether the running backend has loaded the routes: `/openapi.json` should list `/management/sites`, `/management/users` and `/management/roles`. FastAPI builds routes at startup, so restart FastAPI and APScheduler together using `uv run --locked manage.py` from `backend/` after adding routes, then refresh the table.
 
 管理 query 以操作者、資源、語言及完整查詢條件隔離，meta.private 排除 SSR／語言 staging 的 hydration。登入替換身份、SESSION 管理權限改變與登出時取消並移除 private resource queries，公開 Portfolio cache 保留；管理 DTO 不寫入 localStorage。前端 SESSION gate 與後端共用 `ManagementPermission` dependency 各自驗證存取；後端每次重新讀取有效帳號、角色及對應管理旗標。
 
@@ -888,7 +892,7 @@ The bottom-right north indicator presents N above the shared Bootstrap `arrowUp`
 
 Each feature validates its six-endpoint DTOs with Zod. All pagination uses the same five-field contract and size six. Null items, duplicate identities, invalid calendar periods and inconsistent page arithmetic cannot enter the query cache. Nullable DTO semantics are preserved. Reads time out after ten seconds and transient failures retry once. Sections load independently and retain validated content when refresh or continuation fails.
 
-Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，再由 React Router 產生 HTML／route data；`/api` 獨立轉交 FastAPI 並保留錯誤 status。API_PROXY_TARGET 用於 browser proxy，API_SERVER_TARGET 僅供 SSR，瀏覽器使用 VITE_API_BASE_URL。The runtime serves assets, dynamically renders public documents and separately proxies browser API requests with their real status codes.
+Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，再由 React Router 產生 HTML／route data；`/api` 獨立轉交 FastAPI 並保留錯誤 status。`/api/socket.io` 轉送 WebSocket 升級、SESSION cookie 與公開 Host／Origin，停止服務時關閉所有升級連線。API_PROXY_TARGET 用於 browser proxy，API_SERVER_TARGET 僅供 SSR，瀏覽器使用 VITE_API_BASE_URL。The runtime serves assets, dynamically renders public documents and separately proxies browser API requests with their real status codes. It also forwards Socket.IO WebSocket upgrades with the session cookie and public Host/Origin, and closes upgraded connections on shutdown.
 
 ## 裝飾與進場規格 / Decoration and Entrance Specifications
 
@@ -919,7 +923,7 @@ Node SSR runtime：`npm run preview`／`npm start` 先處理 immutable assets，
 
 User management 的 Actions 提供登入紀錄入口，延遲載入 `LoginRecords` 視窗，透過既有 `/management/login-records?user_id=...` 讀取該用戶的登入事件。沿用 DataTable 的欄位選擇、搜尋、篩選、排序、分頁與本頁匯出；視窗查詢狀態不覆寫背景管理表的 URL。紀錄依登入時間降序顯示，IP／地區與查詢狀態唯讀；舊資料缺值顯示破折號。私有快取依登入管理員、目標用戶、語言及查詢條件隔離，關閉視窗停止觀察請求。
 
-The User management action lazily loads a read-only login-history dialog. It reuses DataTable controls and the existing private management query engine while keeping dialog controls separate from the background URL. Query identity includes the actor, target account, locale and server query. Geographic results are approximate stored snapshots; browser code never collects or resolves the login IP. The backend supports offline GeoIP data imported through the deployment process.
+The User management action lazily loads a read-only login-history dialog. It reuses DataTable controls and the existing private management query engine while keeping dialog controls separate from the background URL. Query identity includes the actor, target account, locale and server query. Geographic results are approximate stored snapshots; browser code never collects or resolves the login IP. The backend uses offline GeoIP data bundled in Git and prepared at startup.
 
 登入紀錄沿用原本 Modal 樣式並延遲載入；其 API schema、唯讀查詢及三語文案納入目前有界資產預算。IP 地區使用後端部署包內的 DB-IP Lite MMDB，畫面提供 CC BY 4.0 來源連結；呈現畫面不觸發外部定位或下載。
 
@@ -963,13 +967,13 @@ See the [monitoring screenshot tour](../README.md#即時請求與-worker-監控-
 
 | 元件 / Module                | 介面 / Interface                                                          | 責任 / Responsibility                                                                                                                                                                                         |
 | ---------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MonitoringPanel.tsx`        | `MonitoringPanel({locale, enabled, accountId?, onDenied, motionPaused?})` | 組合請求／資源視圖、統計卡、Worker 流程及事件表；管理暫停、排序、篩選及分頁。 / Composes views, summary cards, worker flow and event table; owns display controls.                                            |
+| `MonitoringPanel.tsx`        | `MonitoringPanel({locale, enabled, accountId?, onDenied, motionPaused?})` | 組合單一控制器與請求／資源視圖。 / Composes one controller and independent topic views.                                                                                                                       |
 | `useMonitorSocket.ts`        | `useMonitorSocket(enabled, paused, accountId?, topic?)`                   | 管理單一連線、訂閱、重連、授權拒絕與各主題版本；回傳連線狀態、觀測資料及 `retry()`。 / Owns connection, subscriptions, retries, authorization failure and per-topic revisions.                                |
 | `monitor.ts`                 | `monitorSnapshotSchema`、`workerKey()`、`requestElapsed()`                | Zod 驗證快照，提供 Worker 識別及單調時鐘耗時推算；匯出 `MonitorSnapshot`／`MonitorWorker`／`MonitorRequest` 型別。 / Validates snapshots and supplies identity, elapsed-time helpers and inferred types.      |
 | `FlowRoutes.tsx`             | `FlowRoutes({root, requests, animate})`                                   | 量測實際 DOM 端點，繪製 SVG 方向線與請求脈衝；卸載時回收 observers／animation frame。 / Measures rendered endpoints and draws directional SVG paths and observed request pulses, with observer/frame cleanup. |
 | `MonitoringPanel.module.css` | 區域樣式 / Scoped styles                                                  | 緊湊卡片、流程圖、狀態燈、兩色實線箭頭、響應式配置及動態控制。 / Compact cards, diagram, activity lamps, solid two-color arrows, responsive layout and motion controls.                                       |
 
-`MonitorSelect`、`WorkerMetric` 與 `Stat` 為 `MonitoringPanel.tsx` 內部的小元件：分別負責統一風格的單選選單、含可讀標籤與 tooltip 的資源圖示，以及統計卡。不把監控業務擴散到 shared，也不為這張簡單事件表加入搜尋、新增或刪除工具。
+`MonitorSelect`、`WorkerMetric` 與 `Stat` 位於 `monitor-presentation.tsx`：分別負責統一風格的單選選單、含可讀標籤與 tooltip 的資源圖示，以及統計卡。不把監控業務擴散到 shared，也不為這張簡單事件表加入搜尋、新增或刪除工具。
 
 `MonitorSelect`, `WorkerMetric` and `Stat` are local presentation components for themed selectors, accessible resource values and summary cards. The events table stays lightweight without search or mutation controls; shared modules provide only reusable UI infrastructure.
 
@@ -979,10 +983,35 @@ See the [monitoring screenshot tour](../README.md#即時請求與-worker-監控-
 
 地區優先使用後端 `location` 顯示值；本機／私有 IP 統一顯示 `local`，舊快照缺少此欄位時仍可使用既有地區欄位與狀態顯示。
 
+監控與管理列表時間統一使用 `shared/lib/timestamps.ts` 的 UTC 政策：監控依語系格式化並加上 UTC 標籤，Created／Updated 與登入紀錄使用穩定 UTC 日期文字。epoch 秒僅在監控邊界轉為毫秒；耗時仍採單調時鐘。
+
 Worker 篩選及筆數選單共用 `MonitorSelect`，沿用 DataTable 的 `DataTableMenu.module.css` 選單樣式及 `tableToolbarMenuPosition` 定位；主題色、選取勾選及鍵盤操作維持一致，不增加其他表格工具。
 
 統計卡依所有保留事件計算，Worker 篩選只影響事件表。完成表示最後 ASGI body／trailers 已送出；不是瀏覽器已確認接收。忙碌依 `active_requests > 0` 判斷，等待時顯示閒置燈；2 秒採樣間完成的短請求可能只播放進入／回傳動畫，不一定被觀測為處理中。CPU 以單一核心為基準、RAM 為 RSS，Uptime 是程序運行時間，Restarts 僅計目前 manager run 中的意外替換；交易數是最外層 Session 邏輯交易，不是 SQL 執行數。資料不足或過期時顯示未知／stale，不能當成零。
 
 Cards summarize all retained observations; worker filtering affects only the table. Completion means the final ASGI response message was sent, without implying browser acknowledgement. Busy state follows active request counts, so sub-cycle requests may animate without a sampled busy state. CPU is relative to one core, memory is RSS, uptime is process age, and restarts count unexpected replacements during the current manager run. Transactions count outer Session scopes rather than executing SQL. Missing or stale values remain unknown rather than zero.
 
-The monitoring route reuses the private management shell and loads its socket client lazily. No periodic browser HTTP requests fetch monitoring snapshots. The events table defaults to five rows per page, with 5, 10, 25, 50, 100 and ALL options; ALL shows every retained event matching the worker filter. Worker and page-size selectors share a compact `MonitorSelect`, reusing DataTable's menu CSS and placement for themed options, selection checks and keyboard navigation. Location uses the backend's `location` display value, with local/private IPs shown as `local` and a fallback for older snapshots. Transport uses the configured API origin and `/api/socket.io` by default; development and Nginx proxy configurations support WebSocket upgrades. Each topic uses monotonic revisions; reconnect restores current state without replaying historical traffic. Resource time counters advance in the browser. Aggregate artifact budgets now include the lazy monitoring client, diagram, and three locales; public portfolio visits do not request monitoring chunks.
+The monitoring route reuses the private management shell and loads its socket client lazily. No periodic browser HTTP requests fetch monitoring snapshots. The events table defaults to five rows per page, with 5, 10, 25, 50, 100 and ALL options; ALL shows every retained event matching the worker filter. Worker and page-size selectors share a compact `MonitorSelect`, reusing DataTable's menu CSS and placement for themed options, selection checks and keyboard navigation. Location uses the backend's `location` display value, with local/private IPs shown as `local` and a fallback for older snapshots. Transport uses the configured API origin and `/api/socket.io` by default; development, Node preview/start and Nginx proxy configurations support WebSocket upgrades. Each topic uses monotonic revisions; reconnect restores current state without replaying historical traffic. Resource time counters advance in the browser. Aggregate artifact budgets include the lazy monitoring client, diagram, and three locales; public portfolio visits do not request monitoring chunks.
+
+### 請求歷史與即時畫面 / Request History and Live Views
+
+後端在更新 SYS Redis 即時快照時，另將已結束事件加入同 DB 0 的 request Stream，由 `jobs_monitor_request` 每分鐘寫入 `record_request`。目前前端仍只訂閱 Socket.IO 快照；事件表 ALL、暫停、重連與本地篩選都作用於保留的即時事件，不查詢 SQL 歷史。歷史資料的查詢 API 與可視化尚未實作；欄位、重試／去重、暫存及持久性限制由 [record_request 設計](../backend/SYSTEM/models/README_record_request.md) 擁有。
+
+The backend persists a separate SYS Redis event stream to SQL every minute. This browser feature continues to show live snapshots only; ALL and reconnection operate on retained observations. History query APIs and visualization remain future work. The backend table guide owns schema and persistence guarantees.
+
+### 前端驗證邊界 / Frontend Verification Scope
+
+`npm run check` 執行型別、ESLint、Prettier、共用文件索引、Vitest 單元測試及正式 build，涵蓋公開產物政策與資產預算。測試與 fixtures 隨專案維護於 `tests/`，依賴版本由 package-lock.json 鎖定。
+
+```sh
+npm ci
+npm test
+npx playwright install chromium
+npm run test:e2e
+```
+
+`test:e2e` 自行啟動隔離的 HTTP fixture（4181）與正式 SSR 預覽（4173），並以 example.com 測試站點設定建置於隔離的 .test-build/；它不連你的後端。真實 API 測試另用 `npm run test:integration`，必須提供 `PORTFOLIO_API_SMOKE_TARGET`、`PORTFOLIO_SMOKE_EMAIL`、`PORTFOLIO_SMOKE_PASSWORD` 指向隔離服務與帳號。完整指令、後端測試及支援範圍見[品質驗證](../docs/code-quality.md)。
+
+`MonitoringPanel` 組合 `useMonitoringPanel`、`MonitorRequestsView`、`MonitorWorkersView`；流程圖獨立為 `MonitorFlow`。`AuthPanel` 由 `useAuthPanelController` 控制取消／驗證，`AuthFormBody` 共用 live 與 inert preview 的標記，憑證仍留在原生 input。`DataTable` 使用 `useDataTable` 管理本地選項、欄位可見性及匯出，Head／Toolbar／Footer 分開呈現，feature 持有 query scope、選取及 API。共享分頁 refinement 保留公開 size=6、管理 size=1–100 的差異。
+
+For manual smoke checks, start the backend through `manage.py`, verify published portfolios in all three locales, then exercise sign-in/out, registration proof, private list permissions, edit/save, single/batch deletion, preview and monitoring. Test both the Node production runtime and Vite development proxy, including mobile layouts, cancellation and error recovery. SMTP delivery, password reset, Profile and administration Add remain placeholders.

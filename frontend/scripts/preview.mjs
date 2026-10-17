@@ -1,6 +1,8 @@
 import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { loadEnvFile } from 'node:process';
+import { resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import sirv from 'sirv';
 import { createRequestListener } from '@react-router/node';
 
@@ -14,9 +16,15 @@ try {
   if (error.code !== 'ENOENT') throw error;
 }
 const origin = new URL(process.env.API_PROXY_TARGET || 'http://127.0.0.1:8080');
-const build = await import(new URL('../build/server/index.js', import.meta.url).href);
+// Share the build-directory override with React Router so browser tests own their artifacts.
+const buildDirectory = resolve(
+  fileURLToPath(new URL('../', import.meta.url)),
+  process.env.PORTFOLIO_BUILD_DIR || 'build',
+);
+const build = await import(pathToFileURL(resolve(buildDirectory, 'server/index.js')).href);
 const render = createRequestListener({ build, mode: 'production' });
-const files = sirv('build/client', {
+const upgradedSockets = new Set();
+const files = sirv(resolve(buildDirectory, 'client'), {
   etag: true,
   gzip: true,
   setHeaders(response, path) {
@@ -102,6 +110,66 @@ const server = createServer((incoming, outgoing) => {
   });
   incoming.pipe(proxy);
 });
+
+/** Preserve the authenticated Socket.IO upgrade through the same browser API prefix. */
+server.on('upgrade', (incoming, socket, head) => {
+  const reject = (status, message) => {
+    if (!socket.destroyed)
+      socket.end(`HTTP/1.1 ${status} ${message}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+  };
+  if (!/^\/api\/socket\.io(?:\/|\?|$)/.test(incoming.url || '')) {
+    reject(404, 'Not Found');
+    return;
+  }
+  const suffix = incoming.url.replace(/^\/api\//, '');
+  const target = new URL(`${origin.href.replace(/\/$/, '')}/${suffix}`);
+  const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
+  const proxy = send(target, {
+    method: 'GET',
+    // Keep the public Host and Origin aligned for the backend's same-origin check.
+    headers: { ...incoming.headers, host: incoming.headers.host || target.host },
+  });
+  const timeout = setTimeout(() => proxy.destroy(), 10_000);
+  upgradedSockets.add(socket);
+  socket.once('close', () => {
+    clearTimeout(timeout);
+    upgradedSockets.delete(socket);
+    proxy.destroy();
+  });
+  socket.on('error', () => proxy.destroy());
+  proxy.on('upgrade', (response, upstream, upstreamHead) => {
+    clearTimeout(timeout);
+    if (socket.destroyed) {
+      upstream.destroy();
+      return;
+    }
+    upgradedSockets.add(upstream);
+    upstream.once('close', () => {
+      upgradedSockets.delete(upstream);
+      socket.destroy();
+    });
+    upstream.on('error', () => socket.destroy());
+    socket.once('close', () => upstream.destroy());
+    const headers = [];
+    for (let index = 0; index < response.rawHeaders.length; index += 2)
+      headers.push(`${response.rawHeaders[index]}: ${response.rawHeaders[index + 1]}`);
+    socket.write(`HTTP/1.1 101 Switching Protocols\r\n${headers.join('\r\n')}\r\n\r\n`);
+    if (head.length) upstream.write(head);
+    if (upstreamHead.length) socket.write(upstreamHead);
+    upstream.pipe(socket);
+    socket.pipe(upstream);
+  });
+  proxy.on('response', (response) => {
+    clearTimeout(timeout);
+    reject(response.statusCode || 502, response.statusMessage || 'Bad Gateway');
+    response.resume();
+  });
+  proxy.on('error', () => {
+    clearTimeout(timeout);
+    reject(502, 'Bad Gateway');
+  });
+  proxy.end();
+});
 const port = Number(process.env.PORT ?? 5173);
 if (!Number.isInteger(port) || port < 1 || port > 65_535)
   throw new Error('PORT must be a valid TCP port.');
@@ -110,6 +178,7 @@ server.listen(port, host, () => console.log(`Dynamic portfolio ready on ${host}:
 /** Allow test runners and development shells to release the runtime port cleanly. */
 for (const signal of ['SIGINT', 'SIGTERM'])
   process.on(signal, () => {
+    for (const socket of upgradedSockets) socket.destroy();
     server.close();
     server.closeAllConnections();
   });

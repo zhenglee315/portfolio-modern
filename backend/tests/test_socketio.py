@@ -29,7 +29,14 @@ from redis.asyncio import Redis
 from socketio import packet
 from websockets.asyncio.client import connect as websocket_connect
 
-from SYSTEM.tools.tools_socketio import socketio_include_events, socketio_init_app, socketio_shutdown
+from COMMON.tools.storage.redis import RedisAsync
+from SYSTEM.constants import EnumSess
+
+from SYSTEM.tools.tools_socketio import (
+    socketio_include_events,
+    socketio_init_app,
+    socketio_shutdown,
+)
 from SYSTEM.tools.tools_monitor import MonitorStream, WorkerMonitor
 
 
@@ -54,11 +61,20 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.redis = Redis.from_url(os.environ["SOCKETIO_TEST_REDIS_URL"])
         self.prefix = f"socket-stream-test:{uuid4().hex}"
-        self.monitor = WorkerMonitor(self.redis, prefix=self.prefix, interval=0.1, heartbeat=2, retention=4)
+        self.monitor = WorkerMonitor(
+            RedisAsync(redis=self.redis),
+            prefix=self.prefix,
+            interval=0.1,
+            heartbeat=2,
+            retention=4,
+        )
         self.monitor.single_worker = True
         self.monitor.status = "running"
         self.server = SimpleNamespace(
-            emit=AsyncMock(), enter_room=AsyncMock(), leave_room=AsyncMock(), disconnect=AsyncMock()
+            emit=AsyncMock(),
+            enter_room=AsyncMock(),
+            leave_room=AsyncMock(),
+            disconnect=AsyncMock(),
         )
         self.authorize = AsyncMock(return_value=1)
         self.stream = MonitorStream(self.monitor, self.server, authorize=self.authorize)
@@ -95,7 +111,10 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
         self.monitor.end_request(token, http_status=200)
         await self.monitor.publish()
         await self.stream.tick()
-        self.assertEqual(self.server.emit.call_args.args[1]["data"]["summary"]["recent_completed_requests"], 1)
+        self.assertEqual(
+            self.server.emit.call_args.args[1]["data"]["summary"]["recent_completed_requests"],
+            1,
+        )
 
     async def test_single_publisher_takeover_and_stale_owner_cannot_commit(self):
         await self.stream.connect("one", {})
@@ -136,7 +155,7 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("one", self.stream.connections)
 
     async def test_current_single_worker_run_excludes_previous_run_events(self):
-        old = WorkerMonitor(self.redis, prefix=self.prefix)
+        old = WorkerMonitor(RedisAsync(redis=self.redis), prefix=self.prefix)
         old.instance_id = self.monitor.instance_id
         old.single_worker = True
         old.run_id = "previous-run"
@@ -153,9 +172,8 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
     async def test_real_session_reload_and_database_role_revocation(self):
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
         from SYSTEM.models import AuthRole, AuthUser
-        from APPs.Auth.module.module_auth import AuthModule
+        from APPs.Auth.module import AuthModule
         from APPs.Sys.events_monitor import authorize_monitor
-        from SYSTEM.constants import AUTH_SESSION_IDENTITY_KEY
         from SYSTEM.tools.tools_socketio import socketio_session_request
 
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -172,7 +190,10 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
             await user.set_password("Monitor-test-password-2026")
             session.add(user)
             await session.flush()
-            identity = {"id": user.id, AUTH_SESSION_IDENTITY_KEY: AuthModule.session_identity(user.id, user.password)}
+            identity = {
+                "id": user.id,
+                EnumSess.AUTH_IDENTITY: AuthModule.session_identity(user.id, user.password),
+            }
             uid, rid = user.id, role.id
         sid = uuid4().hex
         key = f"sess:{sid}"
@@ -187,7 +208,7 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
         }
         manager = SimpleNamespace(get_cache=lambda **_: self.redis, get_db=sessions)
         try:
-            with patch("SYSTEM.database.CONN_MANAGER", manager):
+            with patch("APPs.Sys.events_monitor.CONN_MANAGER", manager):
                 self.assertEqual(await authorize_monitor(environ), uid)
                 async with sessions.begin() as session:
                     (await session.get(AuthRole, rid)).is_manage_sites = False
@@ -272,7 +293,14 @@ class EventTests(unittest.IsolatedAsyncioTestCase):
             result = await events_monitor.monitor_test("sid-a", {"message": "probe"})
             await events_monitor.disconnect("sid-a", "test complete")
         self.assertEqual(
-            result, {"ok": True, "message": "probe", "pid": os.getpid(), "sid": "sid-a", "transport": "websocket"}
+            result,
+            {
+                "ok": True,
+                "message": "probe",
+                "pid": os.getpid(),
+                "sid": "sid-a",
+                "transport": "websocket",
+            },
         )
         server.emit.assert_awaited_once_with("monitor_test_result", result, to="sid-a", namespace="/monitor")
 
@@ -281,9 +309,15 @@ class EventTests(unittest.IsolatedAsyncioTestCase):
 
         server = SimpleNamespace(emit=AsyncMock(), transport=Mock(return_value="websocket"))
         with patch.object(events_monitor, "sio", server):
-            for data in ({"message": 123}, {"message": "x" * 257}, {"password": "not echoed"}, []):
+            for data in (
+                {"message": 123},
+                {"message": "x" * 257},
+                {"password": "not echoed"},
+                [],
+            ):
                 self.assertEqual(
-                    await events_monitor.monitor_test("sid", data), {"ok": False, "error": "INVALID_PAYLOAD"}
+                    await events_monitor.monitor_test("sid", data),
+                    {"ok": False, "error": "INVALID_PAYLOAD"},
                 )
 
     async def test_transport_rejects_polling_and_falls_back_to_http_app(self):
@@ -298,7 +332,10 @@ class EventTests(unittest.IsolatedAsyncioTestCase):
         wrapper = socketio_init_app(app, server=sio)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=wrapper), base_url="http://test") as client:
             self.assertEqual((await client.get("/ordinary")).json(), {"ordinary": True})
-            self.assertEqual((await client.get("/socket.io/?EIO=4&transport=polling")).status_code, 400)
+            self.assertEqual(
+                (await client.get("/socket.io/?EIO=4&transport=polling")).status_code,
+                400,
+            )
 
     async def test_shutdown_stops_listener_before_closing_redis(self):
         order = []
@@ -334,7 +371,9 @@ def create_test_app():
     channel = os.environ["SOCKETIO_TEST_CHANNEL"]
     url = os.environ["SOCKETIO_TEST_REDIS_URL"]
     server = socketio.AsyncServer(
-        async_mode="asgi", transports=["websocket"], client_manager=socketio.AsyncRedisManager(url, channel=channel)
+        async_mode="asgi",
+        transports=["websocket"],
+        client_manager=socketio.AsyncRedisManager(url, channel=channel),
     )
     extension.sio = server
 
@@ -345,7 +384,15 @@ def create_test_app():
         redis = Redis.from_url(url)
         key = f"{channel}:worker:{os.getpid()}"
         await redis.set(key, "1", ex=60)
-        monitor = WorkerMonitor(redis, prefix=f"{channel}:metrics", interval=0.1, heartbeat=2, retention=4)
+        # The stream lease is at least 5s; request evidence must outlive a killed
+        # publisher's lease so its successor can deliver it after takeover.
+        monitor = WorkerMonitor(
+            RedisAsync(redis=redis),
+            prefix=f"{channel}:metrics",
+            interval=0.1,
+            heartbeat=2,
+            retention=15,
+        )
 
         async def authorize(_):
             return 1  # This isolated fixture has no configured identity database.
@@ -361,7 +408,11 @@ def create_test_app():
                     value = json.loads(command[1])
                     if value.get("action") == "request":
                         token = monitor.begin_request(
-                            {"method": "GET", "path": "/cross-worker", "client": ("127.0.0.1", 1)}
+                            {
+                                "method": "GET",
+                                "path": "/cross-worker",
+                                "client": ("127.0.0.1", 1),
+                            }
                         )
                         monitor.end_request(token, http_status=200)
                         continue
@@ -426,9 +477,9 @@ class ProbeClient:
         self.sid = joined.data["sid"]
         return self
 
-    async def receive(self):
+    async def receive(self, timeout=3):
         while True:
-            frame = await asyncio.wait_for(self.socket.recv(), 3)
+            frame = await asyncio.wait_for(self.socket.recv(), timeout)
             if frame == "2":
                 await self.socket.send("3")
             elif frame.startswith("4"):
@@ -439,7 +490,10 @@ class ProbeClient:
         await self.socket.send(
             "4"
             + packet.Packet(
-                packet.EVENT, namespace="/monitor", id=self.sequence, data=["monitor_test", {"message": message}]
+                packet.EVENT,
+                namespace="/monitor",
+                id=self.sequence,
+                data=["monitor_test", {"message": message}],
             ).encode()
         )
         result = None
@@ -458,7 +512,10 @@ class ProbeClient:
         await self.socket.close()
 
 
-@unittest.skipUnless(os.environ.get("SOCKETIO_TEST_REDIS_URL"), "Set an isolated SOCKETIO_TEST_REDIS_URL.")
+@unittest.skipUnless(
+    os.environ.get("SOCKETIO_TEST_REDIS_URL"),
+    "Set an isolated SOCKETIO_TEST_REDIS_URL.",
+)
 class ProcessTests(unittest.IsolatedAsyncioTestCase):
     async def test_four_workers_stickiness_cross_worker_redis_and_reconnect(self):
         url = os.environ["SOCKETIO_TEST_REDIS_URL"]
@@ -505,7 +562,13 @@ class ProcessTests(unittest.IsolatedAsyncioTestCase):
             sender_pid = next(other for other in initial if other != pid)
             await redis.rpush(f"{channel}:command:{sender_pid}", json.dumps({"sid": first.sid}))
             pushed = await first.receive()
-            self.assertEqual(pushed.data, ["monitor_test_result", {"from_pid": sender_pid, "message": "cross-worker"}])
+            self.assertEqual(
+                pushed.data,
+                [
+                    "monitor_test_result",
+                    {"from_pid": sender_pid, "message": "cross-worker"},
+                ],
+            )
             self.assertNotEqual(sender_pid, pid)
             with self.assertRaises(TimeoutError):
                 await asyncio.wait_for(second.receive(), 0.15)
@@ -537,9 +600,11 @@ class ProcessTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(acknowledged and observed)
             await redis.rpush(f"{channel}:command:{sender_pid}", json.dumps({"action": "request"}))
             found = False
-            async with asyncio.timeout(5):
+            # A killed stream leader retains its 5s Redis lease. Wait for real
+            # takeover rather than treating a healthy successor as a timeout.
+            async with asyncio.timeout(12):
                 while not found:
-                    response = await reconnected.receive()
+                    response = await reconnected.receive(timeout=12)
                     if response.packet_type == packet.EVENT and response.data[0] == "monitor_snapshot":
                         found = any(
                             row["path"] == "/cross-worker" and row["pid"] == sender_pid

@@ -9,7 +9,13 @@ from SYSTEM.constants import (
     PRIVATE_CACHE_CONTROL,
     COOKIE_VARY,
 )
-from SYSTEM.models import AuthRole, AuthUser, PortfolioSite, PortfolioSiteLocale, RecordLogin
+from SYSTEM.models import (
+    AuthRole,
+    AuthUser,
+    PortfolioSite,
+    PortfolioSiteLocale,
+    RecordLogin,
+)
 
 # ◆—< Pack >—————————————————————————————————◆ Common
 from COMMON.tools import EnumUtils
@@ -318,7 +324,9 @@ def _filter_fields(names, booleans=(), numbers=(), dates=(), nullable=()):
     return {
         name: {
             "type": (
-                "boolean" if name in booleans else "number" if name in numbers else "date" if name in dates else "text"
+                "boolean"
+                if name in booleans
+                else ("number" if name in numbers else "date" if name in dates else "text")
             ),
             "nullable": name in nullable,
         }
@@ -339,13 +347,30 @@ for field in (EnumManagementField.ID,):
 
 USER_FILTER_FIELDS = _filter_fields(
     USER_SORT_FIELDS,
-    (EnumManagementField.IS_ACTIVE, EnumManagementField.ROLE_IS_ACTIVE, EnumManagementField.HAS_SITE),
-    (EnumManagementField.ID, EnumManagementField.ROLE_ID, EnumManagementField.SITE_ID, EnumManagementField.LOGIN_COUNT),
-    (EnumManagementField.CREATETIME, EnumManagementField.UPDATETIME, EnumManagementField.LAST_LOGIN),
+    (
+        EnumManagementField.IS_ACTIVE,
+        EnumManagementField.ROLE_IS_ACTIVE,
+        EnumManagementField.HAS_SITE,
+    ),
+    (
+        EnumManagementField.ID,
+        EnumManagementField.ROLE_ID,
+        EnumManagementField.SITE_ID,
+        EnumManagementField.LOGIN_COUNT,
+    ),
+    (
+        EnumManagementField.CREATETIME,
+        EnumManagementField.UPDATETIME,
+        EnumManagementField.LAST_LOGIN,
+    ),
     (EnumManagementField.SITE_ID, EnumManagementField.LAST_LOGIN),
 )
 USER_FILTER_FIELDS[EnumManagementField.ROLE]["sets"] = True
-for field in (EnumManagementField.ID, EnumManagementField.ROLE_ID, EnumManagementField.SITE_ID):
+for field in (
+    EnumManagementField.ID,
+    EnumManagementField.ROLE_ID,
+    EnumManagementField.SITE_ID,
+):
     USER_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
 
 SITE_FILTER_FIELDS = _filter_fields(
@@ -358,7 +383,11 @@ SITE_FILTER_FIELDS = _filter_fields(
         EnumManagementField.IS_DEFAULT,
         EnumManagementField.HAS_TRANSLATION,
     ),
-    (EnumManagementField.ID, EnumManagementField.SITE_ID, EnumManagementField.COPYRIGHT_YEAR),
+    (
+        EnumManagementField.ID,
+        EnumManagementField.SITE_ID,
+        EnumManagementField.COPYRIGHT_YEAR,
+    ),
     (EnumManagementField.CREATETIME, EnumManagementField.UPDATETIME),
     (
         EnumManagementField.SITE_ID,
@@ -367,10 +396,17 @@ SITE_FILTER_FIELDS = _filter_fields(
         EnumManagementField.PROFILE_NAME,
     ),
 )
-for field in (EnumManagementField.ID, EnumManagementField.SITE_ID, EnumManagementField.COPYRIGHT_YEAR):
+for field in (
+    EnumManagementField.ID,
+    EnumManagementField.SITE_ID,
+    EnumManagementField.COPYRIGHT_YEAR,
+):
     SITE_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
 
-SITE_FILTER_FIELDS[EnumManagementField.LOCALE] = {"type": "enum", "options": tuple(EnumLocal)}
+SITE_FILTER_FIELDS[EnumManagementField.LOCALE] = {
+    "type": "enum",
+    "options": tuple(EnumLocal),
+}
 
 LOGIN_FILTER_FIELDS = _filter_fields(
     LOGIN_SORT_FIELDS,
@@ -385,7 +421,10 @@ LOGIN_FILTER_FIELDS = _filter_fields(
 )
 for field in (EnumManagementField.ID, EnumManagementField.USER_ID):
     LOGIN_FILTER_FIELDS[field].update(minimum=-2147483648, maximum=2147483647)
-LOGIN_FILTER_FIELDS[EnumManagementField.GEO_STATUS] = {"type": "enum", "options": LOGIN_GEO_STATUSES}
+LOGIN_FILTER_FIELDS[EnumManagementField.GEO_STATUS] = {
+    "type": "enum",
+    "options": LOGIN_GEO_STATUSES,
+}
 
 __all__ = tuple(name for name in globals() if name.isupper()) + (
     "EnumManagementField",

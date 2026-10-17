@@ -6,7 +6,16 @@ from datetime import datetime, timedelta, timezone
 import re
 from fastapi import HTTPException
 
-TEXT_OPERATORS = {"contains", "not_contains", "equals", "not_equals", "starts", "ends", "empty", "not_empty"}
+TEXT_OPERATORS = {
+    "contains",
+    "not_contains",
+    "equals",
+    "not_equals",
+    "starts",
+    "ends",
+    "empty",
+    "not_empty",
+}
 ORDER_OPERATORS = {"equals", "not_equals", "gt", "gte", "lt", "lte", "between"}
 
 
@@ -26,7 +35,11 @@ def parse_column_filters(raw: str, fields: dict) -> tuple[dict, ...]:
         invalid()
     result, seen = [], set()
     for predicate in predicates:
-        if not isinstance(predicate, dict) or set(predicate) - {"field", "operator", "value"}:
+        if not isinstance(predicate, dict) or set(predicate) - {
+            "field",
+            "operator",
+            "value",
+        }:
             invalid()
         field, operator = predicate.get("field"), predicate.get("operator")
         if not isinstance(field, str) or field not in fields or field in seen or not isinstance(operator, str):
@@ -37,7 +50,7 @@ def parse_column_filters(raw: str, fields: dict) -> tuple[dict, ...]:
         allowed = set(
             TEXT_OPERATORS
             if kind == "text"
-            else ORDER_OPERATORS if kind in {"number", "date"} else {"equals", "not_equals"}
+            else (ORDER_OPERATORS if kind in {"number", "date"} else {"equals", "not_equals"})
         )
         if spec.get("nullable") or kind == "date":
             allowed |= {"empty", "not_empty"}

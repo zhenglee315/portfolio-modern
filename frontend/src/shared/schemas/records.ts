@@ -66,6 +66,23 @@ export function uniqueRecords<T extends { id: string | number }>(
   }
 }
 
+/** Check envelope arithmetic independently of each domain's page-size policy.
+ * Empty and out-of-range pages have no items; identities are unique within a page.
+ */
+export function validateNumberedPage<T extends { id: string | number }>(
+  value: NumberedPage<T>,
+  context: z.RefinementCtx,
+) {
+  const expected =
+    value.page > value.pages
+      ? 0
+      : Math.min(value.size, value.total - (value.page - 1) * value.size);
+  if (value.pages !== Math.ceil(value.total / value.size) || value.items.length !== expected) {
+    context.addIssue({ code: 'custom', message: 'Page arithmetic is inconsistent.' });
+  }
+  uniqueRecords(value.items, context);
+}
+
 /** Specialize the shared five-field backend contract for a domain item schema.
  * @param item Domain schema, validated before page arithmetic and unique IDs.
  * @returns A schema accepting valid empty and out-of-range pages, never null items.
@@ -79,14 +96,5 @@ export function numberedPageSchema<T extends z.ZodType<{ id: string | number }>>
       page: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
       size: z.literal(pageSize),
     })
-    .superRefine((value, context) => {
-      const expected =
-        value.page > value.pages
-          ? 0
-          : Math.min(value.size, value.total - (value.page - 1) * value.size);
-      if (value.pages !== Math.ceil(value.total / value.size) || value.items.length !== expected) {
-        context.addIssue({ code: 'custom', message: 'Page arithmetic is inconsistent.' });
-      }
-      uniqueRecords(value.items, context);
-    });
+    .superRefine(validateNumberedPage);
 }

@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import Dropdown from 'react-bootstrap/Dropdown';
-import { Icon } from './Icon';
-import { DataTableChoices } from './DataTableChoices';
-import type { DataTableColumn, DataTableCopy, DataTableSort } from './DataTable';
+import { createPortal } from 'react-dom';
+import { portaledMenuPosition } from '../lib/menu-position';
 import {
   filterOperators,
   parseTableFilters,
   type DataTableFilter,
   type TableFilterOperator,
 } from '../lib/table-filter';
-import { portaledMenuPosition } from '../lib/menu-position';
+import type { DataTableColumn, DataTableCopy, DataTableSort } from './DataTable';
+import { DataTableChoices } from './DataTableChoices';
 import styles from './DataTableColumnMenu.module.css';
+import { Icon } from './Icon';
 
 export type DataTableFilterCopy = {
   condition: string;

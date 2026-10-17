@@ -1,3 +1,5 @@
+import { requestJson } from '@/shared/api/http';
+import { useHydrated } from '@/shared/hooks/useHydrated';
 import {
   queryOptions,
   useMutation,
@@ -7,13 +9,11 @@ import {
   type QueryFilters,
 } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { useHydrated } from '@/shared/hooks/useHydrated';
-import { requestJson } from '@/shared/api/http';
-import { sessionSchema, type AuthSession, type AuthUser } from './schemas/auth';
 import { signOut } from './api/auth';
+import { sessionSchema, type AuthSession, type AuthUser } from './schemas/auth';
 
-export { sessionSchema } from './schemas/auth';
 export { authFailure } from './lib/auth-failure';
+export { sessionSchema } from './schemas/auth';
 export type { AuthSession, AuthUser } from './schemas/auth';
 
 /** One browser identity follows its HTTP-only cookie across public-page locale changes. */

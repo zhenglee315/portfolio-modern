@@ -108,7 +108,7 @@ def _career_detail_response(row: Mapping[str, Any]) -> dict[str, Any] | None:
 
     detail = {
         "startMonth": row["detail_start_month"].strftime("%Y-%m"),
-        "endMonth": row["detail_end_month"].strftime("%Y-%m") if row["detail_end_month"] else None,
+        "endMonth": (row["detail_end_month"].strftime("%Y-%m") if row["detail_end_month"] else None),
         "content": row["detail_content"],
     }
     if row["detail_end_day"] is not None:
@@ -215,7 +215,9 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
             raise
         except (SQLAlchemyError, RuntimeError, OSError):
             raise HTTPException(
-                status_code=503, detail="PORTFOLIO_DATABASE_UNAVAILABLE", headers=MANAGEMENT_PRIVATE_HEADERS
+                status_code=503,
+                detail="PORTFOLIO_DATABASE_UNAVAILABLE",
+                headers=MANAGEMENT_PRIVATE_HEADERS,
             ) from None
 
 
@@ -483,7 +485,10 @@ class PortfolioProjectsModule(_PortfolioPageModule):
                 PortfolioProjectLocale.contribution,
                 PortfolioProjectLocale.outcome,
             )
-            .join(PortfolioProjectLocale, PortfolioProjectLocale.project_id == PortfolioProject.id)
+            .join(
+                PortfolioProjectLocale,
+                PortfolioProjectLocale.project_id == PortfolioProject.id,
+            )
             .join(PortfolioLocale, PortfolioLocale.code == PortfolioProjectLocale.locale)
             .where(
                 PortfolioProject.site_id == self.site_id,
@@ -514,7 +519,7 @@ class PortfolioProjectsModule(_PortfolioPageModule):
                     "organizationCode": row["organization_code"],
                     "organizationTitle": row["organization_title"],
                     "startMonth": row["start_month"].strftime("%Y-%m"),
-                    "endMonth": row["end_month"].strftime("%Y-%m") if row["end_month"] else None,
+                    "endMonth": (row["end_month"].strftime("%Y-%m") if row["end_month"] else None),
                     "expected": row["expected"],
                     "projectName": row["project_name"],
                     "projectTitle": row["project_title"],
@@ -647,7 +652,10 @@ class PortfolioSkillsModule(_PortfolioPageModule):
                     PortfolioSkillCategoryLocale.category_id == PortfolioSkillCategory.id,
                 ),
             )
-            .join(PortfolioLocale, PortfolioLocale.code == PortfolioSkillCategoryLocale.locale)
+            .join(
+                PortfolioLocale,
+                PortfolioLocale.code == PortfolioSkillCategoryLocale.locale,
+            )
             .where(
                 PortfolioSkillCategory.site_id == self.site_id,
                 PortfolioSkillCategoryLocale.locale == self.locale,
@@ -680,12 +688,23 @@ class PortfolioSkillsModule(_PortfolioPageModule):
             ranked = membership.add_columns(
                 func.row_number()
                 .over(
-                    partition_by=(PortfolioCategorySkill.site_id, PortfolioCategorySkill.category_id),
-                    order_by=(PortfolioCategorySkill.position, PortfolioCategorySkill.skill_id),
+                    partition_by=(
+                        PortfolioCategorySkill.site_id,
+                        PortfolioCategorySkill.category_id,
+                    ),
+                    order_by=(
+                        PortfolioCategorySkill.position,
+                        PortfolioCategorySkill.skill_id,
+                    ),
                 )
                 .label("row_number"),
                 func.count()
-                .over(partition_by=(PortfolioCategorySkill.site_id, PortfolioCategorySkill.category_id))
+                .over(
+                    partition_by=(
+                        PortfolioCategorySkill.site_id,
+                        PortfolioCategorySkill.category_id,
+                    )
+                )
                 .label("total"),
             ).subquery()
             preview_rows = (
@@ -710,7 +729,10 @@ class PortfolioSkillsModule(_PortfolioPageModule):
                         "id": category["id"],
                         "label": category["label"],
                         "skills": RespRecords.from_records(
-                            skills, total=members[0]["total"] if members else 0, page=1, size=self.size
+                            skills,
+                            total=members[0]["total"] if members else 0,
+                            page=1,
+                            size=self.size,
                         ).model_dump(),
                     }
                 )

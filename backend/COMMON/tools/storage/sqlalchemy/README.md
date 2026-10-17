@@ -1,13 +1,18 @@
 # SQLAlchemy tools / SQLAlchemy 工具
 
-These helpers run asynchronous SQL and ORM operations against the project's single configured database. FastAPI's `lifespan` initializes `CONN_MANAGER` before requests use them. The manager currently creates async SQLite (`aiosqlite`) or PostgreSQL (`asyncpg`) connections.
+**文件責任：** 共用 SQL／ORM 執行、Session／交易 ownership、分頁與交易觀察器的介面及限制。連線設定、migration 與服務啟動見 [後端總覽](../../../../README.md)；資源授權和更新規則由各業務 module 擁有。
 
-這些工具透過專案設定的單一資料庫執行非同步 SQL 與 ORM 操作。FastAPI 的 `lifespan` 會先初始化 `CONN_MANAGER`，請在初始化完成後使用。連線管理器目前支援非同步 SQLite（`aiosqlite`）與 PostgreSQL（`asyncpg`）。
+These helpers run asynchronous SQL and ORM operations against the project's configured database. FastAPI's lifespan and APScheduler startup initialize their process-owned CONN_MANAGER before use. The manager supports async SQLite (`aiosqlite`) and PostgreSQL (`asyncpg`); complete application migrations currently require PostgreSQL.
 
-| File / 檔案 | Responsibility / 用途 |
-| --- | --- |
-| `tools_sqlalchemy_async.py` | `SqlAlchemyExecAsync`: SQL 查詢、寫入、ORM 執行與分頁；raw SQL queries, writes, ORM execution, and pagination. |
-| `tools_sqlalchemy_utils.py` | `BigParams` 與 `sqlalchemy_pagination_stmt`: 分頁參數與資料庫方言 SQL；pagination parameters and dialect-specific SQL. |
+這些工具透過專案設定的單一資料庫執行非同步 SQL 與 ORM 操作；FastAPI lifespan 與 APScheduler 啟動程序先初始化各自的 CONN_MANAGER。工具支援 SQLite（`aiosqlite`）與 PostgreSQL（`asyncpg`），完整應用 migration 目前使用 PostgreSQL。
+
+| File / 檔案                    | Responsibility / 用途                                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `tools_sqlalchemy_async.py`    | `SqlAlchemyExecAsync`: SQL 查詢、寫入、ORM 執行與分頁；raw SQL queries, writes, ORM execution, and pagination.         |
+| `tools_sqlalchemy_utils.py`    | `BigParams` 與 `sqlalchemy_pagination_stmt`: 分頁參數與資料庫方言 SQL；pagination parameters and dialect-specific SQL. |
+| `tools_sqlalchemy_observer.py` | `SqlAlchemyTransactionObserver`: 注入 engine 後觀察外層 Session 交易，不建立 session 或執行 SQL。                      |
+
+監控的交易觀察器由 lifespan 建立後，透過 `WorkerMonitor(..., transactions=observer)` 注入；`SYSTEM/tools` 不匯入 COMMON 或自行取得資料庫資源。觀察器接受 AsyncEngine／同步 Engine，`start()` 註冊、`stop()` 解除監聽，`snapshot()` 回傳 active／completed／oldest 交易統計。只計算指定 engine 的外層邏輯交易，包含讀取的 autobegin，排除 savepoint；不代表當下正在執行的 SQL 數量。`ignore_key` 可排除指定 session.info 標記，監控權限讀取仍使用 `system.monitor.ignore`。
 
 ## Session and transaction ownership / Session 與交易歸屬
 
@@ -30,24 +35,24 @@ Raw SQL uses SQLAlchemy `text()` and named parameters such as `:code`; pass valu
 
 Raw SQL 由 SQLAlchemy `text()` 執行。參數請寫成 `:code` 並另外傳入值，不要直接拼進 SQL。各查詢方法會檢查 `sql` 非空字串。方法功能與回傳值如下：
 
-| Method / 方法 | 繁體中文 | English |
-| --- | --- | --- |
-| `query_tables(schema=None)` | 列出指定／預設 schema 的資料表名稱。 | List table names in the specified/default schema. |
-| `query_table_exists(table)` | 用 inspector 檢查預設 schema 是否有指定表。 | Check whether a literal table name exists in the default schema. |
-| `query_schema(table_name, schema=None)` | 取得欄位資訊；將欄位型別轉成字串。表不存在時拋出 `NoSuchTableError`。 | Return column metadata with types converted to strings; a missing table raises `NoSuchTableError`. |
-| `query(sql, params=None)` | 全部結果轉成 `list[list]`。 | Fetch all rows as lists. |
-| `query_scalar(sql, params=None)` | 回傳第一列第一欄；無資料為 `None`。 | Return the first scalar, or `None` when no row exists. |
-| `query_large(sql, params=None, mapping=False)` | 逐筆 `yield` 已緩衝的結果；`mapping=True` 產生 `RowMapping`。**並非資料庫串流**。 | Yield rows from an already buffered result; `mapping=True` yields `RowMapping`. **Not database streaming.** |
-| `query_dict(sql, params=None)` | 全部結果轉成 `list[dict]`。 | Fetch all rows as dictionaries. |
-| `query_list_idx(sql, params=None, index=0)` | 依欄位索引取值；多欄查詢索引超出範圍時，該列回傳 `None`。 | Extract one indexed value per row; for multi-column rows, an out-of-range index yields `None`. |
-| `query_first(sql, params=None, index=0)` | 取第一列指定索引的值；無資料為 `None`，`0`、`False` 不會被當成無資料。 | Return the indexed value from the first row, or `None` if empty; keeps `0` and `False`. |
-| `query_list_col(sql, params=None, column_name="N/A")` | 依欄名取值；欄名不存在時回傳空清單。 | Extract a named column; return an empty list if absent. |
-| `exec(sql, param=None)` | 執行 INSERT／UPDATE／DELETE 等 raw SQL；成功回傳 `True`。 | Execute a raw SQL command and return `True` on success. |
-| `execute_orm(stmt)` | 執行 SQLAlchemy statement，回傳已緩衝的 `Result`，可再呼叫 `.all()`、`.scalar()` 等。 | Execute a SQLAlchemy statement and return a buffered `Result` for `.all()`, `.scalar()`, etc. |
-| `execute_commit(obj)` | `add` → `flush` → `refresh` → `commit`，回傳 ORM 物件；僅適用由工具管理的交易。 | Add, flush, refresh, and commit an ORM object; only in helper-managed mode. |
+| Method / 方法                                                                  | 繁體中文                                                                                                  | English                                                                                                                               |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `query_tables(schema=None)`                                                    | 列出指定／預設 schema 的資料表名稱。                                                                      | List table names in the specified/default schema.                                                                                     |
+| `query_table_exists(table)`                                                    | 用 inspector 檢查預設 schema 是否有指定表。                                                               | Check whether a literal table name exists in the default schema.                                                                      |
+| `query_schema(table_name, schema=None)`                                        | 取得欄位資訊；將欄位型別轉成字串。表不存在時拋出 `NoSuchTableError`。                                     | Return column metadata with types converted to strings; a missing table raises `NoSuchTableError`.                                    |
+| `query(sql, params=None)`                                                      | 全部結果轉成 `list[list]`。                                                                               | Fetch all rows as lists.                                                                                                              |
+| `query_scalar(sql, params=None)`                                               | 回傳第一列第一欄；無資料為 `None`。                                                                       | Return the first scalar, or `None` when no row exists.                                                                                |
+| `query_large(sql, params=None, mapping=False)`                                 | 逐筆 `yield` 已緩衝的結果；`mapping=True` 產生 `RowMapping`。**並非資料庫串流**。                         | Yield rows from an already buffered result; `mapping=True` yields `RowMapping`. **Not database streaming.**                           |
+| `query_dict(sql, params=None)`                                                 | 全部結果轉成 `list[dict]`。                                                                               | Fetch all rows as dictionaries.                                                                                                       |
+| `query_list_idx(sql, params=None, index=0)`                                    | 依欄位索引取值；多欄查詢索引超出範圍時，該列回傳 `None`。                                                 | Extract one indexed value per row; for multi-column rows, an out-of-range index yields `None`.                                        |
+| `query_first(sql, params=None, index=0)`                                       | 取第一列指定索引的值；無資料為 `None`，`0`、`False` 不會被當成無資料。                                    | Return the indexed value from the first row, or `None` if empty; keeps `0` and `False`.                                               |
+| `query_list_col(sql, params=None, column_name="N/A")`                          | 依欄名取值；欄名不存在時回傳空清單。                                                                      | Extract a named column; return an empty list if absent.                                                                               |
+| `exec(sql, param=None)`                                                        | 執行 INSERT／UPDATE／DELETE 等 raw SQL；成功回傳 `True`。                                                 | Execute a raw SQL command and return `True` on success.                                                                               |
+| `execute_orm(stmt)`                                                            | 執行 SQLAlchemy statement，回傳已緩衝的 `Result`，可再呼叫 `.all()`、`.scalar()` 等。                     | Execute a SQLAlchemy statement and return a buffered `Result` for `.all()`, `.scalar()`, etc.                                         |
+| `execute_commit(obj)`                                                          | `add` → `flush` → `refresh` → `commit`，回傳 ORM 物件；僅適用由工具管理的交易。                           | Add, flush, refresh, and commit an ORM object; only in helper-managed mode.                                                           |
 | `paginate_orm(stmt, page="all", size="all", subquery_count=True, unique=True)` | 對 `select(...)` 分頁並把結果轉成字典；預設取全部。`subquery_count`、`unique` 傳給 `fastapi-pagination`。 | Paginate a `select(...)` into dictionary items; fetches all by default. Passes `subquery_count` and `unique` to `fastapi-pagination`. |
-| `paginate_query(sql, page=1, size=20, single_element=False, sql_params=None)` | raw SQL 分頁，`items` 是列清單；`single_element=True` 時每列只取第一個值。 | Paginate raw SQL into list rows; with `single_element=True`, each item is its first value. |
-| `paginate_query_dict(sql, type_db=None, page=1, size=20, sql_params=None)` | raw SQL 分頁，`items` 是字典；省略 `type_db` 時自動使用目前連線的方言。 | Paginate raw SQL into dictionaries; detects the active dialect when `type_db` is omitted. |
+| `paginate_query(sql, page=1, size=20, single_element=False, sql_params=None)`  | raw SQL 分頁，`items` 是列清單；`single_element=True` 時每列只取第一個值。                                | Paginate raw SQL into list rows; with `single_element=True`, each item is its first value.                                            |
+| `paginate_query_dict(sql, type_db=None, page=1, size=20, sql_params=None)`     | raw SQL 分頁，`items` 是字典；省略 `type_db` 時自動使用目前連線的方言。                                   | Paginate raw SQL into dictionaries; detects the active dialect when `type_db` is omitted.                                             |
 
 All three pagination methods return `fastapi_pagination.default.Page` with `items`, `total`, `page`, `size`, and `pages`. If **either** `page` or `size` is `"all"` (case-insensitive), the method fetches all rows. Numeric page and size are clamped to at least 1; `BigParams` limits page size to 100,000.
 
@@ -107,5 +112,5 @@ async for row in db.query_large("SELECT code FROM portfolio_locale ORDER BY code
 - `paginate_orm(page="all")` 在遍歷結果前沒有呼叫 `unique()`；搭配集合關聯的 `joinedload(...)` 可能出現 SQLAlchemy 的 unique-result 錯誤。`unique=True` 只作用於 `apaginate` 的一般分頁路徑。
 - `query_large()` is buffered, and all `"all"` pagination modes materialize the entire result. Even `"all"` still uses `BigParams`, so results over 100,000 rows exceed its size limit. For stable page boundaries, add an explicit `ORDER BY`. Raw SQL pagination expects a single query that can be counted and extended with pagination clauses. Use distinct column aliases for dictionary results when joining tables.
 - `query_large()` 會先緩衝結果，`"all"` 分頁也會將全部資料載入記憶體。`"all"` 仍使用 `BigParams`，超過 100,000 筆會超出其筆數上限。分頁查詢請加上明確的 `ORDER BY` 以維持穩定順序。raw SQL 分頁應使用可包成計數子查詢並附加分頁語法的單一查詢。JOIN 後轉成字典時，重複欄名請使用不同別名。
-- The focused CRUD tests cover the SQLite path. PostgreSQL operation and the compatibility dialect branches have not been exercised by those tests.
-- 目前 CRUD 專用測試涵蓋 SQLite 路徑；尚未透過這些測試驗證 PostgreSQL 實際操作及其他相容方言分支。
+- SQLite regression tests cover the CRUD helpers; PostgreSQL integration tests additionally exercise real commit/rollback, management transactions and batched request-history inserts. Oracle, MSSQL, MySQL and MariaDB compatibility branches remain unverified connections. Storage-tool SQLite support does not imply the historical migration chain can bootstrap empty SQLite; see the backend deployment guide.
+- SQLite 回歸案例涵蓋共用 CRUD；PostgreSQL 整合案例另驗證真實提交／回滾、管理交易與 request 歷史批次寫入。Oracle、MSSQL、MySQL、MariaDB 相容分支仍未驗證連線。工具支援 SQLite 不代表整條歷史 migration 可從空 SQLite 建庫，部署限制見後端總覽。

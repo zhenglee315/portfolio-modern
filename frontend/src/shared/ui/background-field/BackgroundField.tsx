@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import styles from './BackgroundField.module.css';
 
 const BackgroundSignals = lazy(() => import('./BackgroundSignals'));

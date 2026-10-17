@@ -2,8 +2,28 @@
 from SYSTEM.database import CONN_MANAGER
 from SYSTEM.extension import sio
 from SYSTEM.constants import EnumCache
-from SYSTEM.tools import *
-from SYSTEM.settings import GEOIP_DATABASE_PATH, SVR_HOST_CONF, SVR_PORT, SVR_WORKERS, MONITOR_CYCLE_SEC
+from SYSTEM.tools import (
+    socketio_shutdown,
+    socketio_start_monitor,
+    fastapi_cache_key_builder,
+    WorkerMonitor,
+    GeoIpReader,
+)
+from SYSTEM.settings import (
+    GEOIP_DATABASE_PATH,
+    SVR_HOST_CONF,
+    SVR_PORT,
+    SVR_WORKERS,
+    MONITOR_CYCLE_SEC,
+)
+from SYSTEM.settings import (
+    MONITOR_REQUEST_QUEUE,
+    MONITOR_REQUEST_BATCH,
+    MONITOR_REQUEST_BUFFER,
+)
+from COMMON.tools.storage.redis import RedisAsync
+from COMMON.tools.storage.sqlalchemy import SqlAlchemyTransactionObserver
+from COMMON.tools.tools_geoip import GeoIpDatabaseImporter
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import FastAPI
@@ -42,7 +62,7 @@ async def lifespan(app: FastAPI):
     # GeoIP enrichment is optional; missing data must not prevent authentication.
     #
     # ----< Startup >--------------------------------● Init                                                                             ♂ ZhengLee 2026.10.15
-    app.state.geoip_reader = GeoIpReader(GEOIP_DATABASE_PATH)
+    app.state.geoip_reader = GeoIpReader(GEOIP_DATABASE_PATH, prepare_database=GeoIpDatabaseImporter.prepare_bundle)
     app.state.monitor = None
     app.state.monitor_stream = None
     try:
@@ -60,11 +80,18 @@ async def lifespan(app: FastAPI):
         # Borrow existing connections. The synchronous engine identifies SQLAlchemy
         # event sources only; monitoring does not open a Session or persist SQL rows.
         app.state.monitor = WorkerMonitor(
-            redis=CONN_MANAGER.get_cache(key=EnumCache.SYS),
+            redis=RedisAsync(redis=CONN_MANAGER.get_cache(key=EnumCache.SYS)),
             interval=MONITOR_CYCLE_SEC,
-            engine=CONN_MANAGER.get_engine().sync_engine,
+            transactions=SqlAlchemyTransactionObserver(CONN_MANAGER.get_engine(), ignore_key="system.monitor.ignore"),
+            request_queue=MONITOR_REQUEST_QUEUE,
+            request_batch_size=MONITOR_REQUEST_BATCH,
+            request_buffer_size=MONITOR_REQUEST_BUFFER,
             geoip_reader=app.state.geoip_reader,
-            server_info={"host": SVR_HOST_CONF, "port": SVR_PORT, "expected_workers": SVR_WORKERS},
+            server_info={
+                "host": SVR_HOST_CONF,
+                "port": SVR_PORT,
+                "expected_workers": SVR_WORKERS,
+            },
         )
         await app.state.monitor.start()
         app.state.monitor_stream = await socketio_start_monitor(sio, app.state.monitor)

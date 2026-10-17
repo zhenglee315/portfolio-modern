@@ -32,21 +32,35 @@ def upgrade() -> None:
     with op.batch_alter_table("record_login") as batch:
         batch.add_column(
             sa.Column(
-                "ip_address", sa.String(45), nullable=True, comment="Normalized request IPv4/IPv6; null when unknown"
+                "ip_address",
+                sa.String(45),
+                nullable=True,
+                comment="Normalized request IPv4/IPv6; null when unknown",
             )
         )
         batch.add_column(
             sa.Column(
-                "country_code", sa.String(2), nullable=True, comment="IP-derived two-letter country code at login time"
+                "country_code",
+                sa.String(2),
+                nullable=True,
+                comment="IP-derived two-letter country code at login time",
             )
         )
         batch.add_column(
             sa.Column(
-                "region", sa.String(128), nullable=True, comment="Approximate IP-derived region name at login time"
+                "region",
+                sa.String(128),
+                nullable=True,
+                comment="Approximate IP-derived region name at login time",
             )
         )
         batch.add_column(
-            sa.Column("city", sa.String(128), nullable=True, comment="Approximate IP-derived city name at login time")
+            sa.Column(
+                "city",
+                sa.String(128),
+                nullable=True,
+                comment="Approximate IP-derived city name at login time",
+            )
         )
         batch.add_column(
             sa.Column(

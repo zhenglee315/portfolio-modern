@@ -1,4 +1,6 @@
-# Cache decorator / 快取裝飾器
+# Common decorators / 共用裝飾器
+
+**文件責任：** 本套件公開裝飾器的呼叫契約與限制：`deco_cache.py` 的選用快取，以及 `__init__.py` 的 SQL 文字輸入驗證。Redis／Session 生命週期以 [Redis](../tools/storage/redis/README.md) 與 [SQLAlchemy](../tools/storage/sqlalchemy/README.md) 工具文件為準；應用授權由業務層負責。
 
 `deco_cache.py` defines `cache(control_key="is_caching", **cache_kwargs)`, an opt-in wrapper around `fastapi-cache2` for async FastAPI GET handlers, including class-based views (CBV). This folder exports both `cache` and the existing `sql_validate` decorator. `COMMON.tools.search_recursive` searches nested parser results for the cache flag.
 
@@ -59,3 +61,9 @@ Choose a TTL with `expire=...`; writes to the underlying data do not automatical
 - The key does not automatically include a logged-in user or session identity. A hit skips checks inside the handler. Use this design only when the response is safe to share for the same key; authentication and authorization must not depend solely on code that a cache hit bypasses. / key 不會自動包含登入使用者或 session 身分；命中時也會略過 handler 內的檢查。只有同 key 的回應可共用時才適用；驗證與授權不能只依賴快取命中時不會執行的 handler 內程式。
 - Raw query order and equivalent flag spellings such as `true` and `1` produce different keys. The key builder omits positional arguments and non-basic top-level keyword values. / 原始 query 順序不同，以及 `true`、`1` 等等價寫法，仍會產生不同 key；key builder 會略過位置參數及最外層非基本型別關鍵字參數。
 - Cache invalidation is TTL-based unless the caller explicitly clears relevant entries. Avoid caching data whose validity depends on checks inside the handler, such as a token-expiry check. / 除非呼叫端明確清除相關項目，否則快取依 TTL 失效。若資料有效性依賴 handler 內檢查（例如 token 到期），不宜直接快取。
+
+## SQL validation / SQL 輸入驗證
+
+`sql_validate` 定義並匯出於 `__init__.py`，以原函式 signature 綁定位置／關鍵字參數，要求 `sql` 為非空字串，再原樣回傳函式的 coroutine、async iterator 或同步結果。它不執行 SQL、不取得連線，也不管理交易。SQL 參數仍由呼叫端使用 bound parameters；此裝飾器不檢查 SQL 權限或替代參數化查詢。
+
+`sql_validate` checks only that the bound `sql` argument is a nonempty string while preserving the wrapped function's return behavior. Execution, parameter binding and transaction ownership remain with the SQLAlchemy helper and its caller.

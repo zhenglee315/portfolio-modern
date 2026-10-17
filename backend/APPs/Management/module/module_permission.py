@@ -6,15 +6,17 @@ from APPs.Auth.schema.resp import RespAuthUser
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.models import AuthRole
 
-# ◆—< Pack >—————————————————————————————————◆ SQLAlchemy / Pydantic
+# ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
 from sqlalchemy.orm import InstrumentedAttribute
+
+# ◆—< Pack >—————————————————————————————————◆ FastAPI
+from fastapi import Depends, HTTPException, Request, Response
+
+# ◆—< Pack >—————————————————————————————————◆ Pydantic
 from pydantic import ValidationError
 
 # ◆—< Pack >—————————————————————————————————◆ Python
 from collections.abc import Callable
-
-# ◆—< Pack >—————————————————————————————————◆ FastAPI
-from fastapi import Depends, HTTPException, Request, Response
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Management - Current Identity
@@ -51,7 +53,9 @@ class _ManagementIdentity:
         # --------------------------------------------------● Step 3. Reject absent or disabled identities.
         if account is None:
             raise HTTPException(
-                status_code=401, detail=EnumManagementError.AUTH_REQUIRED, headers=MANAGEMENT_PRIVATE_HEADERS
+                status_code=401,
+                detail=EnumManagementError.AUTH_REQUIRED,
+                headers=MANAGEMENT_PRIVATE_HEADERS,
             )
         try:
             return RespAuthUser.model_validate(account, strict=True)
@@ -127,7 +131,11 @@ class ManagementPermission:
                                                                                                ♂ ZhengLee 2026.10.16
         """
         if any(check(account) is not True for check in self.required):
-            raise HTTPException(status_code=403, detail=self.denied_detail, headers=MANAGEMENT_PRIVATE_HEADERS)
+            raise HTTPException(
+                status_code=403,
+                detail=self.denied_detail,
+                headers=MANAGEMENT_PRIVATE_HEADERS,
+            )
         return account
 
 

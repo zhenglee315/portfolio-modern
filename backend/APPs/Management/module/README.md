@@ -1,4 +1,19 @@
-# Management 權限模組 / Permission Module
+# Management 業務模組 / Management Modules
+
+**文件責任：** 管理權限依賴、列表／登入紀錄查詢、Role／User／Platform 更新與刪除的交易規則。HTTP 端點、參數與回應總表見 [後端總覽](../../../README.md)；前端互動見 [前端總覽](../../../../frontend/README.md)。
+
+| 模組                         | 責任                                                               |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `__init__.py`               | 直接匯出業務 class 與權限依賴，提供套件匯入入口。                 |
+| `module_base.py`            | 共用列表篩選、排序與分頁。                                       |
+| `module_roles.py`           | 角色列表、更新及刪除。                                           |
+| `module_users.py`           | 帳號列表、更新及刪除。                                           |
+| `module_sites.py`           | 網站列表、更新及刪除。                                           |
+| `module_logins.py`          | 登入紀錄查詢。                                                   |
+| `module_state.py`           | 寫入鎖、即時授權、原值比較、最後管理員、帳號啟用與提交後快取處理。 |
+| `module_permission.py`      | 依目前 SESSION 與資料庫權限執行 FastAPI dependency 驗證。         |
+
+目錄已表達 Management 用途，檔名採 `module_<用途>.py`。各資源的讀取與交易寫入放在同一個 class，`module_state.py` 共用寫入規則；呼叫端透過 `from APPs.Management.module import ...` 取得由 `__init__.py` 直接匯出的實作 class。
 
 `module_permission.py` 提供可帶參數的 `ManagementPermission` class，FastAPI 透過 `__call__` 執行檢查。身份讀取沿用 `AuthSessionModule.current_session()`；角色名稱不參與授權判斷。
 
@@ -46,15 +61,15 @@ Rules accept explicitly allowlisted AuthRole permission attributes. String names
 
 ## 擴充界線 / Extension Boundaries
 
-目前既有三項管理旗標套用到讀取 API，Platform PATCH 也沿用 `is_manage_sites`；未提供 `action` 或 `policy` 入參。七個旗標尚不能表達各模組獨立 CRUD，這些參數必須在後續權限模型完成後再加入，不能宣告後忽略它們。公開 Portfolio GET 不套用管理旗標。
+三項管理旗標套用到各資源的讀取、PATCH 及單筆／批次刪除：Role 使用 `is_manage_roles`、User 使用 `is_manage_users`、Platform／Preview 使用 `is_manage_sites`，登入紀錄沿用 `is_manage_users`。模組未提供 `action` 或 `policy` 入參；七個旗標尚不能表達各資源獨立 CRUD，須在權限模型完成後另行擴充。公開 Portfolio GET 不套用管理旗標。
 
 擁有者檢查、可修改欄位、最後管理員與刪除使用中角色等資料規則，保留在各業務模組的交易內處理；依賴驗證器不接管資料修改。
 
-The current model gates reads with management flags, and Platform PATCH also requires is_manage_sites. Per-resource CRUD, `action`, and `policy` are future work; unsupported parameters fail validation instead of silently doing nothing. Public portfolio GETs stay public. Ownership, writable fields and transactional invariants belong to the resource's business module.
+The management flags gate resource reads, PATCH and single/batch deletion. Login history uses user-management permission and preview uses site-management permission. Per-resource CRUD grants, `action`, and `policy` remain future extensions. Public portfolio GETs stay public; ownership, writable fields and transactional invariants belong to the resource's business module.
 
 ## Platform updates / 平台更新
 
-`ManagementSitesModule` 保留 `select()` 並新增 `update(account_id, changes, expected_owner_email=...)`，`_query()` 提供兩者共用的 GET projection。View 只宣告 HTTP 與權限；body schema 驗證可寫欄位，parser 驗證 path／query；交易內的存在性、發布與 Default 規則都留在同一個業務 class。更新使用共用 `transaction()`／`execute_orm()`；公開快取清除沿用 `PortfolioManagementModule.invalidate_cache()`，不呼叫會另外提交的 set_default／set_published。所有 PK／FK、已驗證登入信箱及 AuthUser 狀態／時間保持唯讀。完整契約與隔離測試指令見[後端說明](../../../README.md#平台部分更新--platform-partial-updates)。
+`ManagementSitesModule` 的 `select()`、`update()` 與 `delete()` 共用原資源 class，`_query()` 提供共用 GET projection。View 宣告 HTTP 與權限；body schema 驗證可寫欄位，parser 驗證 path／query；存在性、發布與 Default 規則留在業務交易。更新透過共用 `transaction()`／`execute_orm()`，公開快取於 commit 後清除，不呼叫會另外提交的發布方法。Platform 的 PK／FK、已驗證登入信箱及帳號時間維持唯讀；`owner_is_active` 是唯一可寫的帳號狀態，實際更新 `AuthUser.is_active`。完整契約見[後端說明](../../../README.md#平台部分更新--platform-partial-updates)。
 
 `BodyManagementSitePatchRequest` 將唯讀的 `expected_owner_email` 和 `changes` 分開。更新交易在同一條 owner 查詢比對 `AuthUser.id`／`AuthUser.email`；不匹配不寫入、不回傳現有帳號信箱。SQLite 的 writer-lock statement 也只定位已核對的 owner。身份核對不是授權，仍使用目前 SESSION 與管理權限。
 

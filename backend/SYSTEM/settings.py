@@ -1,9 +1,16 @@
 # ◆—< Pack >—————————————————————————————————◆ System
 from .urls import Tags
-from .constants import *
+from .constants import (
+    DB_OPTIONS,
+    DB_POOL,
+    DB_META,
+    EnumCache,
+    CacheIdx,
+    HTTP_URL_SCHEMES,
+)
 
 # ◆—< Pack >—————————————————————————————————◆ Extension
-from .extension import *
+from .extension import SYS_CONF, SVR_LOCALLY, SVR_DEBUG
 from urllib.parse import urlsplit
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
@@ -23,7 +30,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 #                                                                                               ♂ ZhengLee 2026.10.15
 GEOIP_DATABASE_PATH = os.environ.get(
     "GEOIP_DATABASE_PATH",
-    SYS_CONF.get("GEOIP", "database_path", fallback=str(BASE_DIR / "SYSTEM" / "geoip" / "City.mmdb")),
+    SYS_CONF.get(
+        "GEOIP",
+        "database_path",
+        fallback=str(BASE_DIR / "SYSTEM" / "geoip" / "City.mmdb"),
+    ),
 )
 
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Directory
@@ -45,7 +56,20 @@ SVR_RELOAD = SYS_CONF.get("SERVER", "reload", fallback=False)
 SVR_HTTPS = SYS_CONF.get("SERVER", "https", fallback=False)
 
 # Worker sampling, supervisor reporting and monitoring pushes share one cadence.
-MONITOR_CYCLE_SEC: float = 2.0
+MONITOR_CYCLE_SEC: float = 0.5
+MONITOR_REQUEST_QUEUE = SYS_CONF.get("MONITOR", "request_queue", fallback="system:monitor:requests:queue")
+MONITOR_REQUEST_GROUP = SYS_CONF.get("MONITOR", "request_group", fallback="record_request")
+MONITOR_REQUEST_BATCH = int(SYS_CONF.get("MONITOR", "request_batch", fallback=500))
+MONITOR_REQUEST_BUFFER = int(SYS_CONF.get("MONITOR", "request_buffer", fallback=10000))
+MONITOR_REQUEST_MAX_BATCHES = int(SYS_CONF.get("MONITOR", "request_max_batches", fallback=20))
+if (
+    not 1 <= MONITOR_REQUEST_BATCH <= 1000
+    or MONITOR_REQUEST_BUFFER < MONITOR_REQUEST_BATCH
+    or MONITOR_REQUEST_MAX_BATCHES < 1
+):
+    raise ValueError("Invalid MONITOR request queue batch/buffer limits.")
+if not all(isinstance(value, str) and value.strip() for value in (MONITOR_REQUEST_QUEUE, MONITOR_REQUEST_GROUP)):
+    raise ValueError("MONITOR request queue and group must be non-empty strings.")
 
 
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Time
@@ -156,17 +180,47 @@ REDIS_DEFAULT_CONNS = 1000
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Redis
 CACHE_CONF = {
     # -< Redis >-------------------------------● System
-    EnumCache.SYS: {"HOST": REDIS_HOST, "PORT": REDIS_PORT, "DB": int(CacheIdx.INDEX_0), "POOL_SIZE": 50},
+    EnumCache.SYS: {
+        "HOST": REDIS_HOST,
+        "PORT": REDIS_PORT,
+        "DB": int(CacheIdx.INDEX_0),
+        "POOL_SIZE": 50,
+    },
     # -< Redis >-------------------------------● Cache
-    EnumCache.WEB: {"HOST": REDIS_HOST, "PORT": REDIS_PORT, "DB": int(CacheIdx.INDEX_1), "POOL_SIZE": 50},
+    EnumCache.WEB: {
+        "HOST": REDIS_HOST,
+        "PORT": REDIS_PORT,
+        "DB": int(CacheIdx.INDEX_1),
+        "POOL_SIZE": 50,
+    },
     # -< Redis >-------------------------------● SocketIO
-    EnumCache.SOCKET: {"HOST": REDIS_HOST, "PORT": REDIS_PORT, "DB": int(CacheIdx.INDEX_2), "POOL_SIZE": 20},
+    EnumCache.SOCKET: {
+        "HOST": REDIS_HOST,
+        "PORT": REDIS_PORT,
+        "DB": int(CacheIdx.INDEX_2),
+        "POOL_SIZE": 20,
+    },
     # -< Redis >-------------------------------● Worker
-    EnumCache.WORKER: {"HOST": REDIS_HOST, "PORT": REDIS_PORT, "DB": int(CacheIdx.INDEX_3), "POOL_SIZE": 10},
+    EnumCache.WORKER: {
+        "HOST": REDIS_HOST,
+        "PORT": REDIS_PORT,
+        "DB": int(CacheIdx.INDEX_3),
+        "POOL_SIZE": 10,
+    },
     # -< Redis >-------------------------------● Locker
-    EnumCache.LOCKER: {"HOST": REDIS_HOST, "PORT": REDIS_PORT, "DB": int(CacheIdx.INDEX_4), "POOL_SIZE": 10},
+    EnumCache.LOCKER: {
+        "HOST": REDIS_HOST,
+        "PORT": REDIS_PORT,
+        "DB": int(CacheIdx.INDEX_4),
+        "POOL_SIZE": 10,
+    },
     # -< Redis >-------------------------------● Scheduler
-    EnumCache.SCHEDULER: {"HOST": REDIS_HOST, "PORT": REDIS_PORT, "DB": int(CacheIdx.INDEX_5), "POOL_SIZE": 10},
+    EnumCache.SCHEDULER: {
+        "HOST": REDIS_HOST,
+        "PORT": REDIS_PORT,
+        "DB": int(CacheIdx.INDEX_5),
+        "POOL_SIZE": 10,
+    },
 }
 
 

@@ -1,60 +1,30 @@
 # ◆—< Pack >—————————————————————————————————◆ Project
-from APPs.Management.constants import (
-    MANAGEMENT_DEFAULT_SORT,
-    MANAGEMENT_PRIVATE_HEADERS,
-    SITE_PATCH_MAX_BYTES,
-    MANAGEMENT_DELETE_MAX_BYTES,
-    EnumManagementError,
-)
-from APPs.Management.schema.body import (
-    ManagementSitePatchParameters,
-    ManagementRolePatchParameters,
-    ManagementUserPatchParameters,
-    ManagementSiteDeleteParameters,
-    ManagementRoleDeleteParameters,
-    ManagementUserDeleteParameters,
-)
+from APPs.Management.schema.parser.parser_portfolio_preview import *
 from APPs.Auth.schema.resp import RespAuthUser
 from APPs.Management.schema.parser import *
 from APPs.Management.schema.resp import *
+from APPs.Management.schema.body import *
+from APPs.Portfolio.schema.resp import *
+from APPs.Management.constants import *
 from APPs.Management.module import *
-from APPs.Management.schema.parser.parser_portfolio_preview import (
-    parser_portfolio_preview,
-    parser_portfolio_preview_records,
-    parser_portfolio_preview_skills,
-)
-from APPs.Portfolio.module import (
-    PortfolioSiteModule,
-    PortfolioJourneyModule,
-    PortfolioExperiencesModule,
-    PortfolioProjectsModule,
-    PortfolioSkillsModule,
-)
-from APPs.Portfolio.schema.resp import (
-    RespPortfolioSite,
-    RespPortfolioJourneyItem,
-    RespPortfolioExperiences,
-    RespPortfolioProjects,
-    RespPortfolioSkillCategories,
-    RespPortfolioSkills,
-)
+from APPs.Portfolio.module import *
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.tools import FastApiRouter, cbv
 from SYSTEM.urls import PreFix, RouteManagement, RoutePortfolio, Tags
 from SYSTEM.settings import SEC_MANAGEMENT_ORIGINS
-from SYSTEM.constants import EnumHttpHeader, EnumContentEncoding, EnumMediaType, TEXT_ENCODING
+from SYSTEM.tools import FastApiRouter, cbv
 from SYSTEM.models import AuthRole
+from SYSTEM.constants import *
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
-from fastapi import Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.routing import APIRoute
+from fastapi import Depends, HTTPException, Request
 from starlette.requests import ClientDisconnect
+from fastapi.routing import APIRoute
 
 # ◆—< Pack >—————————————————————————————————◆ Python
-import json
 from http import HTTPMethod
+import json
 
 
 # ■—< ROUTE >——————————————————————————————————————————————————————————————————————————■ Management - Request Boundary
@@ -116,7 +86,11 @@ class ManagementRoute(APIRoute):
                                                                                                ♂ ZhengLee 2026.10.15
             """
             try:
-                if request.method in (HTTPMethod.PATCH, HTTPMethod.DELETE, HTTPMethod.POST):
+                if request.method in (
+                    HTTPMethod.PATCH,
+                    HTTPMethod.DELETE,
+                    HTTPMethod.POST,
+                ):
                     deleting = request.method != HTTPMethod.PATCH
                     # --------------------------------------● Step 1. Reject cross-origin browser writes and unsupported encodings.
                     origin = request.headers.get(EnumHttpHeader.ORIGIN)
@@ -128,10 +102,16 @@ class ManagementRoute(APIRoute):
                     if (
                         request.headers.get(EnumHttpHeader.CONTENT_TYPE, "").split(";", 1)[0].strip().lower()
                         != EnumMediaType.JSON
-                        or request.headers.get(EnumHttpHeader.CONTENT_ENCODING, EnumContentEncoding.IDENTITY).lower()
+                        or request.headers.get(
+                            EnumHttpHeader.CONTENT_ENCODING,
+                            EnumContentEncoding.IDENTITY,
+                        ).lower()
                         != EnumContentEncoding.IDENTITY
                     ):
-                        raise HTTPException(status_code=415, detail=EnumManagementError.JSON_BODY_REQUIRED)
+                        raise HTTPException(
+                            status_code=415,
+                            detail=EnumManagementError.JSON_BODY_REQUIRED,
+                        )
                     # --------------------------------------● Step 2. Enforce actual streamed bytes, including chunked bodies.
                     chunks, length = [], 0
                     async for chunk in request.stream():
@@ -163,7 +143,9 @@ class ManagementRoute(APIRoute):
                 response = await route_handler(request)
             except ClientDisconnect:
                 raise HTTPException(
-                    status_code=400, detail=EnumManagementError.INVALID_BODY, headers=MANAGEMENT_PRIVATE_HEADERS
+                    status_code=400,
+                    detail=EnumManagementError.INVALID_BODY,
+                    headers=MANAGEMENT_PRIVATE_HEADERS,
                 ) from None
             except RequestValidationError as error:
                 detail = [{"loc": item["loc"], "type": item["type"], "msg": item["msg"]} for item in error.errors()]
@@ -662,7 +644,10 @@ class ManagementPortfolioPreview:
 
     path = RouteManagement.PREVIEW
     account: RespAuthUser = Depends(
-        ManagementPermission(AuthRole.is_manage_sites, denied_detail=EnumManagementError.PORTFOLIO_PREVIEW_FORBIDDEN)
+        ManagementPermission(
+            AuthRole.is_manage_sites,
+            denied_detail=EnumManagementError.PORTFOLIO_PREVIEW_FORBIDDEN,
+        )
     )
 
     @router.get(

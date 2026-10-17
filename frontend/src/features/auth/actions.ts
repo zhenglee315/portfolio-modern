@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { useTranslation } from 'react-i18next';
 import { useNotifications } from '@/shared/ui/NotificationProvider';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { authFailure, useAuthSession, useAuthSignOut } from './session';
 
 /** Share session suspension and logout feedback; the owner supplies its successful destination. */

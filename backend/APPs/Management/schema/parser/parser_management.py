@@ -90,8 +90,14 @@ def _parse_sort(
 
 
 def parser_management_pagination(
-    page: str = Query(default="1", description="One-based page; pages beyond the end return empty items."),
-    size: str = Query(default=str(MANAGEMENT_DEFAULT_SIZE), description="Rows per page, from 1 to 100; default 6."),
+    page: str = Query(
+        default="1",
+        description="One-based page; pages beyond the end return empty items.",
+    ),
+    size: str = Query(
+        default=str(MANAGEMENT_DEFAULT_SIZE),
+        description="Rows per page, from 1 to 100; default 6.",
+    ),
 ) -> dict[str, int]:
     """
     Parse bounded management pages without changing Portfolio's fixed six-record contract.
@@ -115,11 +121,21 @@ def parser_management_roles(
         default="[]",
         description="JSON array of {field, operator, value?}; one typed predicate per column, combined with AND.",
     ),
-    sort: str = Query(default=MANAGEMENT_DEFAULT_SORT, description="Up to three ordered field:asc/desc criteria."),
+    sort: str = Query(
+        default=MANAGEMENT_DEFAULT_SORT,
+        description="Up to three ordered field:asc/desc criteria.",
+    ),
     pagination: dict[str, int] = Depends(parser_management_pagination),
 ) -> dict:
     """Validate role column predicates and page controls."""
-    if set(request.query_params) - {"filters", "sort", "page", "size", "search", "search_fields"}:
+    if set(request.query_params) - {
+        "filters",
+        "sort",
+        "page",
+        "size",
+        "search",
+        "search_fields",
+    }:
         raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
     return {
         **pagination,
@@ -133,12 +149,25 @@ def parser_management_users(
     request: Request,
     search: str | None = Query(default=None, description="Case-insensitive literal substring search."),
     search_fields: str | None = Query(default=None, description="JSON array of search field names, combined with OR."),
-    filters: str = Query(default="[]", description="JSON array of typed column predicates, combined with AND."),
-    sort: str = Query(default=MANAGEMENT_DEFAULT_SORT, description="Up to three ordered field:asc/desc criteria."),
+    filters: str = Query(
+        default="[]",
+        description="JSON array of typed column predicates, combined with AND.",
+    ),
+    sort: str = Query(
+        default=MANAGEMENT_DEFAULT_SORT,
+        description="Up to three ordered field:asc/desc criteria.",
+    ),
     pagination: dict[str, int] = Depends(parser_management_pagination),
 ) -> dict:
     """Validate account column predicates and page controls."""
-    if set(request.query_params) - {"filters", "sort", "page", "size", "search", "search_fields"}:
+    if set(request.query_params) - {
+        "filters",
+        "sort",
+        "page",
+        "size",
+        "search",
+        "search_fields",
+    }:
         raise HTTPException(status_code=400, detail=EnumManagementError.INVALID_QUERY)
     return {
         **pagination,
@@ -164,7 +193,10 @@ def parser_management_role_options(
     return {
         **pagination,
         "search": _parse_search(
-            request, search, None, {EnumManagementField.ROLE: ROLE_FILTER_FIELDS[EnumManagementField.ROLE]}
+            request,
+            search,
+            None,
+            {EnumManagementField.ROLE: ROLE_FILTER_FIELDS[EnumManagementField.ROLE]},
         ),
     }
 
@@ -174,9 +206,13 @@ def parser_management_sites(
     search: str | None = Query(default=None, description="Case-insensitive literal substring search."),
     search_fields: str | None = Query(default=None, description="JSON array of search field names, combined with OR."),
     filters: str = Query(
-        default="[]", description="JSON array of typed column predicates; profile_name uses only the selected language."
+        default="[]",
+        description="JSON array of typed column predicates; profile_name uses only the selected language.",
     ),
-    sort: str = Query(default=MANAGEMENT_DEFAULT_SORT, description="Up to three ordered field:asc/desc criteria."),
+    sort: str = Query(
+        default=MANAGEMENT_DEFAULT_SORT,
+        description="Up to three ordered field:asc/desc criteria.",
+    ),
     locale: str = Depends(parser_locale),
     pagination: dict[str, int] = Depends(parser_management_pagination),
 ) -> dict:
@@ -235,7 +271,9 @@ def parser_management_site_patch(
 
 
 def parser_management_role_patch(
-    request: Request, role_id: str = Path(...), body: BodyManagementRolePatchRequest = Body(...)
+    request: Request,
+    role_id: str = Path(...),
+    body: BodyManagementRolePatchRequest = Body(...),
 ) -> ManagementRolePatchParameters:
     """Validate only target confirmation, original values and writable role assignments.
 
@@ -254,7 +292,9 @@ def parser_management_role_patch(
 
 
 def parser_management_user_patch(
-    request: Request, account_id: str = Path(...), body: BodyManagementUserPatchRequest = Body(...)
+    request: Request,
+    account_id: str = Path(...),
+    body: BodyManagementUserPatchRequest = Body(...),
 ) -> ManagementUserPatchParameters:
     """Keep account identity/FKs immutable; the expected email confirms rather than changes identity."""
     if request.query_params:
@@ -278,12 +318,19 @@ def _parse_search(request: Request, term: str | None, selected: str | None, fiel
 # ■—< PARSER >———————————————————————————————————————————————————————————————————————■ Management - Login Records
 def parser_management_login_records(
     request: Request,
-    user_id: str | None = Query(default=None, description="Optional account ID; disabled accounts remain readable."),
+    user_id: str | None = Query(
+        default=None,
+        description="Optional account ID; disabled accounts remain readable.",
+    ),
     search: str | None = Query(default=None, description="Case-insensitive literal substring search."),
     search_fields: str | None = Query(default=None, description="JSON array of login-record search fields."),
-    filters: str = Query(default="[]", description="JSON array of typed column predicates, combined with AND."),
+    filters: str = Query(
+        default="[]",
+        description="JSON array of typed column predicates, combined with AND.",
+    ),
     sort: str = Query(
-        default=LOGIN_DEFAULT_SORT, description="Ordered field:asc/desc criteria; latest login first by default."
+        default=LOGIN_DEFAULT_SORT,
+        description="Ordered field:asc/desc criteria; latest login first by default.",
     ),
     pagination: dict[str, int] = Depends(parser_management_pagination),
 ) -> dict:
@@ -302,7 +349,15 @@ def parser_management_login_records(
 
                                                                                                ♂ ZhengLee 2026.10.15
     """
-    allowed = {EnumManagementField.USER_ID, "search", "search_fields", "filters", "sort", "page", "size"}
+    allowed = {
+        EnumManagementField.USER_ID,
+        "search",
+        "search_fields",
+        "filters",
+        "sort",
+        "page",
+        "size",
+    }
     if set(request.query_params) - allowed or any(
         len(request.query_params.getlist(key)) > 1 for key in request.query_params
     ):
@@ -346,7 +401,9 @@ def parser_management_site_bulk_delete(
 
 
 def parser_management_role_delete(
-    request: Request, role_id: str = Path(...), body: BodyManagementRoleDeleteConfirmation = Body(...)
+    request: Request,
+    role_id: str = Path(...),
+    body: BodyManagementRoleDeleteConfirmation = Body(...),
 ) -> ManagementRoleDeleteParameters:
     """Normalize a single role into the same transaction contract used by batch deletion.
 
@@ -357,7 +414,8 @@ def parser_management_role_delete(
     return ManagementRoleDeleteParameters(
         targets=(
             BodyManagementRoleDeleteTarget(
-                role_id=_positive_integer(role_id, 2147483647, EnumManagementError.INVALID_ROLE_ID), **body.model_dump()
+                role_id=_positive_integer(role_id, 2147483647, EnumManagementError.INVALID_ROLE_ID),
+                **body.model_dump(),
             ),
         )
     )
@@ -372,7 +430,9 @@ def parser_management_role_bulk_delete(
 
 
 def parser_management_user_delete(
-    request: Request, account_id: str = Path(...), body: BodyManagementUserDeleteConfirmation = Body(...)
+    request: Request,
+    account_id: str = Path(...),
+    body: BodyManagementUserDeleteConfirmation = Body(...),
 ) -> ManagementUserDeleteParameters:
     """Confirm an account and its original optional website without exposing mutable identity fields."""
     if request.query_params:

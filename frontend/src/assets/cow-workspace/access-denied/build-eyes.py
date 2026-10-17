@@ -5,13 +5,12 @@ original geometry, fill and opacity. No raster embedding or new eye expression
 is introduced; the existing iris footprint is restored with its sclera color.
 """
 
-from collections import defaultdict
-from hashlib import sha256
-from pathlib import Path
 import json
 import re
 import xml.etree.ElementTree as ET
-
+from collections import defaultdict
+from hashlib import sha256
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SOURCE = HERE.parent / "rig-cowEyesWorking.svg"
@@ -69,8 +68,9 @@ def band_cells(bands, right=False):
 def clip_path(bands, right=False):
     # Adjacent horizontal bands share edges; one continuous stepped polygon
     # keeps interpolation and native crisp rendering deterministic.
-    edges = [(top, bottom, 445 - end, 445 - left) if right else (top, bottom, left, end)
-             for top, bottom, left, end in bands]
+    edges = [
+        (top, bottom, 445 - end, 445 - left) if right else (top, bottom, left, end) for top, bottom, left, end in bands
+    ]
     points = [(edges[0][2], edges[0][0])]
     for top, bottom, left, end in edges:
         points.extend([(left, top), (left, bottom)])
@@ -143,11 +143,17 @@ def main():
         frame.extend(paths_for_cells(changed))
     frame.extend(paths_for_cells(restored))
     digest = sha256(SOURCE.read_bytes()).hexdigest()
-    write_svg("Approved working brows and eye contours, without irises", "denied-eye-frame", frame,
-              list(map(float, root.get("viewBox").split())),
-              f"Derived from the approved working-eye native SVG SHA-256 {digest}. Original eyebrows, central crease and lids preserved; only iris interiors restored with original sclera color {SCLERA}.",
-              [(f"denied-eye-opening-{label}", clip_path(OPENING_BANDS, right=side == 1))
-               for side, label in enumerate(("left", "right"))])
+    write_svg(
+        "Approved working brows and eye contours, without irises",
+        "denied-eye-frame",
+        frame,
+        list(map(float, root.get("viewBox").split())),
+        f"Derived from the approved working-eye native SVG SHA-256 {digest}. Original eyebrows, central crease and lids preserved; only iris interiors restored with original sclera color {SCLERA}.",
+        [
+            (f"denied-eye-opening-{label}", clip_path(OPENING_BANDS, right=side == 1))
+            for side, label in enumerate(("left", "right"))
+        ],
+    )
     metadata = []
     for side, label in enumerate(("left", "right")):
         selected = {cell: native[cell] for cell in irises[side] if cell in native}
@@ -160,46 +166,59 @@ def main():
         left = 68 if side == 0 else 302
         center = {"x": X0 + (left + 37.5) * STEP, "y": Y0 + 98 * STEP}
         bounds = [X0 + left * STEP, Y0 + 68 * STEP, 75 * STEP, 60 * STEP]
-        write_svg(f"Independent approved {label} gray-brown iris and pupil", f"denied-pupil-{label}",
-                  paths_for_cells(selected), bounds,
-                  f"Independent native SVG pixels extracted from the approved working eyes SHA-256 {digest}. Original gray-brown palette, black pupil and white catchlight retained; only hidden upper rows completed from the same iris.")
+        write_svg(
+            f"Independent approved {label} gray-brown iris and pupil",
+            f"denied-pupil-{label}",
+            paths_for_cells(selected),
+            bounds,
+            f"Independent native SVG pixels extracted from the approved working eyes SHA-256 {digest}. Original gray-brown palette, black pupil and white catchlight retained; only hidden upper rows completed from the same iris.",
+        )
         aperture = openings[side]
         width = (max(x for x, y in aperture) - min(x for x, y in aperture) + 1) * STEP
         height = (max(y for x, y in aperture) - min(y for x, y in aperture) + 1) * STEP
-        metadata.append({
-            "id": label,
-            "assetId": f"denied-pupil-{label}",
-            "center": center,
-            "width": width,
-            "height": height,
-            "pupilWidth": bounds[2],
-            "pupilHeight": bounds[3],
-            "clipId": f"denied-eye-opening-{label}",
-            "clipPath": clip_path(OPENING_BANDS, right=side == 1),
-            "maxOffset": {"x": 20, "y": 8},
-        })
+        metadata.append(
+            {
+                "id": label,
+                "assetId": f"denied-pupil-{label}",
+                "center": center,
+                "width": width,
+                "height": height,
+                "pupilWidth": bounds[2],
+                "pupilHeight": bounds[3],
+                "clipId": f"denied-eye-opening-{label}",
+                "clipPath": clip_path(OPENING_BANDS, right=side == 1),
+                "maxOffset": {"x": 20, "y": 8},
+            }
+        )
     (HERE / "eyes.ts").write_text(
         "/** Native working-eye split in the shared 1254 × 1254 scene coordinates. */\n"
-        "export const DENIED_EYE_FRAME_ID = 'denied-eye-frame' as const;\n\n"
-        "export const DENIED_EYES = " + json.dumps([
-            {key: value for key, value in eye.items() if key != "clipPath"}
-            for eye in metadata
-        ], indent=2) + " as const;\n"
+        "export const DENIED_EYES = "
+        + json.dumps(
+            [{key: value for key, value in eye.items() if key != "clipPath"} for eye in metadata],
+            indent=2,
+        )
+        + " as const;\n"
     )
-    (HERE / "eyes-provenance.json").write_text(json.dumps({
-        "source": "../rig-cowEyesWorking.svg",
-        "sourceSha256": digest,
-        "sourcePng": "../rig-source/cowEyesWorkingFocusedRedrawnV3.png",
-        "sceneSize": [1254, 1254],
-        "frameViewBox": list(map(float, root.get("viewBox").split())),
-        "method": "Exact native rectangle preservation outside iris masks; existing iris colors and original sclera reused; hidden pupil upper rows mirrored from the same native iris.",
-        "restoredSampleCells": len(restored),
-        "originalContourCommandsRetained": True,
-        "openingBands": OPENING_BANDS,
-        "irisBands": IRIS_BANDS,
-        "restorationBands": RESTORATION_BANDS,
-        "eyes": metadata,
-    }, indent=2) + "\n")
+    (HERE / "eyes-provenance.json").write_text(
+        json.dumps(
+            {
+                "source": "../rig-cowEyesWorking.svg",
+                "sourceSha256": digest,
+                "sourcePng": "../rig-source/cowEyesWorkingFocusedRedrawnV3.png",
+                "sceneSize": [1254, 1254],
+                "frameViewBox": list(map(float, root.get("viewBox").split())),
+                "method": "Exact native rectangle preservation outside iris masks; existing iris colors and original sclera reused; hidden pupil upper rows mirrored from the same native iris.",
+                "restoredSampleCells": len(restored),
+                "originalContourCommandsRetained": True,
+                "openingBands": OPENING_BANDS,
+                "irisBands": IRIS_BANDS,
+                "restorationBands": RESTORATION_BANDS,
+                "eyes": metadata,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     print(json.dumps({"eyes": metadata, "restoredCells": len(restored)}, indent=2))
 
 

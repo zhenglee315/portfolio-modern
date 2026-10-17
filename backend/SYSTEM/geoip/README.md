@@ -1,7 +1,11 @@
 # Offline City data
 
+**文件責任：** 離線 GeoIP 資料包、manifest／雜湊驗證、runtime MMDB 重建、資料更新與來源授權；登入及 request 記錄的 SQL／HTTP 契約由 [後端總覽](../../README.md) 與 [record_request](../models/README_record_request.md) 說明。
+
+The lifespan injects `GeoIpDatabaseImporter.prepare_bundle` into `GeoIpReader`; infrastructure tools consume that dependency without importing COMMON. The same per-worker reader enriches successful login history and monitored requests.
+
 `City.mmdb.gz`, `manifest.json` and `NOTICE.txt` are versioned together. A new Git
-clone therefore includes the database used for login IP geolocation. No external
+clone therefore includes the database used for login and request IP geolocation. No external
 API, download, Git LFS or extra service is needed at runtime.
 
 FastAPI startup verifies the archive and uncompressed SHA-256/size, validates the
@@ -11,8 +15,8 @@ an updated manifest refreshes older data on worker restart. Failed updates retai
 the existing file. Private credentials and login records are never stored here.
 
 The API user needs directory write permission for first extraction or a data
-update. For an existing read-only deployment, prepare the same cache in the normal
-backend packaging step using `scripts/import_geoip.py`, then retain read access.
+update. Read-only deployments must include a validated, expanded `City.mmdb`
+prepared during backend packaging, retain read access and rebuild for data updates.
 See [backend deployment instructions](../../README.md#封閉網段部署--isolated-network-deployment).
 
 To update data, replace the gzip archive, its compressed/uncompressed checksums

@@ -1,5 +1,5 @@
-import { Icon, type IconName } from './Icon';
 import styles from './Breadcrumb.module.css';
+import { Icon, type IconName } from './Icon';
 
 type BreadcrumbItem = {
   label: string;

@@ -1,5 +1,5 @@
 # ◆—< Pack >—————————————————————————————————◆ Tools
-from SYSTEM.constants import *
+from COMMON.tools.tools_enum import EnumUtils
 
 # ◆—< Pack >—————————————————————————————————◆ Python
 from enum import Enum

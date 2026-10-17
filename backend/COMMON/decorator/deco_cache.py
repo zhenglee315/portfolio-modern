@@ -11,7 +11,7 @@ from inspect import signature
 
 
 # ■—< DECO >———————————————————————————————————————————————————————————————————————————■ Request Caching
-def cache(control_key: str = 'is_caching', **cache_kwargs):
+def cache(control_key: str = "is_caching", **cache_kwargs):
     """
     Overwrites a fastapi_cache(_cache) to optionally enable caching for FastAPI routes.
 
@@ -55,7 +55,7 @@ def cache(control_key: str = 'is_caching', **cache_kwargs):
                 flag = await search_recursive(kwargs, control_key)
 
             # Enable caching only if the flag is set to 'true', '1', or 'yes' (case-insensitive).
-            if flag is not None and str(flag).lower() in ('true', '1', 'yes'):
+            if flag is not None and str(flag).lower() in ("true", "1", "yes"):
                 return await cached_func(*args, **kwargs)
             handler_kwargs = {name: value for name, value in kwargs.items() if name not in injected_names}
             return await func(*args, **handler_kwargs)

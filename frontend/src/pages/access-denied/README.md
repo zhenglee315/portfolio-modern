@@ -1,5 +1,7 @@
 # Access denied page
 
+**文件責任：** 本頁的 locale route、HTTP 403、權限導向、返回操作、共享角色插槽與響應式版面。登入與管理頁的整合見 [前端總覽](../../../README.md)，角色素材及重建方式以 [Cow workspace](../../shared/ui/cow-workspace/README.md) 為準。
+
 Review the standalone page at `/en/access-denied`, `/zh-Hant/access-denied` or
 `/zh-Hans/access-denied`. The locale-only loader returns HTTP 403, disables
 caching and search indexing, and does not read management records.
@@ -11,7 +13,8 @@ resource permission, or a SESSION HTTP 401/403 produces the shared warning and
 replaces the blocked URL with this localized page. The account menu, sidebar
 and table gate share `auth/permissions`: sites/monitoring use
 `is_manage_sites`, users use `is_manage_users`, and roles use
-`is_manage_roles`. Monitoring remains a menu entry without a route.
+`is_manage_roles`. Monitoring opens `/:locale/management/monitoring` and uses
+the same session gate before connecting to the authorized Socket.IO namespace.
 
 Network, service and response-schema failures withhold management content and
 offer explicit SESSION retry instead of granting cached access. Navigation and
@@ -32,8 +35,8 @@ anatomical left arm holds the language-neutral red no-entry sign on screen right
 Only the raised sign arm was generated with the built-in imagegen tool. Its
 transparent original and exact final prompt are saved in
 `../../assets/cow-workspace/access-denied/rig-source/cowArmLeftNoEntry.png` and
-`../../assets/cow-workspace/access-denied/arm-prompts.json`. All previous sources
-remain intact. Rebuild its native SVG with:
+`../../assets/cow-workspace/access-denied/arm-prompts.json`. Current source files
+are retained for rebuilding. Rebuild its native SVG with:
 
 ```sh
 python3 scripts/build-access-denied-arm.py

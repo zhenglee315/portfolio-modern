@@ -30569,21 +30569,3 @@ export const COW_RIG_PARTS: Record<CowRigPartName, readonly CowRigPath[]> = {
   cowMouthSmile: cowMouthSmilePaths,
   cowEyesThinking: cowEyesThinkingPaths,
 };
-export const COW_RIG_BOUNDS: Record<
-  CowRigPartName | 'cow',
-  { x: number; y: number; width: number; height: number }
-> = {
-  cowBodyComplete: { x: 418.4513, y: 538.0, width: 512.0974, height: 565.0 },
-  cowBodyTyping: { x: 418.4513, y: 538.0, width: 512.0974, height: 565.0 },
-  cowHeadComplete: { x: 208.0, y: 62.0, width: 818.0, height: 674.0 },
-  cowEyesObserver: { x: 387.577, y: 276.6431, width: 409.5465, height: 114.178 },
-  cowArmLeftThinking: { x: 308.5886, y: 608.2846, width: 303.4807, height: 280.0 },
-  cowArmLeftTyping: { x: 230.1181, y: 603.019, width: 455.6, height: 445.6 },
-  cowArmRightTyping: { x: 705.0533, y: 615.3604, width: 392.7, height: 415.48 },
-  cowEyesWorking: { x: 384.3081, y: 266.9738, width: 415.3838, height: 129.1215 },
-  cowArmRightResting: { x: 843.3477, y: 640.742, width: 320.2938, height: 399.878 },
-  cowMouthNeutral: { x: 531.906, y: 589.4783, width: 164.6981, height: 12.741 },
-  cowMouthSmile: { x: 534.651, y: 581.8336, width: 161.9531, height: 30.5785 },
-  cowEyesThinking: { x: 402.9876, y: 286.6833, width: 378.9588, height: 92.9301 },
-  cow: { x: 208.0, y: 62.0, width: 955.6415, height: 1041.0 },
-};

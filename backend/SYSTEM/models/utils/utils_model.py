@@ -1,5 +1,6 @@
+from SYSTEM import models
+
 # ◆—< Pack >—————————————————————————————————◆ Models
-from SYSTEM.models import *
 
 # ◆—< Pack >—————————————————————————————————◆ Sqlalchemy
 from sqlalchemy.sql import ColumnElement, literal_column
@@ -11,14 +12,17 @@ from datetime import timedelta
 import builtins
 import re
 
-_HUMAN_TOKEN = re.compile(r'(?P<num>\d+)\s*(?P<Unit>w(ee)?k|d(ay)?|h(our)?|m(in(ute)?)?|s(ec(ond)?)?)', re.IGNORECASE)
+_HUMAN_TOKEN = re.compile(
+    r"(?P<num>\d+)\s*(?P<Unit>w(ee)?k|d(ay)?|h(our)?|m(in(ute)?)?|s(ec(ond)?)?)",
+    re.IGNORECASE,
+)
 
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ Build Conditions
 def model_where_cond(
     model: Optional[Type[DeclarativeMeta]] = None,
     multiple: bool = True,
-    pattern: str = ',',
+    pattern: str = ",",
     range_suffix: bool = True,
     **filters: Any,
 ) -> List[ColumnElement]:
@@ -31,7 +35,7 @@ def model_where_cond(
         - created_at_start='2024-01-01'    → `created_at >= '2024-01-01'`
         - created_at_end='2024-12-31'      → `created_at <= '2024-12-31'`
         - region='A,B,C'                   → IN query on `region` for ['A','B','C']
-        - schedule_interval='7 days'       → INTERVAL comparison on `schedule_interval`
+        - schedule_intvl='7 days'            → INTERVAL comparison on `schedule`
         - is_active=True                   → Boolean equality
 
     :param model:         (Optional) SQLAlchemy ORM model class for single-table queries.
@@ -41,7 +45,7 @@ def model_where_cond(
     :param range_suffix:  Enable '_start'/'_end' suffixes for range (>=, <=) filters.
     :param filters:       Arbitrary key–value pairs as query filters.
                           - Keys ending in '_like' perform LIKE searches.
-                          - Keys ending in '_interval' perform INTERVAL comparisons.
+                          - Keys ending in '_intvl' perform INTERVAL comparisons.
                           - Keys ending in '_start' or '_end' perform >= or <= filters.
                           - Other string values containing `pattern` become IN lists.
                           - Boolean values use `.is_(value)`.
@@ -50,15 +54,15 @@ def model_where_cond(
     """
     conditions: List[ColumnElement] = []
 
-    # ------------------------------------------------------------● Find model class from current global
+    # ------------------------------------------------------------● Find model class from the explicit registry
     def find_model_class(name: str) -> Optional[Type[DeclarativeMeta]]:
         """
-        Try globals, then builtins, then locals if needed.
+        Resolve explicitly registered SYSTEM models, then the legacy builtins fallback.
         :param name: Model name.
         :return: Type[DeclarativeMeta] | None
         """
 
-        scope = globals()
+        scope = vars(models)
         if name in scope:
             return scope[name]
         if hasattr(builtins, name):
@@ -71,12 +75,13 @@ def model_where_cond(
             continue
 
         # -------------------------------------------------------● Multi-model: key in 'Model__field' format
-        if '__' in key:
-            model_name, field_key = key.split('__', 1)
+        if "__" in key:
+            model_name, field_key = key.split("__", 1)
             model_cls = find_model_class(model_name)
             if not model_cls:
                 raise AttributeError(
-                    f"Model class '{model_name}' not found in current scope. " f"Please 'from SYSTEM.models import *'"
+                    f"Model class '{model_name}' not found in current scope. "
+                    f"Please register the model in SYSTEM.models"
                 )
         # -------------------------------------------------------● Single model: use given model
         else:
@@ -86,34 +91,34 @@ def model_where_cond(
             field_key = key
 
         # -------------------------------------------------------● Suffix - Like
-        if field_key.endswith('_like'):
+        if field_key.endswith("_like"):
             field_name = field_key[:-5]
-            operator = 'like'
+            operator = "like"
         # -------------------------------------------------------● Suffix - Range (_start/_end)
-        elif range_suffix and field_key.endswith('_start'):
+        elif range_suffix and field_key.endswith("_start"):
             field_name = field_key[:-6]
-            operator = '>='
-        elif range_suffix and field_key.endswith('_end'):
+            operator = ">="
+        elif range_suffix and field_key.endswith("_end"):
             field_name = field_key[:-4]
-            operator = '<='
+            operator = "<="
         # -------------------------------------------------------● Suffix - IS NOT
-        elif field_key.endswith('_isnot'):
+        elif field_key.endswith("_isnot"):
             field_name = field_key[:-6]
-            operator = 'not'
+            operator = "not"
         # -------------------------------------------------------● Suffix - Interval
-        elif field_key.endswith('_intvl'):
-            # remove the '_interval' suffix to get the real column name
+        elif field_key.endswith("_intvl"):
+            # remove the '_intvl' suffix to get the real column name
             field_name = field_key[:-6]
             # mark this as an interval comparison
-            operator = 'interval'
+            operator = "interval"
         else:
             field_name = field_key
             if isinstance(value, (list, set, tuple)):
-                operator = 'in'
+                operator = "in"
             elif multiple and isinstance(value, str) and pattern in value:
-                operator = 'in'
+                operator = "in"
             else:
-                operator = '=='
+                operator = "=="
         # -------------------------------------------------------● Retrieve column from model class
         column = None
         if hasattr(model_cls, "c"):
@@ -127,24 +132,24 @@ def model_where_cond(
                 f"Model '{getattr(model_cls, '__name__', type(model_cls).__name__)}' " f"has no column '{field_name}'."
             )
         # -------------------------------------------------------● Build the condition
-        if operator == 'like':
+        if operator == "like":
             conditions.append(column.ilike(f"%{value}%"))
-        elif operator == '>=':
+        elif operator == ">=":
             conditions.append(column >= value)
-        elif operator == '<=':
+        elif operator == "<=":
             conditions.append(column <= value)
-        elif operator == 'in':
+        elif operator == "in":
             cond_list = value if isinstance(value, (list, set, tuple)) else value.split(pattern)
             items = [v.strip() if isinstance(v, str) else v for v in cond_list if v is not None and str(v).strip()]
             if items:
                 conditions.append(column.in_(items))
-        elif operator == 'interval':
+        elif operator == "interval":
             """
             Compare Postgres INTERVAL column by inlining a literal interval constant.
             This generates SQL like: column = 'P1M'::interval
             """
             conditions.append(column == literal_column(f"'{value}'::interval"))
-        elif operator == 'not':
+        elif operator == "not":
             conditions.append(column.isnot(value))
         else:
             """
@@ -177,17 +182,17 @@ def model_parse_interval(val: Any) -> timedelta:
     s = val.strip()
     total = timedelta(0)
     for m in _HUMAN_TOKEN.finditer(s):
-        n = float(m.group('num'))
-        u = m.group('Unit').lower()
-        if u.startswith('w'):
+        n = float(m.group("num"))
+        u = m.group("Unit").lower()
+        if u.startswith("w"):
             total += timedelta(days=7 * n)
-        elif u.startswith('d'):
+        elif u.startswith("d"):
             total += timedelta(days=n)
-        elif u.startswith('h'):
+        elif u.startswith("h"):
             total += timedelta(hours=n)
-        elif u.startswith('m'):
+        elif u.startswith("m"):
             total += timedelta(minutes=n)
-        elif u.startswith('s'):
+        elif u.startswith("s"):
             total += timedelta(seconds=n)
 
     if total.total_seconds() > 0:
@@ -197,7 +202,10 @@ def model_parse_interval(val: Any) -> timedelta:
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ Build Insert
 def model_insert_values(
-    values: Union[Dict[str, Any], List[Dict[str, Any]]], *, is_null: bool = False, strip_str: bool = True
+    values: Union[Dict[str, Any], List[Dict[str, Any]]],
+    *,
+    is_null: bool = False,
+    strip_str: bool = True,
 ) -> List[Dict[str, Any]]:
     """
     Dynamically builds normalized INSERT payload(s) from dict or list of dicts,
@@ -261,7 +269,7 @@ def model_insert_values(
             tmp[k] = v
 
         # --------------------------------------------------------● Stage 2: handle *_intvl → overwrite base key + drop temporary key
-        intvl_keys = [k for k in tmp.keys() if k.endswith('_intvl')]
+        intvl_keys = [k for k in tmp.keys() if k.endswith("_intvl")]
         for k in intvl_keys:
             base_key = k[:-6]  # remove "_intvl"
             raw_val = tmp.get(k)
@@ -299,7 +307,10 @@ def model_insert_values(
 
 # ■—< FUNC >——————————————————————————————————————————————————————————————————————————■ Build Update
 def model_update_values(
-    values: Dict[str, Any] | List[Dict[str, Any]], *, keep_null: bool = False, strip_str: bool = True
+    values: Dict[str, Any] | List[Dict[str, Any]],
+    *,
+    keep_null: bool = False,
+    strip_str: bool = True,
 ) -> Dict[str, Any]:
     """
     Build a single UPDATE payload (dict) from dict or list-of-dicts.
@@ -309,5 +320,5 @@ def model_update_values(
     """
     rows = model_insert_values(values, is_null=keep_null, strip_str=strip_str)
     payload = rows[0] if rows else {}
-    payload.pop('createuser', None)
+    payload.pop("createuser", None)
     return payload

@@ -1,3 +1,4 @@
+import { formatUtcTimestamp } from '@/shared/lib/timestamps';
 import { useId, useMemo, useState, type KeyboardEvent } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import { useTranslation } from 'react-i18next';
@@ -84,7 +85,7 @@ export default function LoginRecords({
             : field === 'logintime'
               ? (row) => (
                   <time dateTime={row.logintime} title={`${row.logintime} UTC`}>
-                    {row.logintime.slice(0, 19).replaceAll('-', '.').replace('T', ' ')}
+                    {formatUtcTimestamp(row.logintime)}
                   </time>
                 )
               : field === 'geo_status'

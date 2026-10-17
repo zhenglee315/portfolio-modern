@@ -6,7 +6,13 @@ from COMMON.tools.storage.redis import RedisAsync
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 
 # ◆—< Pack >—————————————————————————————————◆ System
-from SYSTEM.constants import AUTH_PERMISSION_FIELDS, EnumCache, EnumCacheNamespace, EnumCacheError
+from SYSTEM.constants import (
+    AUTH_PERMISSION_FIELDS,
+    EnumCache,
+    EnumCacheNamespace,
+    EnumCacheError,
+    EnumSess,
+)
 from SYSTEM.models import AuthUser, PortfolioSite
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
@@ -31,12 +37,12 @@ class PortfolioManagementModule(SqlAlchemyExecAsync):
                                                                                                ♂ ZhengLee 2026.10.11
     """
 
-    async def account(self, request: Request, permission: str) -> dict:
+    async def account(self, request: Request, permission: EnumSess) -> dict:
         """
         Read the current enabled account and verify one recognized permission.
 
         :param request: Current request carrying the server-side authentication session.
-        :param permission: Supported CRUD or management flag, validated before lookup.
+        :param permission: EnumSess CRUD or management field, validated before lookup.
         :return: Current database-backed identity and permissions.
         :raises HTTPException: Authentication is absent, permission is denied, or storage fails.
 
@@ -67,7 +73,7 @@ class PortfolioManagementModule(SqlAlchemyExecAsync):
         except (RedisError, KeyError, RuntimeError, OSError):
             raise HTTPException(status_code=503, detail=EnumCacheError.PORTFOLIO_CACHE_UNAVAILABLE) from None
 
-    async def owned_site(self, request: Request, site_id: int, permission: str) -> dict:
+    async def owned_site(self, request: Request, site_id: int, permission: EnumSess) -> dict:
         """
         Authorize a portfolio operation against ownership or explicit site management permission.
 
@@ -88,7 +94,7 @@ class PortfolioManagementModule(SqlAlchemyExecAsync):
             raise HTTPException(status_code=503, detail="PORTFOLIO_DATABASE_UNAVAILABLE") from None
         if owner is None:
             raise HTTPException(status_code=404, detail="NOT_FOUND")
-        if owner != account["id"] and account["is_manage_sites"] is not True:
+        if owner != account[EnumSess.ID] and account[EnumSess.IS_MANAGE_SITES] is not True:
             raise HTTPException(status_code=403, detail="PERMISSION_DENIED")
         return account
 
@@ -106,7 +112,7 @@ class PortfolioManagementModule(SqlAlchemyExecAsync):
         """
         if type(is_published) is not bool:
             raise ValueError("Publication state must be a boolean.")
-        await self.owned_site(request, site_id, "is_update")
+        await self.owned_site(request, site_id, EnumSess.IS_UPDATE)
         try:
             async with self.transaction() as transaction:
                 row = (
@@ -136,15 +142,24 @@ class PortfolioManagementModule(SqlAlchemyExecAsync):
 
                                                                                                ♂ ZhengLee 2026.10.11
         """
-        await self.account(request, "is_manage_sites")
+        await self.account(request, EnumSess.IS_MANAGE_SITES)
         try:
             async with self.transaction() as transaction:
                 sites = (
                     (
                         await transaction.execute_orm(
-                            select(PortfolioSite.id, PortfolioSite.is_published, AuthUser.is_active)
+                            select(
+                                PortfolioSite.id,
+                                PortfolioSite.is_published,
+                                AuthUser.is_active,
+                            )
                             .join(AuthUser, AuthUser.id == PortfolioSite.user_id)
-                            .where(or_(PortfolioSite.id == site_id, PortfolioSite.is_default.is_(True)))
+                            .where(
+                                or_(
+                                    PortfolioSite.id == site_id,
+                                    PortfolioSite.is_default.is_(True),
+                                )
+                            )
                             .order_by(PortfolioSite.id)
                             .with_for_update()
                         )

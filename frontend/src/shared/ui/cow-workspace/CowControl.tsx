@@ -1,6 +1,6 @@
+import { useHoverTooltip } from '@/shared/hooks/useHoverTooltip';
 import { Icon, type IconName } from '@/shared/ui/Icon';
 import { PixelTooltip } from '@/shared/ui/PixelTooltip';
-import { useHoverTooltip } from '@/shared/hooks/useHoverTooltip';
 import styles from './CowControl.module.css';
 
 /** Share circular cow controls and pixel tips; clicking closes the tip before its action. */

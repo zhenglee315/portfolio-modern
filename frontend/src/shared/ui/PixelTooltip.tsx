@@ -1,6 +1,6 @@
+import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
 import type { HTMLAttributes, RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
 import { PixelBubble } from './PixelBubble';
 import styles from './PixelTooltip.module.css';
 

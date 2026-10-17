@@ -3792,26 +3792,3 @@ export const COMPLETE_COW_PROPS: Record<
   ],
   deskContactShadows: [],
 };
-export const COMPLETE_COW_PROP_BOUNDS: Record<
-  | 'laptop'
-  | 'coffee'
-  | 'plantPot'
-  | 'plantLeaves'
-  | 'plant'
-  | 'books'
-  | 'globe'
-  | 'openBook'
-  | 'desk',
-  string
-> = {
-  laptop: '421 823 440 228',
-  coffee: '853 754 252 378',
-  plantPot: '1080 1001 142 144',
-  plantLeaves: '1079 889 144 142',
-  plant: '1079 889 144 256',
-  books: '12 774 408 372',
-  globe: '290 946 172 232',
-  openBook: '400 1063 586 191',
-  desk: '28 1002 1198 252',
-};
-export const COMPLETE_COW_GLOBE_GEOMETRY = { cx: 367.374, cy: 1046.167, r: 73.166 } as const;

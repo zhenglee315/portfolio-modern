@@ -32,6 +32,11 @@ export const tableToolbarMenuPosition: MenuPopperConfig = {
 export const portaledMenuPosition: MenuPopperConfig = {
   ...boundedMenuPosition,
   strategy: 'fixed',
+  modifiers: [
+    ...(boundedMenuPosition.modifiers ?? []),
+    // Left/top anchoring avoids end-alignment offsets from the root's stable scrollbar gutter.
+    { name: 'computeStyles', options: { adaptive: false } },
+  ],
 };
 
 /** Reposition intrinsic menus after async choices/search change their measured size.

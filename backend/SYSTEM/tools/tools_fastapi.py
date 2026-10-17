@@ -1,6 +1,10 @@
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import APIRouter, FastAPI, Request
-from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
+from fastapi.openapi.docs import (
+    get_redoc_html,
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+)
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -335,7 +339,11 @@ class FastApiLocalDocs:
         static_dir: Path = self.dir_path / self.dir_static
         if not static_dir.is_dir():
             raise FileNotFoundError(f"Static directory not found: {static_dir}")
-        self.app.mount(f"/{self.dir_static}", StaticFiles(directory=str(static_dir)), name=self.dir_static)
+        self.app.mount(
+            f"/{self.dir_static}",
+            StaticFiles(directory=str(static_dir)),
+            name=self.dir_static,
+        )
 
     def _register_docs(self) -> None:
         """
@@ -381,7 +389,11 @@ class FastApiLocalDocs:
 
 # ■—< FUNC >———————————————————————————————————————————————————————————————————————————■ FastAPI - Cache Key Builder
 def fastapi_cache_key_builder(
-    func: Callable[..., Any], namespace: str = "", request: Optional[Request] = None, *_, **kwargs
+    func: Callable[..., Any],
+    namespace: str = "",
+    request: Optional[Request] = None,
+    *_,
+    **kwargs,
 ):
     """
     Generate a cache key for FastAPI class-based view endpoints.

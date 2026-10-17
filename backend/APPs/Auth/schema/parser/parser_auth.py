@@ -78,7 +78,11 @@ def parser_auth_register(body: BodyAuthRegister = Body(...)) -> dict:
 
                                                                                                ♂ ZhengLee 2026.10.11
     """
-    return {"email": body.email, "password": body.password.get_secret_value(), "user": body.user}
+    return {
+        "email": body.email,
+        "password": body.password.get_secret_value(),
+        "user": body.user,
+    }
 
 
 __all__ = (

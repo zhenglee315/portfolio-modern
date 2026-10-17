@@ -5,13 +5,13 @@ from maxminddb import InvalidDatabaseError
 
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.constants import LoginGeoStatus
-from COMMON.tools.tools_geoip import GeoIpDatabaseImporter
 
 # ◆—< Pack >—————————————————————————————————◆ Python
 from dataclasses import asdict, dataclass
 from ipaddress import ip_address
 from pathlib import Path
 from threading import RLock
+from collections.abc import Callable
 import logging
 import zlib
 
@@ -60,16 +60,19 @@ class GeoIpReader:
                                                                                                ♂ ZhengLee 2026.10.15
     """
 
-    def __init__(self, database_path: str | Path | None = None) -> None:
+    def __init__(self, database_path: str | Path | None = None, *, prepare_database: Callable | None = None) -> None:
         """
         Retain the optional deployment path without opening files at import time.
 
         :param database_path: Compatible City MMDB, such as DB-IP Lite, supplied by the deployment.
+        :param prepare_database: Optional caller-supplied preparation callback, run before opening the file.
+                                 Without it, only an already prepared MMDB is opened.
         :return: None; open() prepares the reader outside the login request path.
 
                                                                                                ♂ ZhengLee 2026.10.15
         """
         self.database_path = Path(database_path).expanduser() if database_path else None
+        self.prepare_database = prepare_database
         self._reader: Reader | None = None
         self._lock = RLock()
 
@@ -87,7 +90,8 @@ class GeoIpReader:
                 _LOGGER.warning("GeoIP City database is not configured; login locations will be unavailable.")
                 return False
             try:
-                GeoIpDatabaseImporter.prepare_bundle(self.database_path)
+                if self.prepare_database is not None:
+                    self.prepare_database(self.database_path)
             except (OSError, ValueError, EOFError, zlib.error, InvalidDatabaseError):
                 # Preserve a readable prior cache if an offline bundle update cannot be installed.
                 #                                                                               ♂ ZhengLee 2026.10.15

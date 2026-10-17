@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { localeSchema } from '@/i18n/config';
-import { recordIdSchema, uniqueRecords } from '@/shared/schemas/records';
+import { recordIdSchema, validateNumberedPage } from '@/shared/schemas/records';
 import { rolePermissionSchema } from '../model/role-permissions';
 
 const countSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -86,16 +86,7 @@ export function managementPageSchema<T extends z.ZodType<{ id: number }>>(item: 
       page: recordIdSchema,
       size: z.number().int().min(1).max(100),
     })
-    .superRefine((value, context) => {
-      const expected =
-        value.page > value.pages
-          ? 0
-          : Math.min(value.size, value.total - (value.page - 1) * value.size);
-      if (value.pages !== Math.ceil(value.total / value.size) || value.items.length !== expected) {
-        context.addIssue({ code: 'custom', message: 'Page arithmetic is inconsistent.' });
-      }
-      uniqueRecords(value.items, context);
-    });
+    .superRefine(validateNumberedPage);
 }
 
 export const managementRolesSchema = managementPageSchema(managementRoleSchema);

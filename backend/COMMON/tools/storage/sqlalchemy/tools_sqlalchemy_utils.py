@@ -31,12 +31,12 @@ def sqlalchemy_pagination_stmt(sql: str, page: int, size: int, type_db: str):
     if page < 1 or size < 1:
         raise ValueError("page and size must be positive integers.")
 
-    sql = sql.rstrip().removesuffix(';').rstrip()
+    sql = sql.rstrip().removesuffix(";").rstrip()
     if not sql:
         raise ValueError("sql must be a non-empty string.")
 
     match type_db:
-        case 'oracle':
+        case "oracle":
             page_sql = f"""
             SELECT *
             FROM (SELECT ROWNUM AS rowno,a.*
@@ -46,11 +46,11 @@ def sqlalchemy_pagination_stmt(sql: str, page: int, size: int, type_db: str):
             WHERE b.rowno > {(page - 1) * size}
             """
 
-        case EnumDBType.SQLLite | EnumDBType.POSTGRESQL | 'mysql' | 'mariadb':
+        case EnumDBType.SQLLite | EnumDBType.POSTGRESQL | "mysql" | "mariadb":
             offset = (page - 1) * size
             page_sql = f"{sql} LIMIT {size} OFFSET {offset}"
 
-        case 'mssql':
+        case "mssql":
             offset = (page - 1) * size
             page_sql = f"{sql} OFFSET {offset} ROWS FETCH NEXT {size} ROWS ONLY"
 

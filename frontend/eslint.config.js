@@ -64,6 +64,7 @@ export default defineConfig(
       'node_modules/**',
       '.react-router/**',
       'build/**',
+      '.test-build*/**',
       '.build-staging/**',
       '.build-previous/**',
       'coverage/**',

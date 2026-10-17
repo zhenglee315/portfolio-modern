@@ -1,19 +1,19 @@
-import { memo, type CSSProperties, type ReactNode } from 'react';
+import '@/assets/cow-workspace/scene-globe-animation.css';
 import {
-  COW_RIG_PART_IDS,
   COMPLETE_COW_PROP_IDS,
   COMPLETE_COW_PROP_VIEWBOX,
   COW_GLOBE_ROTATION_BASE_ID,
   COW_GLOBE_ROTATION_DURATION,
   COW_GLOBE_ROTATION_FRAMES,
   COW_GLOBE_ROTATION_OVERLAY_ID,
+  COW_RIG_PART_IDS,
 } from '@/assets/cow-workspace/scene-metadata';
 import spriteUrl from '@/assets/cow-workspace/scene-sprite.svg?url';
-import '@/assets/cow-workspace/scene-globe-animation.css';
 import {
   useCowWorkspaceMotion,
   type CowWorkspaceMotionOptions,
 } from '@/shared/hooks/useCowWorkspaceMotion';
+import { memo, type CSSProperties, type ReactNode } from 'react';
 import styles from './CowWorkspace.module.css';
 
 type RigLayerName = keyof typeof COW_RIG_PART_IDS;

@@ -1,6 +1,6 @@
 # 平台管理欄位與 Default 更新規則
 
-更新日期：2026-10-16。Platform PATCH 後端已實作；表格 Active／Default 即時保存已串接；Edit 內 Save 也使用同一 PATCH 持久化，刪除與新增尚未串接寫入 API。
+更新日期：2026-10-17。Platform PATCH 後端已實作；表格 Active／Default 即時保存已串接；Edit 內 Save 也使用同一 PATCH 持久化。刪除已串接單筆與批次 API；新增尚未實作。
 
 ## 表格欄位
 
@@ -15,7 +15,7 @@
 | 5    | Default | `portfolio_site.is_default`   | 平台預設首頁、點擊即保存     |
 | 6    | Active  | `auth_user.is_active`         | 帳號狀態、點擊即保存         |
 | 7    | Updated | `auth_user.updatetime`        | UTC 帳號更新時間、唯讀       |
-| 8    | Actions | 編輯、預覽、刪除確認入口      | 刪除仍不執行寫入             |
+| 8    | Actions | 編輯、預覽、刪除入口          | 確認後刪除網站及其內容       |
 
 `has_site` 表示網站是否存在；`has_translation` 表示目前語言翻譯是否存在，與 `has_profile` 分開。缺網站時 Publish／Default 保留 API 的 `null`，不捏造為 false。完整網站設定與翻譯欄位保留在詳情。
 
@@ -47,7 +47,7 @@ Path 對應列表 `id`（帳號 PK）；module 依既有 `PortfolioSite.user_id`
 1. 在共用 `transaction()` 內鎖定並重新讀取目標資料。
 2. 驗證這次提交後的最終 Publish 狀態與 owner Active。
 3. 若設新 Default，先取消其他網站的 Default，再設定目標；重選目前 Default 保持冪等。
-4. 若取消發布或停用帳號，自動將同一網站的 Default 改為 false；明確同時要求 Default=true 和最終 Publish=false 回 409。
+4. Default 網站的帳號不可直接停用，違反回 409 `DEFAULT_SITE_DEACTIVATE_FORBIDDEN`；必須先取消／切換 Default，或在同一 Platform PATCH 明確取消 Default。Active 不隱式取消 Default。取消發布仍會清除 Default；明確同時要求 Default=true 和最終 Publish=false 回 409。
 5. 網站與翻譯修改一起 commit；任何寫入或約束失敗全部 rollback，保留原 Default。
 6. Commit 後清除公開 portfolio cache。成功回傳完整的新 Platform row；前端重查列表，讓舊／新 Default 列、分頁與篩選結果同步。
 

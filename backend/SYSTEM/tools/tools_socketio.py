@@ -6,7 +6,13 @@ from contextlib import suppress
 from pathlib import Path
 
 import socketio
+from starsessions.serializers import JsonSerializer
+from starsessions.session import SessionHandler
+from starsessions.stores.redis import RedisStore
+from starlette.requests import Request
 from starlette.types import ASGIApp
+
+from .monitor_stream import MonitorStream
 
 __all__ = (
     "socketio_init_app",
@@ -24,11 +30,6 @@ async def socketio_session_request(environ: dict, redis, config: dict):
     avoids retaining a logged-out identity for the lifetime of a WebSocket. This
     path never saves a session, extends its TTL, rotates it, or writes a cookie.
     """
-    from starsessions.serializers import JsonSerializer
-    from starsessions.session import SessionHandler
-    from starsessions.stores.redis import RedisStore
-    from starlette.requests import Request
-
     scope = dict(environ.get("asgi.scope", {}))
     scope.update(type="http", method="GET")
     scope.pop("session", None)
@@ -48,8 +49,6 @@ async def socketio_session_request(environ: dict, redis, config: dict):
 
 async def socketio_start_monitor(server, monitor):
     """Bind runtime resources after event discovery and lifespan resource setup."""
-    from .tools_monitor import MonitorStream
-
     stream = MonitorStream(monitor, server, authorize=getattr(server, "monitor_authorize", None))
     server.monitor_stream = stream
     await stream.start()

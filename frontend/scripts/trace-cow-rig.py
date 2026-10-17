@@ -17,18 +17,18 @@ scene objects from those overlays. Exports contain no embedded raster images.
 PNG trace, so an independent feature can move out without masking its old copy.
 """
 
-from collections import Counter, defaultdict
-from hashlib import sha256
-from pathlib import Path
 import argparse
 import json
 import math
 import re
 import shutil
 import struct
-import zlib
 import xml.etree.ElementTree as ET
-
+import zlib
+from collections import Counter, defaultdict
+from hashlib import sha256
+from itertools import pairwise
+from pathlib import Path
 
 FRONTEND = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = FRONTEND / "src/assets/cow-workspace"
@@ -42,7 +42,12 @@ def closed_rectangles(geometry):
         raise ValueError("Native pixel paths must contain only complete closed rectangle commands")
     for match in matches:
         x, y, width, height, last = map(float, match.groups())
-        if not all(math.isfinite(value) for value in (x, y, width, height, last)) or x != last or width <= 0 or height <= 0:
+        if (
+            not all(math.isfinite(value) for value in (x, y, width, height, last))
+            or x != last
+            or width <= 0
+            or height <= 0
+        ):
             raise ValueError("Native rectangles must have finite coordinates and positive dimensions")
     return matches
 
@@ -75,9 +80,11 @@ def native_svg_source(source):
         raise ValueError(f"Empty native SVG drawing: {source}")
     return paths, {
         "sourceSha256": sha256(source.read_bytes()).hexdigest(),
-        "method": "whole-native-svg-source", "paths": len(paths),
+        "method": "whole-native-svg-source",
+        "paths": len(paths),
         "rectangles": sum(len(closed_rectangles(path["d"])) for path in paths),
-        "sampleColorRmse": 0, "sceneCoordinates": True,
+        "sampleColorRmse": 0,
+        "sceneCoordinates": True,
     }
 
 
@@ -120,9 +127,12 @@ def apply_native_edits(paths, metadata, spec_path):
             path["opacity"] = opacity
         result.append(path)
     metadata["nativeEdits"] = {
-        "source": str(spec_path), "sourceSha256": sha256(spec_path.read_bytes()).hexdigest(),
-        "method": spec["method"], "replacedRectangles": len(matched),
-        "preservedFootprints": True, "originalStrokeRetainedInHead": False,
+        "source": str(spec_path),
+        "sourceSha256": sha256(spec_path.read_bytes()).hexdigest(),
+        "method": spec["method"],
+        "replacedRectangles": len(matched),
+        "preservedFootprints": True,
+        "originalStrokeRetainedInHead": False,
     }
     metadata["paths"] = len(result)
     return result
@@ -136,16 +146,18 @@ def read_png(path):
     offset, packed, palette, transparency = 8, [], None, b""
     while offset < len(data):
         length = struct.unpack_from(">I", data, offset)[0]
-        kind = data[offset + 4:offset + 8]
-        payload = data[offset + 8:offset + 8 + length]
+        kind = data[offset + 4 : offset + 8]
+        payload = data[offset + 8 : offset + 8 + length]
         if len(payload) != length:
             raise ValueError(f"Truncated PNG: {path}")
         if kind == b"IHDR":
             width, height, depth, mode, compression, filtering, interlace = struct.unpack(">IIBBBBB", payload)
             if depth != 8 or interlace or compression or filtering or mode not in {0, 2, 3, 4, 6}:
-                raise ValueError(f"Expected noninterlaced 8-bit PNG, got depth={depth}, mode={mode}, interlace={interlace}: {path}")
+                raise ValueError(
+                    f"Expected noninterlaced 8-bit PNG, got depth={depth}, mode={mode}, interlace={interlace}: {path}"
+                )
         elif kind == b"PLTE":
-            palette = [payload[i:i + 3] for i in range(0, len(payload), 3)]
+            palette = [payload[i : i + 3] for i in range(0, len(payload), 3)]
         elif kind == b"tRNS":
             transparency = payload
         elif kind == b"IDAT":
@@ -160,7 +172,7 @@ def read_png(path):
     for y in range(height):
         start = y * (stride + 1)
         method = raw[start]
-        row = bytearray(raw[start + 1:start + 1 + stride])
+        row = bytearray(raw[start + 1 : start + 1 + stride])
         for x in range(stride):
             left = row[x - channels] if x >= channels else 0
             above = previous[x]
@@ -186,7 +198,7 @@ def read_png(path):
             continue
         rgba = bytearray(width * 4)
         for x in range(width):
-            cell = row[x * channels:x * channels + channels]
+            cell = row[x * channels : x * channels + channels]
             if mode == 2:
                 rgb = cell
                 transparent_rgb = struct.unpack(">HHH", transparency) if transparency else None
@@ -200,7 +212,7 @@ def read_png(path):
                 rgb = bytes([cell[0]]) * 3
                 transparent_gray = struct.unpack(">H", transparency)[0] if transparency else None
                 alpha = cell[1] if mode == 4 else (0 if cell[0] == transparent_gray else 255)
-            rgba[x * 4:x * 4 + 4] = bytes(rgb) + bytes([alpha])
+            rgba[x * 4 : x * 4 + 4] = bytes(rgb) + bytes([alpha])
         rows.append(rgba)
     return width, height, rows
 
@@ -272,8 +284,11 @@ def original_pixels(config, base_dir):
     samples, histogram = {}, Counter()
     for y in range(0, height, 2):
         for x in range(0, width, 2):
-            values = [rows[yy][xx * 4:xx * 4 + 4] for yy in range(y, min(y + 2, height))
-                      for xx in range(x, min(x + 2, width))]
+            values = [
+                rows[yy][xx * 4 : xx * 4 + 4]
+                for yy in range(y, min(y + 2, height))
+                for xx in range(x, min(x + 2, width))
+            ]
             alpha_sum = sum(value[3] for value in values)
             if not alpha_sum:
                 continue
@@ -286,18 +301,26 @@ def original_pixels(config, base_dir):
             histogram[key] += 1
     palette, lookup = color_palette(histogram, 512)
     cells = {}
+
     def within(rects, x, y):
         return any(left <= x < right and top <= y < bottom for left, top, right, bottom in rects)
+
     for (x, y), (key, alpha) in samples.items():
         cx, cy = x + 1, y + 1
         if not (cy < config.get("allAbove", 0) or inside_polygon(cx, cy, config["includePolygon"])):
             continue
         if within(config.get("excludeRects", []), cx, cy):
             continue
-        cells[(x, y)] = ("#" + "".join(f"{ch:02x}" for ch in palette[lookup[key]]),
-                          None if alpha == 255 else str(round(alpha / 255, 4)))
-    return cells_to_paths(cells), {"source": str(source), "sourceSha256": sha256(source.read_bytes()).hexdigest(),
-                                  "cells": len(cells), "configuration": config}
+        cells[(x, y)] = (
+            "#" + "".join(f"{ch:02x}" for ch in palette[lookup[key]]),
+            None if alpha == 255 else str(round(alpha / 255, 4)),
+        )
+    return cells_to_paths(cells), {
+        "source": str(source),
+        "sourceSha256": sha256(source.read_bytes()).hexdigest(),
+        "cells": len(cells),
+        "configuration": config,
+    }
 
 
 def native_overlay(config, base_dir):
@@ -323,11 +346,13 @@ def native_overlay(config, base_dir):
                 exclusions.extend(region["polygons"])
     cells = {}
     pattern = re.compile(r"M(\d+) (\d+)h(\d+)v(\d+)H(\d+)z")
+
     def within(rects, x, y):
         return any(left <= x < right and top <= y < bottom for left, top, right, bottom in rects)
+
     for node in group.iter("{http://www.w3.org/2000/svg}path"):
         value = (node.attrib["fill"], node.get("opacity"))
-        rgb = tuple(int(value[0][i:i + 2], 16) for i in (1, 3, 5))
+        rgb = tuple(int(value[0][i : i + 2], 16) for i in (1, 3, 5))
         if max(rgb) > config.get("maximumRgbChannel", 255):
             continue
         geometry = node.attrib["d"]
@@ -347,7 +372,9 @@ def native_overlay(config, base_dir):
                         continue
                     if "includePolygon" in config and not inside_polygon(cx, cy, config["includePolygon"]):
                         continue
-                    if within(config.get("excludeRects", []), cx, cy) or any(inside_polygon(cx, cy, p) for p in exclusions):
+                    if within(config.get("excludeRects", []), cx, cy) or any(
+                        inside_polygon(cx, cy, p) for p in exclusions
+                    ):
                         continue
                     cells[(xx, yy)] = value
     # Merge each row's equal-color cells, then merge identical runs vertically.
@@ -377,8 +404,13 @@ def native_overlay(config, base_dir):
         if opacity is not None:
             path["opacity"] = float(opacity)
         paths.append(path)
-    return paths, {"source": str(source), "sourceSha256": sha256(source.read_bytes()).hexdigest(),
-                   "cells": len(cells), "group": config["group"], "configuration": config}
+    return paths, {
+        "source": str(source),
+        "sourceSha256": sha256(source.read_bytes()).hexdigest(),
+        "cells": len(cells),
+        "group": config["group"],
+        "configuration": config,
+    }
 
 
 def color_palette(histogram, limit):
@@ -407,8 +439,13 @@ def color_palette(histogram, limit):
     for box in boxes:
         total = sum(histogram[c] for c in box)
         palette.append(tuple(round(sum(c[i] * histogram[c] for c in box) / total) for i in range(3)))
-    lookup = {color: min(range(len(palette)), key=lambda k: sum(
-        (color[i] - palette[k][i]) ** 2 * (2, 4, 3)[i] for i in range(3))) for color in histogram}
+    lookup = {
+        color: min(
+            range(len(palette)),
+            key=lambda k: sum((color[i] - palette[k][i]) ** 2 * (2, 4, 3)[i] for i in range(3)),
+        )
+        for color in histogram
+    }
     return palette, lookup
 
 
@@ -447,13 +484,24 @@ def trace_shared_master_partition(entry, source, grid, limit, cache):
     if entry.get("verticalMap") or entry.get("maximumRgbChannel", 255) != 255:
         raise ValueError("sharedMaster partitions require one unwarped, unfiltered master palette")
     defaults = {
-        "crop": [0, 0, 1, 1], "trim": True, "trimAlphaThreshold": 8,
-        "alphaCutoff": 0, "keepLargestComponent": False, "requireTransparency": True,
+        "crop": [0, 0, 1, 1],
+        "trim": True,
+        "trimAlphaThreshold": 8,
+        "alphaCutoff": 0,
+        "keepLargestComponent": False,
+        "requireTransparency": True,
     }
     configuration = {key: entry.get(key, value) for key, value in defaults.items()}
     configuration["placement"] = entry["placement"]
-    signature = json.dumps({"source": str(source.resolve()), "grid": grid,
-                            "palette": limit, **configuration}, sort_keys=True)
+    signature = json.dumps(
+        {
+            "source": str(source.resolve()),
+            "grid": grid,
+            "palette": limit,
+            **configuration,
+        },
+        sort_keys=True,
+    )
     if master_name in cache and cache[master_name]["signature"] != signature:
         raise ValueError(f"All {master_name!r} partitions must share source, trim, placement, grid, and palette")
     reused = master_name in cache
@@ -478,14 +526,21 @@ def trace_shared_master_partition(entry, source, grid, limit, cache):
                 bottom = row_count if y + height >= py + ph - 0.0002 else round((y + height - py) / step_y)
                 for yy in range(top, bottom):
                     rows[yy][left:right] = [value] * (right - left)
-        cache[master_name] = {"signature": signature, "rows": rows, "meta": master_meta,
-                              "step": (step_x, step_y), "shape": (columns, row_count)}
+        cache[master_name] = {
+            "signature": signature,
+            "rows": rows,
+            "meta": master_meta,
+            "step": (step_x, step_y),
+            "shape": (columns, row_count),
+        }
     master = cache[master_name]
     px, py, pw, ph = entry["placement"]
     step_x, step_y = master["step"]
     columns, row_count = master["shape"]
+
     def within(rects, x, y):
         return any(left <= x < right and top <= y < bottom for left, top, right, bottom in rects)
+
     samples, selected_cells = [], 0
     for yy, source_row in enumerate(master["rows"]):
         row = []
@@ -502,8 +557,7 @@ def trace_shared_master_partition(entry, source, grid, limit, cache):
             if "includeRects" in entry:
                 keep = keep and within(entry["includeRects"], cx, cy)
             keep = keep and not within(entry.get("excludeRects", []), cx, cy)
-            keep = keep and not any(inside_polygon(cx, cy, polygon)
-                                    for polygon in entry.get("excludePolygons", []))
+            keep = keep and not any(inside_polygon(cx, cy, polygon) for polygon in entry.get("excludePolygons", []))
             row.append(value if keep else None)
             selected_cells += bool(keep)
         samples.append(row)
@@ -540,16 +594,23 @@ def trace_shared_master_partition(entry, source, grid, limit, cache):
         if opacity is not None:
             path["opacity"] = opacity
         paths.append(path)
-    metadata = {**master["meta"], "paths": len(paths), "rectangles": rectangles,
-                "sharedMaster": master_name, "sharedMasterReused": reused,
-                "selectedMasterCells": selected_cells, "rmseScope": "wholeSharedMaster"}
+    metadata = {
+        **master["meta"],
+        "paths": len(paths),
+        "rectangles": rectangles,
+        "sharedMaster": master_name,
+        "sharedMasterReused": reused,
+        "selectedMasterCells": selected_cells,
+        "rmseScope": "wholeSharedMaster",
+    }
     return paths, metadata
 
 
 def trace_entry(entry, source, grid, limit, master_cache=None):
     if "sharedMaster" in entry:
-        return trace_shared_master_partition(entry, source, grid, limit,
-                                             master_cache if master_cache is not None else {})
+        return trace_shared_master_partition(
+            entry, source, grid, limit, master_cache if master_cache is not None else {}
+        )
     width, height, rows = read_png(source)
     cutoff = entry.get("alphaCutoff", 0)
     if cutoff:
@@ -559,7 +620,9 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
                     row[x * 4 + 3] = 0
     transparent_pixels = sum(row[x * 4 + 3] == 0 for row in rows for x in range(width))
     if entry.get("requireTransparency", True) and not transparent_pixels:
-        raise ValueError(f"Part source has no transparent background: {entry['name']}. Export a transparent PNG before tracing.")
+        raise ValueError(
+            f"Part source has no transparent background: {entry['name']}. Export a transparent PNG before tracing."
+        )
     x0, y0, x1, y1 = selected_bounds(entry, width, height, rows)
     if entry.get("keepLargestComponent"):
         # Remove separate alpha speckles from generated eye-patch canvases.
@@ -577,7 +640,12 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
                     pixel = stack.pop()
                     component.append(pixel)
                     xx, yy = pixel % width, pixel // width
-                    for nx, ny in ((xx - 1, yy), (xx + 1, yy), (xx, yy - 1), (xx, yy + 1)):
+                    for nx, ny in (
+                        (xx - 1, yy),
+                        (xx + 1, yy),
+                        (xx, yy - 1),
+                        (xx, yy + 1),
+                    ):
                         if x0 <= nx < x1 and y0 <= ny < y1:
                             neighbor = ny * width + nx
                             if not visited[neighbor] and rows[ny][nx * 4 + 3]:
@@ -592,23 +660,32 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
                     rows[y][x * 4 + 3] = 0
         x0, y0, x1, y1 = selected_bounds(entry, width, height, rows)
     placement = entry["placement"]
-    if (len(placement) != 4 or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in placement)
-            or placement[2] <= 0 or placement[3] <= 0):
+    if (
+        len(placement) != 4
+        or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in placement)
+        or placement[2] <= 0
+        or placement[3] <= 0
+    ):
         raise ValueError(f"placement must be [x, y, positive width, positive height]: {entry['name']}")
     px, py, pw, ph = placement
     sx, sy = pw / (x1 - x0), ph / (y1 - y0)
     vertical_map = entry.get("verticalMap", [])
+
     def mapped_y(value):
-        for (start, mapped_start), (end, mapped_end) in zip(vertical_map, vertical_map[1:]):
+        for (start, mapped_start), (end, mapped_end) in pairwise(vertical_map):
             if start <= value <= end:
                 return mapped_start + (value - start) * (mapped_end - mapped_start) / (end - start)
         return value
+
     samples, histogram, source_values = [], Counter(), []
     for y in range(y0, y1, grid):
         row = []
         for x in range(x0, x1, grid):
-            values = [rows[yy][xx * 4:xx * 4 + 4]
-                      for yy in range(y, min(y + grid, y1)) for xx in range(x, min(x + grid, x1))]
+            values = [
+                rows[yy][xx * 4 : xx * 4 + 4]
+                for yy in range(y, min(y + grid, y1))
+                for xx in range(x, min(x + grid, x1))
+            ]
             alpha_sum = sum(v[3] for v in values)
             alpha = round(alpha_sum / len(values))
             if not alpha:
@@ -625,8 +702,9 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
                 if not (left <= cx < right and top <= cy < bottom):
                     row.append(None)
                     continue
-            if "includeRects" in entry and not any(left <= cx < right and top <= cy < bottom
-                                                    for left, top, right, bottom in entry["includeRects"]):
+            if "includeRects" in entry and not any(
+                left <= cx < right and top <= cy < bottom for left, top, right, bottom in entry["includeRects"]
+            ):
                 row.append(None)
                 continue
             if "clipPolygon" in entry and not inside_polygon(cx, cy, entry["clipPolygon"]):
@@ -638,7 +716,7 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
                     fill = repair["fill"]
                     if not re.fullmatch(r"#[0-9a-fA-F]{6}", fill):
                         raise ValueError(f"recolorRects fill must be a six-digit hex color: {entry['name']}")
-                    rgb = tuple(int(fill[i:i + 2], 16) for i in (1, 3, 5))
+                    rgb = tuple(int(fill[i : i + 2], 16) for i in (1, 3, 5))
             if max(rgb) > entry.get("maximumRgbChannel", 255):
                 replacement = entry.get("replaceExcludedRgb")
                 if replacement is None:
@@ -646,7 +724,7 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
                     continue
                 if not re.fullmatch(r"#[0-9a-fA-F]{6}", replacement):
                     raise ValueError(f"replaceExcludedRgb must be a six-digit hex color: {entry['name']}")
-                rgb = tuple(int(replacement[i:i + 2], 16) for i in (1, 3, 5))
+                rgb = tuple(int(replacement[i : i + 2], 16) for i in (1, 3, 5))
             color = tuple(min(255, (v // 8) * 8 + 4) for v in rgb)
             histogram[color] += 1
             row.append((color, alpha))
@@ -684,21 +762,36 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
             rw = (min(right * grid, x1 - x0) - left * grid) * sx
             rh = (min(bottom * grid, y1 - y0) - top * grid) * sy
             vertical_segments = [ry] + [value[0] for value in vertical_map if ry < value[0] < ry + rh] + [ry + rh]
-            for upper, lower in zip(vertical_segments, vertical_segments[1:]):
+            for upper, lower in pairwise(vertical_segments):
                 mapped_top, mapped_bottom = mapped_y(upper), mapped_y(lower)
-                commands.append(f"M{number(rx)} {number(mapped_top)}h{number(rw)}v{number(mapped_bottom - mapped_top)}H{number(rx)}z")
-        path = {"fill": "#" + "".join(f"{ch:02x}" for ch in palette[color]), "d": "".join(commands)}
+                commands.append(
+                    f"M{number(rx)} {number(mapped_top)}h{number(rw)}v{number(mapped_bottom - mapped_top)}H{number(rx)}z"
+                )
+        path = {
+            "fill": "#" + "".join(f"{ch:02x}" for ch in palette[color]),
+            "d": "".join(commands),
+        }
         if alpha != 255:
             path["opacity"] = round(alpha / 255, 6)
         paths.append(path)
     weight = sum(alpha for _, _, alpha in source_values)
-    rmse = math.sqrt(sum(sum((rgb[ch] - palette[lookup[color]][ch]) ** 2 for ch in range(3)) * alpha
-                         for color, rgb, alpha in source_values) / (3 * weight))
+    rmse = math.sqrt(
+        sum(
+            sum((rgb[ch] - palette[lookup[color]][ch]) ** 2 for ch in range(3)) * alpha
+            for color, rgb, alpha in source_values
+        )
+        / (3 * weight)
+    )
     meta = {
-        "sourceSize": [width, height], "selectedPixels": [x0, y0, x1, y1],
+        "sourceSize": [width, height],
+        "selectedPixels": [x0, y0, x1, y1],
         "transparentPixels": transparent_pixels,
-        "placement": placement, "grid": grid, "paletteColors": len(palette),
-        "paths": len(paths), "rectangles": rectangles, "sampleColorRmse": round(rmse, 4),
+        "placement": placement,
+        "grid": grid,
+        "paletteColors": len(palette),
+        "paths": len(paths),
+        "rectangles": rectangles,
+        "sampleColorRmse": round(rmse, 4),
         "sourceSha256": sha256(source.read_bytes()).hexdigest(),
     }
     return paths, meta
@@ -706,10 +799,12 @@ def trace_entry(entry, source, grid, limit, master_cache=None):
 
 def write_svg(path, name, paths, placement, digest):
     x, y, width, height = placement
-    lines = [f'<svg xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" viewBox="{number(x)} {number(y)} {number(width)} {number(height)}">',
-             f"<title>{name}</title>",
-             f"<desc>Independent completed drawing traced to native vector paths. Source SHA-256 {digest}.</desc>",
-             f'<g data-rig-part="{name}">']
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" viewBox="{number(x)} {number(y)} {number(width)} {number(height)}">',
+        f"<title>{name}</title>",
+        f"<desc>Independent completed drawing traced to native vector paths. Source SHA-256 {digest}.</desc>",
+        f'<g data-rig-part="{name}">',
+    ]
     for p in paths:
         opacity = f' opacity="{p["opacity"]}"' if "opacity" in p else ""
         lines.append(f'<path fill="{p["fill"]}"{opacity} d="{p["d"]}"/>')
@@ -723,9 +818,19 @@ def drawing_bounds(paths):
     for path in paths:
         for match in pattern.finditer(path["d"]):
             x, y, width, height, _ = map(float, match.groups())
-            bounds = [min(bounds[0], x), min(bounds[1], y), max(bounds[2], x + width), max(bounds[3], y + height)]
+            bounds = [
+                min(bounds[0], x),
+                min(bounds[1], y),
+                max(bounds[2], x + width),
+                max(bounds[3], y + height),
+            ]
     x, y, right, bottom = bounds
-    return {"x": round(x, 4), "y": round(y, 4), "width": round(right - x, 4), "height": round(bottom - y, 4)}
+    return {
+        "x": round(x, 4),
+        "y": round(y, 4),
+        "width": round(right - x, 4),
+        "height": round(bottom - y, 4),
+    }
 
 
 def main():
@@ -763,18 +868,26 @@ def main():
             source = source.resolve()
             print(f"Tracing {entry['name']} from {source.name}", flush=True)
             if entry.get("skipTrace"):
-                paths, meta = [], {"sourceSha256": sha256(source.read_bytes()).hexdigest(), "rectangles": 0,
-                                  "sampleColorRmse": 0, "sourceArchivedOnly": True}
+                paths, meta = [], {
+                    "sourceSha256": sha256(source.read_bytes()).hexdigest(),
+                    "rectangles": 0,
+                    "sampleColorRmse": 0,
+                    "sourceArchivedOnly": True,
+                }
             elif "fragments" in entry:
                 paths, fragment_metadata = [], []
                 for fragment in entry["fragments"]:
-                    fragment_paths, fragment_meta = trace_entry({**entry, **fragment}, source, grid, limit, master_cache)
+                    fragment_paths, fragment_meta = trace_entry(
+                        {**entry, **fragment}, source, grid, limit, master_cache
+                    )
                     paths.extend(fragment_paths)
                     fragment_metadata.append(fragment_meta)
-                meta = {"sourceSha256": sha256(source.read_bytes()).hexdigest(),
-                        "fragments": fragment_metadata,
-                        "rectangles": sum(item["rectangles"] for item in fragment_metadata),
-                        "sampleColorRmse": max(item["sampleColorRmse"] for item in fragment_metadata)}
+                meta = {
+                    "sourceSha256": sha256(source.read_bytes()).hexdigest(),
+                    "fragments": fragment_metadata,
+                    "rectangles": sum(item["rectangles"] for item in fragment_metadata),
+                    "sampleColorRmse": max(item["sampleColorRmse"] for item in fragment_metadata),
+                }
             else:
                 paths, meta = trace_entry(entry, source, grid, limit, master_cache)
             saved_source = source_dir / f"{entry['name']}.png"
@@ -790,11 +903,16 @@ def main():
             underlay_paths, underlay_metadata = [], []
             for index, configuration in enumerate(entry["sourceUnderlays"]):
                 underlay_source = Path(configuration["source"])
-                underlay_source = (underlay_source if underlay_source.is_absolute()
-                                   else manifest_path.parent / underlay_source).resolve()
-                underlay_entry = {"name": f"{entry['name']}Underlay{index}", **configuration}
-                completed_paths, completed_meta = trace_entry(underlay_entry, underlay_source,
-                                                               grid, limit, master_cache)
+                underlay_source = (
+                    underlay_source if underlay_source.is_absolute() else manifest_path.parent / underlay_source
+                ).resolve()
+                underlay_entry = {
+                    "name": f"{entry['name']}Underlay{index}",
+                    **configuration,
+                }
+                completed_paths, completed_meta = trace_entry(
+                    underlay_entry, underlay_source, grid, limit, master_cache
+                )
                 underlay_paths.extend(completed_paths)
                 underlay_metadata.append({**configuration, **completed_meta})
             paths = underlay_paths + paths
@@ -818,7 +936,10 @@ def main():
             overlay, native_meta = original_pixels(entry["nativeOriginal"], manifest_path.parent)
             paths.extend(overlay)
             meta["nativeOriginal"] = native_meta
-            print(f"  Preserved {native_meta['cells']} full original PNG cells", flush=True)
+            print(
+                f"  Preserved {native_meta['cells']} full original PNG cells",
+                flush=True,
+            )
         if "nativeEdits" in entry:
             spec_path = Path(entry["nativeEdits"])
             spec_path = (spec_path if spec_path.is_absolute() else manifest_path.parent / spec_path).resolve()
@@ -826,15 +947,18 @@ def main():
         parts[entry["name"]] = paths
         bounds[entry["name"]] = drawing_bounds(paths)
         meta["drawingBounds"] = bounds[entry["name"]]
-        write_svg(output / f"rig-{entry['name']}.svg", entry["name"], paths,
-                  [bounds[entry["name"]][key] for key in ("x", "y", "width", "height")], meta["sourceSha256"])
+        write_svg(
+            output / f"rig-{entry['name']}.svg",
+            entry["name"],
+            paths,
+            [bounds[entry["name"]][key] for key in ("x", "y", "width", "height")],
+            meta["sourceSha256"],
+        )
         provenance.append({**entry, **meta, "source": saved_reference})
-        print(f"  {meta['rectangles']} closed rectangles; sample RGB RMSE {meta['sampleColorRmse']}", flush=True)
-    left = min(value["x"] for value in bounds.values())
-    top = min(value["y"] for value in bounds.values())
-    right = max(value["x"] + value["width"] for value in bounds.values())
-    bottom = max(value["y"] + value["height"] for value in bounds.values())
-    bounds["cow"] = {"x": left, "y": top, "width": right - left, "height": bottom - top}
+        print(
+            f"  {meta['rectangles']} closed rectangles; sample RGB RMSE {meta['sampleColorRmse']}",
+            flush=True,
+        )
     name_type = " | ".join(json.dumps(name) for name in names)
     ts = (
         "/** Generated from complete independent part drawings; do not edit path data by hand. */\n"
@@ -845,25 +969,23 @@ def main():
         ts += f"const {name}Paths: readonly CowRigPath[] = " + json.dumps(paths, separators=(",", ":")) + ";\n"
     ts += (
         "export const COW_RIG_PARTS: Record<CowRigPartName, readonly CowRigPath[]> = {"
-        + ",".join(f"{name}: {name}Paths" for name in names) + "};\n"
-        "export const COW_RIG_BOUNDS: Record<CowRigPartName | 'cow', { x: number; y: number; width: number; height: number }> = "
-        + json.dumps(bounds, separators=(",", ":")) + ";\n"
+        + ",".join(f"{name}: {name}Paths" for name in names)
+        + "};\n"
     )
     (output / "rig.ts").write_text(ts)
-    neutral_names = ["cowBodyComplete"] + (["cowArmRightResting"] if "cowArmRightResting" in parts else []) + [
-        "cowHeadComplete", "cowEyesThinking" if "cowEyesThinking" in parts else "cowEyesObserver"] + (["cowMouthNeutral"] if "cowMouthNeutral" in parts else []) + ["cowArmLeftThinking"]
-    if all(name in parts for name in neutral_names):
-        combined = [path for name in neutral_names for path in parts[name]]
-        cow_bounds = bounds["cow"]
-        write_svg(output / "rig-cow.svg", "cow", combined,
-                  [cow_bounds[key] for key in ("x", "y", "width", "height")],
-                  sha256(json.dumps(provenance, sort_keys=True).encode()).hexdigest())
-    (output / "rig-provenance.json").write_text(json.dumps({
-        "sceneSize": manifest.get("sceneSize", [1254, 1254]),
-        "method": "Independent transparent drawings, alpha-weighted sampling, per-part palette and merged closed rectangles.",
-        "promptsSource": manifest.get("promptsSource"),
-        "prompt": manifest.get("prompt"), "entries": provenance,
-    }, indent=2) + "\n")
+    (output / "rig-provenance.json").write_text(
+        json.dumps(
+            {
+                "sceneSize": manifest.get("sceneSize", [1254, 1254]),
+                "method": "Independent transparent drawings, alpha-weighted sampling, per-part palette and merged closed rectangles.",
+                "promptsSource": manifest.get("promptsSource"),
+                "prompt": manifest.get("prompt"),
+                "entries": provenance,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     print(f"Wrote {len(entries)} independent SVG parts and rig.ts", flush=True)
 
 

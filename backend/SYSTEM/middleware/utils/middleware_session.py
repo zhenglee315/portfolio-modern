@@ -2,7 +2,11 @@
 from starsessions.serializers import JsonSerializer, Serializer
 from starsessions.stores import SessionStore
 from starsessions import SessionNotLoaded
-from starsessions.session import SessionHandler, get_session_remaining_seconds, load_session
+from starsessions.session import (
+    SessionHandler,
+    get_session_remaining_seconds,
+    load_session,
+)
 
 # ◆—< Pack >—————————————————————————————————◆ starlette
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -41,17 +45,17 @@ class LoadGuard:
 
 class SessionMiddleware:
     def __init__(
-            self,
-            app: ASGIApp,
-            store_factory: typing.Callable[[], SessionStore],
-            lifetime: typing.Union[int, datetime.timedelta] = 0,  # session-only
-            rolling: bool = False,
-            cookie_name: str = "session",
-            cookie_same_site: str = "lax",
-            cookie_https_only: bool = True,
-            cookie_domain: typing.Optional[str] = None,
-            cookie_path: typing.Optional[str] = None,
-            serializer: typing.Optional[Serializer] = None,
+        self,
+        app: ASGIApp,
+        store_factory: typing.Callable[[], SessionStore],
+        lifetime: typing.Union[int, datetime.timedelta] = 0,  # session-only
+        rolling: bool = False,
+        cookie_name: str = "session",
+        cookie_same_site: str = "lax",
+        cookie_https_only: bool = True,
+        cookie_domain: typing.Optional[str] = None,
+        cookie_path: typing.Optional[str] = None,
+        serializer: typing.Optional[Serializer] = None,
     ) -> None:
         lifetime = int(lifetime.total_seconds() if isinstance(lifetime, datetime.timedelta) else lifetime)
         assert lifetime >= 0, "Session lifetime cannot be less than zero seconds."
@@ -187,9 +191,9 @@ class SessionMiddleware:
 
 class SessionAutoloadMiddleware:
     def __init__(
-            self,
-            app: ASGIApp,
-            paths: typing.Optional[typing.List[typing.Union[str, typing.Pattern[str]]]] = None,
+        self,
+        app: ASGIApp,
+        paths: typing.Optional[typing.List[typing.Union[str, typing.Pattern[str]]]] = None,
     ) -> None:
         self.app = app
         self.paths = paths or []

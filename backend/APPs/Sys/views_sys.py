@@ -9,7 +9,7 @@ from COMMON.decorator import cache
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.constants import CacheExpiry
 from SYSTEM.tools import FastApiRouter
-from SYSTEM.urls import *
+from SYSTEM.urls import PreFix, Tags, RouteSys
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import Depends

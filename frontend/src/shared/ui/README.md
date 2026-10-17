@@ -1,5 +1,7 @@
 # DataTable 元件套件使用指南
 
+**文件責任：** DataTable 及其表格控制項的 props、欄位、資料投影、排序、篩選、選取、編輯、匯出與使用範例。一般共用 hooks／lib／UI 的完整索引見 [shared 契約](../README.md)；管理權限、API 寫入及 URL 狀態由 feature／page 負責，整合方式見 [前端總覽](../../../README.md)。
+
 本文件說明本資料夾內的 DataTable、Filter、布林欄位、toolbar、Actions，以及如何組合詳情與刪除確認。適用 Platform、Role、User 與其他 management 表格；範例對照目前程式的實際 props。
 
 DataTable 負責呈現與發出操作事件；頁面／feature 負責查詢、權限與資料更新。基本使用只需要 **columns、API 當頁資料、查詢狀態與 copy**；需要其他功能時再加對應 prop。
@@ -1161,3 +1163,5 @@ npm run check:docs
 - [Frontend 完整規格](../../../README.md)
 
 新增功能時，先判斷應放在通用 column／copy／callback，還是 page／feature 的資料與業務流程；避免把帳號、角色名稱、權限或 API URL 寫進 DataTable。
+
+DataTable 的公開 props／型別維持原入口；本地狀態及匯出控制集中 `useDataTable`，標頭、工具列、頁尾由 `DataTableHead`／`DataTableToolbar`／`DataTableFooter` 呈現。選取與 query scope 仍由呼叫端控制；共用元件不持有管理 API。

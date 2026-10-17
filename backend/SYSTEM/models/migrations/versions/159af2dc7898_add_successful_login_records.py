@@ -22,7 +22,13 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "record_login",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False, comment="Auto-incrementing primary key"),
+        sa.Column(
+            "id",
+            sa.Integer(),
+            autoincrement=True,
+            nullable=False,
+            comment="Auto-incrementing primary key",
+        ),
         sa.Column(
             "user_id",
             sa.Integer(),
@@ -38,7 +44,10 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("id > 0", name="ck_record_login_id_positive"),
         sa.ForeignKeyConstraint(
-            ["user_id"], ["auth_user.id"], name="fk_record_login_user_id_auth_user", ondelete="RESTRICT"
+            ["user_id"],
+            ["auth_user.id"],
+            name="fk_record_login_user_id_auth_user",
+            ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id"),
     )

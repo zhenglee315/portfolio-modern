@@ -94,9 +94,7 @@ def net_primary_ip(destination: str = "8.8.8.8") -> str:
     """
     if isinstance(destination, str) and destination.strip():
         try:
-            candidates = socket.getaddrinfo(
-                destination.strip(), 80, socket.AF_UNSPEC, socket.SOCK_DGRAM
-            )
+            candidates = socket.getaddrinfo(destination.strip(), 80, socket.AF_UNSPEC, socket.SOCK_DGRAM)
         except (OSError, UnicodeError):
             candidates = []
 
@@ -169,14 +167,17 @@ def _net_whitelist_cached(
 
                                                                                                ♂ ZhengLee 2026.09.26
     """
-    v4_map, v6_map = {}, {}
+    v4_map: dict[str, IPv4Network] = {}
+    v6_map: dict[str, IPv6Network] = {}
     for rule in whitelist_key:
         cidr = net_wildcard_cidr(rule)
         if cidr is None:
             continue
         network = ip_network(cidr)
-        networks = v4_map if network.version == 4 else v6_map
-        networks[cidr] = network
+        if isinstance(network, IPv4Network):
+            v4_map[cidr] = network
+        else:
+            v6_map[cidr] = network
     return tuple(v4_map.values()), tuple(v6_map.values())
 
 

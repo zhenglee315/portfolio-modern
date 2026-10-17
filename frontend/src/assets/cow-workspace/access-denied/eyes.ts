@@ -1,6 +1,4 @@
 /** Native working-eye split in the shared 1254 × 1254 scene coordinates. */
-export const DENIED_EYE_FRAME_ID = 'denied-eye-frame' as const;
-
 export const DENIED_EYES = [
   {
     id: 'left',

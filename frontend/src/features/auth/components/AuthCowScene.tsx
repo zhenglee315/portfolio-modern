@@ -1,12 +1,12 @@
-import { lazy, Suspense, useState, type RefObject } from 'react';
-import { useTranslation } from 'react-i18next';
 import { cowMotionCopy } from '@/i18n/cow-copy';
+import type { CowWorkspacePhase } from '@/shared/hooks/useCowWorkspaceMotion';
 import { CowControl } from '@/shared/ui/cow-workspace/CowControl';
 import { CowMotionControls } from '@/shared/ui/cow-workspace/CowMotionControls';
 import { useCowMotionControls } from '@/shared/ui/cow-workspace/useCowMotionControls';
 import { PixelBubble } from '@/shared/ui/PixelBubble';
 import { SectionBoundary } from '@/shared/ui/SectionBoundary';
-import type { CowWorkspacePhase } from '@/shared/hooks/useCowWorkspaceMotion';
+import { lazy, Suspense, useState, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './AuthCowScene.module.css';
 
 const CowWorkspace = lazy(() =>

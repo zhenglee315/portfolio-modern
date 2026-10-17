@@ -1,12 +1,12 @@
-import { useEffect, useId, useRef, type RefObject } from 'react';
-import workspaceStyles from '@/shared/ui/cow-workspace/CowWorkspace.module.css';
-import spriteUrl from '@/assets/cow-workspace/scene-sprite.svg?url';
-import { COW_RIG_PART_IDS } from '@/assets/cow-workspace/scene-metadata';
 import { DENIED_EYES } from '@/assets/cow-workspace/access-denied/eyes';
+import armUrl from '@/assets/cow-workspace/access-denied/rig-cowArmLeftNoEntry.svg?url';
 import frameUrl from '@/assets/cow-workspace/access-denied/rig-denied-eye-frame.svg?url';
 import leftPupilUrl from '@/assets/cow-workspace/access-denied/rig-denied-pupil-left.svg?url';
 import rightPupilUrl from '@/assets/cow-workspace/access-denied/rig-denied-pupil-right.svg?url';
-import armUrl from '@/assets/cow-workspace/access-denied/rig-cowArmLeftNoEntry.svg?url';
+import { COW_RIG_PART_IDS } from '@/assets/cow-workspace/scene-metadata';
+import spriteUrl from '@/assets/cow-workspace/scene-sprite.svg?url';
+import workspaceStyles from '@/shared/ui/cow-workspace/CowWorkspace.module.css';
+import { useEffect, useId, useRef, type RefObject } from 'react';
 import styles from './DeniedCowCharacter.module.css';
 
 type Point = { x: number; y: number };

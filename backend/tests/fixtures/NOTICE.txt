@@ -1,0 +1,6 @@
+GeoIP2-City-Test.mmdb
+Source: https://github.com/maxmind/MaxMind-DB/blob/main/test-data/GeoIP2-City-Test.mmdb
+Copyright (c) 2013 - 2026 MaxMind, Inc.
+Distributed under the MIT license; see LICENSE-MaxMind-MIT.txt.
+This small synthetic fixture is used only by offline regression tests.
+SHA-256: ed972738e4e03a3e56e12041a6af4d91592249d110f7e4a647e5f2fa0e639c09

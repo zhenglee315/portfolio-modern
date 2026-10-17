@@ -12,13 +12,16 @@ from starsessions import load_session
 from starsessions.stores import InMemoryStore
 
 import test_management_site_update as platform_fixture
-from APPs.Auth.module.module_auth import AuthModule
+from APPs.Auth.module import AuthModule
 from APPs.Auth.views_auth import router as auth_router
 from APPs.Management.views_management import router
-from APPs.Management.module.module_management import ManagementRolesModule, ManagementUsersModule
-from APPs.Management.module.module_management_state import ManagementWriteState
+from APPs.Management.module import (
+    ManagementRolesModule,
+    ManagementUsersModule,
+)
+from APPs.Management.module.module_state import ManagementWriteState
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
-from SYSTEM.constants import AUTH_SESSION_IDENTITY_KEY
+from SYSTEM.constants import EnumSess
 from SYSTEM.middleware.utils.middleware_session import SessionMiddleware
 from SYSTEM.models import (
     AuthRole,
@@ -100,7 +103,10 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
         response = await self.single("roles", self.role_target())
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json(), {"deleted_count": 1, "deleted": [{"role_id": 4}]})
-        self.assertEqual((await self.batch("roles", [self.role_target(5, "unused-inactive")])).status_code, 200)
+        self.assertEqual(
+            (await self.batch("roles", [self.role_target(5, "unused-inactive")])).status_code,
+            200,
+        )
         self.assertEqual(before, await self.snapshot())
         self.invalidate_cache.assert_not_awaited()
 
@@ -144,20 +150,28 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
     async def test_user_delete_cascades_owned_site_and_history_only(self):
         response = await self.single("users", self.user_target())
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json(), {"deleted_count": 1, "deleted": [{"account_id": 3, "site_id": 12}]})
+        self.assertEqual(
+            response.json(),
+            {"deleted_count": 1, "deleted": [{"account_id": 3, "site_id": 12}]},
+        )
         async with self.sessions() as session:
             self.assertIsNone(await session.get(AuthUser, 3))
             self.assertIsNone(await session.get(PortfolioSite, 12))
             self.assertIsNotNone(await session.get(AuthUser, 2))
             self.assertIsNotNone(await session.get(PortfolioSite, 11))
             self.assertEqual(
-                await session.scalar(select(func.count()).select_from(RecordLogin).where(RecordLogin.user_id == 3)), 0
+                await session.scalar(select(func.count()).select_from(RecordLogin).where(RecordLogin.user_id == 3)),
+                0,
             )
             self.assertEqual(
-                await session.scalar(select(func.count()).select_from(RecordLogin).where(RecordLogin.user_id == 5)), 1
+                await session.scalar(select(func.count()).select_from(RecordLogin).where(RecordLogin.user_id == 5)),
+                1,
             )
             self.assertEqual(await session.scalar(select(func.count()).select_from(AuthRole)), 5)
-            self.assertEqual(await session.scalar(select(func.count()).select_from(PortfolioLocale)), 3)
+            self.assertEqual(
+                await session.scalar(select(func.count()).select_from(PortfolioLocale)),
+                3,
+            )
         for path in ("/management/users", "/management/sites"):
             response = await self.client.get(path + "?size=100")
             self.assertNotIn(3, [row["id"] for row in response.json()["items"]])
@@ -184,21 +198,34 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                 PortfolioSkillCategoryLocale,
                 PortfolioCategorySkill,
             ):
-                self.assertEqual(await session.scalar(select(func.count()).select_from(model)), 0, model.__name__)
+                self.assertEqual(
+                    await session.scalar(select(func.count()).select_from(model)),
+                    0,
+                    model.__name__,
+                )
             self.assertEqual(
                 await session.scalar(
                     select(func.count()).select_from(PortfolioSiteLocale).where(PortfolioSiteLocale.site_id == 11)
                 ),
                 0,
             )
-            self.assertEqual(await session.scalar(select(func.count()).select_from(PortfolioLocale)), 3)
+            self.assertEqual(
+                await session.scalar(select(func.count()).select_from(PortfolioLocale)),
+                3,
+            )
 
     async def test_user_batch_supports_no_site_and_inactive_targets(self):
-        response = await self.batch("users", [self.user_target(), self.user_target(4, None), self.user_target(5, 13)])
+        response = await self.batch(
+            "users",
+            [self.user_target(), self.user_target(4, None), self.user_target(5, 13)],
+        )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["deleted_count"], 3)
         async with self.sessions() as session:
-            self.assertEqual((await session.scalars(select(AuthUser.id).order_by(AuthUser.id))).all(), [1, 2, 6])
+            self.assertEqual(
+                (await session.scalars(select(AuthUser.id).order_by(AuthUser.id))).all(),
+                [1, 2, 6],
+            )
             self.assertEqual((await session.scalars(select(PortfolioSite.id))).all(), [11])
         self.invalidate_cache.assert_awaited_once()
 
@@ -208,7 +235,12 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["detail"], "DEFAULT_SITE_DELETE_FORBIDDEN")
         response = await self.batch(
-            "users", [self.user_target(), self.user_target(1, None), self.user_target(6, None, "backup@example.com")]
+            "users",
+            [
+                self.user_target(),
+                self.user_target(1, None),
+                self.user_target(6, None, "backup@example.com"),
+            ],
         )
         self.assertEqual(response.status_code, 409, response.text)
         self.assertEqual(response.json()["detail"], "LAST_ROLE_MANAGER_REQUIRED")
@@ -237,7 +269,10 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
             ({"expected_site_id": None}, 409),
         ):
             with self.subTest(change=change):
-                response = await self.batch("users", [self.user_target(4, None), {**self.user_target(), **change}])
+                response = await self.batch(
+                    "users",
+                    [self.user_target(4, None), {**self.user_target(), **change}],
+                )
                 self.assertEqual(response.status_code, status, response.text)
                 self.assertEqual(before, await self.snapshot())
         async with self.sessions.begin() as session:
@@ -279,7 +314,10 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
 
         with patch.object(ManagementWriteState, "begin", revoke):
             self.assertEqual((await self.single("users", self.user_target())).status_code, 403)
-            self.assertEqual((await self.single("roles", self.role_target(5, "unused-inactive"))).status_code, 403)
+            self.assertEqual(
+                (await self.single("roles", self.role_target(5, "unused-inactive"))).status_code,
+                403,
+            )
 
     async def test_both_resources_share_transport_and_private_error_policy(self):
         for resource, path_id in (("roles", 4), ("users", 3)):
@@ -288,7 +326,14 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                 ("POST", f"/management/{resource}/bulk-delete"),
             ):
                 for body, headers, status in (
-                    ("{}", {"Origin": "https://untrusted.example", "Content-Type": "application/json"}, 403),
+                    (
+                        "{}",
+                        {
+                            "Origin": "https://untrusted.example",
+                            "Content-Type": "application/json",
+                        },
+                        403,
+                    ),
                     ('{"x":1,"x":2}', {"Content-Type": "application/json"}, 400),
                     ("{}", {"Content-Type": "text/plain"}, 415),
                     (" " * 65537, {"Content-Type": "application/json"}, 413),
@@ -301,13 +346,16 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                 self.assertEqual(
                     (
                         await self.client.post(
-                            f"/management/{resource}/bulk-delete?locale=en", json={"targets": [target]}
+                            f"/management/{resource}/bulk-delete?locale=en",
+                            json={"targets": [target]},
                         )
                     ).status_code,
                     400,
                 )
 
-    async def test_fk_or_storage_failure_after_root_delete_rolls_back_every_owned_row(self):
+    async def test_fk_or_storage_failure_after_root_delete_rolls_back_every_owned_row(
+        self,
+    ):
         before = await self.snapshot()
         original = SqlAlchemyExecAsync.execute_orm
 
@@ -324,7 +372,8 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
         self.assertEqual(before, await self.snapshot())
         async with self.sessions() as session:
             self.assertEqual(
-                await session.scalar(select(func.count()).select_from(RecordLogin).where(RecordLogin.user_id == 3)), 1
+                await session.scalar(select(func.count()).select_from(RecordLogin).where(RecordLogin.user_id == 3)),
+                1,
             )
         self.invalidate_cache.assert_not_awaited()
 
@@ -345,7 +394,8 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
 
     async def test_competing_user_deletes_commit_only_once(self):
         responses = await asyncio.gather(
-            self.single("users", self.user_target()), self.single("users", self.user_target())
+            self.single("users", self.user_target()),
+            self.single("users", self.user_target()),
         )
         self.assertEqual(sorted(response.status_code for response in responses), [200, 404])
         self.invalidate_cache.assert_awaited_once()
@@ -353,7 +403,11 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
     async def test_role_assignment_and_delete_serialize_without_orphan_accounts(self):
         assignment = self.client.patch(
             "/management/users/4",
-            json={"expected_email": "person4@example.com", "expected": {"role_id": 2}, "changes": {"role_id": 4}},
+            json={
+                "expected_email": "person4@example.com",
+                "expected": {"role_id": 2},
+                "changes": {"role_id": 4},
+            },
         )
         deletion, assigning = await asyncio.gather(self.single("roles", self.role_target()), assignment)
         self.assertIn((deletion.status_code, assigning.status_code), ((200, 404), (409, 200)))
@@ -377,7 +431,10 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
 
         app = FastAPI()
         app.add_middleware(
-            SessionMiddleware, store_factory=lambda: store, cookie_name="session_id", cookie_https_only=False
+            SessionMiddleware,
+            store_factory=lambda: store,
+            cookie_name="session_id",
+            cookie_https_only=False,
         )
         store = InMemoryStore()
         app.include_router(auth_router)
@@ -399,7 +456,9 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                 await account.set_password("isolated-delete-password")
         return app
 
-    async def test_deleted_session_cannot_follow_reused_id_email_user_and_password(self):
+    async def test_deleted_session_cannot_follow_reused_id_email_user_and_password(
+        self,
+    ):
         app = await self.real_cookie_app()
         async with (
             AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as actor,
@@ -409,18 +468,27 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                 (
                     await actor.post(
                         "/authority/sign-in",
-                        json={"email": "person1@example.com", "password": "isolated-delete-password"},
+                        json={
+                            "email": "person1@example.com",
+                            "password": "isolated-delete-password",
+                        },
                     )
                 ).status_code,
                 200,
             )
             logged_in = await victim.post(
-                "/authority/sign-in", json={"email": "backup@example.com", "password": "isolated-delete-password"}
+                "/authority/sign-in",
+                json={
+                    "email": "backup@example.com",
+                    "password": "isolated-delete-password",
+                },
             )
             self.assertEqual(logged_in.status_code, 200)
-            self.assertNotIn(AUTH_SESSION_IDENTITY_KEY, logged_in.json())
+            self.assertNotIn(EnumSess.AUTH_IDENTITY, logged_in.json())
             response = await actor.request(
-                "DELETE", "/management/users/6", json={"expected_email": "backup@example.com", "expected_site_id": None}
+                "DELETE",
+                "/management/users/6",
+                json={"expected_email": "backup@example.com", "expected_site_id": None},
             )
             self.assertEqual(response.status_code, 200, response.text)
             async with self.sessions.begin() as session:
@@ -433,7 +501,10 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                 (
                     await victim.post(
                         "/authority/sign-in",
-                        json={"email": "backup@example.com", "password": "isolated-delete-password"},
+                        json={
+                            "email": "backup@example.com",
+                            "password": "isolated-delete-password",
+                        },
                     )
                 ).status_code,
                 200,
@@ -449,7 +520,10 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                 (
                     await client.post(
                         "/authority/sign-in",
-                        json={"email": "person1@example.com", "password": "isolated-delete-password"},
+                        json={
+                            "email": "person1@example.com",
+                            "password": "isolated-delete-password",
+                        },
                     )
                 ).status_code,
                 200,
@@ -479,6 +553,9 @@ class RoleUserDeleteTests(IsolatedAsyncioTestCase):
                         await module().delete(targets, actor_id=actor)
 
 
-@skipUnless(os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL"), "Disposable PostgreSQL URL not supplied")
+@skipUnless(
+    os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL"),
+    "Disposable PostgreSQL URL not supplied",
+)
 class PostgreSQLRoleUserDeleteTests(RoleUserDeleteTests):
     postgres_url = os.environ.get("PLATFORM_PATCH_TEST_POSTGRES_URL")

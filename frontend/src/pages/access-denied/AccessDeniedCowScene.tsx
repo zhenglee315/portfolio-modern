@@ -1,11 +1,8 @@
 import { CowWorkspace } from '@/shared/ui/cow-workspace/CowWorkspace';
 import { DeniedCowCharacter } from '@/shared/ui/cow-workspace/DeniedCowCharacter';
-import { DENIED_EYES } from '@/assets/cow-workspace/access-denied/eyes';
 import styles from './AccessDeniedCowScene.module.css';
 
-export const accessDeniedCowArtwork = { eyes: DENIED_EYES };
-
-/** Standalone review illustration composed from the approved desk, cow rig and three new layers. */
+/** Compose the forbidden-page illustration from the shared desk and denied character. */
 export function AccessDeniedCowScene({
   label,
   motion = true,

@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { tableSearchMaxLength, type DataTableSearchState } from '../lib/table-search';
 import { tableChoiceColor } from '../lib/table-choice-color';
-import { DataTableFieldPicker } from './DataTableFieldPicker';
-import { Icon } from './Icon';
+import { tableSearchMaxLength, type DataTableSearchState } from '../lib/table-search';
 import chipStyles from './DataTableColumnMenu.module.css';
+import { DataTableFieldPicker } from './DataTableFieldPicker';
 import styles from './DataTableSearch.module.css';
+import { Icon } from './Icon';
 
 export type DataTableSearchCopy = {
   label: string;

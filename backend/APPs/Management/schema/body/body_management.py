@@ -8,13 +8,20 @@ from APPs.Management.constants import (
     SITE_ACCOUNT_PATCH_COLUMNS,
     ROLE_PATCH_COLUMNS,
     USER_PATCH_COLUMNS,
-    EnumManagementField,
     MANAGEMENT_DELETE_MAX_TARGETS,
 )
 from SYSTEM.constants import EnumLocal, HTTP_URL_SCHEMES, TEXT_ENCODING
 
 # ◆—< Pack >—————————————————————————————————◆ Pydantic
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
 
 # ◆—< Pack >—————————————————————————————————◆ Python
 from urllib.parse import urlsplit
@@ -23,7 +30,6 @@ from typing import Any
 
 # ◆—< Pack >—————————————————————————————————◆ SQLAlchemy
 from sqlalchemy.orm import InstrumentedAttribute
-from SYSTEM.models import AuthUser
 
 _HTTP_URL = TypeAdapter(AnyHttpUrl)
 
@@ -44,16 +50,24 @@ class BodyManagementSitePatch(BaseModel):
 
     # ---------------------------------------------------------------------● Account State
     owner_is_active: bool = Field(
-        default=None, description="Account activation; a Default website's owner must remain active."
+        default=None,
+        description="Account activation; a Default website's owner must remain active.",
     )
     # ---------------------------------------------------------------------● Site
     is_published: bool = Field(default=None, description="Public visibility; false also clears Default.")
-    is_default: bool = Field(default=None, description="Global homepage; requires an active owner and publication.")
+    is_default: bool = Field(
+        default=None,
+        description="Global homepage; requires an active owner and publication.",
+    )
     copyright_year: int = Field(default=None, ge=1900, le=9999, description="Explicit integer copyright year.")
     linkedin: str = Field(default=None, max_length=2048, description="HTTP(S) URL; empty hides the link.")
     github: str = Field(default=None, max_length=2048, description="HTTP(S) URL; empty hides the link.")
     medium: str = Field(default=None, max_length=2048, description="HTTP(S) URL; empty hides the link.")
-    email: str = Field(default=None, max_length=254, description="Public contact email; empty hides the link.")
+    email: str = Field(
+        default=None,
+        max_length=254,
+        description="Public contact email; empty hides the link.",
+    )
     chat_icon: str = Field(default=None, max_length=512, description="Allowlisted bundled icon path.")
     # ---------------------------------------------------------------------● Selected Translation
     brand_title: str = Field(default=None, max_length=255)
@@ -62,7 +76,11 @@ class BodyManagementSitePatch(BaseModel):
     family_name: str = Field(default=None, max_length=255)
     nick_name: str = Field(default=None, max_length=255)
     profile_content: str = Field(default=None, max_length=SITE_TEXT_MAX_LENGTH)
-    edu_code: str = Field(default=None, max_length=128, description="Education abbreviation, not a foreign key.")
+    edu_code: str = Field(
+        default=None,
+        max_length=128,
+        description="Education abbreviation, not a foreign key.",
+    )
     program: str = Field(default=None, max_length=255)
     intro_content: str = Field(default=None, max_length=SITE_TEXT_MAX_LENGTH)
     footer_content: str = Field(default=None, max_length=SITE_TEXT_MAX_LENGTH)
@@ -175,7 +193,11 @@ class BodyManagementSitePatch(BaseModel):
 
                                                                                                ♂ ZhengLee 2026.10.16
         """
-        bindings = {**SITE_ACCOUNT_PATCH_COLUMNS, **SITE_PATCH_COLUMNS, **SITE_TRANSLATION_PATCH_COLUMNS}
+        bindings = {
+            **SITE_ACCOUNT_PATCH_COLUMNS,
+            **SITE_PATCH_COLUMNS,
+            **SITE_TRANSLATION_PATCH_COLUMNS,
+        }
         return {bindings[field]: value for field, value in self.model_dump(exclude_unset=True).items()}
 
 
@@ -340,7 +362,11 @@ class _ManagementDeleteConfirmation(BaseModel):
     """Share strict, immutable identity contracts across management resources."""
 
     model_config = ConfigDict(
-        strict=True, extra="forbid", hide_input_in_errors=True, frozen=True, revalidate_instances="always"
+        strict=True,
+        extra="forbid",
+        hide_input_in_errors=True,
+        frozen=True,
+        revalidate_instances="always",
     )
 
 

@@ -14,7 +14,7 @@ class YamlConfig:
                                                                                                   ♂ Wilson 2025.02.07
     """
 
-    def __init__(self, file: str, mode: str = 'r', encoding: str = 'utf-8') -> None:
+    def __init__(self, file: str, mode: str = "r", encoding: str = "utf-8") -> None:
         """
         Initialize the reader and load the configuration into memory.
 
@@ -27,8 +27,8 @@ class YamlConfig:
         :raises OSError: If file access fails for a reason other than a missing file.
         """
         # Append '.yaml' when the supplied path does not end with that suffix.
-        if not file.endswith('.yaml'):
-            file += '.yaml'
+        if not file.endswith(".yaml"):
+            file += ".yaml"
         self.file = file
         self.mode = mode
         self.encoding = encoding

@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Icon } from './Icon';
+import styles from './InlineField.module.css';
 import {
   SearchableSelect,
-  type SelectSource,
   type SelectCopy,
   type SelectOption,
+  type SelectSource,
 } from './SearchableSelect';
-import styles from './InlineField.module.css';
 
 export type InlineFieldValue = string | number | boolean | null;
 export type InlineFieldEditor = {

@@ -1,8 +1,8 @@
+import { cycleDialogTab } from '@/shared/lib/focus';
 import { useId, useRef, type KeyboardEvent } from 'react';
 import Modal from 'react-bootstrap/Modal';
-import { cycleDialogTab } from '@/shared/lib/focus';
-import { Icon } from './Icon';
 import { CloseButton } from './CloseButton';
+import { Icon } from './Icon';
 import styles from './WarningModal.module.css';
 
 /** Present warnings or confirmations; owners supply copy, intent and callbacks. */

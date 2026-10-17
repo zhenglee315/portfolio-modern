@@ -40,4 +40,10 @@ class RespRecords(BaseModel, Generic[Record]):
         """
         if size < 1:
             raise ValueError("size must be positive")
-        return cls(items=items, total=total, pages=(total + size - 1) // size, page=page, size=size)
+        return cls(
+            items=items,
+            total=total,
+            pages=(total + size - 1) // size,
+            page=page,
+            size=size,
+        )

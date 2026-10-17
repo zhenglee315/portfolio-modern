@@ -14,7 +14,6 @@ import {
   type ManagementRows,
 } from '../schemas/management';
 
-export type ManagementSort = { field: string; direction: 'asc' | 'desc' };
 export type ManagementListState = import('@/shared/lib/table-query').DataTableQueryState;
 // Login history shares the query engine without becoming an editable navigation resource.
 //                                                                                 ZhengLee 2026.10.15

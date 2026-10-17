@@ -1,6 +1,6 @@
-import type { ComponentProps } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/shared/api/http';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ComponentProps } from 'react';
 import {
   checkRegistrationEmail,
   register,

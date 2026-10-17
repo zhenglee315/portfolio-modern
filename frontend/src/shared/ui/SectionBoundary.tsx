@@ -1,6 +1,6 @@
 import { Component, type ContextType, type ReactNode } from 'react';
-import { SectionState } from './SectionState';
 import { NotificationContext } from './NotificationProvider';
+import { SectionState } from './SectionState';
 
 type Props = {
   children: ReactNode;

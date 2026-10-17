@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom';
-import { useHoverTooltip } from '../hooks/useHoverTooltip';
 import { useAnchoredPanel } from '../hooks/useAnchoredPanel';
-import { Icon } from './Icon';
+import { useHoverTooltip } from '../hooks/useHoverTooltip';
 import styles from './HelpTooltip.module.css';
+import { Icon } from './Icon';
 
 type PanelProps = NonNullable<ReturnType<typeof useHoverTooltip>['tooltipProps']> & {
   text: string;

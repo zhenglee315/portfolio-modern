@@ -1,14 +1,15 @@
 /agent/
-*test*.py
-# Keep management write contract/transaction regression suites reviewable.
-!/backend/tests/test_management_site_update.py
-!/backend/tests/test_management_role_user_update.py
-!/backend/tests/test_management_site_delete.py
-!/backend/tests/test_management_role_user_delete.py
-# Keep system monitoring lifecycle and worker regression tests reviewable.
-!/backend/tests/test_monitor.py
-!/backend/tests/test_socketio.py
+# Regression source belongs in version control; evidence stays under agent/.
 /test/
+*test*
+# Maintained suites and their configs must remain reviewable despite broad local test ignores.
+!/backend/tests/
+!/backend/tests/**
+!/frontend/tests/
+!/frontend/tests/**
+!/frontend/vitest.config.ts
+!/frontend/vitest.integration.config.ts
+!/frontend/playwright.config.ts
 # macOS Finder metadata.
 .DS_Store
 
@@ -21,6 +22,9 @@
 /backend/.pytest_cache/
 /backend/.mypy_cache/
 /backend/.ruff_cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 /backend/.coverage
 /backend/htmlcov/
 /backend/dist/
@@ -48,3 +52,6 @@
 # Python bytecode cache.
 __pycache__/
 *.py[cod]
+
+# Small licensed GeoIP test fixture, never the generated production database.
+!/backend/tests/fixtures/GeoIP2-City-Test.mmdb

@@ -1,3 +1,3 @@
-export { experiencesSchema, type Experience } from './schemas/experiences';
-export { experiencesQuery, useExperiences } from './api/experiences';
+export { type Experience } from './schemas/experiences';
+export { experiencesQuery } from './api/experiences';
 export { ExperiencesSection } from './components/ExperiencesSection';

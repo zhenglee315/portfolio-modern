@@ -1,6 +1,11 @@
 # ◆—< Pack >—————————————————————————————————◆ Sqlalchemy
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    async_sessionmaker,
+    AsyncEngine,
+    AsyncSession,
+)
 from sqlalchemy.engine import URL
 
 # ◆—< Pack >—————————————————————————————————◆ Redis

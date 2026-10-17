@@ -7,6 +7,12 @@ from fastapi import Depends, HTTPException, Query, Request
 # ◆—< Pack >—————————————————————————————————◆ Common
 from COMMON.schema.parser import parser_locale, parser_pagination
 
+__all__ = (
+    "parser_portfolio_preview",
+    "parser_portfolio_preview_records",
+    "parser_portfolio_preview_skills",
+)
+
 
 # ■—< PARAM >——————————————————————————————————————————————————————————————————————————■ Portfolio Preview - Selection
 async def parser_portfolio_preview(
@@ -26,9 +32,17 @@ async def parser_portfolio_preview(
                                                                                                ♂ ZhengLee 2026.10.15
     """
     if "user" in request.query_params or len(request.query_params.getlist("site_id")) != 1:
-        raise HTTPException(status_code=400, detail="INVALID_SITE_SELECTOR", headers=MANAGEMENT_PRIVATE_HEADERS)
+        raise HTTPException(
+            status_code=400,
+            detail="INVALID_SITE_SELECTOR",
+            headers=MANAGEMENT_PRIVATE_HEADERS,
+        )
     if not site_id.isascii() or not site_id.isdecimal() or len(site_id) > 10 or not 1 <= int(site_id) <= 2_147_483_647:
-        raise HTTPException(status_code=400, detail="INVALID_SITE_ID", headers=MANAGEMENT_PRIVATE_HEADERS)
+        raise HTTPException(
+            status_code=400,
+            detail="INVALID_SITE_ID",
+            headers=MANAGEMENT_PRIVATE_HEADERS,
+        )
     return {"site_id": int(site_id), "locale": locale}
 
 
@@ -69,5 +83,9 @@ def parser_portfolio_preview_skills(
     if owner_type != "category":
         raise HTTPException(status_code=400, detail="INVALID_OWNER", headers=MANAGEMENT_PRIVATE_HEADERS)
     if not owner_id.strip():
-        raise HTTPException(status_code=400, detail="INVALID_OWNER_ID", headers=MANAGEMENT_PRIVATE_HEADERS)
+        raise HTTPException(
+            status_code=400,
+            detail="INVALID_OWNER_ID",
+            headers=MANAGEMENT_PRIVATE_HEADERS,
+        )
     return {**query_string, "owner_type": owner_type, "owner_id": owner_id.strip()}

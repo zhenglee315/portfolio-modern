@@ -35,6 +35,10 @@ from starlette.responses import StreamingResponse
 from uvicorn.supervisors import Multiprocess
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from COMMON.tools.storage.redis import RedisAsync, RedisSync
+from COMMON.tools.storage.sqlalchemy import SqlAlchemyTransactionObserver
+from COMMON.tools.tools_geoip import GeoIpDatabaseImporter
+
 from SYSTEM.middleware import MonitorMiddleware
 from SYSTEM.tools.tools_monitor import (
     ENV_RUN,
@@ -43,10 +47,11 @@ from SYSTEM.tools.tools_monitor import (
 )
 
 
-class MemoryRedis:
+class MemoryRedis(Redis):
     """Virtual-time Redis double for expiry/failure tests; real Redis is checked separately."""
 
     def __init__(self):
+        super().__init__()
         self.now = 0
         self.values = {}
         self.fail = False
@@ -87,14 +92,18 @@ class MemoryRedis:
                 yield key
 
     async def mget(self, keys):
-        return [self.values[key][0] if key in self.values and self.values[key][1] > self.now else None for key in keys]
+        return [
+            (self.values[key][0] if key in self.values and self.values[key][1] > self.now else None) for key in keys
+        ]
 
 
 class WorkerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.redis = MemoryRedis()
         self.engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-        self.monitor = WorkerMonitor(self.redis, engine=self.engine.sync_engine, prefix="test:monitor")
+        self.cache = RedisAsync(redis=self.redis)
+        self.observer = SqlAlchemyTransactionObserver(self.engine, ignore_key="system.monitor.ignore")
+        self.monitor = WorkerMonitor(self.cache, transactions=self.observer, prefix="test:monitor")
 
     async def asyncTearDown(self):
         await self.monitor.stop()
@@ -113,17 +122,20 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.monitor.status = "running"
         token = self.monitor.begin_request()
         await self.monitor.publish()
-        snapshot = await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor")
+        snapshot = await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor")
         self.assertTrue(snapshot["workers"][0]["busy"])
         self.redis.now = 16
-        stale = (await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"))["workers"][0]
+        stale = (await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"))["workers"][0]
         self.assertEqual(stale["status"], "stale")
         self.assertIsNone(stale["busy"])
         self.redis.now = 61
-        self.assertEqual((await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"))["workers"], [])
+        self.assertEqual(
+            (await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"))["workers"],
+            [],
+        )
         self.monitor.end_request(token)
         await self.monitor.stop()
-        row = (await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"))["workers"][0]
+        row = (await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"))["workers"][0]
         self.assertEqual(row["status"], "stopped")
         self.assertFalse(row["fresh"])
 
@@ -136,7 +148,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.monitor.end_request(token)
         self.redis.fail = False
         await self.monitor._safe_publish()
-        row = (await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"))["workers"][0]
+        row = (await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"))["workers"][0]
         self.assertEqual(row["completed_requests_total"], 1)
 
     async def test_root_transactions_commit_rollback_and_savepoint(self):
@@ -169,7 +181,9 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await other.dispose()
 
-    async def test_lifespan_initializes_monitor_after_resources_and_stops_before_redis(self):
+    async def test_lifespan_initializes_monitor_after_resources_and_stops_before_redis(
+        self,
+    ):
         from SYSTEM.lifespan import lifespan
 
         app = FastAPI()
@@ -178,7 +192,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         async def shutdown():
             self.assertEqual(app.state.monitor.status, "stopped")
             self.assertIsNone(app.state.monitor._task)
-            self.assertEqual(app.state.monitor._listeners, [])
+            self.assertFalse(app.state.monitor._transaction_observer.listening)
             order.append("closed")
 
         manager = SimpleNamespace(
@@ -188,7 +202,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             get_cache=lambda key: self.redis,
             shutdown_all_connections=shutdown,
         )
-        reader = SimpleNamespace(open=lambda: order.append("geoip"), close=lambda: order.append("geoip_closed"))
+        reader = SimpleNamespace(
+            open=lambda: order.append("geoip"),
+            close=lambda: order.append("geoip_closed"),
+        )
 
         async def stop_socketio(_):
             order.append("socketio")
@@ -197,7 +214,8 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             patch("SYSTEM.lifespan.CONN_MANAGER", manager),
             patch("SYSTEM.lifespan.GeoIpReader", return_value=reader),
             patch(
-                "SYSTEM.lifespan.socketio_start_monitor", new=AsyncMock(return_value=SimpleNamespace(stop=AsyncMock()))
+                "SYSTEM.lifespan.socketio_start_monitor",
+                new=AsyncMock(return_value=SimpleNamespace(stop=AsyncMock())),
             ),
             patch("SYSTEM.lifespan.socketio_shutdown", side_effect=stop_socketio),
         ):
@@ -214,7 +232,11 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         from SYSTEM.database.database_core import ConnectionManager
 
         manager = ConnectionManager()
-        manager.db_conf = {"type": EnumDBType.SQLLite, "name": ":memory:", "is_async": True}
+        manager.db_conf = {
+            "type": EnumDBType.SQLLite,
+            "name": ":memory:",
+            "is_async": True,
+        }
         manager.engine_conf = {"echo": False, "future": True}
         with self.assertRaises(RuntimeError):
             manager.get_engine()
@@ -222,7 +244,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         engine = manager.get_engine()
         connections = []
         event.listen(engine.sync_engine, "connect", lambda *_: connections.append(True))
-        self.monitor.engine = engine.sync_engine
+        self.observer.engine = engine.sync_engine
         try:
             self.assertIs(manager.get_engine(), engine)
             await self.monitor.start()
@@ -303,10 +325,16 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         task = asyncio.create_task(MonitorMiddleware(app)(scope, None, send))
         await ready.wait()
         await self.monitor.publish()
-        snapshot = await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor")
+        snapshot = await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor")
         row = snapshot["requests"][0]
-        self.assertEqual((row["method"], row["path"], row["ip_address"]), ("GET", "/api/users", "8.8.8.8"))
-        self.assertEqual((row["country_code"], row["region"], row["city"]), ("US", "California", "Mountain View"))
+        self.assertEqual(
+            (row["method"], row["path"], row["ip_address"]),
+            ("GET", "/api/users", "8.8.8.8"),
+        )
+        self.assertEqual(
+            (row["country_code"], row["region"], row["city"]),
+            ("US", "California", "Mountain View"),
+        )
         self.assertEqual(row["location"], "US / California / Mountain View")
         self.assertEqual(row["phase"], "response")
         self.assertIsNone(row["http_status"])
@@ -316,7 +344,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         finish.set()
         await task
         await self.monitor.publish()
-        completed = (await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"))["requests"][0]
+        completed = (await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"))["requests"][0]
         self.assertEqual(completed["request_id"], row["request_id"])
         self.assertEqual((completed["status"], completed["http_status"]), ("completed", 201))
         self.assertEqual(completed["location"], row["location"])
@@ -325,7 +353,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(lookups), 1)
         from SYSTEM.scripts.check_monitor import render
 
-        output = render(await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"), requests=True)
+        output = render(
+            await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"),
+            requests=True,
+        )
         self.assertIn("8.8.8.8", output)
         self.assertIn("Mountain View", output)
 
@@ -367,7 +398,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             row = self.monitor.snapshot()["requests"][-1]
             self.assertEqual((row["ip_address"], row["geo_status"]), (expected, state))
             await self.monitor.publish()
-            snapshot = await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor")
+            snapshot = await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor")
             event = next(item for item in snapshot["requests"] if item["request_id"] == row["request_id"])
             self.assertEqual(event["location"], "local" if state == "non_public" else None)
             self.assertTrue(all(event[key] is None for key in ("country_code", "region", "city")))
@@ -376,7 +407,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
     async def test_real_bundled_geoip_lookup_is_local_and_public_only(self):
         from SYSTEM.tools.tools_geoip import GeoIpReader
 
-        reader = GeoIpReader(Path(__file__).resolve().parents[1] / "SYSTEM" / "geoip" / "City.mmdb")
+        reader = GeoIpReader(
+            Path(__file__).resolve().parents[1] / "SYSTEM" / "geoip" / "City.mmdb",
+            prepare_database=GeoIpDatabaseImporter.prepare_bundle,
+        )
         try:
             self.assertTrue(await asyncio.to_thread(reader.open))
             public = await asyncio.to_thread(reader.lookup, "8.8.8.8")
@@ -386,7 +420,9 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await asyncio.to_thread(reader.close)
 
-    async def test_recent_request_buffer_is_bounded_and_expires_while_worker_lives(self):
+    async def test_recent_request_buffer_is_bounded_and_expires_while_worker_lives(
+        self,
+    ):
         self.monitor.max_requests = 2
         for _ in range(3):
             token = self.monitor.begin_request(self.scope())
@@ -395,7 +431,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(snapshot["recent_requests"]), 2)
         self.assertEqual(snapshot["recent_dropped_total"], 1)
         self.assertTrue(snapshot["recent_details_truncated"])
-        with patch("SYSTEM.tools.tools_monitor.time.monotonic", return_value=time.monotonic() + 61):
+        with patch(
+            "SYSTEM.tools.tools_monitor.time.monotonic",
+            return_value=time.monotonic() + 61,
+        ):
             self.assertEqual(self.monitor.snapshot()["recent_requests"], [])
 
     async def test_ui_cards_match_three_inflight_two_busy_and_eighty_six_ms(self):
@@ -418,7 +457,13 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
                 recent_requests=[],
             )
             for number in range(active):
-                worker["requests"].append(dict(template, request_id=f"active-{index}-{number}", pid=worker["pid"]))
+                worker["requests"].append(
+                    dict(
+                        template,
+                        request_id=f"active-{index}-{number}",
+                        pid=worker["pid"],
+                    )
+                )
             workers.append(worker)
         for index, duration in enumerate((142, 92, 24)):
             workers[index]["recent_requests"].append(
@@ -447,9 +492,22 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         snapshot = {"workers": workers, "supervisors": [manager], "sampled_at": now}
         WorkerMonitor._build_ui_snapshot(snapshot, 60)
         summary = snapshot["summary"]
-        self.assertEqual((summary["active_requests"], summary["busy_workers"], summary["idle_workers"]), (3, 2, 2))
+        self.assertEqual(
+            (
+                summary["active_requests"],
+                summary["busy_workers"],
+                summary["idle_workers"],
+            ),
+            (3, 2, 2),
+        )
         self.assertEqual((summary["running_workers"], summary["expected_workers"]), (4, 4))
-        self.assertEqual((summary["recent_completed_requests"], summary["recent_average_duration_ms"]), (3, 86))
+        self.assertEqual(
+            (
+                summary["recent_completed_requests"],
+                summary["recent_average_duration_ms"],
+            ),
+            (3, 86),
+        )
         self.assertEqual(summary["recent_max_duration_ms"], 142)
         self.assertEqual(summary["health"], "healthy")
         self.assertEqual(len(snapshot["requests"]), 6)
@@ -465,10 +523,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         token = self.monitor.begin_request(self.scope())
         self.monitor.end_request(token, http_status=200)
         await asyncio.sleep(0.02)
-        rows = (await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"))["requests"]
+        rows = (await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"))["requests"]
         self.assertEqual(rows, [])
         await asyncio.sleep(0.12)
-        rows = (await WorkerMonitor.read_snapshot(self.redis, prefix="test:monitor"))["requests"]
+        rows = (await WorkerMonitor.read_snapshot(self.cache, prefix="test:monitor"))["requests"]
         self.assertEqual(len(rows), 1)
 
     async def test_concurrent_requests_are_counts_and_finish_once(self):
@@ -553,7 +611,14 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.monitor.status = "running"
 
         async def app(scope, receive, send):
-            await send({"type": "http.response.start", "status": 200, "headers": [], "trailers": True})
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [],
+                    "trailers": True,
+                }
+            )
             await send({"type": "http.response.body", "body": b"ok"})
             self.assertEqual(self.monitor.snapshot()["active_requests"], 1)
             await send({"type": "http.response.trailers", "headers": []})
@@ -576,7 +641,8 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
 
         wrapped = MonitorMiddleware(app, state=app.state)
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=wrapped, raise_app_exceptions=False), base_url="http://test"
+            transport=httpx.ASGITransport(app=wrapped, raise_app_exceptions=False),
+            base_url="http://test",
         ) as client:
             self.assertEqual((await client.get("/error")).status_code, 500)
         snapshot = self.monitor.snapshot()
@@ -653,7 +719,7 @@ class SupervisorTests(unittest.TestCase):
     def test_launcher_context_restores_environment_on_failure(self):
         with patch.dict(os.environ, {ENV_RUN: "previous"}):
             with self.assertRaises(ValueError):
-                with WorkerMonitor.supervise(workers=4):
+                with WorkerMonitor.supervise(workers=4, storage_factory=lambda: None):
                     self.assertNotEqual(os.environ[ENV_RUN], "previous")
                     raise ValueError("startup failed")
             self.assertEqual(os.environ[ENV_RUN], "previous")
@@ -668,11 +734,21 @@ def create_test_app():
     async def lifespan(app):
         from SYSTEM.tools.tools_geoip import GeoIpReader
 
-        reader = GeoIpReader(Path(__file__).resolve().parents[1] / "SYSTEM" / "geoip" / "City.mmdb")
+        reader = GeoIpReader(
+            Path(__file__).resolve().parents[1] / "SYSTEM" / "geoip" / "City.mmdb",
+            prepare_database=GeoIpDatabaseImporter.prepare_bundle,
+        )
         await asyncio.to_thread(reader.open)
         redis = Redis.from_url(os.environ["MONITOR_TEST_REDIS_URL"])
         monitor = WorkerMonitor(
-            redis, engine=engine.sync_engine, geoip_reader=reader, interval=0.1, heartbeat=2, retention=4
+            # Retain crash evidence beyond Uvicorn's process health-check/restart
+            # window; a 4s TTL can expire before the replacement starts.
+            RedisAsync(redis=redis),
+            transactions=SqlAlchemyTransactionObserver(engine, ignore_key="system.monitor.ignore"),
+            geoip_reader=reader,
+            interval=0.1,
+            heartbeat=2,
+            retention=15,
         )
         app.state.monitor = monitor
         await monitor.start()
@@ -722,7 +798,13 @@ def _serve_test_workers(url, prefix, port):
     parsed = urlparse(url)
     CACHE_CONF[EnumCache.SYS].update(HOST=parsed.hostname, PORT=parsed.port, DB=int(parsed.path.lstrip("/") or "0"))
     os.environ["MONITOR_TEST_REDIS_URL"] = url
-    with WorkerMonitor.supervise(workers=4, instance_id="isolated-test", prefix=prefix):
+    with WorkerMonitor.supervise(
+        workers=4,
+        instance_id="isolated-test",
+        prefix=prefix,
+        storage_factory=lambda: RedisSync.from_config(CACHE_CONF[EnumCache.SYS]),
+        interval=0.1,
+    ):
         uvicorn.run(
             app=f"{create_test_app.__module__}:{create_test_app.__name__}",
             factory=True,
@@ -739,6 +821,7 @@ class RedisProcessTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.url = os.environ["MONITOR_TEST_REDIS_URL"]
         self.redis = Redis.from_url(self.url, socket_timeout=2, retry=Retry(NoBackoff(), 0))
+        self.cache = RedisAsync(redis=self.redis)
         self.prefix = f"monitor-test:{uuid4().hex}"
         self.server = None
         self.http = None
@@ -760,14 +843,14 @@ class RedisProcessTests(unittest.IsolatedAsyncioTestCase):
     async def until(self, predicate, timeout=20):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            snapshot = await WorkerMonitor.read_snapshot(self.redis, prefix=self.prefix)
+            snapshot = await WorkerMonitor.read_snapshot(self.cache, prefix=self.prefix)
             if predicate(snapshot):
                 return snapshot
             await asyncio.sleep(0.1)
         self.fail("Timed out waiting for isolated monitoring state.")
 
     async def test_real_redis_heartbeat_retention_and_terminal_record(self):
-        monitor = WorkerMonitor(self.redis, prefix=self.prefix, interval=0.1, heartbeat=1, retention=3)
+        monitor = WorkerMonitor(self.cache, prefix=self.prefix, interval=0.1, heartbeat=1, retention=3)
         monitor.status = "running"
         await monitor.publish()
         worker_key = f"{self.prefix}:worker:{monitor.run_id}:{monitor.process_uid}"
@@ -791,12 +874,15 @@ class RedisProcessTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cli.returncode, 0, cli.stderr)
         self.assertEqual(json.loads(cli.stdout)["workers"][0]["pid"], os.getpid())
         await asyncio.sleep(1.1)
-        row = (await WorkerMonitor.read_snapshot(self.redis, prefix=self.prefix))["workers"][0]
+        row = (await WorkerMonitor.read_snapshot(self.cache, prefix=self.prefix))["workers"][0]
         self.assertEqual(row["status"], "stale")
         await asyncio.sleep(2.1)
-        self.assertEqual((await WorkerMonitor.read_snapshot(self.redis, prefix=self.prefix))["workers"], [])
+        self.assertEqual(
+            (await WorkerMonitor.read_snapshot(self.cache, prefix=self.prefix))["workers"],
+            [],
+        )
         await monitor.stop()
-        row = (await WorkerMonitor.read_snapshot(self.redis, prefix=self.prefix))["workers"][0]
+        row = (await WorkerMonitor.read_snapshot(self.cache, prefix=self.prefix))["workers"][0]
         self.assertEqual(row["status"], "stopped")
 
     async def test_four_workers_busy_transactions_crash_reload_and_scale(self):

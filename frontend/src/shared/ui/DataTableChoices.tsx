@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Icon } from './Icon';
-import type { DataTableCopy } from './DataTable';
 import type { TableChoiceColor } from '../lib/table-choice-color';
-import { ChoiceChip } from './ChoiceChip';
 import {
   parseTableFilters,
   type DataTableFilter,
   type DataTableFilterSpec,
 } from '../lib/table-filter';
+import { ChoiceChip } from './ChoiceChip';
+import type { DataTableCopy } from './DataTable';
 import styles from './DataTableColumnMenu.module.css';
+import { Icon } from './Icon';
 
 export type DataTableChoice = {
   value: string;

@@ -1,3 +1,6 @@
+import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
+import { useTooltipDismissal } from '@/shared/hooks/useTooltipDismissal';
+import { cycleDialogTab } from '@/shared/lib/focus';
 import {
   Fragment,
   useCallback,
@@ -5,15 +8,12 @@ import {
   useId,
   useRef,
   useState,
-  type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from 'react';
+import Offcanvas from 'react-bootstrap/Offcanvas';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
-import Offcanvas from 'react-bootstrap/Offcanvas';
-import { useTooltipDismissal } from '@/shared/hooks/useTooltipDismissal';
-import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
-import { cycleDialogTab } from '@/shared/lib/focus';
 import { Icon, type IconName } from './Icon';
 
 /** Owners supply translated labels and destinations; the shared navigation never reads identity. */

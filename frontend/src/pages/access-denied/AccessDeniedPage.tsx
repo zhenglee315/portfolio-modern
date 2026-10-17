@@ -14,9 +14,7 @@ import styles from './AccessDeniedPage.module.css';
 
 import { AccessDeniedCowScene } from './AccessDeniedCowScene';
 
-export { AccessDeniedCowScene, accessDeniedCowArtwork } from './AccessDeniedCowScene';
-
-/** Render a reviewable standalone forbidden page; permission routing is owned by its future caller. */
+/** Render the forbidden page after the route validates its locale and access decision. */
 export function AccessDeniedPage({ locale }: { locale: Locale }) {
   const { t } = useTranslation();
   const navigate = useNavigate();

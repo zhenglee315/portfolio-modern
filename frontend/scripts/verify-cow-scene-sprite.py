@@ -5,11 +5,10 @@ fill, d, opacity and transform values. Run with Python 3 and Node 24 available.
 """
 
 import json
-from pathlib import Path
 import re
 import subprocess
 import xml.etree.ElementTree as ET
-
+from pathlib import Path
 
 FRONTEND = Path(__file__).resolve().parents[1]
 ASSETS = FRONTEND / "src/assets/cow-workspace"
@@ -24,30 +23,27 @@ def source_data():
         "globe": (ASSETS / "globe-rotation.ts").as_uri(),
         "metadata": (ASSETS / "scene-metadata.ts").as_uri(),
     }
-    program = "\n".join(
-        f"const {name} = await import({json.dumps(uri)});"
-        for name, uri in modules.items()
-    )
+    program = "\n".join(f"const {name} = await import({json.dumps(uri)});" for name, uri in modules.items())
     program += "\nprocess.stdout.write(JSON.stringify({rig, props, globe, metadata}));"
     result = subprocess.run(
         ["node", "--input-type=module", "-e", program],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     return json.loads(result.stdout)
 
 
 def verify():
     data = source_data()
-    rig, props, globe, metadata = (
-        data[name] for name in ("rig", "props", "globe", "metadata")
-    )
+    rig, props, globe, metadata = (data[name] for name in ("rig", "props", "globe", "metadata"))
     expected = {
         **{f"rig-{name}": paths for name, paths in rig["COW_RIG_PARTS"].items()},
-        **{f"prop-{name}": paths for name, paths in props["COMPLETE_COW_PROPS"].items()
-           if name != "deskContactShadows"},
+        **{
+            f"prop-{name}": paths for name, paths in props["COMPLETE_COW_PROPS"].items() if name != "deskContactShadows"
+        },
         "globe-base": globe["COW_GLOBE_ROTATION_BASE"],
-        **{f"globe-frame-{index}": frame["paths"]
-           for index, frame in enumerate(globe["COW_GLOBE_ROTATION_FRAMES"])},
+        **{f"globe-frame-{index}": frame["paths"] for index, frame in enumerate(globe["COW_GLOBE_ROTATION_FRAMES"])},
         "globe-overlay": globe["COW_GLOBE_ROTATION_OVERLAY"],
     }
     root = ET.parse(ASSETS / "scene-sprite.svg").getroot()
@@ -72,17 +68,18 @@ def verify():
         actual[group.attrib["id"]] = paths
     assert actual == expected, "Sprite geometry, materials or path order differs from source."
     assert set(metadata) == {
-        "COW_RIG_PART_IDS", "COMPLETE_COW_PROP_IDS", "COMPLETE_COW_PROP_VIEWBOX",
-        "COW_GLOBE_ROTATION_BASE_ID", "COW_GLOBE_ROTATION_OVERLAY_ID",
-        "COW_GLOBE_ROTATION_DURATION", "COW_GLOBE_ROTATION_FRAMES",
+        "COW_RIG_PART_IDS",
+        "COMPLETE_COW_PROP_IDS",
+        "COMPLETE_COW_PROP_VIEWBOX",
+        "COW_GLOBE_ROTATION_BASE_ID",
+        "COW_GLOBE_ROTATION_OVERLAY_ID",
+        "COW_GLOBE_ROTATION_DURATION",
+        "COW_GLOBE_ROTATION_FRAMES",
     }, "Runtime metadata must contain only scene composition and animation information."
     assert metadata["COMPLETE_COW_PROP_VIEWBOX"] == props["COMPLETE_COW_PROP_VIEWBOX"]
-    assert metadata["COW_RIG_PART_IDS"] == {
-        name: f"rig-{name}" for name in rig["COW_RIG_PARTS"]
-    }
+    assert metadata["COW_RIG_PART_IDS"] == {name: f"rig-{name}" for name in rig["COW_RIG_PARTS"]}
     assert metadata["COMPLETE_COW_PROP_IDS"] == {
-        name: f"prop-{name}" for name in props["COMPLETE_COW_PROPS"]
-        if name != "deskContactShadows"
+        name: f"prop-{name}" for name in props["COMPLETE_COW_PROPS"] if name != "deskContactShadows"
     }
     assert metadata["COW_GLOBE_ROTATION_BASE_ID"] == "globe-base"
     assert metadata["COW_GLOBE_ROTATION_OVERLAY_ID"] == "globe-overlay"
@@ -97,16 +94,16 @@ def verify():
     frame_count = len(globe["COW_GLOBE_ROTATION_FRAMES"])
     assert abs(float(intervals[0]) - 100 / frame_count) < 1e-8
     duration = globe["COW_GLOBE_ROTATION_DURATION"]
-    delays = [0 if index == 0 else -(frame_count - index) * duration / frame_count
-              for index in range(frame_count)]
+    delays = [0 if index == 0 else -(frame_count - index) * duration / frame_count for index in range(frame_count)]
     # Sample each original frame midway through its interval for two full turns.
     for sample in range(frame_count * 2):
         elapsed = (sample + 0.5) * duration / frame_count
-        visible = [index for index, delay in enumerate(delays)
-                   if (elapsed - delay) % duration < duration / frame_count]
+        visible = [index for index, delay in enumerate(delays) if (elapsed - delay) % duration < duration / frame_count]
         assert visible == [sample % frame_count], "Globe frame order or overlap differs."
-    print(f"Cow sprite parity verified: {len(expected)} groups, "
-          f"{sum(len(paths) for paths in expected.values())} exact vector paths.")
+    print(
+        f"Cow sprite parity verified: {len(expected)} groups, "
+        f"{sum(len(paths) for paths in expected.values())} exact vector paths."
+    )
 
 
 if __name__ == "__main__":

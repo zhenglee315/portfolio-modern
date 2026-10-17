@@ -45,8 +45,15 @@ class RespPortfolioSiteChatme(BaseModel):
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Site
 class RespPortfolioSite(BaseModel):
-    site_id: int = Field(..., gt=0, description="Resolved portfolio ID used to pin subsequent public section requests.")
-    user: str = Field(..., description="Stable public account identifier, independent of the login email.")
+    site_id: int = Field(
+        ...,
+        gt=0,
+        description="Resolved portfolio ID used to pin subsequent public section requests.",
+    )
+    user: str = Field(
+        ...,
+        description="Stable public account identifier, independent of the login email.",
+    )
     brand: RespPortfolioSiteBrand = Field(..., description="Brand content.")
     profile: RespPortfolioSiteProfile = Field(..., description="Personal profile content.")
     social: RespPortfolioSiteSocial = Field(..., description="Social and email links.")
@@ -55,9 +62,15 @@ class RespPortfolioSite(BaseModel):
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Journey - Detail
 class RespPortfolioJourneyDetail(BaseModel):
-    startMonth: str = Field(..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Supplementary period start month.")
+    startMonth: str = Field(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Supplementary period start month.",
+    )
     endMonth: str | None = Field(
-        ..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Supplementary end month; null if ongoing."
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Supplementary end month; null if ongoing.",
     )
     endDay: int | None = Field(default=None, ge=1, le=31, description="Optional actual day within endMonth.")
     content: str = Field(..., description="Localized plain-text detail.")
@@ -66,7 +79,11 @@ class RespPortfolioJourneyDetail(BaseModel):
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Journey - Item
 class RespPortfolioJourneyItem(BaseModel):
     id: int = Field(..., gt=0, le=9007199254740991, description="Career ID shared with Experiences.")
-    countryCode: str = Field(..., pattern=r"^[A-Z]{3}$", description="ISO alpha-3 country code used by the map.")
+    countryCode: str = Field(
+        ...,
+        pattern=r"^[A-Z]{3}$",
+        description="ISO alpha-3 country code used by the map.",
+    )
     countryName: str = Field(..., description="Localized country name.")
     city: str = Field(..., description="Localized city name.")
     latitude: float = Field(..., ge=-90, le=90, description="Map latitude in degrees.")
@@ -74,7 +91,9 @@ class RespPortfolioJourneyItem(BaseModel):
     type: Literal["work", "education"] = Field(..., description="Work or education journey type.")
     startMonth: str = Field(..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Inclusive start month.")
     endMonth: str | None = Field(
-        ..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Inclusive end month; null if ongoing."
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Inclusive end month; null if ongoing.",
     )
     endDay: int | None = Field(default=None, ge=1, le=31, description="Optional actual day within endMonth.")
     expected: bool = Field(..., description="Whether the period is expected.")
@@ -97,7 +116,9 @@ class RespPortfolioExperienceItem(BaseModel):
     organizationTitle: str = Field(..., description="Localized role or academic program.")
     startMonth: str = Field(..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Inclusive start month.")
     endMonth: str | None = Field(
-        ..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Inclusive end month; null if ongoing."
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Inclusive end month; null if ongoing.",
     )
     endDay: int | None = Field(default=None, ge=1, le=31, description="Optional actual day within endMonth.")
     expected: bool | None = Field(default=None, description="Whether the period is expected, when applicable.")
@@ -126,15 +147,25 @@ class RespPortfolioProjectDetail(BaseModel):
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Project - Item
 class RespPortfolioProjectItem(BaseModel):
-    id: int = Field(..., gt=0, le=9007199254740991, description="Stable project ID across languages.")
+    id: int = Field(
+        ...,
+        gt=0,
+        le=9007199254740991,
+        description="Stable project ID across languages.",
+    )
     organizationName: str = Field(..., description="Full localized organization name.")
     organizationCode: str = Field(..., description="Localized display abbreviation.")
     organizationTitle: str = Field(..., description="Localized role or program.")
     startMonth: str = Field(..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Inclusive start month.")
     endMonth: str | None = Field(
-        ..., pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="Inclusive end month; null if ongoing."
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Inclusive end month; null if ongoing.",
     )
-    expected: bool = Field(default=False, description="Whether the project period is expected, when applicable.")
+    expected: bool = Field(
+        default=False,
+        description="Whether the project period is expected, when applicable.",
+    )
     projectName: str = Field(..., description="Localized project name.")
     projectTitle: str = Field(..., description="Localized project category heading.")
     intro: str = Field(..., description="Localized project introduction.")

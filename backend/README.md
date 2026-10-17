@@ -1,20 +1,55 @@
 # 後端總覽 / Backend Overview
 
+**文件責任：** 後端啟動與設定、HTTP／Socket.IO 契約、資料流、資料庫部署及排錯。排程操作由 [SCHEDULER](SCHEDULER/README.md) 說明，管理交易規則由 [Management module](APPs/Management/module/README.md) 說明，共用儲存工具的 ownership 與方法以各套件 README 為準。
+
+This guide owns backend integration and operational contracts. Scheduler, management-business and shared-storage guides own their respective implementation boundaries; the [project overview](../README.md#文件分工--documentation-responsibilities) indexes all documentation.
+
 User PATCH `/management/users/{account_id}` 現在接受 is_active／role_id，沿用 email 確認與 expected 原值比較。角色指派在同一交易及管理寫入鎖下檢查角色存在、啟用、操作者七項權限上限與最後角色管理員。新增 `/management/users/role-options` 提供 page／size／search，僅需 is_manage_users，回傳 can_assign。Login records GET 加入 nullable is_online：使用與 system heartbeat 相同的 Redis SYS online:<IP> TTL key，只批次讀取當頁 IP；不存在為 false，Redis 無法讀取為 null。此值表示 IP 活動，不代表帳號 session，無 SQL 排序／篩選。geo_status 仍保留原登入地理快照；沒有 migration 或額外寫入 API。
 
 本目錄是個人檔案系統的 FastAPI 後端。`APPs` 放業務 API，`COMMON` 放共用工具，`SYSTEM` 負責設定、模型、資料庫、middleware 與應用生命週期。整體產品方向見[專案 README](../README.md)。
 
 This directory contains the FastAPI backend for the personal profile system. `APPs` holds business APIs, `COMMON` holds shared tools, and `SYSTEM` owns configuration, models, the database, middleware, and the application lifecycle. See the [project README](../README.md) for the product overview.
 
-目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Role／User／Platform PATCH、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。Worker 監控由 lifespan 啟停，包含資源、HTTP 請求、交易與程序替換統計，透過 `/monitor` Socket.IO namespace 推送變更快照，並提供 CLI 自測。管理新增／刪除 API 與 Portfolio 寫入 API 尚未實作。
+目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Role／User／Platform PATCH 與單筆／批次刪除、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。Worker 監控由 lifespan 啟停，包含資源、HTTP 請求、交易與程序替換統計，透過 `/monitor` Socket.IO namespace 推送變更快照，並提供 CLI 自測。管理新增 API 與 Portfolio 寫入 API 尚未實作。
 
-Six Portfolio read APIs, three management lists, Role/User/Platform PATCH, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Lifespan-managed worker monitoring covers resources, HTTP requests, transactions and process replacements, delivering changed snapshots through the `/monitor` Socket.IO namespace, with a diagnostic CLI. Administration create/delete APIs and Portfolio write APIs are not implemented yet.
+Six Portfolio read APIs, three management lists, Role/User/Platform PATCH and single/batch deletion, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Lifespan-managed worker monitoring covers resources, HTTP requests, transactions and process replacements, delivering changed snapshots through the `/monitor` Socket.IO namespace, with a diagnostic CLI. Administration create APIs and Portfolio write APIs are not implemented yet.
 
 ## 管理員 Portfolio 預覽
 
 `APPs/Management/views_management.py` 的 `ManagementPortfolioPreview` 提供 `/management/preview/site`、`journey`、`experiences`、`projects`、`skill-categories`、`skills` 六支 GET。CBV class 直接使用共用 ManagementPermission(AuthRole.is_manage_sites)，每次透過既有 AuthSessionModule 讀取目前有效帳號與角色；未登入／停用管理員回 401，沒有管理權限回 403，儲存不可用回 503。必須明確指定 site_id，不以帳號 id 或 default 推測；可讀取未發布及停用用戶的網站，缺少網站／語言回 404。View 只呼叫既有 Portfolio module 的 `preview()`／`preview_categories()`／`preview_skills()`；目標存在性、內容讀取與私有錯誤處理由 module 負責。公開 Portfolio 的發布條件維持不變。
 
 所有預覽 DTO 與資料查詢共用 APPs/Portfolio；四個集合仍為 page／size=6，Skills 仍使用 ownerType=category／ownerId。預覽不掛 public cache decorator，成功及已處理錯誤使用 private, no-store／Vary: Cookie。這些端點只讀取，不改資料庫；管理員 SESSION 依既有機制刷新。三支管理列表也已套用共用權限檢查；CUD 與細分操作授權保留於管理權限待辦。
+
+## 同時啟動 API 與排程 / Combined startup
+
+在 backend 執行 `uv run --locked manage.py`，會以目前 Python 環境同時啟動 FastAPI 與 APScheduler。任一子程序退出會關閉另一個；支援 SIGINT／SIGTERM 與 worker 程序群組清理。每個 VM／Pod 使用自己的記憶體排程表，所有 job 共用 Redis DB 5 的 token 鎖與續鎖機制。宣告、設定、CLI、關閉期限及互斥限制見 [SCHEDULER/README.md](SCHEDULER/README.md)。Monitor jobs 包含 Redis／SQL 健康檢查，以及每分鐘將 SYS Redis request queue 寫入 [record_request](SYSTEM/models/README_record_request.md) 的歷史保存。
+
+`SYSTEM/tools` 與 `SCHEDULER/SYSTEM/tools` 不引用 COMMON。lifespan／啟動入口透過 `CONN_MANAGER` 取得既有資源，準備 RedisAsync、SQLAlchemy 交易觀察器及同步 Redis 工廠後注入。GeoIP 的 `GeoIpDatabaseImporter.prepare_bundle` 同樣由 lifespan 傳入 `GeoIpReader`；工具不自行匯入 COMMON。這個依賴方向避免 settings → tools → COMMON → database → settings 的循環，保留共用工具原有連線管理方式。
+
+## 完整測試入口 / Full Test Entry
+
+以下環境變數必須指向已建立的隔離 Redis 與 PostgreSQL；省略時，對應整合案例會跳過。測試會建立／移除自己的表或 schema，不使用開發帳號及正式資料。所有後端服務啟動／重啟仍透過 `manage.py` 同時管理 FastAPI 與 APScheduler。
+
+```sh
+# Run from backend/ with disposable services prepared first.
+SCHEDULER_TEST_REDIS_URL=redis://127.0.0.1:16389/0 \
+MONITOR_TEST_REDIS_URL=redis://127.0.0.1:16389/0 \
+SOCKETIO_TEST_REDIS_URL=redis://127.0.0.1:16389/0 \
+PLATFORM_PATCH_TEST_POSTGRES_URL=postgresql+asyncpg://test_user@127.0.0.1:16439/disposable_test \
+  uv run --locked check.py --integration
+```
+
+正式回歸案例位於 `tests/`，依賴由 `pyproject.toml`／`uv.lock` 鎖定。`uv run --locked check.py` 統一執行 Black、Ruff、漸進式 mypy 與 pytest；檢查同時涵蓋前端七支 Python 資產產生器。`--integration` 要求上方全部隔離服務環境變數，缺少即拒絕執行。只跑測試可用 `uv run --locked pytest`。mypy 目前覆蓋監控、IP／GeoIP、遷移支援政策、公開 handle 及分散鎖共十支模組；其餘 Python 仍執行格式、lint 與行為測試。完整對照見[品質驗證](../docs/code-quality.md)。
+
+Maintained tests now ship under tests/. The locked check.py entry runs formatting, lint, gradual type checks and pytest, including the frontend Python generators. Integration mode requires explicitly supplied disposable endpoints. One-time evidence stays under ignored agent/.
+
+### 模組責任 / Module Ownership
+
+- `SYSTEM/tools/tools_monitor.py` 保留公開入口；`monitor_worker.py` 採樣／佇列發布、`monitor_snapshot.py` 聚合、`monitor_stream.py` Socket.IO、`monitor_supervisor.py` Uvicorn adapter，`monitor_contracts.py` 宣告注入協定及常數。
+- `APPs/Auth/module/` 使用 `module_base.py`、`module_register.py`、`module_session.py`、`module_sign_in.py`，由 `__init__.py` 直接匯出業務 class。憑證原值與交易 ownership 保留原契約。
+- `APPs/Management/module/` 使用 `module_base.py`、`module_roles.py`、`module_users.py`、`module_sites.py`、`module_logins.py`、`module_state.py` 及 `module_permission.py`，由 `__init__.py` 直接匯出業務 class 與權限依賴。詳見 [Management module](APPs/Management/module/README.md)。
+
+SYSTEM 與 SCHEDULER 的 tools 不匯入 COMMON。匯入依 `Project`、`Common`、`System`、套件名稱及 `Python` 分組，使用 `# ◆—< Pack >—————————————————————————————————◆ Project` 這類分隔線；使用 `import *` 的來源需明確宣告 `__all__`。工具依賴邊界、公開匯出清單與匯入順序已有正式回歸測試。
 
 ## 目錄結構 / Directory Layout
 
@@ -64,10 +99,12 @@ backend/
 │   ├── static/                   # 本機 Swagger／ReDoc 資產
 │   └── tools/                    # FastAPI、網路與 Socket.IO 組裝工具
 ├── alembic.ini                   # migration 入口 / migration configuration
-├── manage_fastapi.py            # API 啟動入口 / server entry point
+├── SCHEDULER/                   # 排程任務與分散式鎖 / scheduled jobs and distributed locks
+├── manage.py                    # 同時啟動 FastAPI 與 APScheduler / combined startup
+├── manage_fastapi.py            # FastAPI 子程序入口 / FastAPI child entry point
+├── manage_apscheduler.py        # 排程子程序入口 / scheduler child entry point
 ├── pyproject.toml                # 依賴宣告 / dependency declarations
-├── uv.lock                       # 解析後版本 / resolved dependency versions
-└── src/backend/                  # 尚存的 uv 範例入口 / remaining uv sample
+└── uv.lock                       # 解析後版本 / resolved dependency versions
 ```
 
 新增工具時，詳細方法、參數與用法寫在該工具資料夾的 README。現有文件：[SQLAlchemy 工具](COMMON/tools/storage/sqlalchemy/README.md)、[Redis 工具](COMMON/tools/storage/redis/README.md)、[快取裝飾器](COMMON/decorator/README.md)。這份 README 維護後端架構、API 總覽與操作入口。
@@ -93,6 +130,10 @@ HTTP request
 
 `GET /authority/session` resolves the server session's account ID against an active account and role, returning `id`, `email`, `user`, `role`, and seven CRUD/management permissions. Guests and invalid accounts receive `null`; storage failures return `503`. Lookup refreshes session identity and permissions while retaining the SID and pending registration proof. Auth responses use `Cache-Control: no-store`, allowing the frontend to restore identity after reload without storing passwords.
 
+SESSION 資料欄位統一由 [`SYSTEM/constants/constant_session.py`](SYSTEM/constants/constant_session.py) 的 `EnumSess` 定義，包含公開身份、七個權限、私有身份驗證與註冊挑戰欄位。讀寫 SESSION 或其帳號字典時使用枚舉，例如 `account.get(EnumSess.IS_MANAGE_SITES)`；`AUTH_PERMISSION_FIELDS` 也共用這些成員。枚舉沿用原始字串值，既有 Redis JSON 與前端 DTO 欄位保持相容。`EnumSess.PASSWORD` 僅用來清除舊資料，不允許新 SESSION 保存密碼。
+
+Session payload keys belong to `EnumSess`, including account identity, seven permissions, private identity proof and registration challenge fields. Session and account-dictionary access uses these enum members; `AUTH_PERMISSION_FIELDS` shares the same definitions. Existing Redis JSON and public response field names remain compatible. `EnumSess.PASSWORD` only removes legacy data; new sessions never store passwords.
+
 `POST /authority/sign-in` 驗證帳號、角色與密碼，建立 SESSION 後，透過 `execute_orm()` 新增一筆 `RecordLogin`（`record_login`）：保存帳號 `user_id`，由資料庫產生 serial `id` 與具時區的 `logintime`。每次成功登入各有一筆；登入失敗及 SESSION 查詢不新增紀錄。紀錄寫入失敗時回傳 `503 AUTH_DATABASE_UNAVAILABLE` 並清除剛建立的登入身份。Migration `159af2dc7898` 僅建立這張表、FK、檢查限制及兩個歷史查詢索引。
 
 `POST /authority/sign-in` verifies the account, role and password, initializes SESSION, then inserts one `RecordLogin` (`record_login`) through `execute_orm()`. It stores the account's `user_id`; the database supplies the serial `id` and timezone-aware `logintime`. Each successful sign-in creates a separate row; failed sign-ins and session lookups create none. A record write failure returns `503 AUTH_DATABASE_UNAVAILABLE` and clears the newly prepared identity. Migration `159af2dc7898` creates only this table, its FK, check constraint and two history indexes.
@@ -103,9 +144,9 @@ Migration `71bc8f24d903` 在 `record_login` 新增 `ip_address`（45）、`count
 
 Migration `71bc8f24d903` adds nullable IP/country/region/city snapshots and a bounded status to the existing login table. Historical rows retain their original identity, owner, time and indexes. History reads use stored values and default to descending event time, then descending ID.
 
-`SYSTEM.tools.tools_geoip.GeoIpReader` 使用官方 `geoip2` 讀取部署提供的 City MMDB。Lifespan 每個 process 開啟一個 reader，關閉時釋放；登入以 thread pool 執行本機查詢。程式啟動、登入、歷史查詢及匯入工具都不下載資料、不呼叫外部地區 API。IP 取自既有 `net_client_ip(request=...)`，不接受登入 body 的 IP／地區欄位。
+`SYSTEM.tools.tools_geoip.GeoIpReader` 使用官方 `geoip2` 讀取部署提供的 City MMDB。Lifespan 每個 process 開啟一個 reader，關閉時釋放；登入以 thread pool 執行本機查詢。程式啟動、登入及歷史查詢都不下載資料、不呼叫外部地區 API。IP 取自既有 `net_client_ip(request=...)`，不接受登入 body 的 IP／地區欄位。
 
-The process-local reader performs local-file lookups only. Startup, sign-in, history reads and the import command never download GeoIP data or call a remote geolocation API. IP extraction uses the validated ASGI client after trusted-proxy handling, never user-submitted login fields.
+The process-local reader performs local-file lookups only. Startup, sign-in and history reads never download GeoIP data or call a remote geolocation API. IP extraction uses the validated ASGI client after trusted-proxy handling, never user-submitted login fields.
 
 | `geo_status`  | 意義 / Meaning                                                                        |
 | ------------- | ------------------------------------------------------------------------------------- |
@@ -125,20 +166,14 @@ Missing geographic data does not block a valid sign-in; the event still retains 
 2. 目前採用 DB-IP Lite City 的本機 MMDB（CC BY 4.0），不需下載金鑰。壓縮原檔 `SYSTEM/geoip/City.mmdb.gz`、來源 NOTICE 與版本／雜湊 manifest **一起納入 Git**；新環境 clone 不需另取地區資料。原本的後端部署產物也須保留這些檔案。登入紀錄畫面保留 DB-IP 來源連結，不新增服務、排程或啟動下載。
 3. 備份資料庫並執行 `uv run --offline --locked alembic upgrade head`（需事先備妥本機依賴）。FastAPI 啟動不自動執行 migration。
 4. 設定 `GEOIP_DATABASE_PATH` 環境變數，或私有 `SYSTEM/config.yaml` 的 `GEOIP.database_path`；環境變數優先。預設檔案是 `backend/SYSTEM/geoip/City.mmdb`。
-5. 預設路徑在第一次啟動時，自動驗證壓縮檔並於本機解壓為 `City.mmdb`；原始大小與 SHA-256、City 類型全部正確才原子替換。解壓後的大檔與暫存檔不進 Git。初次啟動需能寫入 `SYSTEM/geoip/`；之後若檔案與 manifest 一致則不重寫。唯讀部署可在既有打包階段先執行下方離線匯入工具，再給 API 使用者讀取權限。
+5. 預設路徑在第一次啟動時，自動驗證壓縮檔並於本機解壓為 `City.mmdb`；原始大小與 SHA-256、City 類型全部正確才原子替換。解壓後的大檔與暫存檔不進 Git。初次啟動需能寫入 `SYSTEM/geoip/`；之後若檔案與 manifest 一致則不重寫。唯讀部署需在打包階段預先產生並驗證 `City.mmdb`，再給 API 使用者讀取權限；資料更新時也需重新打包。
 6. 更新 Git 中的壓縮檔時一併更新 NOTICE 與 manifest，重新啟動 workers 就會依新雜湊替換舊快取。更新失敗保留原有可讀的資料，不在登入請求內更新。自訂 `GEOIP_DATABASE_PATH` 仍可使用自行準備的原始 MMDB；沒有同名 `.gz` 時不套用內建資料包。
 
-Prepare Python dependencies outside the isolated network and apply the migration. Git includes the compressed DB-IP Lite City database, NOTICE and release/hash manifest, so a fresh clone contains all GeoIP data. First startup validates and atomically extracts the local archive; subsequent startups reuse a matching cache, or refresh it after a Git data update. The expanded MMDB stays ignored. Initial extraction requires a writable data directory; read-only deployments can run the existing offline importer during packaging. No additional service, Git LFS, scheduler or runtime download is required. Retain the DB-IP attribution in the history dialog. Data is distributed under CC BY 4.0; see [DB-IP Lite downloads and attribution](https://db-ip.com/db/download/ip-to-city-lite). The same reader can also accept a separately licensed compatible City MMDB.
+Prepare Python dependencies outside the isolated network and apply the migration. Git includes the compressed DB-IP Lite City database, NOTICE and release/hash manifest, so a fresh clone contains all GeoIP data. First startup validates and atomically extracts the local archive; subsequent startups reuse a matching cache, or refresh it after a Git data update. The expanded MMDB stays ignored. Initial extraction requires a writable data directory; read-only deployments must include a validated, expanded `City.mmdb` prepared during packaging and rebuild it for data updates. No additional service, Git LFS, scheduler or runtime download is required. Retain the DB-IP attribution in the history dialog. Data is distributed under CC BY 4.0; see [DB-IP Lite downloads and attribution](https://db-ip.com/db/download/ip-to-city-lite). The same reader can also accept a separately licensed compatible City MMDB.
 
-```bash
-# Optional preparation for a read-only deployment, from backend/ with dependencies installed.
-uv run --offline --locked python scripts/import_geoip.py SYSTEM/geoip/City.mmdb.gz
-# A separately supplied raw MMDB and --destination remain supported.
-```
+尚未提供 MMDB 時 API 仍可啟動並記錄登入 IP，公開 IP 的狀態為 `unavailable`；取得地區仍需要有效資料檔。
 
-匯入工具先完整複製至目標目錄的暫存檔並驗證 City 類型，再原子替換；失敗時保留既有檔案。尚未提供 MMDB 時 API 仍可啟動並記錄登入 IP，公開 IP 的狀態為 `unavailable`；取得地區仍需要有效資料檔。
-
-The importer validates a fully staged City MMDB before atomic replacement. An invalid source leaves the existing file intact. Without an MMDB, the API remains usable and records source IPs with an unavailable status for public IPs; geographic results require actual City data.
+Without an MMDB, the API remains usable and records source IPs with an unavailable status for public IPs; geographic results require actual City data.
 
 正式路徑為「用戶 → Nginx → FastAPI」。使用 `frontend/deploy/nginx.conf.example` 的 API 區段，以 `$remote_addr` **覆寫** `X-Forwarded-For`／`X-Real-IP`。FastAPI 必須僅對 Nginx 開放，例如同機 loopback；Lightsail 防火牆不對 Internet 開放後端 API port。現有入口信任轉發標頭，因此禁止繞過 Nginx 直接連線。日後加入 Cloudflare／其他代理時，須重新設定完整可信代理鏈。
 
@@ -250,7 +285,7 @@ See the [frontend README](../frontend/README.md) for the React migration plan. I
 
 Management lists and portfolio previews share the `ManagementPermission` class dependency. Roles, users and sites require their matching `is_manage_*` flag; preview requires `is_manage_sites`. Each request refreshes the active account and role from the server SESSION ID. Guests/disabled identities receive 401, denied permissions 403, and identity storage failures retain 503; successful reads are private and not cached. See the [permission module](APPs/Management/module/README.md) for usage and extension boundaries and the [remaining permission work](../docs/management-permissions-todo.md) for CUD and finer grants.
 
-`GET /management/roles` 每列是一個角色，沿用 `{items,total,pages,page,size}`，`items` 是有欄位名稱的物件陣列。前端透過既有代理呼叫 `/api/management/roles`。查詢由 `schema/parser/parser_management.py` 驗證，`module/module_management.py` 組合 SQL，`schema/resp/resp_management.py` 定義回應，`views_management.py` 提供 HTTP 介面；啟動時由現有路由探索機制載入。
+`GET /management/roles` 每列是一個角色，沿用 `{items,total,pages,page,size}`，`items` 是有欄位名稱的物件陣列。前端透過既有代理呼叫 `/api/management/roles`。查詢由 `schema/parser/parser_management.py` 驗證，`module/module_roles.py` 組合 SQL，`schema/resp/resp_management.py` 定義回應，`views_management.py` 提供 HTTP 介面；啟動時由現有路由探索機制載入。
 
 `GET /management/roles` returns one object per role in the shared numbered envelope. The frontend uses `/api/management/roles` through its existing proxy. The parser validates query values, the module builds ORM queries, the response schema defines serialization, and the CBV view supplies HTTP behavior. Existing route discovery registers the endpoint.
 
@@ -295,9 +330,9 @@ Each request queries the database; this endpoint has no response-cache decorator
 
 三支列表 GET 皆支援 `search`（最多 200 字、大小寫不敏感的 literal contains）及 `search_fields`（JSON 欄位 ID 陣列，白名單驗證）。前端 All 傳送 DataTable 標題對應的所有資料欄位，單選只傳一個；API 若省略 search_fields，預設搜尋允許的 projection 欄位，排除固定 locale。多欄搜尋以 OR 組合，再與既有 filters AND；COUNT 與分頁都在搜尋後執行，沒有額外查全部資料的 API。空文字移除搜尋；%／_ 不作萬用字元。布林使用 true／false，數字做文字包含比對，UTC 日期可用 ISO 或 `YYYY.MM.DD HH:mm:ss` 的部分字串。無效欄位、重複欄位／參數、格式錯誤及過長文字回 `400 INVALID_SEARCH`。共同驗證在 `COMMON/schema/parser/parser_table_search.py`，共同 SQL 在 `COMMON/tools/storage/sqlalchemy/tools_table_search.py`。
 
-`GET /management/users` 與 `GET /management/sites` 沿用角色列表的 `{items,total,pages,page,size}`、page=1、size=6（可調 1–100）、型別化逐欄篩選與最多三欄排序。每層集中於一個檔案：`module/module_management.py` 內的各資源類別共用 `ManagementListModule`，`schema/parser/parser_management.py` 內的各資源函式共用欄位篩選、排序、分頁驗證，`schema/resp/resp_management.py` 集中各資源返回類別，HTTP 介面集中於 `views_management.py`。OpenAPI 說明共用條件契約並以 response schema 列出完整欄位。前端呼叫 `/api/management/users`、`/api/management/sites`。
+`GET /management/users` 與 `GET /management/sites` 沿用角色列表的 `{items,total,pages,page,size}`、page=1、size=6（可調 1–100）、型別化逐欄篩選與最多三欄排序。`module/module_users.py`、`module/module_sites.py` 內的資源類別共用 `module/module_base.py` 的 `ManagementListModule`；`schema/parser/parser_management.py` 內的各資源函式共用欄位篩選、排序、分頁驗證，`schema/resp/resp_management.py` 集中各資源返回類別，HTTP 介面集中於 `views_management.py`。OpenAPI 說明共用條件契約並以 response schema 列出完整欄位。前端呼叫 `/api/management/users`、`/api/management/sites`。
 
-The account and platform GETs share the role list's numbered envelope, pagination limits, typed column predicates and ordered sorting. Each layer uses one management file: resource query classes in module_management.py, query functions in parser_management.py, response classes in resp_management.py, and HTTP routes in views_management.py. Generic predicate validation and SQL application live in COMMON, with resource field capabilities and projection expressions supplied by Management. OpenAPI describes the shared query contract and typed response schemas. The frontend uses the existing /api proxy.
+The account and platform GETs share the role list's numbered envelope, pagination limits, typed column predicates and ordered sorting. Resource query classes in module_users.py and module_sites.py share ManagementListModule from module_base.py. Query functions remain in parser_management.py, response classes in resp_management.py, and HTTP routes in views_management.py. Generic predicate validation and SQL application live in COMMON, with resource field capabilities and projection expressions supplied by Management. OpenAPI describes the shared query contract and typed response schemas. The frontend uses the existing /api proxy.
 
 User 的 `role` 與 Role 列表一樣支援 `in`／`not_in` 文字陣列，角色名稱比較不分大小寫；條件在 COUNT 與分頁前執行，供共用 Dropdown list filter 複選使用。
 
@@ -446,19 +481,19 @@ Only explicitly supplied mutable fields are written. Strict schemas reject coerc
 Tests use temporary SQLite storage by default and never contact configured services. An optional disposable PostgreSQL URL repeats the HTTP/transaction suite in isolated, automatically removed schemas.
 
 ```sh
-.venv/bin/python -m unittest discover -s tests -v
+uv run --locked pytest
 PLATFORM_PATCH_TEST_POSTGRES_URL='postgresql+asyncpg://user:password@127.0.0.1:5432/disposable_test' \
-  .venv/bin/python -m unittest discover -s tests -v
+  uv run --locked pytest
 ```
 
 ## 設定與依賴 / Configuration and Dependencies
 
-| 位置 / Location                             | 用途 / Purpose                                                                                                                                                                                                                                   |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SYSTEM/config.yaml`                        | 納入版本控制的開發預設：loopback、SQLite、明確的占位金鑰；正式設定由部署環境私下提供。 / Tracked development defaults with loopback services, SQLite, and an explicit placeholder key; provide production configuration privately at deployment. |
-| `SYSTEM/extension.py`、`SYSTEM/settings.py` | 載入 YAML 並整理應用設定。 / Load YAML and derive application settings.                                                                                                                                                                          |
-| `alembic.ini`、`SYSTEM/models/migrations/`  | 指向 migration 環境與版本；Alembic 使用目前資料庫設定及 `SYSTEM/models` metadata。 / Migration location and revisions; Alembic uses the configured database and model metadata.                                                                  |
-| `pyproject.toml`、`uv.lock`                 | 宣告依賴與鎖定解析後版本。 / Declare dependencies and lock resolved versions.                                                                                                                                                                    |
+| 位置 / Location                             | 用途 / Purpose                                                                                                                                                                                                                                                                          |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SYSTEM/config.yaml`                        | 納入版本控制的開發預設：loopback、PostgreSQL 部署參數、明確的占位金鑰；正式設定由部署環境私下提供。 / Tracked development defaults with loopback services, PostgreSQL deployment parameters, and an explicit placeholder key; provide production configuration privately at deployment. |
+| `SYSTEM/extension.py`、`SYSTEM/settings.py` | 載入 YAML 並整理應用設定。 / Load YAML and derive application settings.                                                                                                                                                                                                                 |
+| `alembic.ini`、`SYSTEM/models/migrations/`  | 指向 migration 環境與版本；Alembic 使用目前資料庫設定及 `SYSTEM/models` metadata。 / Migration location and revisions; Alembic uses the configured database and model metadata.                                                                                                         |
+| `pyproject.toml`、`uv.lock`                 | 宣告依賴與鎖定解析後版本。 / Declare dependencies and lock resolved versions.                                                                                                                                                                                                           |
 
 `SYSTEM/config.yaml` 至少需要非空的 `SECURITY.secret_key`，以及 `DATABASE.META` 的 `type`、`is_async: true`、`name`。多用戶 migration 使用 PostgreSQL；底層 SQLite 支援保留供工具及隔離測試。API `127.0.0.1:8080`、Redis `127.0.0.1:6379`。`SERVER.locally: false` 讓 server 與 Redis 各自讀取 YAML 的 host／port；設為 `true` 時 server 強制使用 loopback，Redis 固定使用本機 6379。文件路徑由 `URL` 設定；預設 Swagger 是 `/swagger`、ReDoc 是 `/redoc`、OpenAPI 是 `/openapi`。
 
@@ -472,13 +507,13 @@ PLATFORM_PATCH_TEST_POSTGRES_URL='postgresql+asyncpg://user:password@127.0.0.1:5
 uv run --locked python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-目前支援 `sqlite` 與 `postgresql`；PostgreSQL 還需實際 `host`、`port`、`name`、`user`、`password`，且必須先建立資料庫。依部署環境填入 PostgreSQL 連線設定；SQLite 不使用這些欄位。`SEC_CORS` 的 origins 目前由 `SYSTEM/settings.py` 建立，沒有 YAML origins 選項；前端預設 `VITE_API_BASE_URL=/api`，瀏覽器請求同源的 `/api/portfolio/*`，開發 proxy 或正式 reverse proxy 移除 `/api` 前綴後轉送至後端的 `/portfolio/*`。若要直接使用不同網域，須按部署需求設定 CORS。
+連線工具支援 `sqlite` 與 `postgresql`；目前多用戶部署及完整 migration 使用 PostgreSQL，須設定 `host`、`port`、`name`、`user`、`password` 並先建立資料庫。SQLite 保留供工具與隔離測試；歷史 revision 包含 PostgreSQL regex、partial index、ALTER TYPE；完整 Alembic 入口會在連線及 DDL 前明確拒絕 SQLite，避免部分升級。`SEC_CORS` origins 由 settings 建立；額外瀏覽器寫入 origin 使用 `SECURITY.management_write_origins`。前端預設 `VITE_API_BASE_URL=/api`，開發／正式 reverse proxy 移除 `/api` 後轉送後端。
 
-Both `sqlite` and `postgresql` are supported. PostgreSQL additionally needs actual host, port, database name, username, password, and a database created in advance. Supply PostgreSQL connection values for the deployment environment; SQLite ignores those fields. `SEC_CORS` origins are currently defined in `SYSTEM/settings.py`; there is no YAML origins option. The frontend defaults to `VITE_API_BASE_URL=/api`, so browsers request same-origin `/api/portfolio/*`. The development proxy or production reverse proxy strips `/api` and forwards `/portfolio/*` to this API. Direct cross-origin deployments require matching CORS configuration.
+Storage tools support SQLite and PostgreSQL. Current multi-user deployment and complete migrations require an existing PostgreSQL database; the Alembic entry rejects unsupported SQLite deployments before connecting or executing DDL. SQLite remains available for isolated tool tests. CORS is derived in settings, while extra browser-write origins use SECURITY.management_write_origins. The frontend defaults to the same-origin /api prefix, removed by its reverse proxy.
 
-使用 SQLite 時，相對的 `DATABASE.META.name` 會依 `SYSTEM/settings.py` 的 `DB_CONF["sqlite"]` 存放在 `SYSTEM/models/sqlite/`，缺少的資料夾會自動建立；`:memory:` 不建立檔案，絕對路徑則保留指定位置。FastAPI 與 Alembic 使用同一個路徑。
+使用 SQLite 時，相對的 `DATABASE.META.name` 會依 `SYSTEM/settings.py` 的 `DB_CONF["sqlite"]` 存放在 `SYSTEM/models/sqlite/`，缺少的資料夾會自動建立；`:memory:` 不建立檔案，絕對路徑則保留指定位置。此路徑只適用 SQLite 工具／測試；完整 Alembic 部署入口要求 PostgreSQL。
 
-For SQLite, a relative `DATABASE.META.name` uses `DB_CONF["sqlite"]` in `SYSTEM/settings.py` and is stored under `SYSTEM/models/sqlite/`, which is created when needed. `:memory:` creates no file, while an absolute path keeps its specified location. FastAPI and Alembic use the same path.
+For SQLite, a relative `DATABASE.META.name` uses `DB_CONF["sqlite"]` in `SYSTEM/settings.py` and is stored under `SYSTEM/models/sqlite/`, which is created when needed. `:memory:` creates no file, while an absolute path keeps its specified location. This path applies to SQLite tool/model tests; full Alembic deployments require PostgreSQL.
 
 | 依賴 / Dependencies                                                | 角色 / Role                                                                                                                |
 | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
@@ -492,9 +527,9 @@ For SQLite, a relative `DATABASE.META.name` uses `DB_CONF["sqlite"]` in `SYSTEM/
 
 ## 安裝與本機操作 / Installation and Local Workflow
 
-以下順序適用於全新 clone。需要 Git、`uv`、Python 3.13，以及可連線的 Redis。`.python-version` 固定開發用 Python 3.13；`pyproject.toml` 允許 3.13 以上版本。SQLite 驅動隨鎖定依賴安裝，不需要額外安裝資料庫伺服器。依賴第一次下載與 Python 安裝需要網路；離線環境須預先備妥相同版本的環境。前端安裝見[前端 README](../frontend/README.md)。
+以下順序適用於全新 clone。需要 Git、`uv`、Python 3.13，以及可連線的 Redis。`.python-version` 固定開發用 Python 3.13；`pyproject.toml` 允許 3.13 以上版本。SQLite 驅動隨鎖定依賴安裝，隔離測試不需要額外 SQL 服務；完整部署須先準備 PostgreSQL。依賴第一次下載與 Python 安裝需要網路；離線環境須預先備妥相同版本的環境。前端安裝見[前端 README](../frontend/README.md)。
 
-These steps cover a fresh clone. Install Git, `uv`, Python 3.13, and a reachable Redis service. `.python-version` pins development to Python 3.13; `pyproject.toml` permits 3.13 or later. Locked dependencies include the SQLite driver, so no separate SQL server is needed for the defaults. Initial dependency downloads and Python installation require network access; prepare the same environment in advance for offline use. See the [frontend README](../frontend/README.md) for frontend setup.
+These steps cover a fresh clone. Install Git, `uv`, Python 3.13, and a reachable Redis service. `.python-version` pins development to Python 3.13; `pyproject.toml` permits 3.13 or later. Locked dependencies include SQLite for isolated tests; complete deployments require PostgreSQL. Initial dependency downloads and Python installation require network access; prepare the same environment in advance for offline use. See the [frontend README](../frontend/README.md) for frontend setup.
 
 ### 1. 準備工具與 Redis / Prepare Tools and Redis
 
@@ -521,9 +556,9 @@ uv python install 3.13
 uv sync --locked
 ```
 
-`uv sync --locked` 依 `uv.lock` 建立 `backend/.venv`，包含開發依賴；若鎖定檔與宣告不一致，指令會失敗，避免安裝時偷偷重解版本。現有 Python 3.13 可省略 `uv python install`。`uv run --locked` 自動使用專案環境，不必先 `source .venv/bin/activate`；如要直接使用 `python`，macOS／Linux 可手動啟用該環境。
+`uv sync --locked` 依 `uv.lock` 建立 `backend/.venv`，包含開發依賴；若鎖定檔與宣告不一致，指令會失敗，避免安裝時偷偷重解版本。`tool.uv.package = false` 讓 uv 只管理依賴，不將後端原始碼建置成套件。現有 Python 3.13 可省略 `uv python install`。`uv run --locked` 自動使用專案環境，不必先 `source .venv/bin/activate`；如要直接使用 `python`，macOS／Linux 可手動啟用該環境。
 
-`uv sync --locked` creates `backend/.venv` from `uv.lock`, including development dependencies. It fails when declarations and the lockfile disagree, rather than silently resolving different versions. Skip `uv python install` if Python 3.13 is already available. `uv run --locked` selects the project environment automatically; activate `.venv` manually only when running `python` directly.
+`uv sync --locked` creates `backend/.venv` from `uv.lock`, including development dependencies. It fails when declarations and the lockfile disagree, rather than silently resolving different versions. With `tool.uv.package = false`, uv manages dependencies without building the backend source as a package. Skip `uv python install` if Python 3.13 is already available. `uv run --locked` selects the project environment automatically; activate `.venv` manually only when running `python` directly.
 
 ### 3. 檢查設定並建立資料表 / Check Configuration and Migrate
 
@@ -536,14 +571,14 @@ uv run --locked alembic upgrade head
 uv run --locked alembic current
 ```
 
-FastAPI 啟動流程不建立資料表，也不自動跑 migration。相對的預設 SQLite 檔案位於 `SYSTEM/models/sqlite/porfolio_modern`；檔名沿用目前設定，不能靠 `.db` 副檔名判定是否為資料庫。SQLite 檔案、journal／WAL 及實際使用者資料不納入版本控制；其他開發者使用相同 migration 重建自己的資料庫。
+後端啟動不自動建立資料表或執行 migration。SQLite 分支的相對 `DATABASE.META.name` 存放在 `SYSTEM/models/sqlite/`，`:memory:` 與絕對路徑保留原語意；檔名不必有 `.db` 副檔名。SQLite 檔案、journal／WAL 及實際使用者資料不納入版本控制。完整歷史 migration 請使用 PostgreSQL；SQLite 測試使用隔離 schema 建立或獨立驗證支援該方言的新 revision。
 
-FastAPI startup does not create tables or run migrations. The relative default SQLite file is `SYSTEM/models/sqlite/porfolio_modern`; its existing name has no `.db` suffix. Keep SQLite files, journals/WAL, and real user data out of version control. Each developer creates their own database from the same migrations.
+Backend startup does not create tables or run migrations. Relative SQLite names resolve under SYSTEM/models/sqlite/, while memory and absolute paths retain their meaning. Keep database files, journals/WAL and user data out of Git. Use PostgreSQL for the complete historical migration chain; isolated SQLite tests create their schema or exercise individually compatible revisions.
 
 ### 4. 啟動與確認 / Start and Verify
 
 ```bash
-uv run --locked manage_fastapi.py
+uv run --locked manage.py
 ```
 
 預設 API 為 `http://127.0.0.1:8080`，Swagger 為 `http://127.0.0.1:8080/swagger`。開啟另一個 terminal 檢查：
@@ -555,15 +590,17 @@ curl -fsS http://127.0.0.1:8080/openapi.json > /dev/null
 curl -fsS 'http://127.0.0.1:8080/portfolio/projects?locale=en&page=1&size=6'
 ```
 
-新資料庫沒有作品集內容；`/portfolio/site?locale=en` 在沒有對應語言的已發布首頁時回傳 404。建立自己的作品集內容後，可用此端點確認個人資料。`uv` 產生的 `backend` console script 目前仍指向 `src/backend` 範例，不會啟動 API；入口應從 `backend/` 執行 `manage_fastapi.py`。入口使用 `create_app()` application factory，並由目前檔名與函式名稱產生 Uvicorn import string；`SERVER.worker` 可設定為大於 1，由各 worker 建立自己的應用程式並執行 lifespan。`SERVER.reload` 目前沒有傳給入口的 Uvicorn 呼叫，不能將它視為已實作的熱重載。
+新資料庫沒有作品集內容；`/portfolio/site?locale=en` 在沒有對應語言的已發布首頁時回傳 404。建立自己的作品集內容後，可用此端點確認個人資料。後端統一從 `backend/` 執行 `uv run --locked manage.py`，同時啟動 FastAPI 與 APScheduler。FastAPI 子程序 `manage_fastapi.py` 使用 `create_app()` application factory，並由目前檔名與函式名稱產生 Uvicorn import string；`SERVER.worker` 可設定為大於 1，由各 worker 建立自己的應用程式並執行 lifespan。`SERVER.reload` 目前沒有傳給入口的 Uvicorn 呼叫，不能將它視為已實作的熱重載。
 
-A new database has no portfolio content; `/portfolio/site?locale=en` returns 404 without a published default site in that locale. After creating your own content, use this endpoint to verify the profile. The generated `backend` console script still points to the `src/backend` sample and does not start the API; run `manage_fastapi.py` from `backend/`. The entry point uses the `create_app()` application factory and derives Uvicorn's import string from the current filename and function name. `SERVER.worker` can be greater than 1; each worker creates its own application and runs its lifespan. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload.
+A new database has no portfolio content; `/portfolio/site?locale=en` returns 404 without a published default site in that locale. After creating your own content, use this endpoint to verify the profile. Start FastAPI and APScheduler together with `uv run --locked manage.py` from `backend/`. The FastAPI child entry point `manage_fastapi.py` uses the `create_app()` application factory and derives Uvicorn's import string from the current filename and function name. `SERVER.worker` can be greater than 1; each worker creates its own application and runs its lifespan. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload.
 
 ### Worker 監控 / Worker Monitoring
 
-Worker 監控核心位於 `SYSTEM/tools/tools_monitor.py`，由 `WorkerMonitor` 管理；`MonitorMiddleware` 位於 `SYSTEM/middleware/utils/middleware_monitor.py`，透過 middleware 套件統一匯出及註冊。系統基礎設施不依賴 `APPs` 業務模組。每個 worker 的 lifespan 在 Redis／SQL 初始化後建立 `app.state.monitor` 並啟動背景回報；middleware 與 SQLAlchemy 事件只更新程序內統計；關閉時先停止回報與移除事件，再關閉 Redis。模組沒有新增 HTTP API、資料表或長期歷史紀錄。
+[`SYSTEM/events.py`](SYSTEM/events.py) 集中定義兩類 Socket.IO 枚舉：`NameSpace.MONITOR` 對應命名空間 `/monitor`，`EventMonitor` 定義監控的訂閱、重新同步、退訂、測試、測試回應、快照及狀態事件。各功能的事件類別依 `Event<用途>` 命名；事件註冊與推送共用同一份定義，原有前端通訊字串保持相容。Socket.IO namespaces belong to `NameSpace`, while purpose-specific event enums such as `EventMonitor` define incoming and outgoing event names in the same module.
 
-Worker monitoring lives in `SYSTEM/tools/tools_monitor.py`, owned by `WorkerMonitor`. `MonitorMiddleware` lives in `SYSTEM/middleware/utils/middleware_monitor.py`, exported and registered through the middleware package. System infrastructure does not depend on `APPs` business modules. Each worker's lifespan initializes `app.state.monitor` after Redis/SQL setup. Middleware and SQLAlchemy events update local counters, and the background task publishes snapshots. Shutdown stops reporting and removes listeners before Redis is closed. Monitoring adds no HTTP endpoints, SQL tables or long-term history.
+Worker 監控核心位於 `SYSTEM/tools/tools_monitor.py`，由 `WorkerMonitor` 管理；`MonitorMiddleware` 位於 `SYSTEM/middleware/utils/middleware_monitor.py`，透過 middleware 套件統一匯出及註冊。系統基礎設施不依賴 `APPs` 業務模組。每個 worker 的 lifespan 在 Redis／SQL 初始化後建立 `app.state.monitor` 並啟動背景回報；middleware 與 SQLAlchemy 事件只更新程序內統計。背景回報同步將完成事件加入 SYS Redis queue，由 scheduler 寫入 `record_request`。關閉時先停止回報與移除事件，再關閉 Redis；新增歷史儲存尚未提供查詢 HTTP API。
+
+Worker monitoring lives in `SYSTEM/tools/tools_monitor.py`, owned by `WorkerMonitor`. `MonitorMiddleware` lives in `SYSTEM/middleware/utils/middleware_monitor.py`, exported and registered through the middleware package. Each worker's lifespan injects its dependencies. Middleware updates local observations; the background publisher updates live snapshots and queues completed requests in SYS Redis. The scheduler persists that separate queue to `record_request` every minute. Shutdown stops reporting before closing shared storage. History query APIs are not implemented yet.
 
 | 檔案 / File                                     | 責任 / Responsibility                                                                                                                                                                             |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -576,11 +613,11 @@ Worker monitoring lives in `SYSTEM/tools/tools_monitor.py`, owned by `WorkerMoni
 | `APPs/Sys/events_monitor.py`                    | `/monitor` 事件、目前 Session 權限檢查與訂閱入口。 / Namespace events, current session authorization and subscription entry points.                                                               |
 | `SYSTEM/scripts/check_monitor.py`               | 讀取 Redis 快照的診斷 CLI。 / Read-only snapshot diagnostic CLI.                                                                                                                                  |
 
-HTTP 請求本身由原 Worker 執行，middleware 不把請求送到 Redis，也不負責分派 Worker。它只更新程序內觀測資料，背景採樣再以有期限的快照寫入 Redis；Socket.IO 彙整這些快照供前端顯示。這條監控路徑沒有使用消費式 Queue。
+HTTP 請求本身由原 Worker 執行；middleware 更新程序內觀測資料。背景採樣更新有期限的 Redis 快照，Socket.IO 彙整供前端顯示；同一筆 Redis 交易另將完成事件加入無期限的 Stream queue，供 scheduler 落庫，不影響前端讀快照。
 
-HTTP requests execute in their accepting worker. Middleware updates local observations; background sampling writes expiring snapshots to Redis, which Socket.IO aggregates for the browser. Redis does not dispatch the requests, and monitoring does not use a consumptive queue.
+HTTP requests execute in their accepting worker. Background sampling writes expiring snapshots for Socket.IO and appends completed events to a separate persistent Redis Stream for minute-based SQL ingestion. Redis queues observations, not HTTP execution.
 
-- Redis：沿用 `EnumCache.SYS`（目前 DB 0），key 前綴為 `system:monitor`，與 session／訪客心跳分開。採樣及 Supervisor 回報共用 `SYSTEM/settings.py` 的 `MONITOR_CYCLE_SEC: float = 2.0`；請求／交易事件只更新記憶體，合併至下一輪採樣。心跳 TTL 15 秒，快照及管理器目前狀態保留 60 秒。服務停止回報後所有監控 key 自動到期。
+- Redis：沿用 `EnumCache.SYS`（目前 DB 0），key 前綴為 `system:monitor`，與 session／訪客心跳分開。採樣及 Supervisor 回報共用 `SYSTEM/settings.py` 的 `MONITOR_CYCLE_SEC: float = 2.0`；請求／交易事件只更新記憶體，合併至下一輪採樣。心跳 TTL 15 秒，快照及管理器目前狀態保留 60 秒後自動到期；request queue 與異常事件 queue 無 TTL，已 commit 的正常事件由消費者移除。
 - 資源：CPU 以單一邏輯核心容量為基準，可能超過 100%；第一次採樣為 `null`。RAM 為 RSS bytes，多程序 RSS 加總可能包含共享記憶體。運行時間使用程序建立時間與單調時鐘。
 - 請求：保留處理中明細及最近 60 秒完成事件，每個 worker 最多各輸出 200 筆處理中／已結束明細。欄位包括 Request ID、Worker／PID、Method、Path、進入／離開時間、ASGI 階段、HTTP、已處理／總耗時及 IP／地區。超量時回報截斷旗標，總併發計數仍維持完整；最近平均值只依保留事件列表計算。串流最後 body／trailers 才算完成，取消、斷線、錯誤及 worker 退出分開標示。健康檢查及文件端點預設排除，可透過 middleware 的 `exclude` 調整；Socket.IO、WebSocket 與回應後背景工作不混入 HTTP 計數。
 - 掛載：入口另以 `MonitorMiddleware(..., state=self.app.state)` 包住完整 ASGI app，以觀察 FastAPI 外層產生的 HTTP 500。scope 標記讓既有內層掛載略過重複計數；正常回應與 500 都只登記一次。
@@ -620,8 +657,8 @@ uv run python -m SYSTEM.scripts.check_monitor --watch --requests
 Unit tests do not connect to configured SQL/Redis services. Setting `MONITOR_TEST_REDIS_URL` enables four local test workers using in-memory SQLite and a random Redis prefix. Integration tests cover expiry, SIGKILL replacement, reload, scaling and the CLI, then clean up processes and test keys. Use a disposable test Redis:
 
 ```bash
-uv run python -m unittest tests.test_monitor -v
-MONITOR_TEST_REDIS_URL=redis://127.0.0.1:16379/0 uv run python -m unittest tests.test_monitor -v
+uv run --locked pytest tests/test_monitor.py -v
+MONITOR_TEST_REDIS_URL=redis://127.0.0.1:16379/0 uv run --locked pytest tests/test_monitor.py -v
 ```
 
 ### Socket.IO 啟動與連線自測 / Startup and Connectivity Probe
@@ -665,17 +702,17 @@ Redis Pub/Sub 使用 `SOCKETIO.channel`（預設 `portfolio-modern:socketio`）�
 Optional `SOCKETIO.channel` separates deployments sharing Redis. Optional `SOCKETIO.allowed_origins` permits explicit cross-origin clients; its default retains Socket.IO's same-origin check. FastAPI CORS does not configure the Socket.IO endpoint.
 
 ```bash
-uv run python -m unittest tests.test_socketio -v
-SOCKETIO_TEST_REDIS_URL=redis://127.0.0.1:16379/0 uv run python -m unittest tests.test_socketio -v
+uv run --locked pytest tests/test_socketio.py -v
+SOCKETIO_TEST_REDIS_URL=redis://127.0.0.1:16379/0 uv run --locked pytest tests/test_socketio.py -v
 ```
 
 第二個指令需使用隔離 Redis，會啟動四個測試 worker，驗證 WebSocket 握手、namespace 事件、固定 worker、不同 worker 經 Redis 定向推送，以及 SIGKILL 後補位和重新連線。測試專用指令佇列只存在於 `tests/test_socketio.py`，不會註冊到應用程式。另驗證正式訂閱與跨 Worker 請求快照。測試不連線設定中的 SQL／Redis；權限案例使用隔離 SQLite 和 Session。
 
 ### 5. 常見問題 / Troubleshooting
 
-新增的 API 回傳 404、舊 GET 仍正常時，先檢查執行中的 `/openapi.json` 是否包含該路徑與 HTTP method。若原始碼已有路由、執行中的 schema 卻沒有，請在啟動後端的 terminal 按 Ctrl+C，再執行 `uv run --locked manage_fastapi.py`；目前入口不會自動重載程式碼。若路由已存在，才依回應的 detail 檢查身份確認、網站或翻譯資料是否存在。
+新增的 API 回傳 404、舊 GET 仍正常時，先檢查執行中的 `/openapi.json` 是否包含該路徑與 HTTP method。若原始碼已有路由、執行中的 schema 卻沒有，請在啟動後端的 terminal 按 Ctrl+C，再執行 `uv run --locked manage.py`；目前入口不會自動重載程式碼。若路由已存在，才依回應的 detail 檢查身份確認、網站或翻譯資料是否存在。
 
-If a new endpoint returns 404 while existing GET requests work, check its path and HTTP method in the running `/openapi.json`. When source contains the route but the running schema does not, stop the backend with Ctrl+C in its terminal and run `uv run --locked manage_fastapi.py` again; this entry point does not reload source automatically. If the route is registered, inspect the response detail for missing identity confirmation, site or translation data.
+If a new endpoint returns 404 while existing GET requests work, check its path and HTTP method in the running `/openapi.json`. When source contains the route but the running schema does not, stop the backend with Ctrl+C in its terminal and run `uv run --locked manage.py` again; this entry point does not reload source automatically. If the route is registered, inspect the response detail for missing identity confirmation, site or translation data.
 
 | 現象 / Symptom                                        | 處理方式 / Resolution                                                                                                                                                                       |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -722,7 +759,7 @@ Role 允許 role（1–64 字元、無首尾空白且唯一）、description（�
 
 成功回完整單筆 projection，包含關聯與統計，不受當前列表 filters／pagination 限制。User／Platform commit 後才清公開 cache；已提交但 cache 失敗使用 MANAGEMENT_UPDATE_COMMITTED_CACHE_UNAVAILABLE 與 X-Management-Update-State: committed。更新相同值不無故修改 Updated。管理列表／Preview 不過濾停用目標；操作者必須有效。
 
-測試：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_*update.py'`。提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可同時執行 PostgreSQL 分支；不得指向應用程式資料庫。
+測試（從 `backend/` 執行）：`uv run --locked pytest tests/test_management_role_user_update.py tests/test_management_site_update.py`。提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可同時執行 PostgreSQL 分支；不得指向應用程式資料庫。
 
 ## 平台網站刪除 / Platform Website Deletion
 
@@ -734,7 +771,7 @@ Role 允許 role（1–64 字元、無首尾空白且唯一）、description（�
 
 成功回 `{deleted_count, deleted: [{account_id, site_id}]}`，不返回登入信箱。公開快取只在 commit 後清除；共用處理移至 `ManagementWriteState.invalidate_public_cache()`，保持原 PATCH 的錯誤契約。刪除已提交但 cache 失敗回 503 MANAGEMENT_DELETE_COMMITTED_CACHE_UNAVAILABLE 及 `X-Management-Update-State: committed`，呼叫端不得自動重試。
 
-驗證：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_site_delete.py'`。僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可重複執行 PostgreSQL 鎖、競態與真實級聯刪除測試；SQLite fixture 自動啟用 foreign_keys。
+驗證（從 `backend/` 執行）：`uv run --locked pytest tests/test_management_site_delete.py`。僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL` 可重複執行 PostgreSQL 鎖、競態與真實級聯刪除測試；SQLite fixture 自動啟用 foreign_keys。
 
 ## 角色與帳號刪除 / Role and Account Deletion
 
@@ -748,6 +785,6 @@ User 單筆 body 是 `{expected_email, expected_site_id}`，批次為 `{targets:
 
 ### SESSION 世代驗證 / Session Generation Binding
 
-正常登入／註冊在伺服器 SESSION 加入 `AUTH_SESSION_IDENTITY_KEY`，內容為帳號 ID 與 Argon2 密碼雜湊的 keyed digest；密碼雜湊及此識別值都不加入公開 Auth DTO。每次 current_session 重新查有效帳號／角色並以 constant-time comparison 驗證。刪除帳號後，即使 SQLite 重用相同 ID 並以相同信箱／handle／明文密碼重新註冊，新 Argon2 salt 仍使舊 SESSION 失效；密碼更新亦撤銷舊身份。不掃描整個 Redis，不改共用 IP 在線鍵。舊格式或格式損壞的 SESSION 會清除身份，需重新登入一次；原有未完成的註冊驗證欄位仍保留。
+正常登入／註冊在伺服器 SESSION 加入 `EnumSess.AUTH_IDENTITY`，內容為帳號 ID 與 Argon2 密碼雜湊的 keyed digest；密碼雜湊及此識別值都不加入公開 Auth DTO。每次 current_session 重新查有效帳號／角色並以 constant-time comparison 驗證。刪除帳號後，即使 SQLite 重用相同 ID 並以相同信箱／handle／明文密碼重新註冊，新 Argon2 salt 仍使舊 SESSION 失效；密碼更新亦撤銷舊身份。不掃描整個 Redis，不改共用 IP 在線鍵。舊格式或格式損壞的 SESSION 會清除身份，需重新登入一次；原有未完成的註冊驗證欄位仍保留。
 
-測試：`PYTHONPATH=backend:backend/tests backend/.venv/bin/python -m unittest discover -s backend/tests -p 'test_management_role_user_delete.py'`，並可提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL`。涵蓋角色 FK／Default、User 全部子資料、批次回滾、權限撤回、最後管理員、並行角色指派／Default 切換、提交後 cache 失敗及真實 cookie 的 ID 重用／舊 SESSION 防護。
+測試（從 `backend/` 執行）：`uv run --locked pytest tests/test_management_role_user_delete.py`，並可提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL`。涵蓋角色 FK／Default、User 全部子資料、批次回滾、權限撤回、最後管理員、並行角色指派／Default 切換、提交後 cache 失敗及真實 cookie 的 ID 重用／舊 SESSION 防護。

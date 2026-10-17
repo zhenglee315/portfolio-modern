@@ -1,5 +1,7 @@
 # portfolio-modern
 
+**文件責任：** 專案導覽、功能現況、前後端協作、安裝與部署總覽；各子目錄 README 負責該範圍的介面、操作與限制。下方文件分工表是閱讀入口。
+
 現代化的個人檔案系統，以結構化方式組織與呈現個人介紹、學經歷、旅程、專案經驗與技能，並提供英文、簡體中文、繁體中文內容 API。
 
 A modern personal profile system that organizes profile information, education and work experience, journeys, projects, and skills through structured data and serves content in English, Simplified Chinese, and Traditional Chinese.
@@ -13,6 +15,29 @@ The project aims for **lightweight development and deployment**: add dependencie
 **Public read APIs and the React frontend are implemented.** `backend/` contains backend code. `frontend/` uses React Router Framework Mode, React, and TypeScript for the completed feature migration of `portfolio-web`; see the [frontend README](frontend/README.md).
 
 閱讀入口 / Reading guide：[網站圖解 / Website tour](#網站圖解--website-tour)、[即時監控 / Live monitoring](#即時請求與-worker-監控--live-request-and-worker-monitoring)、[專案架構 / Architecture](#專案架構--project-architecture)、[本機安裝 / Local setup](#從乾淨-checkout-安裝--install-from-a-fresh-checkout)、[正式部署 / Production deployment](#前後端正式部署--production-deployment)。
+
+## 文件分工 / Documentation Responsibilities
+
+修改功能時，先更新擁有該契約的文件；跨層行為再同步前後端總覽，產品範圍改變再更新本文件。程式、設定與可重現的驗證結果是文件更新依據。
+
+| 文件                                                            | 責任                                                  | 依據                                    |
+| --------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------- |
+| [專案總覽](README.md)                                           | 功能現況、閱讀入口、整體安裝與部署                    | 前後端入口、功能實作與鎖定檔            |
+| [後端總覽](backend/README.md)                                   | 啟動、設定、HTTP／Socket.IO 契約、資料庫部署與排錯    | `manage.py`、APPs、SYSTEM               |
+| [排程](backend/SCHEDULER/README.md)                             | Job 宣告、載入、分散式鎖、生命週期與 request 落庫     | SCHEDULER、排程設定與測試               |
+| [管理模組](backend/APPs/Management/module/README.md)            | 授權依賴、管理查詢、交易規則與更新／刪除邊界          | Management modules、schema 與 constants |
+| [裝飾器](backend/COMMON/decorator/README.md)                    | 選用快取與 SQL 輸入驗證                               | `cache`、`sql_validate`                 |
+| [Redis](backend/COMMON/tools/storage/redis/README.md)           | Client 歸屬、序列化、交易、Stream 與同步工具          | RedisAsync、RedisSync                   |
+| [SQLAlchemy](backend/COMMON/tools/storage/sqlalchemy/README.md) | Session／交易歸屬、查詢、分頁與交易觀察               | SQLAlchemy 共用工具                     |
+| [GeoIP](backend/SYSTEM/geoip/README.md)                         | 離線資料包、解壓驗證、更新與來源授權                  | archive、manifest、NOTICE 與 importer   |
+| [前端總覽](frontend/README.md)                                  | 分層、feature／page 整合、SSR、API 串接與部署         | 路由、功能模組與建置設定                |
+| [共用契約](frontend/src/shared/README.md)                       | Shared API、schema、hooks、lib、UI 邊界與公開匯出索引 | shared 程式及 `check:docs`              |
+| [DataTable](frontend/src/shared/ui/README.md)                   | 表格 props、欄位、篩選、排序、編輯、匯出與使用範例    | DataTable 與相關共用元件                |
+| [草地牛](frontend/src/shared/ui/cow-workspace/README.md)        | SVG 分件、場景組裝、動畫、控制與素材重建              | CowWorkspace、素材原稿與生成腳本        |
+| [拒絕存取](frontend/src/pages/access-denied/README.md)          | 403 頁面、權限導向、角色插槽與響應式版面              | access-denied route、page 與 shared cow |
+| [文件圖片](docs/images/README.md)                               | 截圖對應、擷取與替換規則                              | 文件圖片與對應功能頁                    |
+
+Each README owns the scope listed above. Update the owning contract first, then synchronize frontend/backend integration guides and this overview when their behavior changes. Generated tool-cache READMEs are managed by their tools.
 
 ## 網站圖解 / Website Tour
 
@@ -157,9 +182,9 @@ Sign-in, sign-out, registration, email availability and verification codes use t
 - 六支公開 Portfolio API 支援預設首頁及各帳號作品集。只有 Site API 以 `user` 查找公開帳號，回傳 `site_id`；其餘內容 API 使用 `site_id`，未帶入時讀取已發布的 default 作品集。資料與快取依 `site_id` 隔離，每個帳號最多一個作品集，草稿不可公開或設為首頁。
 - 登入、登出、註冊、SESSION 與成功登入紀錄已接上 PostgreSQL／Redis；角色包含 CRUD 及 `is_manage_roles`、`is_manage_users`、`is_manage_sites`。
 - 公開頁面採動態 SSR，保留 `/`、`/en`、`/zh-Hans`、`/zh-Hant`，支援 `/:locale/:user` 與 `/:locale?site_id=1`。區塊、後續分頁與地圖等資源按需載入。
-- 請求監控頁已串接 Socket.IO，提供多 Worker 資源、請求流程動畫及短期事件明細。作品集內容 Dashboard、編輯介面與 CRUD／發布 API 留在後續階段；目前已有可重用的權限及發布交易 module。
+- 請求監控頁已串接 Socket.IO；完成事件另經 SYS Redis queue，由每分鐘排程保存至 `record_request`。Role／User／Platform 完整編輯與單筆／批次刪除已實作。請求歷史可視化、管理新增及其餘作品集內容 CRUD／發布操作介面仍待開發。
 
-Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default when it is omitted. Dynamic SSR serves default and individual portfolio URLs with bounded initial content and demand loading. A live Socket.IO dashboard now shows worker resources, request flow and recent events. The portfolio content dashboard and editing remain a later phase; shared authorization and publication transactions are ready for those views.
+Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default. Dynamic SSR serves default and individual portfolio URLs with bounded initial content. The live Socket.IO dashboard shows worker resources and requests, while a minute scheduler persists ended events to SQL. Role/User/Platform editing and single/batch deletion are implemented. Request-history visualization, administration creation and the remaining portfolio-content CRUD/publication interfaces are pending.
 
 ## 即時請求與 Worker 監控 / Live Request and Worker Monitoring
 
@@ -184,9 +209,9 @@ Teal arrows show incoming requests and blue arrows show responses returning thro
 
 Data flows from HTTP middleware into process-local counters, then through lifespan sampling, Redis SYS snapshots and Socket.IO to the browser. A shared two-second cycle checks for changed `workers` and `requests` topics; the browser does not poll a monitoring HTTP API. Browser clocks advance displayed durations independently, while transport pings and worker heartbeats continue. Reconnection restores current snapshots; pausing freezes the view and releases the connection.
 
-監控使用 `EnumCache.SYS`（目前 Redis DB 0）的 `system:monitor` 前綴，不寫入 SQL。心跳 TTL 為 15 秒，快照及已完成事件保留 60 秒，每個 Worker 最多各輸出 200 筆處理中／已結束明細；表格的 ALL 只顯示仍保留且符合篩選的事件。這些是短期快照，不是消費式 Queue 或長期請求紀錄。短請求可能首次出現就已完成，程序在回報前退出仍可能遺失事件；動畫呈現觀測到的流程，不代表封包傳輸速度。
+監控沿用 `EnumCache.SYS`（目前 Redis DB 0）。即時快照使用 `system:monitor` 前綴：心跳 TTL 15 秒，快照及最近事件保留 60 秒，每個 Worker 最多各輸出 200 筆處理中／已結束明細，前端 ALL 只顯示仍保留且符合篩選的事件。同一輪 Redis 交易另將已結束請求加入 `system:monitor:requests:queue` Stream；`jobs_monitor_request` 每分鐘在分散式鎖下呼叫 `module_monitor.py`，批次寫入 `record_request`，SQL commit 後才 ACK／刪除，`request_id` 唯一鍵處理重送。queue 沒有 TTL／MAXLEN，與前端明細上限分開；歷史查詢 API／畫面仍待開發。Worker 入列前的記憶體事件可能因崩潰或暫存滿而遺失，Redis 重啟持久性依部署設定；完整契約見 [record_request](backend/SYSTEM/models/README_record_request.md)。
 
-Monitoring uses the `system:monitor` prefix in Redis SYS (currently DB 0), with no SQL persistence. Heartbeats expire after 15 seconds; snapshots and completed events are retained for 60 seconds, with up to 200 active and 200 ended request details per worker. ALL displays only retained, matching events. Observations are temporary snapshots rather than a consumptive queue or durable request history. Short requests may first appear completed, and events can be lost before a worker publishes them.
+Monitoring shares SYS Redis DB 0. Expiring snapshots still feed Socket.IO, with a 15-second heartbeat, 60-second observation window and bounded request details. The same background transaction appends ended requests to a separate Stream; the locked minute job commits them to `record_request` before acknowledging and deleting events. Unique request IDs tolerate redelivery. History storage has no queue TTL/MAXLEN and is independent of the live table; history query APIs and visualizations remain future work. Unpublished memory can be lost on worker failure or buffer overflow, while Redis restart durability depends on deployment persistence.
 
 [![請求事件明細：Worker 篩選、時間排序、HTTP、IP／地區與預設五筆分頁 / Request events with worker filtering, time sorting, HTTP, IP/location and five-row pagination](docs/images/monitor-events.png)](docs/images/monitor-events.png)
 
@@ -299,7 +324,10 @@ portfolio-modern/
     │   ├── middleware/
     │   ├── static/               # Local Swagger/ReDoc assets
     │   └── tools/                # Router, docs, worker monitoring and Socket.IO assembly
-    ├── manage_fastapi.py
+    ├── SCHEDULER/                # Scheduled jobs and distributed execution locks
+    ├── manage.py                 # Starts FastAPI and APScheduler together
+    ├── manage_fastapi.py         # FastAPI child entry point
+    ├── manage_apscheduler.py     # APScheduler child entry point
     ├── alembic.ini
     ├── pyproject.toml
     └── uv.lock
@@ -309,13 +337,13 @@ portfolio-modern/
 - `COMMON`：跨模組共用的裝飾器、例外、資料格式與工具。
 - `SYSTEM`：系統設定、路由定義、生命週期、資料庫基礎設施與 middleware。
 - `SYSTEM/models`：作品集與帳號的 ORM 模型，以及 Alembic migration；資料表需手動遷移。
-- `manage_fastapi.py`：目前的 FastAPI、文件與 Socket.IO 組裝及啟動入口。
+- `manage.py`：後端統一啟動入口，同時啟動 FastAPI 與 APScheduler；`manage_fastapi.py` 負責 FastAPI、文件與 Socket.IO 組裝，`manage_apscheduler.py` 負責排程。
 
 - `APPs`: Portfolio and Sys APIs. `views` declares CBV routes, `schema` parses parameters and validates responses, and `module` runs business queries.
 - `COMMON`: Decorators, exceptions, schemas, and utilities shared across modules.
 - `SYSTEM`: Configuration, route definitions, lifecycle management, database infrastructure, and middleware.
 - `SYSTEM/models`: Portfolio and account ORM models and Alembic migrations; apply migrations manually.
-- `manage_fastapi.py`: The current FastAPI, docs, and Socket.IO assembly and startup entry point.
+- `manage.py`: The backend startup entry point for FastAPI and APScheduler together. Its children are `manage_fastapi.py` for API/docs/Socket.IO assembly and `manage_apscheduler.py` for scheduling.
 
 `backend/SYSTEM/config.yaml` 提供可提交的開發預設配置；`backend/SYSTEM/settings.py` 負責整理設定。正式環境須使用私有配置替換 `SECURITY.secret_key` 與服務連線值，實際機密不回寫公開儲存庫。前端共用模組的介面與範例見[共用模組 SPEC](frontend/src/shared/README.md)，後端啟動與各工具規格見[後端 README](backend/README.md)。
 
@@ -389,17 +417,21 @@ The backend exposes six public read APIs, a system diagnostic API, and managemen
 | `GET /management/roles`                | 角色列表、關聯帳號數、搜尋、篩選與多欄位排序              | Paginated roles with account counts, search, filters and ordered sorting |
 | `GET /management/users`                | 一人一列的帳號、角色狀態與成功登入統計                    | One account per row with role state and successful-login statistics      |
 | `GET /management/sites`                | 一人一列的網站設定及目前管理語言內容                      | One person per row with portfolio settings and selected-language content |
+| `GET /management/login-records`        | 可依帳號選取的登入歷史與當時 IP／地區快照                 | Account-scoped login history and stored location snapshots               |
+| `GET /management/users/role-options`   | 可指派角色選項與目前操作者的指派限制                      | Role choices with current assignment eligibility                         |
+| `PATCH /management/roles/{role_id}`    | 角色描述、權限、Default 與 Active                         | Role metadata, permissions, default and activation                       |
+| `PATCH /management/users/{account_id}` | 帳號 Active 與受權限限制的角色指派                        | Account activation and permission-bounded role assignment                |
 | `PATCH /management/sites/{account_id}` | 部分更新既有網站與指定語言內容，包含原子 Default 切換     | Partial platform updates with atomic default-homepage replacement        |
 
-Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 均可透過 `is_caching=true` 啟用短時間回應快取。三支管理列表沿用 `{items,total,pages,page,size}`，Platform／User 每人一列，Role 每角色一列；每頁預設 6 筆，可調整為 1–100 筆。Platform 搜尋和內容使用目前管理語言；管理讀取、預覽及 Platform PATCH 已套用共用權限 dependency。Platform PATCH 排除 PK／FK 與登入身分，表格 Active／Default 已即時保存，完整細節 Save 尚未串接；其他管理寫入、Portfolio 寫入與上傳功能尚未實作。參數與回應格式見[後端 README](backend/README.md)。
+Portfolio API 以 `locale=en` 為預設，另支援 `zh-Hans`、`zh-Hant`；六支 GET 可透過 `is_caching=true` 啟用短期快取。管理列表沿用 `{items,total,pages,page,size}`，預設每頁 6 筆、可調整 1–100 筆。Role／User／Platform 的完整 Edit Save、適用的 Active／Default 即時開關，以及單筆／批次刪除均已串接原資源 API；寫入帶原值確認，在交易內檢查授權、最後管理員、Default 與使用中的關聯。User 角色指派與角色選項受目前權限上限限制。登入紀錄、草稿預覽與讀取沿用各管理旗標；管理新增、其餘作品集內容 CRUD 與上傳仍待實作。完整參數、回應與刪除契約見[後端 README](backend/README.md)。
 
-Portfolio APIs default to `locale=en` and also support `zh-Hans` and `zh-Hant`. All six GETs can opt into short-lived response caching with `is_caching=true`. Management lists share the numbered envelope, with one person per Platform/User row and one role per Role row; the default size of 6 is adjustable from 1 to 100. Platform search and content use the current management language. Management reads, previews and Platform PATCH use the shared permission dependency. Platform PATCH preserves keys and login identity; table Active/Default switches save immediately; full-detail Save is not wired yet. Other management writes, Portfolio writes and uploads remain unimplemented. See the [backend README](backend/README.md) for parameters and response shapes.
+Portfolio reads support three locales and optional short-lived caching. Management lists use the numbered envelope, defaulting to six rows with sizes from 1 to 100. Role/User/Platform detail Save, applicable immediate switches, and single/batch deletion use their original resource APIs. Writes confirm original values and enforce current permissions and transactional invariants. Role assignment is bounded by the actor's permissions. Login history and draft previews share the management authorization model. Administration create operations, the remaining portfolio-content CRUD and uploads are pending; see the backend guide for complete contracts.
 
 ## 從乾淨 checkout 安裝 / Install from a Fresh Checkout
 
-先安裝 Git、[uv](https://docs.astral.sh/uv/getting-started/installation/)、[Node.js 24](https://nodejs.org/en/download) 與 Redis。Python 基線為 3.13（`.python-version`），前端基線為 Node.js 24.21.0／npm 11.19.0（`frontend/.node-version`、`packageManager`）；Python 套件與 npm 套件分別由鎖定檔重建。SQLite driver 隨 Python 依賴安裝，使用預設 SQLite 不需要另啟資料庫服務；Redis 則須獨立啟動。
+先準備 Git、[uv](https://docs.astral.sh/uv/getting-started/installation/)、[Node.js 24](https://nodejs.org/en/download)、PostgreSQL 與 Redis。Python 基線為 3.13（`.python-version`），前端基線為 Node.js 24.21.0／npm 11.19.0（`frontend/.node-version`、`packageManager`）；依賴由各自鎖定檔重建。目前多用戶部署與完整 migration 使用 PostgreSQL。SQLite driver 保留供共用工具及隔離測試；舊 migration 的 PostgreSQL ALTER TYPE 尚不支援從空 SQLite 完整建庫。
 
-Install Git, uv, Node.js 24 and Redis first. The repository pins Python 3.13 and the frontend baseline of Node.js 24.21.0/npm 11.19.0. Lockfiles reproduce package dependencies. The default SQLite backend needs no separate database service, while Redis must run independently.
+Prepare Git, uv, Node.js 24, PostgreSQL and Redis. Python and npm lockfiles reproduce dependencies. The current multi-user deployment and complete migration chain use PostgreSQL. SQLite remains available to storage tools and isolated tests, but historical PostgreSQL ALTER TYPE revisions prevent a complete empty-SQLite bootstrap.
 
 ```bash
 git clone https://github.com/zhenglee315/portfolio-modern.git
@@ -466,19 +498,19 @@ redis-cli ping
 # Expected: PONG
 ```
 
-在 `backend/` 執行 migration，再啟動 API：
+在 `backend/` 執行 migration，再同時啟動 FastAPI 與 APScheduler：
 
-Apply migrations from `backend/`, then start the API:
+Apply migrations from `backend/`, then start FastAPI and APScheduler together:
 
 ```bash
 # Run inside backend/
 uv run --locked alembic upgrade head
-uv run --locked manage_fastapi.py
+uv run --locked manage.py
 ```
 
-新資料庫沒有作品集內容，後端可先以空資料啟動。SSR 請求需要已發布且有對應語言的 Site 內容；建置不讀取作品集。請建立自己的作品集內容。文件位於 `http://127.0.0.1:8080/swagger`。目前 `uv run backend` 是 uv 範例，不是 API 啟動入口。
+新資料庫沒有作品集內容，後端可先以空資料啟動。SSR 請求需要已發布且有對應語言的 Site 內容；建置不讀取作品集。請建立自己的作品集內容。文件位於 `http://127.0.0.1:8080/swagger`。後端統一從 `backend/` 執行 `uv run --locked manage.py`，同時啟動 FastAPI 與 APScheduler。
 
-A new database has no portfolio content; empty-data backend development is supported. SSR requests need a published Site translation, while builds do not fetch portfolio data. Create your own portfolio content. API documentation is at `http://127.0.0.1:8080/swagger`. The `backend` console script remains an example; use `manage_fastapi.py` to start the API.
+A new database has no portfolio content; empty-data backend development is supported. SSR requests need a published Site translation, while builds do not fetch portfolio data. Create your own portfolio content. API documentation is at `http://127.0.0.1:8080/swagger`. Start FastAPI and APScheduler together with `uv run --locked manage.py` from `backend/`.
 
 `SECURITY.secret_key` 是明確標示的開發佔位值，正式環境必須更換為隨機私密金鑰。設定在 Python 匯入時讀取，修改後需重啟；目前沒有自動環境變數覆寫 YAML 的機制，部署時應掛載私有 `SYSTEM/config.yaml`。詳細欄位與金鑰產生方式見後端 README。
 
@@ -497,9 +529,9 @@ cp .env.example .env.local
 npm run dev
 ```
 
-首次安裝才複製 `.env.example`，保留已有 `.env.local` 的個人設定。預設 browser proxy 與 SSR server target 都是後端 8080；若更換 API 位址，同時調整兩者。開發頁面位於 `http://127.0.0.1:5173`，支援 `/`、`/en`、`/zh-Hans`、`/zh-Hant` 及 `/:locale/:user`。`npm run check` 執行型別、lint、格式、文件與建置，建置不讀取作品集資料，SSR 執行時需要可用的 API。本機測試工具集中於不提交的 `agent/` 資料夾。
+首次安裝才複製 `.env.example`，保留已有 `.env.local` 的個人設定。預設 browser proxy 與 SSR server target 都是後端 8080；若更換 API 位址，同時調整兩者。開發頁面位於 `http://127.0.0.1:5173`，支援 `/`、`/en`、`/zh-Hans`、`/zh-Hant` 及 `/:locale/:user`。`npm run check` 執行型別、lint、格式、文件、單元測試與建置，建置不讀取作品集資料，SSR 執行時需要可用的 API。正式回歸測試納入 `backend/tests`、`frontend/tests`；一次性測試資料與報告留在忽略的 `agent/`。完整指令與修正對照見[品質驗證](docs/code-quality.md)。
 
-Copy the environment example only on first setup; preserve existing local settings. Both default API targets point to port 8080. Development runs on port 5173 with default and user URLs. Builds do not fetch portfolio content; the SSR runtime requires an available API. Local test tooling stays in the ignored `agent/` directory.
+Copy the environment example only on first setup; preserve existing local settings. Both default API targets point to port 8080. Development runs on port 5173 with default and user URLs. Builds do not fetch portfolio content; the SSR runtime requires an available API. Maintained tests live in backend/tests and frontend/tests; disposable evidence stays in agent/. See [quality verification](docs/code-quality.md).
 
 ## 前後端正式部署 / Production Deployment
 
@@ -528,12 +560,12 @@ Configure PostgreSQL and Redis using the backend guide, back up data, then synch
 cd backend
 uv sync --locked
 uv run --locked alembic upgrade head
-uv run --locked manage_fastapi.py
+uv run --locked manage.py
 ```
 
-正式主機以既有 service manager 管理 FastAPI 與 Redis。程式更新後重啟後端；資料庫及私有設定放在發版替換範圍之外。
+正式主機以既有 service manager 管理 `manage.py`（FastAPI 與 APScheduler）及 Redis。程式更新後重啟後端；資料庫及私有設定放在發版替換範圍之外。
 
-Use the host service manager for FastAPI and Redis. Restart the API after source updates and retain database/private settings across releases.
+Use the host service manager for `manage.py` (FastAPI and APScheduler) and Redis. Restart the backend after source updates and retain database/private settings across releases.
 
 ### 前端建置與 Node 服務 / Frontend Build and Runtime
 
@@ -554,6 +586,6 @@ Adapt the Nginx example's root/upstreams. It forwards stripped API paths to Fast
 
 ### 驗證與發布 / Verification and Release
 
-前端執行 `npm run check`，確認型別、lint、格式、文件與正式建置。測試工具與報告只保留於不提交的 `agent/`。正式驗收確認預設／個人三語網址、登入登出、跨作品集隔離、草稿不可見、HTTP 狀態及手機的按需載入。
+前端執行 `npm run check`，確認型別、lint、格式、文件與正式建置。可重現的單元與瀏覽器測試位於前後端 tests；暫存報告留在不提交的 `agent/`。正式驗收確認預設／個人三語網址、登入登出、跨作品集隔離、草稿不可見、HTTP 狀態及手機的按需載入。
 
-Run frontend checks for types, lint, formatting, documentation and production builds. Keep local test tooling and reports in the ignored `agent/` directory. Release acceptance covers default/individual locales, account sessions, isolation, draft visibility, real HTTP statuses and mobile demand loading.
+Run frontend checks for types, lint, formatting, documentation and production builds. Run maintained tests from the repository; keep disposable reports in the ignored agent/ directory. Release acceptance covers default/individual locales, account sessions, isolation, draft visibility, real HTTP statuses and mobile demand loading.

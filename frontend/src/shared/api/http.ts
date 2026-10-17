@@ -14,7 +14,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Extract bounded backend error codes from FastAPI string, object or array detail. */
+/** Extract bounded string/object error codes; validation-detail arrays have no public code. */
 export function errorCode(body: unknown): string | undefined {
   if (!body || typeof body !== 'object' || !('detail' in body)) return undefined;
   const detail: unknown = body.detail;

@@ -23,7 +23,11 @@ class PortfolioPublicScopeModule(SqlAlchemyExecAsync):
     """
 
     async def resolve(
-        self, user: str | None = None, site_id: int | None = None, *, locale: EnumLocal = EnumLocal.EN
+        self,
+        user: str | None = None,
+        site_id: int | None = None,
+        *,
+        locale: EnumLocal = EnumLocal.EN,
     ) -> int:
         """
         Select the published portfolio by public user, site ID, or the explicit default.

@@ -1,5 +1,7 @@
 # 共用模組規格 / Shared Module Specifications
 
+**文件責任：** 跨功能共用 API、schema、hooks、lib 與 UI 的邊界、呼叫契約及公開匯出索引。DataTable 的完整 props／互動範例由 [表格指南](ui/README.md) 擁有，角色素材與動畫由 [Cow workspace](ui/cow-workspace/README.md) 擁有；feature／page 的組裝行為見 [前端總覽](../../README.md)。
+
 `shared` 是前端的共用基礎層，對應後端 `COMMON` 的責任：集中外部資料驗證、HTTP 與分頁流程、日期計算、瀏覽器訂閱、浮動面板定位及通用 UI。使用者透過參數傳入資料、文案與事件；共用模組不自行決定作品集業務規則。完整分層、環境安裝及元件規格見[前端 README](../../README.md)。
 
 `shared` provides frontend infrastructure comparable to the backend's `COMMON` layer: validated HTTP reads, numbered pagination, date calculations, browser subscriptions, panel placement, and reusable UI. Consumers supply data, copy, and callbacks. Portfolio business rules remain with their owning features. See the [frontend README](../../README.md) for architecture, installation, and component specifications.
@@ -545,7 +547,7 @@ For a successful-authentication welcome, `AuthCowScene` composes existing primit
 3. 外部資料先由 schema 驗證，型別從契約推導；衍生值直接計算，不再保存一份需要同步的 state。 / Validate external input, derive types, and avoid duplicate derived state.
 4. 透過 props、callbacks 與 CSS tokens 表達合理差異；不要讓 shared 接收 feature 名稱以切換業務分支。 / Express supported variation through props, callbacks, and tokens rather than feature-name branches.
 5. 異步、observer、listener 與 timer 在取消／卸載時清理；過期 callback 不得更新已失效的畫面。 / Clean up async resources and guard stale callbacks.
-6. 共用流程有變更時檢查實際使用者；資料契約、非同步邊界、跨元件焦點、RWD 與特效均須檢查；本機測試工具放根目錄的 `agent/`，不提交。 / Check contracts, lifecycle boundaries, focus, responsive layouts and effects; keep local test tooling in the ignored root `agent/` directory.
+6. 共用流程有變更時檢查實際使用者；資料契約、非同步邊界、跨元件焦點、RWD 與特效均須檢查；可重現的回歸案例納入 `frontend/tests`；一次性證據放根目錄的 `agent/`。 / Check contracts, lifecycle boundaries, focus, responsive layouts and effects; maintain regressions in frontend/tests and keep disposable evidence under agent/.
 7. 新增或修改公開能力時同步本文件與必要的[元件／頁面規格](../../README.md)，說明實際介面和限制。 / Keep shared and component/page specifications aligned with the implemented interface.
 
 ## 共用契約補充與文件檢查 / Contract Inventory and Documentation Check
@@ -583,3 +585,11 @@ Export 按鈕使用 Bootstrap Icons 的 download，Columns 按鈕使用 ui-check
 `DataTableEditCopy` 的 edit／clear／empty／required／invalid／incomplete／saving／failed／conflict／retry／cancel／readonly 全由 owner 注入。API、身份驗證、權限、欄位白名單、資料庫交易、通知與 query 同步由功能擁有；前端驗證不能取代後端驗證父子資料關係或併發控制。`failure: 'discard'` 僅用於自行重讀伺服器狀態的功能。display 可顯示跨列業務預覽，預覽永遠不會加入 changes 或保存草稿；Platform 用於顯示舊 Default 關閉，真正的原子替換由既有 PATCH 處理。
 
 Nullable 的非布林 `InlineField` 同樣提供 clear(label) 控制，明確送出 null，不把空字串和 null 混為一談；clear 的 pointer down 保留輸入焦點，避免先 blur 保存舊值再清空。Management 詳情屬頁面層，由 owner 接收保存、跨欄位驗證及相依變更 callbacks，共用元件不讀 API。
+
+## 分頁與時間契約 / Page and Time Contracts
+
+`validateNumberedPage` 共用總數、頁數、項目數及 unique ID 驗證；domain schema 分別決定固定或可調的 size。`formatUtcTimestamp` 接收 ISO 字串或 epoch 毫秒，產出固定 UTC 日期文字；`formatUtcClock` 依語系格式化並明確標示 UTC。缺少／無效時間回傳「—」，epoch 0 保留有效，秒由呼叫端明確轉換。
+
+## 表格內部組成 / Table Internals
+
+`DataTableProps` 與原本的 DataTable 型別集中於 DataTable.types.ts；舊入口保留原型別的重匯出。`useDataTable` 回傳 `DataTableModel`，由 `DataTableToolbar`、`DataTableHead`、`DataTableFooter` 呈現對應區塊。`TableCheckbox` 保持 checked／indeterminate 一致，`downloadTable` 回收 Blob URL，`printTable` 在列印完成或取消時回收 frame。這些模組供 DataTable 內部組合，不持有 API 或帳號狀態。

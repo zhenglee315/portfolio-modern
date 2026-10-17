@@ -58,7 +58,10 @@ class BodyAuthEmail(BaseModel):
 # ■—< BODY >————————————————————————————————————————————————————————————————————————————■ Auth - Sign In
 class BodyAuthSignIn(BodyAuthEmail):
     password: SecretStr = Field(
-        ..., min_length=1, max_length=1024, description="Account password; whitespace is preserved."
+        ...,
+        min_length=1,
+        max_length=1024,
+        description="Account password; whitespace is preserved.",
     )
 
     @field_validator("password")
@@ -119,4 +122,10 @@ class BodyAuthRegister(BodyAuthSignIn):
         return validate_public_user(user) if user is not None else None
 
 
-__all__ = ("BodyAuthEmail", "BodyAuthSignIn", "BodyAuthVerifyEmail", "BodyAuthRegister", "validate_auth_email")
+__all__ = (
+    "BodyAuthEmail",
+    "BodyAuthSignIn",
+    "BodyAuthVerifyEmail",
+    "BodyAuthRegister",
+    "validate_auth_email",
+)

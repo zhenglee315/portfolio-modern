@@ -1,3 +1,4 @@
+import { formatUtcTimestamp } from '@/shared/lib/timestamps';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
@@ -232,11 +233,7 @@ export function ManagementTable({
                 const value = rowValue(row, field);
                 return typeof value === 'string' ? (
                   <time dateTime={value} title={`${value} UTC`}>
-                    {new Date(value)
-                      .toISOString()
-                      .slice(0, 19)
-                      .replaceAll('-', '.')
-                      .replace('T', ' ')}
+                    {formatUtcTimestamp(value)}
                   </time>
                 ) : (
                   '—'

@@ -42,7 +42,11 @@ class MonitorMiddleware:
             await self.app(scope, receive, send)
             return
         app = scope.get("app")
-        monitor = getattr(self.state if self.state is not None else getattr(app, "state", None), "monitor", None)
+        monitor = getattr(
+            self.state if self.state is not None else getattr(app, "state", None),
+            "monitor",
+            None,
+        )
         path = scope.get("path", "")
         if (
             scope["type"] != "http"
@@ -89,20 +93,29 @@ class MonitorMiddleware:
         except asyncio.CancelledError:
             if not completed:
                 monitor.end_request(
-                    token, failed=True, http_status=status, outcome="disconnected" if disconnected else "cancelled"
+                    token,
+                    failed=True,
+                    http_status=status,
+                    outcome="disconnected" if disconnected else "cancelled",
                 )
                 completed = True
             raise
         except OSError:
             if not completed:
                 monitor.end_request(
-                    token, failed=True, http_status=status, outcome="disconnected" if disconnected else "error"
+                    token,
+                    failed=True,
+                    http_status=status,
+                    outcome="disconnected" if disconnected else "error",
                 )
                 completed = True
             raise
         finally:
             if not completed:
                 monitor.end_request(
-                    token, failed=True, http_status=status, outcome="disconnected" if disconnected else "error"
+                    token,
+                    failed=True,
+                    http_status=status,
+                    outcome="disconnected" if disconnected else "error",
                 )
             scope.pop(MONITOR_SCOPE_KEY, None)

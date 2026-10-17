@@ -21,6 +21,12 @@ export function useMonitorSocket(
   topic: 'workers' | 'requests' = 'requests',
 ) {
   const [state, setState] = useState<MonitorState>({ status: 'connecting' });
+  const [identity, setIdentity] = useState({ enabled, accountId });
+  if (identity.enabled !== enabled || identity.accountId !== accountId) {
+    // Clear private observations before another identity can render this mounted view.
+    setIdentity({ enabled, accountId });
+    setState({ status: 'connecting' });
+  }
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!enabled || paused) return;
@@ -81,9 +87,9 @@ export function useMonitorSocket(
       subscribe();
     });
     socket.on('monitor_snapshot', (raw: unknown) => {
+      if (!active || deniedConnection) return;
       // Validate the transport boundary before any data reaches cards or animation.
       const parsed = monitorSnapshotSchema.safeParse(raw);
-      if (!active) return;
       if (!parsed.success) {
         update('unavailable');
         return;

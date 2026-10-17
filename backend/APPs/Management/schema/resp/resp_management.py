@@ -44,13 +44,24 @@ class RespManagementUser(BaseModel):
     """Expose one account with its role, optional website and successful sign-in statistics."""
 
     id: int = Field(..., gt=0, description="Account primary key.")
-    email: str = Field(..., max_length=254, description="Account login email, independent of public contact email.")
+    email: str = Field(
+        ...,
+        max_length=254,
+        description="Account login email, independent of public contact email.",
+    )
     role_id: int = Field(..., gt=0, description="Assigned role primary key.")
     role: str = Field(..., min_length=1, max_length=64, description="Assigned role name.")
     is_active: bool = Field(..., description="Account state; false marks the account as soft-deleted.")
     role_is_active: bool = Field(..., description="Whether the assigned role allows its accounts to sign in.")
-    site_id: int | None = Field(..., gt=0, description="Owned website primary key, or null when no website exists.")
-    has_site: bool = Field(..., description="Whether the account owns a website record, regardless of publication.")
+    site_id: int | None = Field(
+        ...,
+        gt=0,
+        description="Owned website primary key, or null when no website exists.",
+    )
+    has_site: bool = Field(
+        ...,
+        description="Whether the account owns a website record, regardless of publication.",
+    )
     login_count: int = Field(..., ge=0, description="Total successful sign-in records; zero when none exist.")
     last_login: datetime | None = Field(..., description="Latest successful sign-in time in UTC ISO 8601, or null.")
     createtime: datetime = Field(..., description="Account creation time, serialized in UTC ISO 8601.")
@@ -86,9 +97,17 @@ class RespManagementRoleOptions(RespRecords[RespManagementRoleOption]):
 class RespManagementSite(BaseModel):
     """Keep the account ID as row identity even when no portfolio or translation exists."""
 
-    id: int = Field(..., gt=0, description="Owner account ID; stable identity for this person-based row.")
+    id: int = Field(
+        ...,
+        gt=0,
+        description="Owner account ID; stable identity for this person-based row.",
+    )
     user: str = Field(..., description="Public portfolio URL handle; independent of login email.")
-    owner_email: str = Field(..., max_length=254, description="Read-only login email, independent of contact email.")
+    owner_email: str = Field(
+        ...,
+        max_length=254,
+        description="Read-only login email, independent of contact email.",
+    )
     owner_is_active: bool = Field(..., description="Owner account state; independent of role login availability.")
     site_id: int | None = Field(..., description="Portfolio ID; null when this person has no portfolio.")
     has_site: bool = Field(..., description="Whether the owner has created a portfolio.")
@@ -102,11 +121,17 @@ class RespManagementSite(BaseModel):
     linkedin: str | None = Field(..., description="Public LinkedIn URL; empty string hides the link.")
     github: str | None = Field(..., description="Public GitHub URL; empty string hides the link.")
     medium: str | None = Field(..., description="Public Medium URL; empty string hides the link.")
-    email: str | None = Field(..., description="Public portfolio contact email; separate from the login email.")
+    email: str | None = Field(
+        ...,
+        description="Public portfolio contact email; separate from the login email.",
+    )
     chat_icon: str | None = Field(..., description="Bundled contact-bubble icon path.")
     locale: EnumLocal = Field(..., description="Requested management content language.")
     has_translation: bool = Field(..., description="Whether this portfolio has content in the requested language.")
-    brand_title: str | None = Field(..., description="Localized brand title; null without the requested translation.")
+    brand_title: str | None = Field(
+        ...,
+        description="Localized brand title; null without the requested translation.",
+    )
     brand_title_sub: str | None = Field(..., description="Localized brand subtitle.")
     first_name: str | None = Field(..., description="Localized given name.")
     family_name: str | None = Field(..., description="Localized family name.")
@@ -153,15 +178,20 @@ class RespManagementLoginRecord(BaseModel):
     logintime: datetime = Field(..., description="Original login time serialized in UTC ISO 8601.")
     ip_address: str | None = Field(..., max_length=45, description="Normalized request IP, or null when unknown.")
     country_code: str | None = Field(
-        ..., min_length=2, max_length=2, description="Approximate IP-derived country code."
+        ...,
+        min_length=2,
+        max_length=2,
+        description="Approximate IP-derived country code.",
     )
     region: str | None = Field(..., max_length=128, description="Approximate region captured at login time.")
     city: str | None = Field(..., max_length=128, description="Approximate city captured at login time.")
     geo_status: LoginGeoStatus = Field(
-        ..., description="GeoIP result; missing geography does not invalidate the login."
+        ...,
+        description="GeoIP result; missing geography does not invalidate the login.",
     )
     is_online: bool | None = Field(
-        ..., description="IP heartbeat exists now; null when Redis is unavailable. This is not account-session status."
+        ...,
+        description="IP heartbeat exists now; null when Redis is unavailable. This is not account-session status.",
     )
 
     @field_validator("logintime")

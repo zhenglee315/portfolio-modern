@@ -48,7 +48,7 @@ SERVER:
   # TCP port on which the API server listens.
   port: 8080
   # Number of API server worker processes.
-  worker: 1
+  worker: 4
 
 # ------------------------------------------------------( Time configuration )
 TIME:
@@ -122,3 +122,18 @@ DATABASE:
     # SQLite 不使用下列帳密；切換 PostgreSQL 時由私有部署設定替換。
     # SQLite ignores these credentials; replace them in private deployment configuration for PostgreSQL.
     password: Password.123
+
+# ------------------------------------------------------( Request history - Redis SYS / DB 0 )
+MONITOR:
+  request_queue: system:monitor:requests:queue
+  request_group: record_request
+  request_batch: 500
+  request_buffer: 10000
+  request_max_batches: 20
+
+# ------------------------------------------------------( Scheduler )
+SCHEDULER:
+  coalesce: true
+  timeout: 300
+  shutdown_grace: 30
+  lock_prefix: portfolio-modern:scheduler:lock

@@ -44,7 +44,12 @@ def upgrade() -> None:
     """
     op.add_column(
         "auth_user",
-        sa.Column("user", sa.String(32), nullable=True, comment="Unique public handle; independent of the login email"),
+        sa.Column(
+            "user",
+            sa.String(32),
+            nullable=True,
+            comment="Unique public handle; independent of the login email",
+        ),
     )
     op.add_column(
         "auth_role",
@@ -62,10 +67,19 @@ def upgrade() -> None:
     ):
         op.add_column(
             "portfolio_site",
-            sa.Column(name, sa.Boolean(), nullable=True, server_default=sa.false(), comment=description),
+            sa.Column(
+                name,
+                sa.Boolean(),
+                nullable=True,
+                server_default=sa.false(),
+                comment=description,
+            ),
         )
     for table in _OWNED_TABLES:
-        op.add_column(table, sa.Column("site_id", sa.Integer(), nullable=True, comment="Portfolio owner site"))
+        op.add_column(
+            table,
+            sa.Column("site_id", sa.Integer(), nullable=True, comment="Portfolio owner site"),
+        )
 
 
 # ■—< MIGRATE >———————————————————————————————————————————————————————————————————————■ Restore

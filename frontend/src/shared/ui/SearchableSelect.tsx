@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
 import Dropdown from 'react-bootstrap/Dropdown';
+import { createPortal } from 'react-dom';
 import { contentSizedMenuPosition } from '../lib/menu-position';
 import { ChoiceChip } from './ChoiceChip';
 import { Icon } from './Icon';

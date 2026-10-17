@@ -57,4 +57,9 @@ def public_user_candidate(email: str, attempt: int = 1) -> str:
     return validate_public_user(prefix[: 32 - len(suffix)].rstrip("-_") + suffix)
 
 
-__all__ = ("PUBLIC_USER_PATTERN", "PUBLIC_USER_RESERVED", "validate_public_user", "public_user_candidate")
+__all__ = (
+    "PUBLIC_USER_PATTERN",
+    "PUBLIC_USER_RESERVED",
+    "validate_public_user",
+    "public_user_candidate",
+)

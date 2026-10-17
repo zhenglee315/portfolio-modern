@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -25,6 +26,8 @@ export type SidebarNavigationItem = {
   onSelect?: () => void;
   current?: 'page' | 'location';
   ordinal?: string;
+  /** Optional translated section caption; adjacent items with the same group share one heading. */
+  group?: string;
 };
 
 /** One desktop rail owns collapse geometry, rotating chevrons and brand disclosure. */
@@ -121,7 +124,7 @@ export function SidebarLinks({
   return (
     <>
       <nav className="sidebar-navigation-links" aria-label={label} data-sidebar-links>
-        {items.map((item) => {
+        {items.map((item, index) => {
           const props = {
             className: `sidebar-navigation-item ${active === item.id ? 'sidebar-navigation-active' : ''}`,
             'aria-label': item.label,
@@ -157,12 +160,19 @@ export function SidebarLinks({
               </>
             ),
           };
-          return item.to ? (
-            <Link key={item.id} to={item.to} {...props} />
-          ) : item.href ? (
-            <a key={item.id} href={item.href} {...props} />
-          ) : (
-            <button key={item.id} type="button" {...props} />
+          return (
+            <Fragment key={item.id}>
+              {!compact && item.group && item.group !== items[index - 1]?.group && (
+                <p className="sidebar-navigation-group-title">{item.group}</p>
+              )}
+              {item.to ? (
+                <Link to={item.to} {...props} />
+              ) : item.href ? (
+                <a href={item.href} {...props} />
+              ) : (
+                <button type="button" {...props} />
+              )}
+            </Fragment>
           );
         })}
       </nav>

@@ -32,6 +32,18 @@ This directory contains real website screenshots and focused crops for the docum
 | [access-denied-rwd-phone.png](access-denied-rwd-phone.png) | 390×844 手機上下配置 / Stacked phone layout |
 | [access-denied-rwd-landscape.png](access-denied-rwd-landscape.png) | 667×375 橫向手機的緊湊雙欄 / Compact two-column phone landscape |
 
+監控畫面 / Monitoring captures:
+
+| 圖片 / Image                                 | 介紹範圍 / Purpose                                                                                                              |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| [monitor-overview.png](monitor-overview.png) | 監控分組導航、統計及 Worker 請求／回應流程 / Monitoring navigation, summary and worker request/response flow                    |
+| [monitor-events.png](monitor-events.png)     | 實際 HTTP 事件、IP／local、Worker 篩選、排序及五筆分頁 / Real HTTP events, IP/local, filtering, sorting and five-row pagination |
+| [monitor-workers.png](monitor-workers.png)   | Worker 心跳、CPU、RSS、Uptime、Restarts 與交易數 / Worker liveness, CPU, RSS, uptime, restarts and transactions                 |
+
+監控圖片取自已授權登入的本機實際單 Worker 環境；事件表為暫停快照，多 Worker 與跨程序推送另由隔離整合測試驗證。圖片中的時間、PID 與資源值只是擷取當下的觀測，不是固定規格。
+
+Monitoring images show the authorized local single-worker runtime; the events table is a paused snapshot. Isolated integration tests verify multiple workers and cross-process delivery. Times, PIDs and resource values are observations at capture time rather than fixed specifications.
+
 更新圖片時保留既有檔名與功能對應，確認文字、卡片、包邊及控制沒有被意外截斷。對話框／抽屜應在進場完成後擷取，等待字型、內容與圖片載入，並讓裁切保留功能所需的上下文。PNG 不包含瀏覽器網址列、桌面或操作紀錄。展示文字與日期屬於 API 內容，不作為固定文案規格。
 
 When refreshing images, preserve filenames and feature mappings. Retain readable text, card edges and necessary controls. Capture dialogs and drawers after entrance completes and after fonts, content and images load. PNGs contain the interface only, without browser chrome, desktop surfaces or operational records. Displayed text and dates are API content rather than fixed copy requirements.

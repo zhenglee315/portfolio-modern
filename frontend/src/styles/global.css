@@ -5,6 +5,8 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 35px;
+  /* Keep shared viewport backgrounds and content aligned across short and scrolling routes. */
+  scrollbar-gutter: stable;
 }
 body {
   margin: 0;

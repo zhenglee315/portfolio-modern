@@ -217,11 +217,11 @@ The shared usePageEntrance hook owns paired setup/cleanup and one startup/palett
 
 `SidebarRail`、`SidebarLinks`、`SidebarDrawer`（[來源](ui/SidebarNavigation.tsx)）是首頁與 Settings 共用的導航模組。SidebarRail 接收 compact／onCompact、收合與展開文案、brand、可選 brandLink(to,label)、leading／trailing、children 與 footer；drawerAt 選擇 phone（760px）或 tablet（1024px）的桌面側欄隱藏條件。兩邊共用 32px 雙箭頭控制、180 度旋轉、80px 收合寬度、至少 48px 的項目列高、8px 列間距及 18px 圖示；品牌與文字保持 DOM 並以 max-width、opacity、visibility 收合，不切換成漢堡圖示。
 
-`SidebarNavigationItem` 提供 id、label、icon、可選 href／to／onSelect、current 與 ordinal。SidebarLinks 接收 items、label、active 與 compact，統一 anchor／Router link／button 的排版；compact 狀態的 tooltip 透過 body portal 呈現，沿用 useAnchoredPanel 與 useTooltipDismissal，在 Escape、外部點擊、resize、blur、文件隱藏或捲動時關閉並保留原項目焦點。呼叫端決定權限、排序、網址與翻譯，shared 不取得 SESSION 或 Site 資料。
+`SidebarNavigationItem` 提供 id、label、icon、可選 href／to／onSelect、current、ordinal 與 group。group 是呼叫端傳入的翻譯後分組標題；相鄰同組項目只顯示一次低調小字，桌面與 drawer 共用，compact 隱藏標題，未指定 group 維持平面列表。SidebarLinks 接收 items、label、active 與 compact，統一 anchor／Router link／button 的排版；compact 狀態的 tooltip 透過 body portal 呈現，沿用 useAnchoredPanel 與 useTooltipDismissal，在 Escape、外部點擊、resize、blur、文件隱藏或捲動時關閉並保留原項目焦點。呼叫端決定權限、排序、網址與翻譯，shared 不取得 SESSION 或 Site 資料。
 
 SidebarDrawer 接收 id、open、onClose、label、closeLabel、children、footer 與可選 headerOffset（0 或 64px），共用 250px Offcanvas、關閉圖示、transition 與 cycleDialogTab。首頁保留 64px 固定頂欄避讓；Settings 從畫面頂端開啟，標題只提供無障礙名稱，不顯示 Management 字樣。兩邊的 mobile trigger 都使用共用 icon-button。
 
-Public and settings navigation share one rail, item list and drawer implementation. Owners supply branding, translated labels, destinations and permission-filtered items. Collapse rotates the same double chevrons and animates existing labels; row spacing, icons and compact tooltips are shared. Only the responsive breakpoint and fixed-header offset differ between the two page layouts.
+Public and settings navigation share one rail, item list and drawer implementation. Owners supply branding, translated labels, destinations and permission-filtered items. Optional item `group` labels insert muted section captions once per consecutive group in both rail and drawer; compact mode hides captions, and ungrouped lists remain flat. Collapse rotates the same double chevrons and animates existing labels; row spacing, icons and compact tooltips are shared. Only the responsive breakpoint and fixed-header offset differ between the two page layouts.
 
 ### 控制項與選單標準 / Control and Menu Contracts
 

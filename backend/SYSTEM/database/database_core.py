@@ -173,6 +173,17 @@ class ConnectionManager:
         print(f"[INFO] [ConnectionManager.init_cache] Registered {len(pending)} async Redis cache client(s).")
 
     # —< Access >——————————————————————————————————————————● Database
+    def get_engine(self) -> AsyncEngine:
+        """
+        Return the existing database engine without creating a session or connecting.
+
+        :return: Manager-owned AsyncEngine; callers must not dispose it.
+        :raises RuntimeError: init_db() has not registered an engine.
+        """
+        if self._engine is None:
+            raise RuntimeError("Database has not been initialized; call init_db() first.")
+        return self._engine
+
     def get_db(self) -> AsyncSession:
         """
         Create a new asynchronous session for the configured database.

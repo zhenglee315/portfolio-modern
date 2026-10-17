@@ -6,9 +6,9 @@ User PATCH `/management/users/{account_id}` 現在接受 is_active／role_id，�
 
 This directory contains the FastAPI backend for the personal profile system. `APPs` holds business APIs, `COMMON` holds shared tools, and `SYSTEM` owns configuration, models, the database, middleware, and the application lifecycle. See the [project README](../README.md) for the product overview.
 
-目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Role／User／Platform PATCH、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。管理新增／刪除 API 與 Portfolio 寫入 API 尚未實作。
+目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Role／User／Platform PATCH、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。Worker 監控由 lifespan 啟停，包含資源、HTTP 請求、交易與程序替換統計，透過 `/monitor` Socket.IO namespace 推送變更快照，並提供 CLI 自測。管理新增／刪除 API 與 Portfolio 寫入 API 尚未實作。
 
-Six Portfolio read APIs, three management lists, Role/User/Platform PATCH, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Administration create/delete APIs and Portfolio write APIs are not implemented yet.
+Six Portfolio read APIs, three management lists, Role/User/Platform PATCH, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Lifespan-managed worker monitoring covers resources, HTTP requests, transactions and process replacements, delivering changed snapshots through the `/monitor` Socket.IO namespace, with a diagnostic CLI. Administration create/delete APIs and Portfolio write APIs are not implemented yet.
 
 ## 管理員 Portfolio 預覽
 
@@ -555,9 +555,121 @@ curl -fsS http://127.0.0.1:8080/openapi.json > /dev/null
 curl -fsS 'http://127.0.0.1:8080/portfolio/projects?locale=en&page=1&size=6'
 ```
 
-新資料庫沒有作品集內容；`/portfolio/site?locale=en` 在沒有對應語言的已發布首頁時回傳 404。建立自己的作品集內容後，可用此端點確認個人資料。`uv` 產生的 `backend` console script 目前仍指向 `src/backend` 範例，不會啟動 API；入口應使用 `manage_fastapi.py`。目前入口傳入 Uvicorn 的是已建立的 ASGI 物件，因此保持 `SERVER.worker: 1`；`SERVER.reload` 目前沒有傳給入口的 Uvicorn 呼叫，不能將它視為已實作的熱重載。部署多 worker／reload 需要先調整為可匯入的 application factory。
+新資料庫沒有作品集內容；`/portfolio/site?locale=en` 在沒有對應語言的已發布首頁時回傳 404。建立自己的作品集內容後，可用此端點確認個人資料。`uv` 產生的 `backend` console script 目前仍指向 `src/backend` 範例，不會啟動 API；入口應從 `backend/` 執行 `manage_fastapi.py`。入口使用 `create_app()` application factory，並由目前檔名與函式名稱產生 Uvicorn import string；`SERVER.worker` 可設定為大於 1，由各 worker 建立自己的應用程式並執行 lifespan。`SERVER.reload` 目前沒有傳給入口的 Uvicorn 呼叫，不能將它視為已實作的熱重載。
 
-A new database has no portfolio content; `/portfolio/site?locale=en` returns 404 without a published default site in that locale. After creating your own content, use this endpoint to verify the profile. The generated `backend` console script still points to the `src/backend` sample and does not start the API; use `manage_fastapi.py`. This entry point passes an instantiated ASGI application to Uvicorn, so keep `SERVER.worker: 1`. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload. Multiple workers or reload require an importable application factory.
+A new database has no portfolio content; `/portfolio/site?locale=en` returns 404 without a published default site in that locale. After creating your own content, use this endpoint to verify the profile. The generated `backend` console script still points to the `src/backend` sample and does not start the API; run `manage_fastapi.py` from `backend/`. The entry point uses the `create_app()` application factory and derives Uvicorn's import string from the current filename and function name. `SERVER.worker` can be greater than 1; each worker creates its own application and runs its lifespan. `SERVER.reload` is not forwarded to Uvicorn and does not currently enable hot reload.
+
+### Worker 監控 / Worker Monitoring
+
+Worker 監控核心位於 `SYSTEM/tools/tools_monitor.py`，由 `WorkerMonitor` 管理；`MonitorMiddleware` 位於 `SYSTEM/middleware/utils/middleware_monitor.py`，透過 middleware 套件統一匯出及註冊。系統基礎設施不依賴 `APPs` 業務模組。每個 worker 的 lifespan 在 Redis／SQL 初始化後建立 `app.state.monitor` 並啟動背景回報；middleware 與 SQLAlchemy 事件只更新程序內統計；關閉時先停止回報與移除事件，再關閉 Redis。模組沒有新增 HTTP API、資料表或長期歷史紀錄。
+
+Worker monitoring lives in `SYSTEM/tools/tools_monitor.py`, owned by `WorkerMonitor`. `MonitorMiddleware` lives in `SYSTEM/middleware/utils/middleware_monitor.py`, exported and registered through the middleware package. System infrastructure does not depend on `APPs` business modules. Each worker's lifespan initializes `app.state.monitor` after Redis/SQL setup. Middleware and SQLAlchemy events update local counters, and the background task publishes snapshots. Shutdown stops reporting and removes listeners before Redis is closed. Monitoring adds no HTTP endpoints, SQL tables or long-term history.
+
+| 檔案 / File                                     | 責任 / Responsibility                                                                                                                                                                             |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manage_fastapi.py`                             | Application factory、ASGI middleware 外層與原生 Uvicorn supervisor 接線。 / Application factory, outer monitoring middleware and native supervisor integration.                                   |
+| `SYSTEM/lifespan.py`                            | 初始化後啟動採樣與推送，關閉時依序回收背景工作及連線。 / Starts sampling and streaming after initialization; stops tasks before closing connections.                                              |
+| `SYSTEM/settings.py`                            | 統一 `MONITOR_CYCLE_SEC` 採樣／推送週期。 / Shared sampling and publishing cycle.                                                                                                                 |
+| `SYSTEM/tools/tools_monitor.py`                 | WorkerMonitor／MonitorSupervisor／MonitorStream：採樣、統計、重啟觀察、Redis 彙整與授權變更推送。 / Sampling, counters, replacement tracking, Redis aggregation and authorized change publishing. |
+| `SYSTEM/middleware/utils/middleware_monitor.py` | 記錄 HTTP 進入到最後 ASGI body／trailers，更新本機統計。 / Tracks HTTP entry through the final ASGI body/trailers and updates local counters.                                                     |
+| `SYSTEM/tools/tools_socketio.py`                | 掃描事件、Socket.IO 啟停、讀取 Session 及綁定監控推送服務。 / Event discovery, Socket.IO lifecycle, session loading and monitor stream setup.                                                     |
+| `APPs/Sys/events_monitor.py`                    | `/monitor` 事件、目前 Session 權限檢查與訂閱入口。 / Namespace events, current session authorization and subscription entry points.                                                               |
+| `SYSTEM/scripts/check_monitor.py`               | 讀取 Redis 快照的診斷 CLI。 / Read-only snapshot diagnostic CLI.                                                                                                                                  |
+
+HTTP 請求本身由原 Worker 執行，middleware 不把請求送到 Redis，也不負責分派 Worker。它只更新程序內觀測資料，背景採樣再以有期限的快照寫入 Redis；Socket.IO 彙整這些快照供前端顯示。這條監控路徑沒有使用消費式 Queue。
+
+HTTP requests execute in their accepting worker. Middleware updates local observations; background sampling writes expiring snapshots to Redis, which Socket.IO aggregates for the browser. Redis does not dispatch the requests, and monitoring does not use a consumptive queue.
+
+- Redis：沿用 `EnumCache.SYS`（目前 DB 0），key 前綴為 `system:monitor`，與 session／訪客心跳分開。採樣及 Supervisor 回報共用 `SYSTEM/settings.py` 的 `MONITOR_CYCLE_SEC: float = 2.0`；請求／交易事件只更新記憶體，合併至下一輪採樣。心跳 TTL 15 秒，快照及管理器目前狀態保留 60 秒。服務停止回報後所有監控 key 自動到期。
+- 資源：CPU 以單一邏輯核心容量為基準，可能超過 100%；第一次採樣為 `null`。RAM 為 RSS bytes，多程序 RSS 加總可能包含共享記憶體。運行時間使用程序建立時間與單調時鐘。
+- 請求：保留處理中明細及最近 60 秒完成事件，每個 worker 最多各輸出 200 筆處理中／已結束明細。欄位包括 Request ID、Worker／PID、Method、Path、進入／離開時間、ASGI 階段、HTTP、已處理／總耗時及 IP／地區。超量時回報截斷旗標，總併發計數仍維持完整；最近平均值只依保留事件列表計算。串流最後 body／trailers 才算完成，取消、斷線、錯誤及 worker 退出分開標示。健康檢查及文件端點預設排除，可透過 middleware 的 `exclude` 調整；Socket.IO、WebSocket 與回應後背景工作不混入 HTTP 計數。
+- 掛載：入口另以 `MonitorMiddleware(..., state=self.app.state)` 包住完整 ASGI app，以觀察 FastAPI 外層產生的 HTTP 500。scope 標記讓既有內層掛載略過重複計數；正常回應與 500 都只登記一次。
+- IP／地區：只採用 Uvicorn 處理後的 ASGI `client`，不直接讀請求的轉送標頭。入口的 `SERVER.forwarded_allow_ips` 預設為 `127.0.0.1,::1`；反向代理位於其他位址時，部署設定須明確列出可信代理 IP／CIDR。保留 IPv4／IPv6，IPv4-mapped IPv6 正規化為 IPv4。地區重用既有本地 `GeoIpReader`，背景執行並使用有期限、最多 1024 筆的程序內快取；內網／未知／資料庫不可用均有明確狀態。地區代表 IP 的粗略推估，不代表使用者實體位置；不記錄 query、body、cookie 或授權標頭。
+- 交易：透過 `CONN_MANAGER.get_engine().sync_engine` 識別本應用的 engine，只監聽最外層 Session 邏輯交易，包含讀取觸發的 autobegin。監控不建立 session、不執行 SQL；數據只回報到 Redis SYS。Commit、rollback、close 均會結束計數，SAVEPOINT 不另計。開啟中的交易數不等於正在執行 SQL 的數量。
+- 重啟：由入口的 `WorkerMonitor.supervise(...)` 觀察原生 Uvicorn 管理器替換。各 slot 的 `restarts` 只計意外替換；SIGHUP 更新另計 `reloads`，擴縮容分開處理。本次 manager run 結束後不跨次累計。已退出的程序標記短期保留，避免舊快照被誤認為存活。
+- 相容性：入口保留 `app=f"{Path(__file__).stem}:{create_app.__name__}"`。管理器接線使用 Uvicorn 內部介面，因此固定 `uvicorn==0.54.0`；升級時需重新驗證強制退出、reload、擴縮容及關閉行為。直接從其他 Uvicorn CLI 啟動而未使用此接線時，重啟次數顯示未知。
+- 可用性：Redis 故障不阻塞 HTTP 路徑；回報有逾時與重試。沒有有效心跳時顯示 `stale`，不把舊數據解讀成即時狀態。短請求透過暫存的完成事件回報；若程序在下一次回報前突然退出，未回報的事件仍可能遺失。這是短期觀測資料，不是審計紀錄。
+- UI 語義：HTTP 忙碌 worker 依 `active_requests` 判斷，與 DB 交易忙碌分開。`health_basis=lifespan_heartbeat` 僅表示 worker 心跳；尚未做 HTTP 健康探測，UI 應顯示「心跳正常」。每個 worker 有自己的 `observed_at`，彙整結果是非同步快照，並非跨程序原子快照；完成時間表示最後 ASGI 回應送出，不代表客戶端已確認接收。
+
+Redis uses SYS (currently DB 0) under `system:monitor`. Worker and supervisor reports share `SYSTEM/settings.py: MONITOR_CYCLE_SEC = 2.0`; local request/transaction changes are batched into the next sample. Heartbeat TTL is 15 seconds, and snapshots expire after 60 seconds. Each worker retains up to 200 recent request events and outputs up to 200 active details with explicit truncation flags. Events include identity, method/path, times, ASGI phase, HTTP outcome, duration, normalized client IP and local GeoIP enrichment. Private/unknown IPs have explicit location states. Proxy headers are only trusted from `SERVER.forwarded_allow_ips` (default loopback); configure actual proxy IPs/CIDRs in deployment settings. GeoIP runs in the background with bounded, expiring cache; request query/body/credentials are not recorded. CPU is relative to one core, RAM is RSS, transaction counts cover outer logical Session scopes. HTTP busy and transaction busy are separate. Health represents lifespan heartbeats, not an HTTP probe; observations are asynchronous per-worker snapshots, not a globally atomic trace. Events can be lost if a process dies before publishing. The native supervisor adapter remains pinned to Uvicorn 0.54.0; unexpected restarts, reload and scaling are counted separately.
+
+`WorkerMonitor.read_snapshot()` 提供 UI 可直接映射的資料分組；`run_id` 可篩選特定管理器執行，`window_seconds` 指定事件顯示視窗：
+
+`WorkerMonitor.read_snapshot()` exposes the following UI data groups; optional `run_id` selects a manager run and `window_seconds` selects the event display window:
+
+| UI        | 資料 / Data                                                                                 | 語義 / Meaning                                                                                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Worker 表 | `current_workers`                                                                           | 目前 slot，含 PID、CPU、RSS、運行時間與重啟；尚無快照的 slot 使用 unknown／starting。 / Current slots, including unknown/starting placeholders.                                                                                         |
+| 請求卡    | `summary.active_requests`、`summary.busy_workers`、`summary.idle_workers`                   | 只計新鮮 HTTP 觀測；`active_requests_complete=false` 表示不完整。 / Fresh HTTP observations with explicit completeness.                                                                                                                 |
+| 完成卡    | `summary.recent_completed_requests`、`recent_average_duration_ms`、`recent_max_duration_ms` | 依保留事件列表計算，截斷時不能當成完整流量。 / Based on retained events, not full traffic when truncated.                                                                                                                               |
+| HTTP 2xx  | `summary.recent_http_2xx`                                                                   | 符合示意圖 2xx 篩選的 count、average_duration_ms、max_duration_ms。 / Successful-response subset for the mockup.                                                                                                                        |
+| 事件表    | `requests`                                                                                  | 依進入時間倒序；含 slot、PID、IP、country_code、region、city、geo_status、location；本機／私有 IP 的 location 為 `local`。 / Entry-time descending events with worker/IP/location; local and private IPs use the `local` display label. |
+| 狀態卡    | `summary.running_workers`、`expected_workers`、`abnormal_workers`、`health`                 | 心跳狀態與目標數，避免把資料過期誤認為健康。 / Heartbeat capacity with stale data treated as unknown.                                                                                                                                   |
+| 服務列    | `supervisors[].server`                                                                      | 實際 Uvicorn host、port、application、factory、目標 worker 數。 / Actual Uvicorn configuration.                                                                                                                                         |
+
+從 `backend/` 執行可移除的自測 CLI；預設只印一次，`--watch` 持續查看，`--json` 輸出 JSON。它只讀取目前快照：
+
+From `backend/`, run the removable read-only diagnostic CLI. Default output is one snapshot; add `--watch` for periodic reads or `--json` for JSON:
+
+```bash
+uv run python -m SYSTEM.scripts.check_monitor --watch --requests
+```
+
+隔離測試預設不連任何設定中的資料庫／Redis。設定 `MONITOR_TEST_REDIS_URL` 才會額外啟動四個本機測試 worker，使用記憶體 SQLite 與指定 Redis 的隨機測試前綴，驗證 TTL、SIGKILL 補位、SIGHUP、擴縮容及 CLI，結束時清理程序與測試 key。請使用可拋棄的測試 Redis：
+
+Unit tests do not connect to configured SQL/Redis services. Setting `MONITOR_TEST_REDIS_URL` enables four local test workers using in-memory SQLite and a random Redis prefix. Integration tests cover expiry, SIGKILL replacement, reload, scaling and the CLI, then clean up processes and test keys. Use a disposable test Redis:
+
+```bash
+uv run python -m unittest tests.test_monitor -v
+MONITOR_TEST_REDIS_URL=redis://127.0.0.1:16379/0 uv run python -m unittest tests.test_monitor -v
+```
+
+### Socket.IO 啟動與連線自測 / Startup and Connectivity Probe
+
+沿用 `APPs/<project>/events*.py` 的事件檔案慣例。入口呼叫 `socketio_init_app()`，由 `SYSTEM/tools/tools_socketio.py` 掃描並以完整套件名稱匯入，例如 `APPs.Sys.events_monitor`；同一個 interpreter 重複初始化不會重跑已匯入的事件模組。相對路徑以 backend 根目錄解析，載入順序固定，錯誤會使啟動失敗。`SYSTEM.extension` 保留每個 worker 的單一 `sio`；lifespan 關閉時透過 `socketio_shutdown()` 停止背景監聽並關閉它獨立持有的 Redis 資源。
+
+Event discovery follows `APPs/<project>/events*.py`. `socketio_init_app()` imports canonical package names with normal import caching, deterministic ordering and backend-relative paths. The worker-local `sio` remains in `SYSTEM.extension`; lifespan uses `socketio_shutdown()` to stop its listener and close its separate Redis resources.
+
+`APPs/Sys/events_monitor.py` 提供正式 `/monitor` 訂閱。握手、訂閱及每個監控週期均重新讀取 HTTP-only Session 與資料庫目前的 `is_manage_sites`；前端自報身份／權限無效。權限撤銷或登出會退出房間並斷線，儲存服務不可用時停止提供資料。授權僅讀資料庫、不保存監控資料，且其邏輯交易不計入應用 transaction。
+
+The `/monitor` namespace requires an active server-side Session and current database-issued `is_manage_sites` permission. Authorization is rechecked at connect, subscription and each cycle, including quiet periods. These read-only permission lookups are excluded from application transaction metrics. Socket session reads do not refresh the cookie or Redis session TTL.
+
+- `monitor_subscribe` / `monitor_resync`: `{topics: ["workers", "requests"]}`；每個主題回傳 `monitor_snapshot`，包括 `schema`、`topic`、字串 `revision`、`sampled_at`、`cycle_seconds`、`data`。
+- `monitor_unsubscribe`: 離開目前訂閱房間。初次／重連／恢復取得完整主題快照；`revision="0"` 為訂閱快照，正常廣播使用 Redis 產生的遞增版本。前端丟棄已接收版本以前的快照。
+- `workers` 僅包含資源及 Worker 狀態；`requests` 包含 HTTP／transaction 計數與請求明細。請求統計排除同實例的舊啟動批次，仍保留本批次退出 Worker 的短期事件。
+- 同一實例透過 SYS Redis 租約選出發布者，採樣完成後按共用週期聚合；非發布者不重複廣播。房間跨 Worker 交由 `AsyncRedisManager` 傳送；訂閱 presence、租約、比較雜湊與版本都有期限。發布者接手會重新同步。
+- 每個主題只在資料有變更時廣播完整快照；採樣時間、運行時間與處理中耗時不影響比較。心跳及正常 Socket.IO ping 仍持續，資料沒有推送不等於斷線。首次／重新同步與發布者接手是例外。
+- `/socket.io` 是後端傳輸路徑，`/monitor` 是 namespace；兩端限定 WebSocket。前端走同源 `/api/socket.io`，Vite 與 Nginx 分別移除 `/api` 前綴並轉送 Upgrade。Nginx 保留公開 Host，讀取逾時 75 秒。
+
+A single leased publisher per instance sends changed, bounded topic snapshots through the existing Redis manager. Heartbeats continue independently. Reconnect and publisher takeover resynchronize current state; this is not durable event replay. The browser derives elapsed/uptime counters and freezes them with the snapshot. Short requests may first appear completed. The diagnostic `monitor_test` event remains available only after authorized connection.
+
+前端使用 `socket.io-client` 時的接線範例（後端 URL 由部署設定提供）：
+
+```javascript
+const socket = io(`${API_ORIGIN}/monitor`, {
+  path: "/socket.io",
+  transports: ["websocket"],
+});
+socket.on("monitor_snapshot", console.log);
+socket.on("connect", () => {
+  socket.emit("monitor_subscribe", { topics: ["workers", "requests"] });
+  // Optional connectivity probe; normal monitoring uses monitor_snapshot.
+  socket.emit("monitor_test", { message: "hello monitor" }, console.log);
+});
+```
+
+成功回傳 `{"ok": true, "message": "hello monitor", "pid": 12345, "sid": "...", "transport": "websocket"}`。同一條連線重複測試的 PID 應相同；worker 重啟後重連可以取得不同 PID／SID。若使用 Socket.IO ACK，事件也回傳同一份結果。額外欄位、非字串或過長訊息回傳 `INVALID_PAYLOAD`，不回顯輸入內容。
+
+Redis Pub/Sub 使用 `SOCKETIO.channel`（預設 `portfolio-modern:socketio`）；共用 Redis 的不同部署環境應使用不同 channel，DB index 不提供 Pub/Sub 隔離。Socket.IO 預設只接受同源連線；若開發前端直接跨 port 連後端，可在 `SOCKETIO.allowed_origins` 明確列出前端來源。FastAPI CORS 設定不會自動套用到 Socket.IO。
+
+Optional `SOCKETIO.channel` separates deployments sharing Redis. Optional `SOCKETIO.allowed_origins` permits explicit cross-origin clients; its default retains Socket.IO's same-origin check. FastAPI CORS does not configure the Socket.IO endpoint.
+
+```bash
+uv run python -m unittest tests.test_socketio -v
+SOCKETIO_TEST_REDIS_URL=redis://127.0.0.1:16379/0 uv run python -m unittest tests.test_socketio -v
+```
+
+第二個指令需使用隔離 Redis，會啟動四個測試 worker，驗證 WebSocket 握手、namespace 事件、固定 worker、不同 worker 經 Redis 定向推送，以及 SIGKILL 後補位和重新連線。測試專用指令佇列只存在於 `tests/test_socketio.py`，不會註冊到應用程式。另驗證正式訂閱與跨 Worker 請求快照。測試不連線設定中的 SQL／Redis；權限案例使用隔離 SQLite 和 Session。
 
 ### 5. 常見問題 / Troubleshooting
 

@@ -29,7 +29,7 @@ export function AccountMenu({
   busy?: boolean;
   onLogin?: () => void;
   onLogout?: () => void;
-  onNavigate?: (resource: 'sites' | 'users' | 'roles') => void;
+  onNavigate?: (resource: 'sites' | 'users' | 'roles' | 'monitoring') => void;
   preferences: Record<'theme' | 'language', ReactNode>;
 }) {
   const { t } = useTranslation();
@@ -163,6 +163,7 @@ export function AccountMenu({
                       if (item.key === 'signIn') onLogin?.();
                       if (item.key === 'signOut') onLogout?.();
                       if (item.key === 'platformManagement') onNavigate?.('sites');
+                      if (item.key === 'platformMonitoring') onNavigate?.('monitoring');
                       if (item.key === 'userManagement') onNavigate?.('users');
                       if (item.key === 'roleManagement') onNavigate?.('roles');
                     }}

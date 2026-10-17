@@ -6,8 +6,6 @@ from SYSTEM.settings import SEC_CORS, SEC_SESSION_CONF
 from SYSTEM.database import CONN_MANAGER
 from SYSTEM.constants import EnumCache
 
-
-
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,6 +16,8 @@ from starlette.middleware import Middleware
 
 # ■—< GLOBAL >————————————————————————————————————————————————————————————————————————■ Middleware - Registries
 MIDDLEWARES = [
+    # -< Middleware >--------------------------------● Worker request monitoring
+    Middleware(MonitorMiddleware),
     # -< Middleware >--------------------------------● CORS
     Middleware(CORSMiddleware, **SEC_CORS),
     # -< Middleware >--------------------------------● Heartbeat
@@ -27,9 +27,9 @@ MIDDLEWARES = [
         SessionMiddleware,
         store_factory=lambda: RedisStore(
             connection=CONN_MANAGER.get_cache(key=EnumCache.SYS),
-            prefix='sess:',
+            prefix="sess:",
         ),
-        **SEC_SESSION_CONF
+        **SEC_SESSION_CONF,
     ),
     # -< Middleware >--------------------------------● SESSION-AutoLoad
     Middleware(SessionAutoloadMiddleware),

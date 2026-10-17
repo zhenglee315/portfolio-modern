@@ -7,12 +7,11 @@ These helpers run asynchronous SQL and ORM operations against the project's sing
 | File / 檔案 | Responsibility / 用途 |
 | --- | --- |
 | `tools_sqlalchemy_async.py` | `SqlAlchemyExecAsync`: SQL 查詢、寫入、ORM 執行與分頁；raw SQL queries, writes, ORM execution, and pagination. |
-| `tools_sqlalchemy_wrapper.py` | `SqlAlchemyExecWrapper`: 將相同操作轉發給非同步 executor，並提供舊介面相容屬性；forwards async operations and exposes compatibility properties. |
 | `tools_sqlalchemy_utils.py` | `BigParams` 與 `sqlalchemy_pagination_stmt`: 分頁參數與資料庫方言 SQL；pagination parameters and dialect-specific SQL. |
 
 ## Session and transaction ownership / Session 與交易歸屬
 
-- `SqlAlchemyExecAsync()` and `SqlAlchemyExecWrapper()` need no `key` or `session`. Each operation gets a new session from `CONN_MANAGER.get_db()`, closes it after use, commits successful raw SQL/statement execution, and rolls back on exceptions. This default does **not** create one transaction across multiple method calls.
+- `SqlAlchemyExecAsync()` needs no `key` or `session`. Each operation gets a new session from `CONN_MANAGER.get_db()`, closes it after use, commits successful raw SQL/statement execution, and rolls back on exceptions. This default does **not** create one transaction across multiple method calls.
 - 不傳 `key` 或 `session` 即可使用。每次操作都會由 `CONN_MANAGER.get_db()` 取得新 session，操作後關閉；成功執行 raw SQL／statement 會提交，發生例外會回滾。**多次方法呼叫不會共用同一筆交易**。
 - `key="..."` is retained for old callers, but every value points to the same configured database. `session=...` takes precedence. With the default `manage_transaction=True`, the helper commits or rolls back and closes the injected session after each operation; do not expect to reuse it across calls.
 - `key="..."` 保留舊呼叫方式，但任何值都使用同一顆設定中的資料庫。若傳入 `session=...`，會優先使用該 session。預設 `manage_transaction=True` 仍會在每次操作後提交／回滾並關閉傳入的 session，不能假設後續呼叫還能繼續使用。
@@ -54,23 +53,6 @@ All three pagination methods return `fastapi_pagination.default.Page` with `item
 
 三個分頁方法都回傳 `fastapi_pagination.default.Page`，包含 `items`、`total`、`page`、`size`、`pages`。只要 **任一個** `page` 或 `size` 為 `"all"`（不區分大小寫），就會取回全部資料。數字頁碼及每頁筆數至少為 1；`BigParams` 限制每頁最多 100,000 筆。
 
-## `SqlAlchemyExecWrapper` API / 方法
-
-`SqlAlchemyExecWrapper` forwards the executor's public callable methods through `__getattr__`, so the method table above also applies to the wrapper. Each forwarded call follows the same session policy. `query_large()` is special: **await the wrapper call first**, then iterate over the returned async iterator. Calling `query_large()` directly on `SqlAlchemyExecAsync` uses `async for` without an initial `await`.
-
-`SqlAlchemyExecWrapper` 透過 `__getattr__` 轉發 executor 的公開方法，上表同樣適用，session 行為也相同。`query_large()` 是特例：**wrapper 呼叫要先 `await`**，再對取得的 async iterator 做 `async for`；直接呼叫 `SqlAlchemyExecAsync.query_large()` 則不需先 `await`。
-
-| Member / 成員 | 繁體中文 | English |
-| --- | --- | --- |
-| `engine` | 取得傳入 session 的 bind 或管理器的 engine；不要自行 `dispose()` 管理器的 engine。 | Get an injected session's bind or the manager's engine; do not dispose the manager-owned engine. |
-| `session_factory` | 取得管理器的 `async_sessionmaker`；自行建立的 session 由呼叫端管理。 | Get the manager's `async_sessionmaker`; direct sessions are caller-owned. |
-| `__enter__` / `__exit__` | 支援 `with`，不開啟共用交易，也不處理 engine 關閉。 | Support `with` without opening a shared transaction or disposing the engine. |
-| `__aenter__` / `__aexit__` | 支援 `async with`，同樣不建立共用交易。 | Support `async with`, also without creating a shared transaction. |
-
-Internally, `_is_async` reports whether the current bind is async, and `_detect_async(url)` checks the URL dialect. These compatibility helpers do not turn the wrapper into a synchronous executor.
-
-內部的 `_is_async` 判斷目前 bind 是否為非同步；`_detect_async(url)` 判斷 URL 方言。這些相容性輔助功能不會讓 wrapper 變成同步 executor。
-
 ## `tools_sqlalchemy_utils.py` / 分頁工具
 
 - `BigParams` extends `fastapi_pagination.Params` and permits `size` from 1 to 100,000 (default 200). / `BigParams` 擴充 `fastapi_pagination.Params`，允許 `size` 介於 1 到 100,000（預設 200）。
@@ -84,7 +66,7 @@ The following examples run inside an async function after application startup. /
 ```python
 from sqlalchemy import select
 
-from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync, SqlAlchemyExecWrapper
+from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 from SYSTEM.database import CONN_MANAGER
 from SYSTEM.models.models_portfolio import PortfolioLocale
 
@@ -111,11 +93,9 @@ async with CONN_MANAGER.get_db() as session:
     count = await db.query_scalar("SELECT COUNT(*) FROM portfolio_locale")
     await session.commit()
 
-# Wrapper forwards the same operations. / Wrapper 轉發相同操作。
-wrapper = SqlAlchemyExecWrapper()
-rows = await wrapper.query("SELECT code FROM portfolio_locale ORDER BY code")
-iterator = await wrapper.query_large("SELECT code FROM portfolio_locale")
-async for row in iterator:
+# Iterate buffered query results. / 逐筆遍歷已緩衝的查詢結果。
+db = SqlAlchemyExecAsync()
+async for row in db.query_large("SELECT code FROM portfolio_locale ORDER BY code"):
     print(row[0])
 ```
 

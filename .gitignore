@@ -5,6 +5,9 @@
 !/backend/tests/test_management_role_user_update.py
 !/backend/tests/test_management_site_delete.py
 !/backend/tests/test_management_role_user_delete.py
+# Keep system monitoring lifecycle and worker regression tests reviewable.
+!/backend/tests/test_monitor.py
+!/backend/tests/test_socketio.py
 /test/
 # macOS Finder metadata.
 .DS_Store

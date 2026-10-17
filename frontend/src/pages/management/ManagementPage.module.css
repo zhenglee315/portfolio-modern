@@ -96,6 +96,24 @@
   line-height: 1.7;
   color: var(--muted);
 }
+/* Keep the worker diagram within the opening viewport by compacting its heading. */
+.shell[data-management-resource='monitoring'] .content {
+  padding-top: 20px;
+}
+.shell[data-management-resource='monitoring'] .contextRow {
+  margin-bottom: 16px;
+}
+.shell[data-management-resource='monitoring'] .heading {
+  margin-bottom: 14px;
+}
+.shell[data-management-resource='monitoring'] .heading h1 {
+  font-size: clamp(22px, 2vw, 28px);
+}
+.shell[data-management-resource='monitoring'] .description {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .tablePanel {
   min-width: 0;
   border: 1px solid var(--border);

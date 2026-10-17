@@ -37,11 +37,15 @@ SVR_HOST = net_primary_ip()
 SVR_HOST_CONF = "127.0.0.1" if SVR_LOCALLY else SYS_CONF.get("SERVER", "host", fallback=SVR_HOST)
 SVR_PORT = int(SYS_CONF.get("SERVER", "port", fallback="8080"))
 SVR_URL = f"http://{SVR_HOST}:{SVR_PORT}"
+SVR_TRUSTED_PROXIES = SYS_CONF.get("SERVER", "forwarded_allow_ips", fallback="127.0.0.1,::1")
 # -< System >----------------------------------● Performance
 SVR_ENCODE = SYS_CONF.get("SERVER", "decode", fallback="utf-8")
 SVR_WORKERS = int(SYS_CONF.get("SERVER", "worker", fallback=1))
 SVR_RELOAD = SYS_CONF.get("SERVER", "reload", fallback=False)
 SVR_HTTPS = SYS_CONF.get("SERVER", "https", fallback=False)
+
+# Worker sampling, supervisor reporting and monitoring pushes share one cadence.
+MONITOR_CYCLE_SEC: float = 2.0
 
 
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Time

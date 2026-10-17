@@ -7,18 +7,22 @@ from SYSTEM.settings import *
 from SYSTEM.tools import *
 
 # ◆—< Pack >—————————————————————————————————◆ Server
-from socketio import ASGIApp
+from starlette.types import ASGIApp
 import uvicorn
+
+# ◆—< Pack >—————————————————————————————————◆ Python
+from pathlib import Path
+from socket import gethostname
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ MAIN-FastAPI
 class FastApiServer:
     """
-    Assemble the existing FastAPI server entry point and its optional integrations.
+    Assemble FastAPI routes, local docs, Socket.IO and request monitoring.
 
-    The database lifespan manages worker-local SQL and Redis resources. Other optional
-    middleware, Socket.IO, Celery, static, and monitoring integrations still require the
-    application to provide their referenced symbols.
+    The application factory runs inside each worker; lifespan owns that worker's
+    SQL/Redis resources, sampling and monitor stream. The outer ASGI monitor also
+    observes HTTP errors produced outside FastAPI's registered middleware stack.
 
                                                                                                ♂ ZhengLee 2026.10.03
     """
@@ -27,7 +31,7 @@ class FastApiServer:
         """
         Create the FastAPI application using the database lifespan and existing settings.
 
-        :return: None; middleware and optional integration symbols must be supplied by the application.
+        :return: None; runtime connections are opened later by lifespan.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
@@ -50,28 +54,32 @@ class FastApiServer:
         """
         fastapi_include_routers(app=self.app, app_dir=self.dir_app)
 
-    def __init_socketio(self):
+    def __init_socketio(self) -> ASGIApp:
         """
-        Register the application's optional Socket.IO event handlers.
+        Discover the application's Socket.IO events and return its ASGI wrapper.
 
-        :return: None; the existing Socket.IO helper must be supplied by the application.
+        :return: Socket.IO ASGI wrapper forwarding ordinary requests to FastAPI.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
-        socketio_include_events(dir_app=self.dir_app)
+        return socketio_init_app(self.app, server=sio, dir_app=self.dir_app)
 
     def start(self) -> ASGIApp:
         """
-        Assemble existing integrations and return the Socket.IO ASGI wrapper.
+        Assemble routes and docs, then wrap Socket.IO with HTTP monitoring.
 
-        :return: ASGI application; optional integrations must be available before calling.
+        :return: ASGI application sharing the FastAPI state populated by lifespan.
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
         self.__init_router()
         self.__init_static()
-        self.__init_socketio()
-        return socketio.ASGIApp(sio, other_asgi_app=self.app, socketio_path="/socket.io")
+        return MonitorMiddleware(self.__init_socketio(), state=self.app.state)
+
+
+def create_app() -> ASGIApp:
+    """Build the application inside each Uvicorn worker."""
+    return FastApiServer().start()
 
 
 # ■—< INIT >——————————————————————————————————————————————————————————————————————————■ Run Server
@@ -89,14 +97,16 @@ if __name__ == "__main__":
     """
 
     try:
-        uvicorn.run(
-            app=FastApiServer().start(),
-            host=SVR_HOST_CONF,
-            port=SVR_PORT,
-            workers=SVR_WORKERS,
-            proxy_headers=True,
-            forwarded_allow_ips="*",
-            # log_config=LoggerSetup().get_logging_config(),
-        )
+        with WorkerMonitor.supervise(workers=SVR_WORKERS, instance_id=f"{gethostname()}:{SVR_PORT}"):
+            uvicorn.run(
+                app=f"{Path(__file__).stem}:{create_app.__name__}",
+                factory=True,
+                host=SVR_HOST_CONF,
+                port=SVR_PORT,
+                workers=SVR_WORKERS,
+                proxy_headers=True,
+                forwarded_allow_ips=SVR_TRUSTED_PROXIES,
+                # log_config=LoggerSetup().get_logging_config(),
+            )
     except KeyboardInterrupt:
         raise ValueError(f"HolmesPlatform({SVR_WORKERS}) has been gracefully terminated.")

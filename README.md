@@ -12,7 +12,7 @@ The project aims for **lightweight development and deployment**: add dependencie
 
 **Public read APIs and the React frontend are implemented.** `backend/` contains backend code. `frontend/` uses React Router Framework Mode, React, and TypeScript for the completed feature migration of `portfolio-web`; see the [frontend README](frontend/README.md).
 
-閱讀入口 / Reading guide：[網站圖解 / Website tour](#網站圖解--website-tour)、[專案架構 / Architecture](#專案架構--project-architecture)、[本機安裝 / Local setup](#從乾淨-checkout-安裝--install-from-a-fresh-checkout)、[正式部署 / Production deployment](#前後端正式部署--production-deployment)。
+閱讀入口 / Reading guide：[網站圖解 / Website tour](#網站圖解--website-tour)、[即時監控 / Live monitoring](#即時請求與-worker-監控--live-request-and-worker-monitoring)、[專案架構 / Architecture](#專案架構--project-architecture)、[本機安裝 / Local setup](#從乾淨-checkout-安裝--install-from-a-fresh-checkout)、[正式部署 / Production deployment](#前後端正式部署--production-deployment)。
 
 ## 網站圖解 / Website Tour
 
@@ -157,9 +157,52 @@ Sign-in, sign-out, registration, email availability and verification codes use t
 - 六支公開 Portfolio API 支援預設首頁及各帳號作品集。只有 Site API 以 `user` 查找公開帳號，回傳 `site_id`；其餘內容 API 使用 `site_id`，未帶入時讀取已發布的 default 作品集。資料與快取依 `site_id` 隔離，每個帳號最多一個作品集，草稿不可公開或設為首頁。
 - 登入、登出、註冊、SESSION 與成功登入紀錄已接上 PostgreSQL／Redis；角色包含 CRUD 及 `is_manage_roles`、`is_manage_users`、`is_manage_sites`。
 - 公開頁面採動態 SSR，保留 `/`、`/en`、`/zh-Hans`、`/zh-Hant`，支援 `/:locale/:user` 與 `/:locale?site_id=1`。區塊、後續分頁與地圖等資源按需載入。
-- Dashboard、內容編輯介面與 CRUD／發布 API 留在後續階段；目前只有可重用的權限及發布交易 module。
+- 請求監控頁已串接 Socket.IO，提供多 Worker 資源、請求流程動畫及短期事件明細。作品集內容 Dashboard、編輯介面與 CRUD／發布 API 留在後續階段；目前已有可重用的權限及發布交易 module。
 
-Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default when it is omitted. Dynamic SSR serves default and individual portfolio URLs with bounded initial content and demand loading. Dashboard and content editing remain a later phase; shared authorization and publication transactions are ready for those views.
+Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default when it is omitted. Dynamic SSR serves default and individual portfolio URLs with bounded initial content and demand loading. A live Socket.IO dashboard now shows worker resources, request flow and recent events. The portfolio content dashboard and editing remain a later phase; shared authorization and publication transactions are ready for those views.
+
+## 即時請求與 Worker 監控 / Live Request and Worker Monitoring
+
+具有 `is_manage_sites` 權限的登入帳號可從齒輪選單或管理側欄開啟 **Request monitoring／請求監控**（`/:locale/management/monitoring`）。導航以 Monitoring／Management 分組，側欄項目簡化為 Requests、Platform、Roles、Users；監控頁沿用共用背景、主題、三語與動態偏好。
+
+Signed-in accounts with `is_manage_sites` can open **Request monitoring** at `/:locale/management/monitoring` through the account menu or management sidebar. Navigation groups monitoring and management, with short sidebar labels. The dashboard reuses shared backgrounds, themes, three locales and motion preferences.
+
+[![請求監控總覽：分組導航、即時統計與整合資源圖示的 Worker 流程圖 / Live request dashboard with grouped navigation, summary cards and worker flow](docs/images/monitor-overview.png)](docs/images/monitor-overview.png)
+
+青綠色實線箭頭表示請求進入，藍色箭頭表示回應經原 Worker 返回；處理中卡片及狀態燈會高亮。圖中每張 Worker 卡片直接顯示 CPU、RSS、Uptime、Restarts；截圖為本機單 Worker 的實際畫面，多 Worker 由相同模組依觀測資料展開。
+
+Teal arrows show incoming requests and blue arrows show responses returning through their original worker. Active cards and lamps highlight observed work. Resource icons stay inside each worker card. This capture shows the local single-worker runtime; the same components expand for multiple observed workers.
+
+| 功能 / Feature   | 說明 / Behavior                                                                                                                                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 統計 / Summary   | 處理中請求、忙碌／閒置 Worker、近期完成數及平均／最長耗時。 / Active requests, busy/idle workers, recent completions and average/maximum duration.                                                                                                                                                            |
+| 流程 / Flow      | 請求依實際 Worker 播放進入及回傳動畫；處理中高亮並顯示狀態燈，卡片整合 CPU、RSS、Uptime、Restarts 圖示。 / Incoming and returning animations follow the actual worker, with activity highlighting and inline resource metrics.                                                                                |
+| 事件 / Events    | Request ID、Worker／PID、Method、Path、時間、狀態、耗時、HTTP、IP 與地區；本機／私有 IP 顯示 `local`。可篩選 Worker、切換時間排序，預設每頁 5 筆，另可選 10、25、50、100、ALL。 / Request identity, worker, method/path, timing, outcome and IP/location, with filtering, sorting and configurable page size. |
+| 資源 / Resources | Worker 存活心跳、目標數、CPU、記憶體、運行時間、重啟及 Session 邏輯交易數。 / Worker heartbeats, target capacity, CPU, memory, uptime, restarts and logical Session transaction counts.                                                                                                                       |
+
+資料流為 **HTTP → `MonitorMiddleware` 更新程序內統計 → lifespan 背景採樣 → Redis SYS 快照 → Socket.IO → 前端**。`SYSTEM/settings.py` 的 `MONITOR_CYCLE_SEC: float = 2.0` 統一採樣與推送檢查週期；`workers`、`requests` 主題僅在內容變更時推送，前端沒有定時 HTTP 查詢監控資料。運行及處理中耗時由瀏覽器推算；Socket.IO ping 與 Worker 心跳仍持續。重連取得目前完整快照，暫停時凍結畫面並釋放連線。
+
+Data flows from HTTP middleware into process-local counters, then through lifespan sampling, Redis SYS snapshots and Socket.IO to the browser. A shared two-second cycle checks for changed `workers` and `requests` topics; the browser does not poll a monitoring HTTP API. Browser clocks advance displayed durations independently, while transport pings and worker heartbeats continue. Reconnection restores current snapshots; pausing freezes the view and releases the connection.
+
+監控使用 `EnumCache.SYS`（目前 Redis DB 0）的 `system:monitor` 前綴，不寫入 SQL。心跳 TTL 為 15 秒，快照及已完成事件保留 60 秒，每個 Worker 最多各輸出 200 筆處理中／已結束明細；表格的 ALL 只顯示仍保留且符合篩選的事件。這些是短期快照，不是消費式 Queue 或長期請求紀錄。短請求可能首次出現就已完成，程序在回報前退出仍可能遺失事件；動畫呈現觀測到的流程，不代表封包傳輸速度。
+
+Monitoring uses the `system:monitor` prefix in Redis SYS (currently DB 0), with no SQL persistence. Heartbeats expire after 15 seconds; snapshots and completed events are retained for 60 seconds, with up to 200 active and 200 ended request details per worker. ALL displays only retained, matching events. Observations are temporary snapshots rather than a consumptive queue or durable request history. Short requests may first appear completed, and events can be lost before a worker publishes them.
+
+[![請求事件明細：Worker 篩選、時間排序、HTTP、IP／地區與預設五筆分頁 / Request events with worker filtering, time sorting, HTTP, IP/location and five-row pagination](docs/images/monitor-events.png)](docs/images/monitor-events.png)
+
+事件表使用 Socket.IO 快照，篩選、排序與分頁在前端完成；筆數選單沿用共用 DataTable 的選單風格。截圖將快照暫停，保留 7 筆事件並顯示第 1 頁的 5 筆，不影響後端持續採樣。
+
+The event table uses Socket.IO snapshots with local filtering, sorting and pagination. Its selectors reuse shared DataTable menu styling. The paused capture retains seven events and displays five on the first page; backend sampling continues independently.
+
+[![Worker 資源視圖：存活目標、重啟、CPU、RSS、Uptime 與交易數 / Worker resource view with heartbeat capacity, restarts, CPU, RSS, uptime and transactions](docs/images/monitor-workers.png)](docs/images/monitor-workers.png)
+
+Workers 視圖專注程序資源與心跳。CPU 以單核心為基準，記憶體為 RSS；Transactions 是 Session 邏輯交易數。健康狀態來自 lifespan 心跳，並非 HTTP 健康探測。
+
+The Workers view focuses on resources and liveness. CPU is relative to one core, memory is RSS, and transactions count logical Session scopes. Health reflects lifespan heartbeats rather than an HTTP health probe.
+
+實作與驗證見[後端 Worker 監控](backend/README.md#worker-監控--worker-monitoring)、[Socket.IO 訂閱與部署](backend/README.md#socketio-啟動與連線自測--startup-and-connectivity-probe)及[前端監控模組](frontend/README.md#即時監控--live-monitoring)。
+
+Implementation and verification: [backend monitoring](backend/README.md#worker-監控--worker-monitoring), [Socket.IO subscriptions and deployment](backend/README.md#socketio-啟動與連線自測--startup-and-connectivity-probe), and [frontend monitoring](frontend/README.md#即時監控--live-monitoring).
 
 ## 技術選擇 / Technology choices
 
@@ -175,7 +218,8 @@ Public APIs, per-site ownership/cache isolation, account sessions and login reco
 | Alembic                                              | 資料庫結構版本管理                                                       | Database schema migrations                                                                 |
 | redis、fastapi-cache2                                | Redis client 與 WEB cache；GET API 可透過 `is_caching=true` 使用回應快取 | Redis clients and WEB cache; GET APIs can opt into response caching with `is_caching=true` |
 | fastapi-utils                                        | CBV 路由寫法                                                             | Class-based view routing                                                                   |
-| python-socketio                                      | Socket.IO ASGI 組裝                                                      | Socket.IO ASGI assembly                                                                    |
+| python-socketio、socket.io-client                    | Socket.IO ASGI 組裝及即時監控推送                                        | Socket.IO ASGI assembly and live monitoring delivery                                       |
+| psutil、geoip2                                       | Worker CPU／RSS 與本地 IP 地區查詢                                       | Worker CPU/RSS sampling and offline IP geolocation                                         |
 | HTTPX                                                | HTTP client 設定，執行依賴                                               | HTTP client configuration; runtime dependency                                              |
 | Black                                                | Python 排版，開發依賴                                                    | Python formatter; development dependency                                                   |
 | Docker                                               | 按需啟動外部服務、容器驗證或部署                                         | On-demand external services, container validation, or deployment                           |
@@ -195,14 +239,14 @@ Dependency declarations are in [backend/pyproject.toml](backend/pyproject.toml);
 - 日常在 macOS 以 uv 虛擬環境直接開發 FastAPI，Docker 按需啟動。
 - WEB cache 由 Redis 提供；讀取 API 透過 `is_caching` 選擇是否使用短時間回應快取。
 - 初期採單一後端服務，避免預先拆分微服務或引入多套排程、訊息佇列系統。
-- 目前啟動入口維持單一 worker；依實測負載調整資料庫連線池與快取上限，多 worker 擴充須先改造啟動入口。
+- 啟動入口採 application factory，透過 `SERVER.worker` 設定 Worker 數；每個 Worker 獨立管理 lifespan、連線池與採樣，依實測負載調整數量與資源上限。
 - 開發工具與正式執行依賴分開管理。
 - 共用能力按實際重用需求抽取，避免為簡單功能建立過多抽象層。
 
 - Develop FastAPI directly on macOS in a uv virtual environment; start Docker only when needed.
 - Redis provides WEB cache; read APIs use `is_caching` to opt into short-lived response caching.
 - Start with one backend service, without prematurely introducing microservices, multiple schedulers, or message queues.
-- Keep the current entry point on one worker; tune connection pools and cache limits using measured workloads. Multiple workers require an entry-point change first.
+- The application factory supports `SERVER.worker`; each worker owns its lifespan, connection pools and sampling. Tune worker counts and resource limits using measured workloads.
 - Manage development tools separately from runtime dependencies.
 - Extract shared functionality when reuse is justified; keep simple features free of unnecessary abstraction.
 
@@ -224,7 +268,7 @@ portfolio-modern/
 │   │   ├── routes/               # URL entry, dynamic SSR loaders and SEO
 │   │   ├── pages/               # Portfolio, management and access-denied composition
 │   │   ├── features/            # Site, journey, experiences, projects, skills,
-│   │   │                        # appearance, language, online visitors, auth, account menu and management
+│   │   │                        # appearance, language, online visitors, auth, account menu, management and monitoring
 │   │   ├── shared/              # Reusable API infrastructure, UI and utilities
 │   │   ├── i18n/                # Locale setup, dictionaries and copy helpers
 │   │   ├── styles/              # Design tokens and global styles
@@ -241,7 +285,7 @@ portfolio-modern/
     │   │   ├── views_portfolio.py
     │   │   ├── module/
     │   │   └── schema/
-    │   └── Sys/                  # Online-count diagnostic API
+    │   └── Sys/                  # Online-count diagnostic API and monitoring Socket.IO events
     ├── COMMON/
     │   ├── decorator/
     │   ├── schema/               # Shared help, parsers, responses
@@ -254,7 +298,7 @@ portfolio-modern/
     │   ├── models/               # Portfolio, auth, Alembic migrations
     │   ├── middleware/
     │   ├── static/               # Local Swagger/ReDoc assets
-    │   └── tools/                # Router, docs, Socket.IO assembly
+    │   └── tools/                # Router, docs, worker monitoring and Socket.IO assembly
     ├── manage_fastapi.py
     ├── alembic.ini
     ├── pyproject.toml

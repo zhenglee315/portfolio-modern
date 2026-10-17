@@ -49,6 +49,9 @@ import gear from 'bootstrap-icons/icons/gear-fill.svg?raw';
 import personCircle from 'bootstrap-icons/icons/person-circle.svg?raw';
 import dashboard from 'bootstrap-icons/icons/window-sidebar.svg?raw';
 import activity from 'bootstrap-icons/icons/activity.svg?raw';
+import cpu from 'bootstrap-icons/icons/cpu.svg?raw';
+import memory from 'bootstrap-icons/icons/memory.svg?raw';
+import clock from 'bootstrap-icons/icons/clock.svg?raw';
 import shieldLock from 'bootstrap-icons/icons/shield-lock-fill.svg?raw';
 import people from 'bootstrap-icons/icons/people-fill.svg?raw';
 import funnel from 'bootstrap-icons/icons/funnel.svg?raw';
@@ -110,6 +113,9 @@ const icons = {
   personCircle,
   dashboard,
   activity,
+  cpu,
+  memory,
+  clock,
   shieldLock,
   people,
   funnel,

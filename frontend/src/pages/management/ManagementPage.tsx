@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
@@ -7,7 +7,7 @@ import { AppearanceSettings, useAppearance } from '@/features/appearance';
 import { LanguageOptions } from '@/features/language';
 import { useAccountSession, useAccessDeniedRedirect } from '@/features/auth/actions';
 import { canManage } from '@/features/auth/permissions';
-import type { ManagementResource } from '@/features/management';
+import type { ManagementPermissionResource } from '@/features/auth/permissions';
 import { Icon } from '@/shared/ui/Icon';
 import { SidebarRail, SidebarLinks, SidebarDrawer } from '@/shared/ui/SidebarNavigation';
 import { Breadcrumb } from '@/shared/ui/Breadcrumb';
@@ -21,13 +21,17 @@ import entranceStyles from '@/shared/ui/PageEntrance.module.css';
 import { ManagementTable } from './components/ManagementTable';
 import styles from './ManagementPage.module.css';
 
+const MonitoringPanel = lazy(() =>
+  import('@/features/monitoring').then((module) => ({ default: module.MonitoringPanel })),
+);
+
 /** Compose administrative navigation and browser identity; only the active resource table mounts. */
 export function ManagementPage({
   locale,
   resource,
 }: {
   locale: Locale;
-  resource: ManagementResource;
+  resource: ManagementPermissionResource;
 }) {
   const { t } = useTranslation();
   const { settings, motionPaused, subscribeThemeTransition } = useAppearance();
@@ -39,6 +43,7 @@ export function ManagementPage({
   const { session, signOut, logout } = useAccountSession(() => void navigate(`/${locale}`));
   const [compact, setCompact] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  const [monitorDenied, setMonitorDenied] = useState(false);
   const drawerNavigation = useMediaQuery('(max-width: 1024px)');
   const allowed = session.isSuccess && canManage(session.data, resource);
   const denied = session.isSuccess && session.data !== undefined && !allowed;
@@ -48,7 +53,7 @@ export function ManagementPage({
     enabled: allowed && !signOut.isPending,
   });
   useAccessDeniedRedirect({
-    denied,
+    denied: denied || monitorDenied,
     destination: `/${locale}/access-denied`,
     // A pending route loader owns its target decision; intentional logout keeps its home flow.
     enabled: navigation.state === 'idle' && !signOut.isPending && !signOut.isSuccess,
@@ -87,9 +92,10 @@ export function ManagementPage({
     .filter((item) => canManage(session.data, item.resource))
     .map((item) => ({
       id: item.resource,
-      label: t(`accountMenu.${item.label}`),
+      label: t(`management.shortLabels.${item.resource}`),
+      group: t(`management.groups.${item.group}`),
       icon: item.icon,
-      to: item.resource === 'monitoring' ? undefined : `/${locale}/management/${item.resource}`,
+      to: `/${locale}/management/${item.resource}`,
       onSelect: () => setDrawer(false),
     }));
   const home = [
@@ -209,18 +215,37 @@ export function ManagementPage({
           </div>
           <div className={styles.heading}>
             <div>
-              <h1>{title}</h1>
-              <p className={styles.description}>{t(`management.descriptions.${resource}`)}</p>
+              <h1>{resource === 'monitoring' ? t('monitor.title') : title}</h1>
+              <p className={styles.description}>
+                {t(
+                  resource === 'monitoring'
+                    ? 'monitor.description'
+                    : `management.descriptions.${resource}`,
+                )}
+              </p>
             </div>
           </div>
-          <ManagementTable
-            key={`${locale}:${resource}:${session.data?.id ?? 'session'}`}
-            locale={locale}
-            resource={resource}
-            title={title}
-            enabled={allowed && !signOut.isPending && navigation.state === 'idle'}
-            accountId={session.data?.id}
-          />
+          {resource === 'monitoring' ? (
+            <Suspense fallback={<LoadingIndicator label={t('ui.loading')} />}>
+              <MonitoringPanel
+                onDenied={() => setMonitorDenied(true)}
+                motionPaused={motionPaused}
+                key={session.data?.id}
+                locale={locale}
+                accountId={session.data?.id}
+                enabled={allowed && !signOut.isPending && navigation.state === 'idle'}
+              />
+            </Suspense>
+          ) : (
+            <ManagementTable
+              key={`${locale}:${resource}:${session.data?.id ?? 'session'}`}
+              locale={locale}
+              resource={resource}
+              title={title}
+              enabled={allowed && !signOut.isPending && navigation.state === 'idle'}
+              accountId={session.data?.id}
+            />
+          )}
         </main>
       </div>
       <SidebarDrawer

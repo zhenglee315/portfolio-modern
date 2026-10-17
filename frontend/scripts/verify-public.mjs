@@ -60,13 +60,15 @@ export async function verifyPublic(directory) {
   }
   await inspect(directory);
   const ceilings = {
-    // Include editing and atomic deletion for all three management resources with localized feedback.
-    js: 1_116_000,
+    // Aggregate artifacts include the lazy, permission-gated Socket.IO monitoring page.
+    // Monitoring code is not requested by public pages or other management resources.
+    js: 1_200_000,
     // Keep bounded headroom for settings controls and hash-dependent gzip variation between checkouts.
-    jsGzip: 382_000,
-    // Searchable menus, presence indicators and compact table-header help.
-    css: 338_000,
-    cssGzip: 67_500,
+    jsGzip: 410_000,
+    // Include the lazy monitoring flow, activity indicators and responsive event table.
+    // Measured with monitoring: 350,614 raw / 70,542 gzip; retain bounded headroom.
+    css: 360_000,
+    cssGzip: 73_000,
     fonts: 250_000,
     mascot: 1_250_000,
     map: 250_000,

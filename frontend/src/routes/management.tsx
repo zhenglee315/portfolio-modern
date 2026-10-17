@@ -20,7 +20,7 @@ const ManagementPage = lazy(() =>
 
 /** Validate route identity before any session or record lookup. */
 function managementLocale(params: { resource?: string; locale?: string }) {
-  if (!['sites', 'users', 'roles'].includes(params.resource ?? ''))
+  if (!['sites', 'users', 'roles', 'monitoring'].includes(params.resource ?? ''))
     throw new Response('Not Found', { status: 404 });
   return publicLocale(params.locale);
 }
@@ -33,7 +33,7 @@ export function loader({ params }: Route.LoaderArgs) {
 /** Require a fresh server-session decision before the protected page or list queries mount. */
 export async function clientLoader({ params, request }: Route.ClientLoaderArgs) {
   const route = { locale: managementLocale(params) };
-  const resource = params.resource as 'sites' | 'users' | 'roles';
+  const resource = params.resource as 'sites' | 'users' | 'roles' | 'monitoring';
   const client = getQueryClient();
   try {
     const account = await refreshAuthSession(client, request.signal);
@@ -109,7 +109,13 @@ export function headers() {
 /** Render a route chunk without prefetching administrative APIs on public portfolio visits. */
 export default function ManagementRoute({ loaderData, params }: Route.ComponentProps) {
   const resource = params.resource;
-  if (resource !== 'sites' && resource !== 'users' && resource !== 'roles') return null;
+  if (
+    resource !== 'sites' &&
+    resource !== 'users' &&
+    resource !== 'roles' &&
+    resource !== 'monitoring'
+  )
+    return null;
   if (!('access' in loaderData)) return <HydrateFallback />;
   if (loaderData.access === 'denied') return <DeniedEntry locale={loaderData.locale} />;
   return (

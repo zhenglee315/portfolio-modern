@@ -52,6 +52,12 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       fs: { allow: [directory] },
       proxy: {
+        '/api/socket.io': {
+          target: environment.API_PROXY_TARGET || 'http://127.0.0.1:8080',
+          changeOrigin: false,
+          ws: true,
+          rewrite: (path) => path.replace(/^\/api(?=\/|$)/, ''),
+        },
         '^/api(?:/|$)': {
           target: environment.API_PROXY_TARGET || 'http://127.0.0.1:8080',
           changeOrigin: true,

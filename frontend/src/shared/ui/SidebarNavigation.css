@@ -46,6 +46,17 @@
   display: grid;
   gap: 8px;
 }
+/* Group captions are shared by the desktop rail and drawer; flat navigation omits them. */
+.sidebar-navigation-group-title {
+  margin: 20px 10px 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.sidebar-navigation-group-title:first-child {
+  margin-top: 0;
+}
 .sidebar-navigation-links .sidebar-navigation-item {
   width: 100%;
   background: transparent;

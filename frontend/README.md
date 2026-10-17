@@ -4,9 +4,9 @@
 
 This directory implements the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
 
-**目前狀態：React 功能遷移與登入介面已實作。** 十一個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數及登入介面。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。公開首頁與個人網址由 Node 動態 SSR，先解析已發布的 Site，再載入有界首批內容；後續資料與互動按需取得。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
+**目前狀態：React 功能遷移、登入介面與即時監控已實作。** 十二個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數、登入、帳號選單、管理列表及 Socket.IO 監控。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。公開首頁與個人網址由 Node 動態 SSR，先解析已發布的 Site，再載入有界首批內容；後續資料與互動按需取得。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
 
-**Status: React feature migration and account interface implemented.** Nine features cover public content, locale transactions, numbered collections, project detail, journey mapping/playback, appearance preferences, contact introduction, online visitors and account forms. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in and registration use the backend session API. Registration temporarily uses code 123 while SMTP delivery and password reset await integration. The default homepage and owner URLs use dynamic Node SSR, resolving a published Site before reading bounded initial content. Subsequent data and interactions load on demand. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
+**Status: React feature migration, account interface and live monitoring implemented.** Twelve features cover public content, locales, numbered collections, project detail, journey mapping/playback, appearance, contact, online visitors, account forms/menu, management lists and Socket.IO monitoring. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in and registration use the backend session API. Registration temporarily uses code 123 while SMTP delivery and password reset await integration. The default homepage and owner URLs use dynamic Node SSR, resolving a published Site before reading bounded initial content. Subsequent data and interactions load on demand. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
 
 ## 網站畫面導覽 / Visual Website Tour
 
@@ -49,6 +49,7 @@ The tools below are installed. The manifest and lockfile record exact dependenci
 | React Router Framework Mode                   | 路由、資料載入入口、metadata、路由程式碼分割與渲染策略 / Routing, data-loading entry points, metadata, route code splitting, and rendering strategies |
 | Vite                                          | 透過 React Router plugin 提供開發與建置 / Development and builds through the React Router plugin                                                      |
 | TanStack Query                                | API 資料快取、載入、重試與分頁 / Server data caching, loading, retries, and pagination                                                                |
+| socket.io-client                              | 管理監控頁的 WebSocket 連線、主題訂閱與重連 / Monitoring WebSocket connection, topic subscriptions and reconnects                                     |
 | Bootstrap、React-Bootstrap                    | Bootstrap 5 樣式與由 React 管理的互動元件 / Bootstrap styles and React-managed components                                                             |
 | Bootstrap Icons                               | 按需 import 個別 SVG 圖示 / Individual SVG imports                                                                                                    |
 | CSS、CSS Modules                              | 全域 tokens 與逐步隔離的元件樣式 / Global tokens and scoped component styles                                                                          |
@@ -126,6 +127,7 @@ frontend/
     │   ├── auth/
     │   ├── account-menu/
     │   ├── management/
+    │   ├── monitoring/            # Private Socket.IO dashboard, schema, flow and connection hook
     │   ├── appearance/
     │   └── language/
     ├── shared/
@@ -585,7 +587,7 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.116 MB raw／382 KB gzip、CSS 338 KB raw／67.5 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。管理列勾選、逐欄搜尋、共用 URL controller、圖示分頁、三個 management 的刪除與三語結果提示納入 JS 上限；CSS 上限涵蓋跨 route 共用的麵包屑、背景進場樣式與 Settings 版面。量測依當次建置驗證，超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1.2 MB raw／410 KB gzip、CSS 360 KB raw／73 KB gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB。JS 包含管理操作、三語提示及按需載入的 Socket.IO 監控；CSS 包含共用麵包屑、背景進場、Settings 版面與監控流程／表格。量測依當次建置驗證，超限會停止接受新產物。
 
 Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1.116 MB raw/382 KB gzip for JavaScript, 338 KB raw/67.5 KB gzip for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot. The bounded ceiling includes controlled row selection, typed column menus, shared URL controls, icon pagination, deletion for all management resources and localized outcomes. The CSS ceiling includes shared breadcrumb/entrance chunks and the settings layout. Each build measures its actual output; output exceeding a ceiling is rejected.
 
@@ -637,9 +639,11 @@ Platform Actions 的 Preview 眼睛位於 Edit 左側。XXL Modal 內嵌 `/:loca
 
 The gear's management actions open dedicated locale routes, composed by the page with one project-owned DataTable. Its props, types and usage example live in the shared guide. The component uses existing React/Bootstrap dependencies without adding a table package.
 
-`routes/management.clientLoader` 在每次瀏覽器進入及 hydration 先重新確認 SESSION，通過後才載入 `ManagementPage` 與讀取列表；SSR／首次 hydration 只顯示中性 LoadingIndicator，不包含身份、管理外框或表格。`auth/permissions.canManage` 要求明確 `true`，供齒輪選單、sidebar 與表格 gate 共用：Platform、User、Role management 分別使用 `is_manage_sites`、`is_manage_users`、`is_manage_roles`，與後端讀取權限一致。Settings 齒輪選單、桌面 sidebar 與手機 drawer 共用 `managementNavigation`，依序為 Platform monitoring、Platform management、Role management、User management；監控仍為介面入口，沒有實際 route。
+`routes/management.clientLoader` 在每次瀏覽器進入及 hydration 先重新確認 SESSION，通過後才載入 `ManagementPage` 與讀取列表；SSR／首次 hydration 只顯示中性 LoadingIndicator，不包含身份、管理外框或表格。`auth/permissions.canManage` 要求明確 `true`，供齒輪選單、sidebar 與表格 gate 共用：Platform、User、Role management 分別使用 `is_manage_sites`、`is_manage_users`、`is_manage_roles`，與後端讀取權限一致。Settings 齒輪選單、桌面 sidebar 與手機 drawer 共用 `managementNavigation`，依序為 Request monitoring、Platform management、Role management、User management；監控入口已連到受權限保護的即時監控頁。監控頁標題與導航名稱統一為 Request monitoring（請求監控）；齒輪選單中監控獨立成組，以既有分隔線與管理項目區隔。
 
-The management route's hydrating `clientLoader` freshly checks browser SESSION before loading `ManagementPage` or reading lists. SSR and initial hydration contain only a neutral LoadingIndicator, with no identity, management shell or table. The account menu, sidebar and table gate share strict-true `auth/permissions.canManage`: platform, user and role management use `is_manage_sites`, `is_manage_users` and `is_manage_roles` respectively, matching the backend read guards. Monitoring remains a menu item without a route.
+The management route's hydrating `clientLoader` freshly checks browser SESSION before loading `ManagementPage` or reading lists. SSR and initial hydration contain only a neutral LoadingIndicator, with no identity, management shell or table. The account menu, sidebar and table gate share strict-true `auth/permissions.canManage`: platform, user and role management use `is_manage_sites`, `is_manage_users` and `is_manage_roles` respectively, matching the backend read guards. The protected monitoring page and gear menu use the Request monitoring label. The shared navigation definition assigns Monitoring and Management groups: the gear menu separates them with its existing divider, and the expanded sidebar/mobile drawer show muted section captions with short Requests, Platform, Roles and Users link labels. Compact mode hides captions; permission filtering leaves no empty sections.
+
+管理導航的 `managementNavigation.group` 統一定義「監控／管理」分類；左側展開導航與手機 drawer 使用共用 SidebarLinks 顯示小字標題，項目透過 `management.shortLabels` 簡化為 Requests、Platform、Roles、Users（請求、平台、角色、使用者）。收合時隱藏標題，齒輪選單沿用同一分類分隔。權限篩選後不保留空分類。
 
 已確認無 SESSION、權限為 false 或 SESSION 回 401／403 時，先顯示共用 warning，再以 replace 轉到目前語系的 Access denied。SESSION 的網路、服務或契約錯誤保持管理內容隱藏，提供明確重試，不用舊權限繼續讀取。已開啟的頁面也在身份未知、查詢錯誤、權限撤銷或登出時同步隱藏外框、列資料及詳情；導覽進行中暫停舊表格 query，避免私有 cache 清理後重讀，由 loader 決定目的地，舊頁面不搶先轉址。
 
@@ -772,9 +776,9 @@ Long headings remain complete within a scrollable text area capped at 40dvh. Lan
 
 `SkillCategoryRow` seeds an independent owner cache from embedded page one. The collapsed prefix and More control fit within 75% of the tag container. Only spare capacity with all loaded tags fitting triggers another page; filling the preview stops automatic reads, and a complete fitting list needs no More control. Expansion and remaining continuation stay explicit, resizing reuses cache, and owner keys include locale/type/size. Invalid owners or inconsistent labels provide local recovery; shared UI owns no API.
 
-Settings 的三個管理頁直接使用首頁同一個 BackgroundField、usePageEntrance 與 PageEntrance 樣式：格線、脈衝、ruler、pointer glow、主題重播及 motion policy 全部共用。移除整條 title bar，麵包屑與 account 控件位於內容內，Settings 不重複呈現主題與語言按鈕，沿用全站偏好；桌面收合按鈕位於固定側欄，手機／平板以內容內的 drawer 按鈕導覽。側欄及選取列使用首頁的 sidebar／selection tokens，rail 寬度與內容 gutter 沿用全站設定；平板 drawer 的 rail offset 為 0。不額外查詢公開 Site 或複製背景 controller。
+Settings 管理頁（含監控）直接使用首頁同一個 BackgroundField、usePageEntrance 與 PageEntrance 樣式：格線、脈衝、ruler、pointer glow、主題重播及 motion policy 全部共用。全站 `html` 統一使用 `scrollbar-gutter: stable`，避免長短頁切換時捲軸改變可視寬度、導致置中格線偏移。移除整條 title bar，麵包屑與 account 控件位於內容內，Settings 不重複呈現主題與語言按鈕，沿用全站偏好；桌面收合按鈕位於固定側欄，手機／平板以內容內的 drawer 按鈕導覽。側欄及選取列使用首頁的 sidebar／selection tokens，rail 寬度與內容 gutter 沿用全站設定；平板 drawer 的 rail offset 為 0。不額外查詢公開 Site 或複製背景 controller。
 
-The three settings management pages reuse the public page’s BackgroundField, usePageEntrance and PageEntrance styles, including grid/pulses, rulers, pointer halo, palette replay and motion policy. There is no title bar: breadcrumbs and account controls sit inside the content; settings inherits global preferences without duplicate theme/language buttons, the desktop collapse control sits in the fixed sidebar, and tablet/mobile navigation opens from the content. Shared sidebar/selection tokens and rail/gutter sizes preserve the public styling. Drawer layouts use a zero rail offset. No public Site fetch or duplicate background controller is introduced.
+Settings management pages, including monitoring, reuse the public page’s BackgroundField, usePageEntrance and PageEntrance styles, including grid/pulses, rulers, pointer halo, palette replay and motion policy. Global `html` reserves a stable scrollbar gutter so switching between short and scrolling pages does not shift the centered background grid. There is no title bar: breadcrumbs and account controls sit inside the content; settings inherits global preferences without duplicate theme/language buttons, the desktop collapse control sits in the fixed sidebar, and tablet/mobile navigation opens from the content. Shared sidebar/selection tokens and rail/gutter sizes preserve the public styling. Drawer layouts use a zero rail offset. No public Site fetch or duplicate background controller is introduced.
 
 ## 麵包屑 / Breadcrumb
 
@@ -788,9 +792,9 @@ Management content reuses `Breadcrumb` for Settings / the current management pag
 
 ## 帳號選單 / Account Menu
 
-`features/account-menu` 的 `AccountMenu(account,preferences,onOpen?,busy?,onLogin?,onLogout?,onNavigate?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理／監控使用 `is_manage_sites`，用戶管理使用 `is_manage_users`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控目前只有選單項目，沒有 route。
+`features/account-menu` 的 `AccountMenu(account,preferences,onOpen?,busy?,onLogin?,onLogout?,onNavigate?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理／監控使用 `is_manage_sites`，用戶管理使用 `is_manage_users`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控連到具有權限檢查的即時監控頁。
 
-The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management/monitoring to `is_manage_sites`, users to `is_manage_users`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; Gear, the settings sidebar and the mobile drawer share managementNavigation in monitoring → platform → roles → users order; monitoring remains a scaffold without a route.
+The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management/monitoring to `is_manage_sites`, users to `is_manage_users`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; Gear, the settings sidebar and the mobile drawer share managementNavigation in monitoring → platform → roles → users order; monitoring opens its permission-gated live dashboard.
 
 主題、語言列會在同一個齒輪面板展開控制項。頁面透過必要的 `preferences={{ theme: <AppearanceSettings />, language: <LanguageOptions locale={locale} busy={busy} onChange={change} /> }}` 組合 feature 公開元件，不在 account-menu 內跨 feature 引用或重寫設定。外觀重用同一個 Provider、保存、換色動畫、speed／brightness／pause／reset；操作時面板保持開啟。語言重用同一組三語選項及鍵盤循環：首頁沿用 `useLocaleSwitch` 的資料準備流程、owner／query／hash；管理頁沿用受保護的路由載入，保留 resource／query／hash。返回按鈕或第一次 Escape 回到選單並聚焦原主題／語言列，第二次 Escape 關閉並還原齒輪焦點；外點或焦點離開亦可關閉。登入／登出沿用 SESSION 操作。原本的 `AppearanceMenu`／`LanguageMenu` 重用相同控制項，仍用於帳號介面及專案詳情。
 
@@ -950,3 +954,35 @@ Role：DELETE `/management/roles/{role_id}` 與 POST `/management/roles/bulk-del
 每批 1–100 筆、全部成功或全部回滾；共用紅色刪除彈窗、請求鎖定、嚴格回應 ID 核對及分頁修正。所有權與 FK 規則留在原後端業務 class；shared 元件不呼叫刪除 API。加入 Role／User 的契約與三語文案後，整包 JS 上限為 1,116,000 raw／382,000 gzip，CSS 上限不變，沒有新增套件。
 
 帳號物理刪除後，舊 SESSION 不能跟隨被重用的帳號 ID。伺服器以不公開的身份識別值驗證登入世代；舊格式 SESSION 會需要重新登入一次，前端仍透過既有 SESSION API 恢復身份，不在瀏覽器保存此識別值。
+
+### 即時監控 / Live monitoring
+
+實際畫面見[監控圖解](../README.md#即時請求與-worker-監控--live-request-and-worker-monitoring)，包含請求流程、事件表及 Worker 資源；圖片共用 `docs/images/monitor-*.png`，不放進前端執行期資產。
+
+See the [monitoring screenshot tour](../README.md#即時請求與-worker-監控--live-request-and-worker-monitoring) for the flow, events table and resource view. Documentation images remain separate from runtime assets.
+
+| 元件 / Module                | 介面 / Interface                                                          | 責任 / Responsibility                                                                                                                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MonitoringPanel.tsx`        | `MonitoringPanel({locale, enabled, accountId?, onDenied, motionPaused?})` | 組合請求／資源視圖、統計卡、Worker 流程及事件表；管理暫停、排序、篩選及分頁。 / Composes views, summary cards, worker flow and event table; owns display controls.                                            |
+| `useMonitorSocket.ts`        | `useMonitorSocket(enabled, paused, accountId?, topic?)`                   | 管理單一連線、訂閱、重連、授權拒絕與各主題版本；回傳連線狀態、觀測資料及 `retry()`。 / Owns connection, subscriptions, retries, authorization failure and per-topic revisions.                                |
+| `monitor.ts`                 | `monitorSnapshotSchema`、`workerKey()`、`requestElapsed()`                | Zod 驗證快照，提供 Worker 識別及單調時鐘耗時推算；匯出 `MonitorSnapshot`／`MonitorWorker`／`MonitorRequest` 型別。 / Validates snapshots and supplies identity, elapsed-time helpers and inferred types.      |
+| `FlowRoutes.tsx`             | `FlowRoutes({root, requests, animate})`                                   | 量測實際 DOM 端點，繪製 SVG 方向線與請求脈衝；卸載時回收 observers／animation frame。 / Measures rendered endpoints and draws directional SVG paths and observed request pulses, with observer/frame cleanup. |
+| `MonitoringPanel.module.css` | 區域樣式 / Scoped styles                                                  | 緊湊卡片、流程圖、狀態燈、兩色實線箭頭、響應式配置及動態控制。 / Compact cards, diagram, activity lamps, solid two-color arrows, responsive layout and motion controls.                                       |
+
+`MonitorSelect`、`WorkerMetric` 與 `Stat` 為 `MonitoringPanel.tsx` 內部的小元件：分別負責統一風格的單選選單、含可讀標籤與 tooltip 的資源圖示，以及統計卡。不把監控業務擴散到 shared，也不為這張簡單事件表加入搜尋、新增或刪除工具。
+
+`MonitorSelect`, `WorkerMetric` and `Stat` are local presentation components for themed selectors, accessible resource values and summary cards. The events table stays lightweight without search or mutation controls; shared modules provide only reusable UI infrastructure.
+
+`/:locale/management/monitoring` 沿用管理頁的 Session 與 `is_manage_sites` 權限。`features/monitoring` 僅在開啟監控時載入，使用一條 WebSocket-only Socket.IO 連線；請求架構圖同時訂閱 `requests` 與 `workers`，依 `process_uid` 對應每張 Worker 卡片的 CPU／RSS／Uptime／Restarts 圖示數值；資源視圖只訂閱 `workers`。兩個主題各自於內容變更時推送，單純時鐘前進不觸發快照。頁面提供請求統計、Worker 流程圖、最近事件的 Worker 篩選／時間排序／筆數選單（5、10、25、50、100、ALL，預設每頁 5 筆；ALL 顯示目前篩選後保留的全部事件），以及 CPU／RSS／運行／重啟／transaction 視圖。
+
+線條動畫依新觀測的 Request ID 送向其實際 Worker，完成時從原 Worker 返回客戶端；同輪已完成的短請求會依序播放。首次快照不重播舊完成事件。動畫速度表示方向，不代表網路傳輸時間；暫停快照、背景動態暫停及 Reduced Motion 均停止動畫。快照暫停會釋放連線，恢復時重新授權並取得完整資料；斷線時保留凍結畫面，權限拒絕時清除私有資料並轉到 403。
+
+地區優先使用後端 `location` 顯示值；本機／私有 IP 統一顯示 `local`，舊快照缺少此欄位時仍可使用既有地區欄位與狀態顯示。
+
+Worker 篩選及筆數選單共用 `MonitorSelect`，沿用 DataTable 的 `DataTableMenu.module.css` 選單樣式及 `tableToolbarMenuPosition` 定位；主題色、選取勾選及鍵盤操作維持一致，不增加其他表格工具。
+
+統計卡依所有保留事件計算，Worker 篩選只影響事件表。完成表示最後 ASGI body／trailers 已送出；不是瀏覽器已確認接收。忙碌依 `active_requests > 0` 判斷，等待時顯示閒置燈；2 秒採樣間完成的短請求可能只播放進入／回傳動畫，不一定被觀測為處理中。CPU 以單一核心為基準、RAM 為 RSS，Uptime 是程序運行時間，Restarts 僅計目前 manager run 中的意外替換；交易數是最外層 Session 邏輯交易，不是 SQL 執行數。資料不足或過期時顯示未知／stale，不能當成零。
+
+Cards summarize all retained observations; worker filtering affects only the table. Completion means the final ASGI response message was sent, without implying browser acknowledgement. Busy state follows active request counts, so sub-cycle requests may animate without a sampled busy state. CPU is relative to one core, memory is RSS, uptime is process age, and restarts count unexpected replacements during the current manager run. Transactions count outer Session scopes rather than executing SQL. Missing or stale values remain unknown rather than zero.
+
+The monitoring route reuses the private management shell and loads its socket client lazily. No periodic browser HTTP requests fetch monitoring snapshots. The events table defaults to five rows per page, with 5, 10, 25, 50, 100 and ALL options; ALL shows every retained event matching the worker filter. Worker and page-size selectors share a compact `MonitorSelect`, reusing DataTable's menu CSS and placement for themed options, selection checks and keyboard navigation. Location uses the backend's `location` display value, with local/private IPs shown as `local` and a fallback for older snapshots. Transport uses the configured API origin and `/api/socket.io` by default; development and Nginx proxy configurations support WebSocket upgrades. Each topic uses monotonic revisions; reconnect restores current state without replaying historical traffic. Resource time counters advance in the browser. Aggregate artifact budgets now include the lazy monitoring client, diagram, and three locales; public portfolio visits do not request monitoring chunks.

@@ -94,11 +94,17 @@ SSR and locale staging reuse `withIsolatedQueryClient(work, signal?)`. The callb
 
 Section demand follows stable anchors, ownership/language scope, viewport and explicit navigation. The common viewport observer returns cleanup; reads can use a 200px margin while active animations use actual 0px visibility.
 
+## 監控組合 / Monitoring composition
+
+`ManagementPage` 保留原本 SidebarRail／SidebarLinks／SidebarDrawer、BackgroundField、PageEntrance、帳號及主題生命週期；`MonitorWorkspace` 只填入內容。所有管理頁從完整 `managementNavigation` 取得六個目的地，`active` 只決定高亮。Robot／globe／cpu 沿用 Icon，品牌沿用既有 heartbeat，tooltip／載入／錯誤使用共用元件；業務彙總、HTTP／Socket 與 WorkerTable 留在 [monitoring feature](../features/monitoring/README.md)。
+
+The monitoring feature composes the existing shell and shared primitives without owning global navigation, themes or background animation. Complete navigation metadata belongs to account-menu; monitor-specific data and views remain feature-owned.
+
 ## 管理存取組合 / Management Access Composition
 
-SESSION 與管理權限屬於 auth feature，由 route／page 組合，不放進 shared 的通用讀取或表格。輕量 [`auth/session`](../features/auth/session.ts) 的 `refreshAuthSession` 在管理入口重新讀取 cookie 身份；[`auth/permissions`](../features/auth/permissions.ts) 的 `canManage` 要求旗標明確為 true，選單、sidebar 與表格 gate 共用相同政策。網站／監控使用 `is_manage_sites`，帳號使用 `is_manage_users`，角色使用 `is_manage_roles`；監控目前只有選單項目。
+SESSION 與管理權限屬於 auth feature，由 route／page 組合，不放進 shared 的通用讀取或表格。輕量 [`auth/session`](../features/auth/session.ts) 的 `refreshAuthSession` 在管理入口重新讀取 cookie 身份；[`auth/permissions`](../features/auth/permissions.ts) 的 `canManage` 要求旗標明確為 true，選單、sidebar 與表格 gate 共用相同政策。網站／監控使用 `is_manage_sites`，帳號使用 `is_manage_users`，角色使用 `is_manage_roles`。總覽、請求與 Worker 共用監控權限，所有管理頁的桌面 sidebar、手機 drawer 與齒輪選單都從同一份完整 `managementNavigation` 產生入口；目前頁面只影響選取狀態。
 
-SESSION and management rights remain auth-feature responsibilities composed by routes/pages. Lightweight [`auth/session`](../features/auth/session.ts) freshly checks cookie identity through `refreshAuthSession`; [`auth/permissions`](../features/auth/permissions.ts) shares strict-true `canManage` across the menu, sidebar and table gate. Sites/monitoring use `is_manage_sites`, users use `is_manage_users`, roles use `is_manage_roles`, and monitoring remains menu-only.
+SESSION and management rights remain auth-feature responsibilities composed by routes/pages. Lightweight [`auth/session`](../features/auth/session.ts) freshly checks cookie identity through `refreshAuthSession`; [`auth/permissions`](../features/auth/permissions.ts) shares strict-true `canManage` across the menu, sidebar and table gate. Sites/monitoring use `is_manage_sites`, users use `is_manage_users`, roles use `is_manage_roles`. Overview, Requests and Workers share monitoring permission. Every management page derives its desktop sidebar, mobile drawer and gear entries from the same complete `managementNavigation`; the current page changes selection only.
 
 [`routes/management`](../routes/management.tsx) 在瀏覽器檢查通過後才載入管理頁或列表；SSR／首次 hydration 只重用 `LoadingIndicator`，不序列化身份或私有列。已確認訪客、false 權限或 SESSION HTTP 401／403 由呼叫端使用 `useNotifications` 發出 warning，再 replace 到三語 Access denied。網路／服務／契約錯誤則維持內容隱藏並提供重試。取消的決定不得提交；身份／角色／管理旗標改變時取消並移除 private cache，保留公開資料。DataTable 不判定權限；後端管理讀取與 preview 由共用 `ManagementPermission` dependency 重新驗證目前帳號及角色權限。
 
@@ -516,9 +522,9 @@ Toasts supplement local feedback: query, continuation and boundary controls reta
 
 Global tokens define palette, geometry, and timing. Shared global styles define timeline/icon breathing and decoration pause policy. Experience and project timelines reference the same point keyframe and size; individual icons and `IconGroup` icon/text groups customize one shared breathing effect through variables. The online indicator uses the same four-second chat cycle on its inner group while its button hit area stays still. Decoration pauses and reduced-motion preferences remain consistent across features.
 
-`Icon highlight` 共用 chat 圖示在 hover／focus-visible／active 時的高亮前景與光暈，不需要閒置呼吸動畫；`pulse="chat"` 自動啟用此互動效果。`Icon` 與 `IconGroup` 共用效果屬性與 CSS 規則；群組內的 `Icon` 不另外啟用 pulse／highlight，以維持單層光暈。
+`Icon highlight` 共用 chat 圖示在父層按鈕或連結 hover／focus-visible／active 時的高亮前景與光暈，不需要閒置呼吸動畫；`pulse="chat"` 自動啟用此互動效果。`Icon` 與 `IconGroup` 共用效果屬性與 CSS 規則；群組內的 `Icon` 不另外啟用 pulse／highlight，以維持單層光暈。
 
-`Icon highlight` shares chat's foreground and halo on hover, visible keyboard focus and activation, without adding idle breathing. Chat pulse icons enable this feedback automatically. `Icon` and `IconGroup` share decoration attributes and CSS rules; icons inside a group omit their own pulse/highlight so the glow is applied once.
+`Icon highlight` shares chat's foreground and halo when the owning button or link is hovered, visibly focused or activated, without adding idle breathing. Chat pulse icons enable this feedback automatically. `Icon` and `IconGroup` share decoration attributes and CSS rules; icons inside a group omit their own pulse/highlight so the glow is applied once.
 
 `ExpandableTagList` 收合時的「＋」圖示使用 `Icon pulse="disclosure"`，共用區段圓圈「＋」的縮放與光暈 heartbeat；展開後「−」保持靜態，寬度量測副本也不播放動畫。hover 填色時以 `--on-accent` 保持圖示對比，暫停與 reduced-motion 沿用共用政策。
 

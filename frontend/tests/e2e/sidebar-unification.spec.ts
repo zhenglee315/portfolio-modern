@@ -1,5 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { runtimeTest as test } from '../fixtures/browser';
+import { installMonitorSocket } from '../fixtures/monitor-browser';
+
+const managementLabels = ['Overview', 'Requests', 'Workers', 'Platform', 'Roles', 'Users'];
 
 function expandIcon(rail: Locator) {
   return rail.locator(':scope > button[aria-expanded] .icon');
@@ -104,7 +107,7 @@ for (const { width, height, theme } of [
       'Management',
     ]);
     const items = rail.locator('[data-sidebar-links]').first().locator('[data-sidebar-item]');
-    await expect(items).toHaveText(['Requests', 'Platform', 'Roles', 'Users']);
+    await expect(items).toHaveText(managementLabels);
     for (const item of await items.all()) {
       expect(
         await item
@@ -130,7 +133,7 @@ for (const { width, height, theme } of [
       Math.abs(iconBounds.x + iconBounds.width / 2 - itemBounds.x - itemBounds.width / 2),
     ).toBeLessThanOrEqual(1);
     await items.first().focus();
-    const tooltip = page.getByRole('tooltip', { name: 'Requests', exact: true });
+    const tooltip = page.getByRole('tooltip', { name: 'Overview', exact: true });
     await expect(tooltip).toBeVisible();
     expect(await tooltip.evaluate((element) => !!element.closest('aside'))).toBe(false);
     await page.keyboard.press('Escape');
@@ -179,7 +182,7 @@ for (const { width, height } of [
       ).toBeLessThanOrEqual(width);
       await expect(
         drawer.locator('[data-sidebar-links]').first().locator('[data-sidebar-item]'),
-      ).toHaveText(['Requests', 'Platform', 'Roles', 'Users']);
+      ).toHaveText(managementLabels);
       const close = drawer.getByRole('button', { name: 'Close', exact: true });
       expect((await close.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await close.focus();
@@ -210,6 +213,75 @@ for (const { width, height } of [
         ),
       ).toBeLessThanOrEqual(1);
     });
+  });
+}
+
+for (const width of [1440, 390]) {
+  test(`all management destinations keep the same navigation at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await setup(page);
+    await installMonitorSocket(page);
+    const drawer = page.locator('[data-sidebar-drawer]');
+    const mobile = width <= 1024;
+    const navigation = mobile ? drawer : page.locator('[data-sidebar-rail]');
+    const links = navigation.locator('[data-sidebar-links]').first();
+    const assertNavigation = async (active: string) => {
+      if (mobile) {
+        await page.getByRole('button', { name: 'Open management navigation', exact: true }).click();
+        await expect(drawer).toBeVisible();
+      }
+      await expect(links.getByRole('link')).toHaveText(managementLabels);
+      await expect(navigation.locator('.sidebar-navigation-group-title')).toHaveText([
+        'Monitoring',
+        'Management',
+      ]);
+      const current = links.locator('[aria-current="page"]');
+      await expect(current).toHaveCount(1);
+      await expect(current).toHaveAttribute('data-sidebar-item', active);
+    };
+    const select = async (label: string) => {
+      await links.getByRole('link', { name: label, exact: true }).click();
+      if (mobile) await expect(drawer).toHaveCount(0);
+    };
+
+    await page.goto('/en/management/roles?page=1&size=10&sort=role%3Aasc');
+    await expect(page.getByRole('heading', { name: 'Role management', exact: true })).toBeVisible();
+    await assertNavigation('roles');
+    await expect(links.getByRole('link', { name: 'Requests', exact: true })).toHaveAttribute(
+      'href',
+      '/en/management/monitoring?monitorView=requests',
+    );
+    await select('Requests');
+    await expect(page).toHaveURL(/\/en\/management\/monitoring\?monitorView=requests$/);
+    await expect(page.locator('[data-monitor-view="requests"]')).toBeVisible();
+    await assertNavigation('monitor-requests');
+
+    // A monitoring bookmark retains its own filters when changing monitoring views.
+    await page.goto(
+      '/en/management/monitoring?monitorView=requests&start=2026-10-09&end=2026-10-15&service=api',
+    );
+    await expect(page.locator('[data-monitor-view="requests"]')).toBeVisible();
+    await assertNavigation('monitor-requests');
+    await select('Workers');
+    await expect(page).toHaveURL(/\/en\/management\/monitoring\?.*monitorView=workers/);
+    expect(Object.fromEntries(new URL(page.url()).searchParams)).toEqual({
+      monitorView: 'workers',
+      start: '2026-10-09',
+      end: '2026-10-15',
+      service: 'api',
+    });
+    await expect(page.locator('[data-monitor-view="workers"]')).toBeVisible();
+    await assertNavigation('monitor-workers');
+
+    await select('Platform');
+    await expect(page).toHaveURL(/\/en\/management\/sites$/);
+    await expect(page.locator('[data-management-resource="sites"] tbody tr')).toHaveCount(6);
+    await assertNavigation('sites');
+
+    await select('Users');
+    await expect(page).toHaveURL(/\/en\/management\/users$/);
+    await expect(page.locator('[data-management-resource="users"] tbody tr')).toHaveCount(6);
+    await assertNavigation('users');
   });
 }
 

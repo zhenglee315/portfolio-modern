@@ -405,6 +405,8 @@
   height: 28px;
 }
 .brandText {
+  --icon-pulse-rest-color: var(--accent);
+  --icon-pulse-peak-color: var(--accent);
   display: block;
   color: var(--accent);
   font-size: 15px;

@@ -104,7 +104,8 @@ test('low-end mobile cold load keeps large portfolios bounded', async ({ page },
   });
   console.log('Mobile cold load:', JSON.stringify(metrics));
   expect(metrics.htmlRawKiB).toBeLessThanOrEqual(200);
-  expect(metrics.initialBaseJavaScriptGzipKiB).toBeLessThanOrEqual(250);
+  // Shared three-locale monitor/menu copy adds ~3 KiB; the monitoring workspace remains lazy.
+  expect(metrics.initialBaseJavaScriptGzipKiB).toBeLessThanOrEqual(256);
   expect(metrics.cls).toBeLessThanOrEqual(0.1);
   expect(metrics.initialHeavyChunks).toEqual([]);
   expect(reads.some((url) => Number(url.searchParams.get('page') ?? '1') > 1)).toBe(false);

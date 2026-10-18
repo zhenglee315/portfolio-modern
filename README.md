@@ -20,22 +20,25 @@ The project aims for **lightweight development and deployment**: add dependencie
 
 修改功能時，先更新擁有該契約的文件；跨層行為再同步前後端總覽，產品範圍改變再更新本文件。程式、設定與可重現的驗證結果是文件更新依據。
 
-| 文件                                                            | 責任                                                  | 依據                                    |
-| --------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------- |
-| [專案總覽](README.md)                                           | 功能現況、閱讀入口、整體安裝與部署                    | 前後端入口、功能實作與鎖定檔            |
-| [後端總覽](backend/README.md)                                   | 啟動、設定、HTTP／Socket.IO 契約、資料庫部署與排錯    | `manage.py`、APPs、SYSTEM               |
-| [排程](backend/SCHEDULER/README.md)                             | Job 宣告、載入、分散式鎖、生命週期與 request 落庫     | SCHEDULER、排程設定與測試               |
-| [管理模組](backend/APPs/Management/module/README.md)            | 授權依賴、管理查詢、交易規則與更新／刪除邊界          | Management modules、schema 與 constants |
-| [裝飾器](backend/COMMON/decorator/README.md)                    | 選用快取與 SQL 輸入驗證                               | `cache`、`sql_validate`                 |
-| [Redis](backend/COMMON/tools/storage/redis/README.md)           | Client 歸屬、序列化、交易、Stream 與同步工具          | RedisAsync、RedisSync                   |
-| [SQLAlchemy](backend/COMMON/tools/storage/sqlalchemy/README.md) | Session／交易歸屬、查詢、分頁與交易觀察               | SQLAlchemy 共用工具                     |
-| [GeoIP](backend/SYSTEM/geoip/README.md)                         | 離線資料包、解壓驗證、更新與來源授權                  | archive、manifest、NOTICE 與 importer   |
-| [前端總覽](frontend/README.md)                                  | 分層、feature／page 整合、SSR、API 串接與部署         | 路由、功能模組與建置設定                |
-| [共用契約](frontend/src/shared/README.md)                       | Shared API、schema、hooks、lib、UI 邊界與公開匯出索引 | shared 程式及 `check:docs`              |
-| [DataTable](frontend/src/shared/ui/README.md)                   | 表格 props、欄位、篩選、排序、編輯、匯出與使用範例    | DataTable 與相關共用元件                |
-| [草地牛](frontend/src/shared/ui/cow-workspace/README.md)        | SVG 分件、場景組裝、動畫、控制與素材重建              | CowWorkspace、素材原稿與生成腳本        |
-| [拒絕存取](frontend/src/pages/access-denied/README.md)          | 403 頁面、權限導向、角色插槽與響應式版面              | access-denied route、page 與 shared cow |
-| [文件圖片](docs/images/README.md)                               | 截圖對應、擷取與替換規則                              | 文件圖片與對應功能頁                    |
+| 文件                                                            | 責任                                                     | 依據                                    |
+| --------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------- |
+| [專案總覽](README.md)                                           | 功能現況、閱讀入口、整體安裝與部署                       | 前後端入口、功能實作與鎖定檔            |
+| [後端總覽](backend/README.md)                                   | 啟動、設定、HTTP／Socket.IO 契約、資料庫部署與排錯       | `manage.py`、APPs、SYSTEM               |
+| [排程](backend/SCHEDULER/README.md)                             | Job 宣告、載入、分散式鎖、生命週期與 request 落庫        | SCHEDULER、排程設定與測試               |
+| [監控 API](backend/APPs/Monitor/README.md)                      | 日期彙總、登入地區、採樣健康、SYS 開機累計與 Socket 授權 | Monitor views、module、parser／resp     |
+| [監控前端](frontend/src/features/monitoring/README.md)          | 總覽、請求、Worker、查詢生命週期與資料語意               | MonitorWorkspace、HTTP／Socket 契約     |
+| [監控素材](frontend/src/assets/monitor/README.md)               | 地圖、圖示、國別座標來源與授權                           | 本機 SVG 與座標檔                       |
+| [管理模組](backend/APPs/Management/module/README.md)            | 授權依賴、管理查詢、交易規則與更新／刪除邊界             | Management modules、schema 與 constants |
+| [裝飾器](backend/COMMON/decorator/README.md)                    | 選用快取與 SQL 輸入驗證                                  | `cache`、`sql_validate`                 |
+| [Redis](backend/COMMON/tools/storage/redis/README.md)           | Client 歸屬、序列化、交易、Stream 與同步工具             | RedisAsync、RedisSync                   |
+| [SQLAlchemy](backend/COMMON/tools/storage/sqlalchemy/README.md) | Session／交易歸屬、查詢、分頁與交易觀察                  | SQLAlchemy 共用工具                     |
+| [GeoIP](backend/SYSTEM/geoip/README.md)                         | 離線資料包、解壓驗證、更新與來源授權                     | archive、manifest、NOTICE 與 importer   |
+| [前端總覽](frontend/README.md)                                  | 分層、feature／page 整合、SSR、API 串接與部署            | 路由、功能模組與建置設定                |
+| [共用契約](frontend/src/shared/README.md)                       | Shared API、schema、hooks、lib、UI 邊界與公開匯出索引    | shared 程式及 `check:docs`              |
+| [DataTable](frontend/src/shared/ui/README.md)                   | 表格 props、欄位、篩選、排序、編輯、匯出與使用範例       | DataTable 與相關共用元件                |
+| [草地牛](frontend/src/shared/ui/cow-workspace/README.md)        | SVG 分件、場景組裝、動畫、控制與素材重建                 | CowWorkspace、素材原稿與生成腳本        |
+| [拒絕存取](frontend/src/pages/access-denied/README.md)          | 403 頁面、權限導向、角色插槽與響應式版面                 | access-denied route、page 與 shared cow |
+| [文件圖片](docs/images/README.md)                               | 截圖對應、擷取與替換規則                                 | 文件圖片與對應功能頁                    |
 
 Each README owns the scope listed above. Update the owning contract first, then synchronize frontend/backend integration guides and this overview when their behavior changes. Generated tool-cache READMEs are managed by their tools.
 
@@ -182,52 +185,61 @@ Sign-in, sign-out, registration, email availability and verification codes use t
 - 六支公開 Portfolio API 支援預設首頁及各帳號作品集。只有 Site API 以 `user` 查找公開帳號，回傳 `site_id`；其餘內容 API 使用 `site_id`，未帶入時讀取已發布的 default 作品集。資料與快取依 `site_id` 隔離，每個帳號最多一個作品集，草稿不可公開或設為首頁。
 - 登入、登出、註冊、SESSION 與成功登入紀錄已接上 PostgreSQL／Redis；角色包含 CRUD 及 `is_manage_roles`、`is_manage_users`、`is_manage_sites`。
 - 公開頁面採動態 SSR，保留 `/`、`/en`、`/zh-Hans`、`/zh-Hant`，支援 `/:locale/:user` 與 `/:locale?site_id=1`。區塊、後續分頁與地圖等資源按需載入。
-- 請求監控頁已串接 Socket.IO；完成事件另經 SYS Redis queue，由每分鐘排程保存至 `record_request`。Role／User／Platform 完整編輯與單筆／批次刪除已實作。請求歷史可視化、管理新增及其餘作品集內容 CRUD／發布操作介面仍待開發。
+- 監控包含總覽、請求與 Worker。總覽提供每日 HTTP 趨勢、期間去重登入、國別／Localhost 地圖及採樣可用率；請求與程序透過 Socket.IO 更新，開機成功／失敗累計存於 SYS Redis。每分鐘保存請求及健康觀測。Role／User／Platform 完整編輯與單筆／批次刪除已實作；逐筆歷史請求查詢、管理新增及其餘作品集內容 CRUD／發布介面仍待開發。
 
-Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default. Dynamic SSR serves default and individual portfolio URLs with bounded initial content. The live Socket.IO dashboard shows worker resources and requests, while a minute scheduler persists ended events to SQL. Role/User/Platform editing and single/batch deletion are implemented. Request-history visualization, administration creation and the remaining portfolio-content CRUD/publication interfaces are pending.
+Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default. Dynamic SSR serves default and individual portfolio URLs with bounded initial content. The live Socket.IO dashboard shows worker resources and requests, while a minute scheduler persists ended events to SQL. Role/User/Platform editing and single/batch deletion are implemented. The monitoring overview adds daily traffic, distinct sign-ins and country/local-network distribution, sampled availability and current-run Redis counters. Historical per-request browsing, administration creation and the remaining portfolio-content CRUD/publication interfaces are pending.
 
 ## 即時請求與 Worker 監控 / Live Request and Worker Monitoring
 
-具有 `is_manage_sites` 權限的登入帳號可從齒輪選單或管理側欄開啟 **Request monitoring／請求監控**（`/:locale/management/monitoring`）。導航以 Monitoring／Management 分組，側欄項目簡化為 Requests、Platform、Roles、Users；監控頁沿用共用背景、主題、三語與動態偏好。
+具有 `is_manage_sites` 權限的登入帳號可開啟 `/:locale/management/monitoring`。所有管理頁的桌面側欄、手機抽屜與齒輪選單共用同一份導航：**Overview → Requests → Workers → Platform → Roles → Users**，依權限過濾；切頁只改變選取項目。監控內容沿用原本的 PORTFOLIO 外框、背景動畫、進場效果、四種主題及三語。
 
-Signed-in accounts with `is_manage_sites` can open **Request monitoring** at `/:locale/management/monitoring` through the account menu or management sidebar. Navigation groups monitoring and management, with short sidebar labels. The dashboard reuses shared backgrounds, themes, three locales and motion preferences.
+Signed-in site managers open `/:locale/management/monitoring`. Every management page shares one permission-filtered navigation model across the desktop rail, mobile drawer and account menu. Monitoring occupies the original content slot and retains the existing shell, animation, themes and locales.
 
-[![請求監控總覽：分組導航、即時統計與整合資源圖示的 Worker 流程圖 / Live request dashboard with grouped navigation, summary cards and worker flow](docs/images/monitor-overview.png)](docs/images/monitor-overview.png)
+### 總覽 / Overview
 
-青綠色實線箭頭表示請求進入，藍色箭頭表示回應經原 Worker 返回；處理中卡片及狀態燈會高亮。圖中每張 Worker 卡片直接顯示 CPU、RSS、Uptime、Restarts；截圖為本機單 Worker 的實際畫面，多 Worker 由相同模組依觀測資料展開。
+[![監控總覽：四項指標、登入地圖、每日請求趨勢與四個 Worker / Overview with KPIs, login distribution, daily traffic and four workers](docs/images/monitor-overview.png)](docs/images/monitor-overview.png)
 
-Teal arrows show incoming requests and blue arrows show responses returning through their original worker. Active cards and lamps highlight observed work. Resource icons stay inside each worker card. This capture shows the local single-worker runtime; the same components expand for multiple observed workers.
+四張卡顯示運行 Worker、HTTP 請求、期間去重登入帳號及採樣可用率。健康觀測覆蓋率位於標題下方；缺少觀測保持未知，沒有前期比較時不顯示替代文字。地圖依每個帳號在期間內的最後一次登入分類；Localhost／私有網路使用右下角 Robot 及向外水波紋，不偽造國家座標。人數代表期間內登入帳號，並非目前在線人數。
 
-| 功能 / Feature   | 說明 / Behavior                                                                                                                                                                                                                                                                                               |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 統計 / Summary   | 處理中請求、忙碌／閒置 Worker、近期完成數及平均／最長耗時。 / Active requests, busy/idle workers, recent completions and average/maximum duration.                                                                                                                                                            |
-| 流程 / Flow      | 請求依實際 Worker 播放進入及回傳動畫；處理中高亮並顯示狀態燈，卡片整合 CPU、RSS、Uptime、Restarts 圖示。 / Incoming and returning animations follow the actual worker, with activity highlighting and inline resource metrics.                                                                                |
-| 事件 / Events    | Request ID、Worker／PID、Method、Path、時間、狀態、耗時、HTTP、IP 與地區；本機／私有 IP 顯示 `local`。可篩選 Worker、切換時間排序，預設每頁 5 筆，另可選 10、25、50、100、ALL。 / Request identity, worker, method/path, timing, outcome and IP/location, with filtering, sorting and configurable page size. |
-| 資源 / Resources | Worker 存活心跳、目標數、CPU、記憶體、運行時間、重啟及 Session 邏輯交易數。 / Worker heartbeats, target capacity, CPU, memory, uptime, restarts and logical Session transaction counts.                                                                                                                       |
+The four cards show running workers, HTTP requests, distinct signed-in accounts and sampled availability. Coverage appears below the title; missing observations remain unknown. Each account's final login in the period determines its country, local network or unknown category. The lower-right Robot represents local/private-network sign-ins with an outward ripple; these counts are period accounts rather than live visitors.
 
-資料流為 **HTTP → `MonitorMiddleware` 更新程序內統計 → lifespan 背景採樣 → Redis SYS 快照 → Socket.IO → 前端**。`SYSTEM/settings.py` 的 `MONITOR_CYCLE_SEC: float = 2.0` 統一採樣與推送檢查週期；`workers`、`requests` 主題僅在內容變更時推送，前端沒有定時 HTTP 查詢監控資料。運行及處理中耗時由瀏覽器推算；Socket.IO ping 與 Worker 心跳仍持續。重連取得目前完整快照，暫停時凍結畫面並釋放連線。
+日期範圍以 Asia/Taipei 分日，最近 7／30 天包含今天，最多 93 天。四支 HTTP API 提供服務與彙總，預設每 30 秒更新；流量與健康每分鐘保存，`is_caching=true` 可額外延遲最多 60 秒。即時 Worker 使用 Socket.IO，獨立於歷史日期範圍。
 
-Data flows from HTTP middleware into process-local counters, then through lifespan sampling, Redis SYS snapshots and Socket.IO to the browser. A shared two-second cycle checks for changed `workers` and `requests` topics; the browser does not poll a monitoring HTTP API. Browser clocks advance displayed durations independently, while transport pings and worker heartbeats continue. Reconnection restores current snapshots; pausing freezes the view and releases the connection.
+Date filters use Asia/Taipei, include today in rolling presets and allow up to 93 days. Service metadata and aggregates use HTTP with a suggested 30-second refresh; minute collection and optional 60-second server caching determine freshness. Immediate workers use Socket.IO independently of historical filters.
 
-監控沿用 `EnumCache.SYS`（目前 Redis DB 0）。即時快照使用 `system:monitor` 前綴：心跳 TTL 15 秒，快照及最近事件保留 60 秒，每個 Worker 最多各輸出 200 筆處理中／已結束明細，前端 ALL 只顯示仍保留且符合篩選的事件。同一輪 Redis 交易另將已結束請求加入 `system:monitor:requests:queue` Stream；`jobs_monitor_request` 每分鐘在分散式鎖下呼叫 `module_monitor.py`，批次寫入 `record_request`，SQL commit 後才 ACK／刪除，`request_id` 唯一鍵處理重送。queue 沒有 TTL／MAXLEN，與前端明細上限分開；歷史查詢 API／畫面仍待開發。Worker 入列前的記憶體事件可能因崩潰或暫存滿而遺失，Redis 重啟持久性依部署設定；完整契約見 [record_request](backend/SYSTEM/models/README_record_request.md)。
+### 請求 / Requests
 
-Monitoring shares SYS Redis DB 0. Expiring snapshots still feed Socket.IO, with a 15-second heartbeat, 60-second observation window and bounded request details. The same background transaction appends ended requests to a separate Stream; the locked minute job commits them to `record_request` before acknowledging and deleting events. Unique request IDs tolerate redelivery. History storage has no queue TTL/MAXLEN and is independent of the live table; history query APIs and visualizations remain future work. Unpublished memory can be lost on worker failure or buffer overflow, while Redis restart durability depends on deployment persistence.
+[![請求監控：統計及四個 Worker 的請求／回應流程 / Requests view with summary and four-worker flow](docs/images/monitor-requests.png)](docs/images/monitor-requests.png)
 
-[![請求事件明細：Worker 篩選、時間排序、HTTP、IP／地區與預設五筆分頁 / Request events with worker filtering, time sorting, HTTP, IP/location and five-row pagination](docs/images/monitor-events.png)](docs/images/monitor-events.png)
+`?monitorView=requests` 顯示處理中請求、忙碌／閒置 Worker、近期完成數與耗時。流程箭頭依觀測到的 Worker 播放請求進入與回應返回；CPU、RSS、Uptime 與 Restarts 直接顯示在卡片內。
 
-事件表使用 Socket.IO 快照，篩選、排序與分頁在前端完成；筆數選單沿用共用 DataTable 的選單風格。截圖將快照暫停，保留 7 筆事件並顯示第 1 頁的 5 筆，不影響後端持續採樣。
+The Requests view shows active work, busy/idle workers, recent completions and durations. Observed requests animate into their accepting worker and responses return through that worker, with resource metrics inside each card.
 
-The event table uses Socket.IO snapshots with local filtering, sorting and pagination. Its selectors reuse shared DataTable menu styling. The paused capture retains seven events and displays five on the first page; backend sampling continues independently.
+[![事件明細：Worker、HTTP、時間、IP／地區與五筆分頁 / Events with worker, HTTP, timing, IP/location and five-row pagination](docs/images/monitor-events.png)](docs/images/monitor-events.png)
 
-[![Worker 資源視圖：存活目標、重啟、CPU、RSS、Uptime 與交易數 / Worker resource view with heartbeat capacity, restarts, CPU, RSS, uptime and transactions](docs/images/monitor-workers.png)](docs/images/monitor-workers.png)
+事件表使用最近 60 秒、每個 Worker 最多 200 筆已結束事件的快照，可篩選 Worker、排序時間並切換每頁 5／10／25／50／100／ALL。共用採樣週期為 `MONITOR_CYCLE_SEC = 0.5` 秒，Socket 的 `workers`／`requests` 主題只在內容變更時推送；暫停會凍結畫面並釋放連線。
 
-Workers 視圖專注程序資源與心跳。CPU 以單核心為基準，記憶體為 RSS；Transactions 是 Session 邏輯交易數。健康狀態來自 lifespan 心跳，並非 HTTP 健康探測。
+The bounded event table supports worker filtering, time sorting and page sizes from five to all retained matching events. A shared 0.5-second cycle publishes changed Socket.IO topics; pausing freezes the view and releases its connection.
 
-The Workers view focuses on resources and liveness. CPU is relative to one core, memory is RSS, and transactions count logical Session scopes. Health reflects lifespan heartbeats rather than an HTTP health probe.
+### Worker
 
-實作與驗證見[後端 Worker 監控](backend/README.md#worker-監控--worker-monitoring)、[Socket.IO 訂閱與部署](backend/README.md#socketio-啟動與連線自測--startup-and-connectivity-probe)及[前端監控模組](frontend/README.md#即時監控--live-monitoring)。
+[![四個 Worker：運行、重啟、開機成功／失敗總次數及各程序累計 / Four workers with liveness, restarts, run totals and process counters](docs/images/monitor-workers.png)](docs/images/monitor-workers.png)
 
-Implementation and verification: [backend monitoring](backend/README.md#worker-監控--worker-monitoring), [Socket.IO subscriptions and deployment](backend/README.md#socketio-啟動與連線自測--startup-and-connectivity-probe), and [frontend monitoring](frontend/README.md#即時監控--live-monitoring).
+四張卡顯示運行數、重啟、成功及失敗請求；`GET /monitor/request-totals` 每五秒讀取 SYS Redis 的本次伺服器開機累計。Worker 替換不清空服務總數，完整重啟會使用新 run；表格的 Requests／Failed 則各自累計至該 Worker 程序啟動。失敗包含 4xx／5xx、例外、取消及斷線；計數排除監控端點。CPU 以單核心為基準，RSS 表示記憶體，Transaction 為邏輯 Session，健康狀態依 lifespan 心跳。
+
+Worker cards combine capacity, restarts and successful/failed request totals. The HTTP totals API reads the current server run from SYS Redis every five seconds; replacement workers preserve run totals while a full restart starts a new run. Table counters belong to each process lifetime. Failures include HTTP 4xx/5xx and interrupted responses. CPU is relative to one core, memory is RSS, transactions are logical Sessions and liveness comes from lifespan heartbeats.
+
+[![390px 手機監控總覽：同一套主題、響應式指標與登入地圖 / Mobile monitoring overview at 390px](docs/images/monitor-overview-mobile.png)](docs/images/monitor-overview-mobile.png)
+
+上方監控圖片由實際應用搭配隔離的合成 HTTP／Socket 資料產生，沒有真實帳號或私人紀錄。以 `cd frontend && npm run docs:monitor` 重建；來源及擷取規則見[圖片文件](docs/images/README.md)。
+
+Monitoring captures render the real application with isolated synthetic HTTP/Socket data, without private accounts or records. Rebuild with `cd frontend && npm run docs:monitor`.
+
+資料持久化沿用 **middleware → 背景採樣 → SYS Redis queue → 每分鐘排程 → SQL commit → ACK／刪除**。`record_request` 提供每日流量，`record_monitor_health` 保存健康觀測，`record_monitor_coverage` 記錄採集水位；SYS Redis 開機累計獨立於歷史 SQL 與 WEB 彙總快取。部署先執行 migration `c6f37a92d104`，再以 `uv run --locked manage.py` 啟動 FastAPI 與 APScheduler。未發布記憶體事件仍可能因程序崩潰遺失，覆蓋率不等同無遺漏審計。
+
+Persistence follows middleware, background publishing, the SYS queue and a minute scheduler, acknowledging only after SQL commit. Historical traffic, sampled health and collection coverage are separate from current-run counters and WEB response caching. Apply the monitoring migration before starting both services with `uv run --locked manage.py`. Coverage describes observed history rather than an audit guarantee.
+
+完整契約見[後端 Monitor API](backend/APPs/Monitor/README.md)、[排程](backend/SCHEDULER/README.md)、[前端監控模組](frontend/src/features/monitoring/README.md)及 [request 歷史](backend/SYSTEM/models/README_record_request.md)。
 
 ## 技術選擇 / Technology choices
 

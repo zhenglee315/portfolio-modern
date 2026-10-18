@@ -248,6 +248,11 @@
     "overview": "Overview"
   },
   "accountMenu": {
+    "groups": {
+      "monitor": "Monitor",
+      "management": "Management",
+      "preferences": "Preferences"
+    },
     "trigger": "Account settings",
     "back": "Back to settings",
     "profile": "Profile",
@@ -258,7 +263,8 @@
     "theme": "Theme",
     "language": "Language",
     "signIn": "Sign in",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "overviewMonitoring": "Overview monitoring"
   },
   "management": {
     "groups": {
@@ -266,7 +272,7 @@
       "management": "Management"
     },
     "shortLabels": {
-      "monitoring": "Requests",
+      "monitoring": "Overview",
       "sites": "Platform",
       "roles": "Roles",
       "users": "Users"
@@ -636,7 +642,9 @@
       "memory": "Memory",
       "uptime": "Uptime",
       "restarts": "Restarts",
-      "transactions": "Transactions"
+      "transactions": "Transactions",
+      "requests": "Requests",
+      "failed": "Failed"
     },
     "states": {
       "processing": "Processing",
@@ -651,6 +659,98 @@
       "exited": "Exited",
       "stale": "Stale",
       "starting": "Starting"
-    }
+    },
+    "successfulRequests": "Successful requests",
+    "failedRequests": "Failed requests",
+    "successNote": "Since startup · HTTP 2xx/3xx",
+    "failedNote": "Since startup · HTTP 4xx/5xx & errors",
+    "workerTotalsNote": "Requests and failures are cumulative since each Worker started; failed requests include HTTP 4xx/5xx and interrupted responses."
+  },
+  "overview": {
+    "navigation": "Overview",
+    "workspace": "Workspace",
+    "management": "Management",
+    "title": "Server monitoring overview",
+    "description": "FastAPI service health, request trends and login distribution at a glance.",
+    "servicesWorkers": "Workers",
+    "loginRegions": "Login regions",
+    "service": "API service",
+    "searchService": "Search services",
+    "more": "Load more",
+    "dateRange": "Date range",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "dateHint": "Select 1–93 days, including both dates. Future dates are unavailable. Dates use Asia/Taipei.",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "period": "Period",
+    "lastDays": "Last {{count}} days (incl. today)",
+    "custom": "Custom range",
+    "updatesPaused": "Updates paused",
+    "updateEvery": "Update every {{seconds}}s",
+    "refreshNow": "Refresh now",
+    "unknown": "Unknown",
+    "runningWorkers": "Running Uvicorn Workers",
+    "allHealthy": "All healthy",
+    "workersUnhealthy": "Workers degraded",
+    "workerCounts": "Expected {{expected}} · Abnormal {{abnormal}}",
+    "httpRequests": "HTTP requests",
+    "distinctLogins": "Unique signed-in accounts",
+    "availability": "Sampled availability",
+    "previousPeriod": "vs. previous period",
+    "uniqueAccounts": "Distinct accounts in this period",
+    "noComparison": "Comparison unavailable",
+    "sloMet": "SLO met",
+    "sloMissed": "Below SLO",
+    "sloUnknown": "SLO unknown",
+    "sloTarget": "Target {{value}}%",
+    "noData": "No data available",
+    "noCompleteData": "No complete daily observations in this period",
+    "healthCoverage": "Health observation coverage {{percent}}%",
+    "healthHelpLabel": "About sampled availability",
+    "healthHelp": "Availability is successful HTTP, Redis and database probes divided by observed probes. Missing minutes remain unknown. SLO is evaluated only when the entire completed period is covered. This is sampled availability, not continuous uptime.",
+    "loginDistribution": "Global login distribution",
+    "geoDescription": "Estimated from login IP · Each account is assigned to its last login region in this period.",
+    "geoHelpLabel": "About login locations",
+    "geoHelp": "Each account is counted once for the entire period. Country percentages include accounts with unknown locations in their denominator, so known-country shares may total less than 100%.",
+    "usersLabel": "signed-in users",
+    "regionsLabel": "regions",
+    "usersUnit": "users",
+    "periodLogins": "Signed in during this period",
+    "mapLabel": "Login distribution by country",
+    "mapTools": "Map zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "noKnownLocations": "These accounts have no resolved login location",
+    "noLogins": "No signed-in accounts in this period",
+    "bubbleLegend": "Bubble area indicates users",
+    "approximate": "IP-based country estimates; approximate locations",
+    "unmapped": "{{count}} users belong to countries without a map position",
+    "region": "Region",
+    "peopleShare": "Users / Share",
+    "unknownRegion": "Unknown region",
+    "loginTotal": "Total signed-in users",
+    "incomplete": "Partial collection coverage; missing observations are unknown.",
+    "dataAsOf": "Data as of {{time}}",
+    "dailyTraffic": "Daily request trend",
+    "requestsUnit": "requests",
+    "trafficHelpLabel": "About request counts",
+    "trafficHelp": "Counts stored application HTTP requests, including errors. Monitoring endpoints are excluded. This does not measure page views or unique visitors. Dashed points are partial observations; missing days are not treated as zero.",
+    "httpOnly": "HTTP requests · excludes monitoring endpoints",
+    "dailyAverage": "Average {{value}} / day",
+    "processDetails": "Process details",
+    "workersLive": "Live workers · independent of date range",
+    "workerHelpLabel": "About worker observations",
+    "workerHelp": "Worker status comes from lifespan heartbeats. CPU is relative to one core and can exceed 100%; memory is shown in MiB. Restart counts cover the current supervisor run. Service health uses separate HTTP, Redis and database probes.",
+    "workerSummary": "Abnormal {{abnormal}} · Restarts {{restarts}}",
+    "refreshNote": "Traffic and health history are saved every {{seconds}}s; cached aggregates can lag another 60s.",
+    "lastUpdated": "Snapshot {{time}}",
+    "health": {
+      "healthy": "Health checks passed",
+      "unhealthy": "Health checks failed",
+      "unknown": "Health unknown"
+    },
+    "localhost": "Localhost",
+    "localNetwork": "Localhost / private network"
   }
 }

@@ -280,7 +280,11 @@ function PortfolioContent({
                     busy={signOut.isPending || (session.data === undefined && session.isFetching)}
                     onLogin={authNavigation.enter}
                     onLogout={logout}
-                    onNavigate={(resource) => void navigate(`/${locale}/management/${resource}`)}
+                    onNavigate={(resource, view) =>
+                      void navigate(
+                        `/${locale}/management/${resource}${resource === 'monitoring' && view ? `?monitorView=${view}` : ''}`,
+                      )
+                    }
                     preferences={{
                       theme: <AppearanceSettings />,
                       language: (

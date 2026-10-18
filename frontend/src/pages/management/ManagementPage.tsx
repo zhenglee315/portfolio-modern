@@ -8,8 +8,13 @@ import { LanguageOptions } from '@/features/language';
 import { useAccountSession, useAccessDeniedRedirect } from '@/features/auth/actions';
 import { canManage } from '@/features/auth/permissions';
 import type { ManagementPermissionResource } from '@/features/auth/permissions';
-import { Icon } from '@/shared/ui/Icon';
-import { SidebarRail, SidebarLinks, SidebarDrawer } from '@/shared/ui/SidebarNavigation';
+import { Icon, IconGroup } from '@/shared/ui/Icon';
+import {
+  SidebarRail,
+  SidebarLinks,
+  SidebarDrawer,
+  type SidebarNavigationItem,
+} from '@/shared/ui/SidebarNavigation';
 import { Breadcrumb } from '@/shared/ui/Breadcrumb';
 import { LoadingIndicator } from '@/shared/ui/LoadingIndicator';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
@@ -21,8 +26,8 @@ import entranceStyles from '@/shared/ui/PageEntrance.module.css';
 import { ManagementTable } from './components/ManagementTable';
 import styles from './ManagementPage.module.css';
 
-const MonitoringPanel = lazy(() =>
-  import('@/features/monitoring').then((module) => ({ default: module.MonitoringPanel })),
+const MonitorWorkspace = lazy(() =>
+  import('@/features/monitoring').then((module) => ({ default: module.MonitorWorkspace })),
 );
 
 /** Compose administrative navigation and browser identity; only the active resource table mounts. */
@@ -85,19 +90,44 @@ export function ManagementPage({
       </main>
     );
   }
-  const title = t(
-    `accountMenu.${managementNavigation.find((item) => item.resource === resource)!.label}`,
-  );
+  const params = new URLSearchParams(routeLocation.search);
+  const requestedView = params.get('monitorView');
+  const monitorView =
+    requestedView === 'requests' || requestedView === 'workers' ? requestedView : 'overview';
+  const title =
+    resource === 'monitoring'
+      ? t(
+          monitorView === 'overview'
+            ? 'overview.title'
+            : monitorView === 'workers'
+              ? 'monitor.workers'
+              : 'monitor.title',
+        )
+      : t(`accountMenu.${managementNavigation.find((item) => item.resource === resource)!.label}`);
+  const active = managementNavigation.find(
+    (item) =>
+      item.resource === resource &&
+      item.view ===
+        (resource === 'monitoring' && monitorView !== 'overview' ? monitorView : undefined),
+  )!.id;
   const items = managementNavigation
     .filter((item) => canManage(session.data, item.resource))
-    .map((item) => ({
-      id: item.resource,
-      label: t(`management.shortLabels.${item.resource}`),
-      group: t(`management.groups.${item.group}`),
-      icon: item.icon,
-      to: `/${locale}/management/${item.resource}`,
-      onSelect: () => setDrawer(false),
-    }));
+    .map<SidebarNavigationItem>((item) => {
+      // Table query parameters belong to their resource; only monitor-to-monitor links retain filters.
+      const query = new URLSearchParams(
+        resource === 'monitoring' ? routeLocation.search : undefined,
+      );
+      if (item.view) query.set('monitorView', item.view);
+      else query.delete('monitorView');
+      return {
+        id: item.id,
+        label: t(item.shortLabel),
+        group: t(`management.groups.${item.group}`),
+        icon: item.icon,
+        to: `/${locale}/management/${item.resource}${item.resource === 'monitoring' && query.size ? `?${query}` : ''}`,
+        onSelect: () => setDrawer(false),
+      };
+    });
   const home = [
     {
       id: 'home',
@@ -136,11 +166,15 @@ export function ManagementPage({
         collapseLabel={t('management.collapseNavigation')}
         expandLabel={t('management.expandNavigation')}
         drawerAt="tablet"
-        brand={<span className={styles.brandText}>PORTFOLIO</span>}
+        brand={
+          <IconGroup className={styles.brandText} pulse="chat">
+            PORTFOLIO
+          </IconGroup>
+        }
         brandLink={{ to: `/${locale}`, label: t('management.backHome') }}
         leading={
           <span className={styles.brandIcon} aria-hidden>
-            <Icon name="dashboard" />
+            <Icon name="dashboard" pulse="chat" />
           </span>
         }
         footer={
@@ -154,7 +188,7 @@ export function ManagementPage({
         <SidebarLinks
           items={items}
           label={t('management.navigation')}
-          active={resource}
+          active={active}
           compact={compact && !drawerNavigation}
         />
       </SidebarRail>
@@ -189,7 +223,11 @@ export function ManagementPage({
                 busy={signOut.isPending || session.isFetching}
                 onLogin={() => void navigate(`/${locale}?view=login`)}
                 onLogout={logout}
-                onNavigate={(value) => void navigate(`/${locale}/management/${value}`)}
+                onNavigate={(value, view) =>
+                  void navigate(
+                    `/${locale}/management/${value}${value === 'monitoring' && view ? `?monitorView=${view}` : ''}`,
+                  )
+                }
                 preferences={{
                   theme: <AppearanceSettings />,
                   language: (
@@ -213,21 +251,17 @@ export function ManagementPage({
               />
             </div>
           </div>
-          <div className={styles.heading}>
-            <div>
-              <h1>{resource === 'monitoring' ? t('monitor.title') : title}</h1>
-              <p className={styles.description}>
-                {t(
-                  resource === 'monitoring'
-                    ? 'monitor.description'
-                    : `management.descriptions.${resource}`,
-                )}
-              </p>
+          {resource !== 'monitoring' && (
+            <div className={styles.heading}>
+              <div>
+                <h1>{title}</h1>
+                <p className={styles.description}>{t(`management.descriptions.${resource}`)}</p>
+              </div>
             </div>
-          </div>
+          )}
           {resource === 'monitoring' ? (
             <Suspense fallback={<LoadingIndicator label={t('ui.loading')} />}>
-              <MonitoringPanel
+              <MonitorWorkspace
                 onDenied={() => setMonitorDenied(true)}
                 motionPaused={motionPaused}
                 key={session.data?.id}
@@ -256,7 +290,7 @@ export function ManagementPage({
         closeLabel={t('management.close')}
         footer={<SidebarLinks items={home} label={t('management.backHome')} />}
       >
-        <SidebarLinks items={items} label={t('management.navigation')} active={resource} />
+        <SidebarLinks items={items} label={t('management.navigation')} active={active} />
       </SidebarDrawer>
     </div>
   );

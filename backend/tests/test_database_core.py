@@ -428,14 +428,21 @@ def lifecycle(core, monkeypatch):
         "SVR_HOST_CONF": "127.0.0.1",
         "SVR_PORT": 8000,
         "SVR_WORKERS": 1,
-        "MONITOR_CYCLE_SEC": 2.0,
+        "MONITOR_CYCLE_SEC": 0.5,
         "MONITOR_REQUEST_QUEUE": "test:requests",
         "MONITOR_REQUEST_BATCH": 500,
         "MONITOR_REQUEST_BUFFER": 10000,
     }.items():
         monkeypatch.setattr(sys.modules["SYSTEM.settings"], key, value, raising=False)
     tools.GeoIpReader = lambda *_, **__: SimpleNamespace(open=lambda: False, close=lambda: None)
-    tools.WorkerMonitor = lambda **_: SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
+    tools.WorkerMonitor = lambda **options: SimpleNamespace(
+        redis=options["redis"],
+        instance_id="test-instance",
+        run_id="test-run",
+        process_uid="test-worker",
+        start=AsyncMock(),
+        stop=AsyncMock(),
+    )
     tools.socketio_start_monitor = AsyncMock(return_value=SimpleNamespace(stop=AsyncMock()))
     tools.socketio_shutdown = AsyncMock()
     geoip = ModuleType("SYSTEM.tools.tools_geoip")
@@ -457,10 +464,18 @@ def test_application_lifespan_registers_and_closes_worker_resources(lifecycle):
 
     async def exercise():
         """Query memory SQLite during the lifespan without issuing any Redis command."""
-        async with module.lifespan(FastAPI()):
+        app = FastAPI()
+        async with module.lifespan(app):
             assert isinstance(manager._engine, AsyncEngine)
             assert isinstance(manager.get_cache("WebCache"), AsyncRedis)
             assert FastAPICache.get_backend() is not None
+            metrics = app.state.monitor.request_metrics
+            assert metrics.cache is app.state.monitor.redis
+            assert (metrics.instance_id, metrics.run_id, metrics.process_uid) == (
+                "test-instance",
+                "test-run",
+                "test-worker",
+            )
             async with manager.get_db() as session:
                 assert await session.scalar(text("SELECT 1")) == 1
         assert manager._engine is None and manager._session_factory is None

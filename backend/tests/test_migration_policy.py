@@ -81,7 +81,7 @@ def test_full_postgres_migration_chain(existing):
                         )
                     )
                 await connection.run_sync(upgrade, "head")
-                assert await connection.scalar(text("SELECT version_num FROM alembic_version")) == "8e2b9c4f6a10"
+                assert await connection.scalar(text("SELECT version_num FROM alembic_version")) == "c6f37a92d104"
                 tables = await connection.run_sync(lambda conn: inspect(conn).get_table_names())
                 assert {"record_request", "record_login", "auth_user", "portfolio_site"} <= set(tables)
                 if existing:

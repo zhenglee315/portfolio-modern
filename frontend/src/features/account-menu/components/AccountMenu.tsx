@@ -29,7 +29,10 @@ export function AccountMenu({
   busy?: boolean;
   onLogin?: () => void;
   onLogout?: () => void;
-  onNavigate?: (resource: 'sites' | 'users' | 'roles' | 'monitoring') => void;
+  onNavigate?: (
+    resource: 'sites' | 'users' | 'roles' | 'monitoring',
+    view?: 'requests' | 'workers',
+  ) => void;
   preferences: Record<'theme' | 'language', ReactNode>;
 }) {
   const { t } = useTranslation();
@@ -122,56 +125,64 @@ export function AccountMenu({
               </div>
             )}
             {groups.map((group, groupIndex) => (
-              <Fragment key={group[0]!.key}>
+              <Fragment key={group.key}>
                 {(account || groupIndex > 0) && (
                   <Dropdown.Divider className={styles.divider} role="separator" />
                 )}
-                {group.map((item, itemIndex) => (
-                  <Dropdown.Item
-                    as="button"
-                    type="button"
-                    role="menuitem"
-                    key={item.key}
-                    ref={
-                      lastPreference
-                        ? item.key === lastPreference
-                          ? first
-                          : undefined
-                        : groupIndex === 0 && itemIndex === 0
-                          ? first
-                          : undefined
-                    }
-                    data-account-menu-item={item.key}
-                    data-auth-action={
-                      item.key === 'signIn'
-                        ? 'sign-in'
-                        : item.key === 'signOut'
-                          ? 'sign-out'
-                          : undefined
-                    }
-                    disabled={busy && (item.key === 'signIn' || item.key === 'signOut')}
-                    aria-busy={
-                      busy && (item.key === 'signIn' || item.key === 'signOut') ? true : undefined
-                    }
-                    onClick={(event) => {
-                      if (item.key === 'theme' || item.key === 'language') {
-                        event.stopPropagation();
-                        setLastPreference(item.key);
-                        setPreference(item.key);
-                        return;
+                <div
+                  role={group.heading ? 'group' : undefined}
+                  aria-labelledby={group.heading ? `${id}-${group.key}` : undefined}
+                >
+                  {group.heading && (
+                    <Dropdown.Header id={`${id}-${group.key}`} className={styles.groupHeading}>
+                      {t(`accountMenu.groups.${group.heading}`)}
+                    </Dropdown.Header>
+                  )}
+                  {group.items.map((item, itemIndex) => (
+                    <Dropdown.Item
+                      as="button"
+                      type="button"
+                      role="menuitem"
+                      key={item.key}
+                      ref={
+                        lastPreference
+                          ? item.key === lastPreference
+                            ? first
+                            : undefined
+                          : groupIndex === 0 && itemIndex === 0
+                            ? first
+                            : undefined
                       }
-                      if (item.key === 'signIn') onLogin?.();
-                      if (item.key === 'signOut') onLogout?.();
-                      if (item.key === 'platformManagement') onNavigate?.('sites');
-                      if (item.key === 'platformMonitoring') onNavigate?.('monitoring');
-                      if (item.key === 'userManagement') onNavigate?.('users');
-                      if (item.key === 'roleManagement') onNavigate?.('roles');
-                    }}
-                  >
-                    <Icon name={item.icon} pulse={item.heartbeat ? 'chat' : undefined} />
-                    <span>{t(`accountMenu.${item.key}`)}</span>
-                  </Dropdown.Item>
-                ))}
+                      data-account-menu-item={item.key}
+                      data-auth-action={
+                        item.key === 'signIn'
+                          ? 'sign-in'
+                          : item.key === 'signOut'
+                            ? 'sign-out'
+                            : undefined
+                      }
+                      disabled={busy && (item.key === 'signIn' || item.key === 'signOut')}
+                      aria-busy={
+                        busy && (item.key === 'signIn' || item.key === 'signOut') ? true : undefined
+                      }
+                      onClick={(event) => {
+                        if (item.key === 'theme' || item.key === 'language') {
+                          event.stopPropagation();
+                          setLastPreference(item.key);
+                          setPreference(item.key);
+                          return;
+                        }
+                        if (item.key === 'signIn') onLogin?.();
+                        if (item.key === 'signOut') onLogout?.();
+                        if (item.navigation)
+                          onNavigate?.(item.navigation.resource, item.navigation.view);
+                      }}
+                    >
+                      <Icon name={item.icon} pulse={item.heartbeat ? 'chat' : undefined} />
+                      <span>{t(item.label ?? `accountMenu.${item.key}`)}</span>
+                    </Dropdown.Item>
+                  ))}
+                </div>
               </Fragment>
             ))}
           </>

@@ -6,6 +6,10 @@ These helpers run asynchronous SQL and ORM operations against the project's conf
 
 這些工具透過專案設定的單一資料庫執行非同步 SQL 與 ORM 操作；FastAPI lifespan 與 APScheduler 啟動程序先初始化各自的 CONN_MANAGER。工具支援 SQLite（`aiosqlite`）與 PostgreSQL（`asyncpg`），完整應用 migration 目前使用 PostgreSQL。
 
+Monitor Overview 的日曆分桶、去重登入／最後國別與健康彙總均透過 `SqlAlchemyExecAsync`；排程同樣使用工具管理的交易保存分鐘觀測，不另建 engine／session factory。SYS Redis 的開機請求累計不查 SQL。資料覆蓋與統計語意由 [Monitor module](../../../../APPs/Monitor/README.md) 擁有。
+
+Monitor queries and minute jobs reuse this executor and its transaction ownership. Current-run request totals remain in Redis; aggregation semantics belong to the Monitor module.
+
 | File / 檔案                    | Responsibility / 用途                                                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | `tools_sqlalchemy_async.py`    | `SqlAlchemyExecAsync`: SQL 查詢、寫入、ORM 執行與分頁；raw SQL queries, writes, ORM execution, and pagination.         |

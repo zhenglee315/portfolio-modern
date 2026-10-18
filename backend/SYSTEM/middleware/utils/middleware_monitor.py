@@ -14,6 +14,9 @@ class MonitorMiddleware:
     Request-specific state stays inside __call__, never on the shared middleware.
     An outer wrapper with the FastAPI state observes generated 500 responses;
     its scope marker prevents an inner registration counting twice.
+    Terminal outcomes also feed the shared, server-run SYS Redis metrics.
+
+    ♂ ZhengLee 2026.10.18
     """
 
     def __init__(
@@ -53,6 +56,8 @@ class MonitorMiddleware:
             or path in self.exclude
             or path == "/socket.io"
             or path.startswith("/socket.io/")
+            or path == "/monitor"
+            or path.startswith("/monitor/")
             or not monitor
             or not monitor.running
         ):
@@ -61,6 +66,15 @@ class MonitorMiddleware:
         token = monitor.begin_request(scope)
         scope[MONITOR_SCOPE_KEY] = token
         completed, trailers, status, disconnected = False, False, None, False
+
+        def finish(*, failed: bool, outcome: str | None = None):
+            nonlocal completed
+            if completed:
+                return
+            completed = True
+            monitor.end_request(token, failed=failed, http_status=status, outcome=outcome)
+            if metrics := getattr(monitor, "request_metrics", None):
+                metrics.record(failed=failed)
 
         async def monitored_receive() -> Message:
             nonlocal disconnected
@@ -85,37 +99,28 @@ class MonitorMiddleware:
             final_body = message["type"] == "http.response.body" and not message.get("more_body", False)
             final_trailers = message["type"] == "http.response.trailers" and not message.get("more_trailers", False)
             if (final_body and not trailers) or final_trailers or message["type"] == "http.response.pathsend":
-                monitor.end_request(token, failed=status is None or status >= 500, http_status=status)
-                completed = True
+                finish(failed=status is None or not 200 <= status < 400)
 
         try:
             await self.app(scope, monitored_receive, monitored_send)
         except asyncio.CancelledError:
             if not completed:
-                monitor.end_request(
-                    token,
+                finish(
                     failed=True,
-                    http_status=status,
                     outcome="disconnected" if disconnected else "cancelled",
                 )
-                completed = True
             raise
         except OSError:
             if not completed:
-                monitor.end_request(
-                    token,
+                finish(
                     failed=True,
-                    http_status=status,
                     outcome="disconnected" if disconnected else "error",
                 )
-                completed = True
             raise
         finally:
             if not completed:
-                monitor.end_request(
-                    token,
+                finish(
                     failed=True,
-                    http_status=status,
                     outcome="disconnected" if disconnected else "error",
                 )
             scope.pop(MONITOR_SCOPE_KEY, None)

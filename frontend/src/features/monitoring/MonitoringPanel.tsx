@@ -11,6 +11,8 @@ export function MonitoringPanel(props: {
   accountId?: number;
   onDenied: () => void;
   motionPaused?: boolean;
+  initialView?: 'requests' | 'workers';
+  onViewChange?: (view: 'requests' | 'workers') => void;
 }) {
   const model = useMonitoringPanel(props);
   const {
@@ -29,7 +31,10 @@ export function MonitoringPanel(props: {
     status,
   } = model;
   return (
-    <div className={styles.monitor} data-monitoring>
+    <div
+      className={`${styles.monitor} ${view === 'workers' ? styles.workers : ''}`}
+      data-monitoring
+    >
       <div className={styles.toolbar}>
         <div className={styles.tabs} role="group" aria-label={t('monitor.views')}>
           {(['requests', 'workers'] as const).map((value) => (
@@ -37,7 +42,10 @@ export function MonitoringPanel(props: {
               key={value}
               type="button"
               aria-pressed={view === value}
-              onClick={() => setView(value)}
+              onClick={() => {
+                setView(value);
+                props.onViewChange?.(value);
+              }}
             >
               {t(`monitor.${value}`)}
             </button>

@@ -175,6 +175,15 @@
   overflow: auto;
   max-width: 100%;
 }
+.workerTable {
+  position: relative;
+}
+/* Bootstrap leaves hidden captions in flow, adding a pixel below the scrollable table. */
+.workerTable caption {
+  position: absolute;
+  inset-block-start: 1px;
+  inset-inline-start: 1px;
+}
 .flow {
   background: var(--bg);
   border-radius: 10px;
@@ -571,6 +580,29 @@
   color: var(--muted);
   font-size: 13px;
   margin: 0;
+}
+/* Keep four processes and their notes visible on a laptop without clipping extra rows. */
+@media (min-width: 761px) {
+  .workers {
+    gap: 10px;
+  }
+  .workers .panel {
+    padding: 14px;
+  }
+  .workers .panelHeading {
+    margin-bottom: 10px;
+  }
+  .workers .tableScroll table {
+    border-collapse: separate;
+    border-spacing: 0;
+    line-height: 1.45;
+  }
+  .workers .tableScroll th {
+    padding-block: 8px;
+  }
+  .workers .tableScroll td {
+    padding-block: 8px;
+  }
 }
 @media (max-width: 900px) {
   .stats {

@@ -248,6 +248,11 @@
     "overview": "总览"
   },
   "accountMenu": {
+    "groups": {
+      "monitor": "监控",
+      "management": "管理",
+      "preferences": "偏好设置"
+    },
     "trigger": "账号设置",
     "back": "返回设置菜单",
     "profile": "个人档案",
@@ -258,7 +263,8 @@
     "theme": "主题",
     "language": "语言",
     "signIn": "登录",
-    "signOut": "退出登录"
+    "signOut": "退出登录",
+    "overviewMonitoring": "总览监控"
   },
   "management": {
     "groups": {
@@ -266,7 +272,7 @@
       "management": "管理"
     },
     "shortLabels": {
-      "monitoring": "请求",
+      "monitoring": "总览",
       "sites": "平台",
       "roles": "角色",
       "users": "用户"
@@ -618,7 +624,7 @@
     "restarts": "重启",
     "restartNote": "本次服務启动期间的非預期替换",
     "workerStatus": "Uvicorn Worker 状态",
-    "resourceNote": "CPU 以单核心为基準，可超过 100%；记忆体为 RSS。Transaction 计算应用程式的逻辑 Session，不代表正在执行 SQL；健康状态以 lifespan 心跳判断。",
+    "resourceNote": "CPU 单核（可 >100%）· 内存 RSS · Transaction：逻辑 Session；",
     "cycleNote": "监控週期 {{seconds}} 秒 · 沒有变动不推送快照",
     "columns": {
       "request": "请求",
@@ -636,7 +642,9 @@
       "memory": "记忆体",
       "uptime": "运行",
       "restarts": "重启",
-      "transactions": "Transaction"
+      "transactions": "Transaction",
+      "requests": "请求",
+      "failed": "失败"
     },
     "states": {
       "processing": "处理中",
@@ -651,6 +659,98 @@
       "exited": "已退出",
       "stale": "心跳逾时",
       "starting": "启动中"
-    }
+    },
+    "successfulRequests": "成功请求总次数",
+    "failedRequests": "失败请求总次数",
+    "successNote": "本次开机累计 · HTTP 2xx／3xx",
+    "failedNote": "本次开机累计 · HTTP 4xx／5xx 与异常",
+    "workerTotalsNote": "请求自 Worker 启动累计，失败含 4xx／5xx 与中断。"
+  },
+  "overview": {
+    "navigation": "监控总览",
+    "workspace": "工作空间",
+    "management": "管理",
+    "title": "服务器监控总览",
+    "description": "FastAPI 服务运行状态、HTTP 请求趋势与登录分布，一目了然。",
+    "servicesWorkers": "Worker",
+    "loginRegions": "登录地区",
+    "service": "API 服务",
+    "searchService": "搜索服务",
+    "more": "加载更多",
+    "dateRange": "日期区间",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "dateHint": "可选 1 至 93 天，包含起止日，不接受未来日期；日期按 Asia/Taipei 计算。",
+    "cancel": "取消",
+    "apply": "应用",
+    "period": "期间",
+    "lastDays": "最近 {{count}} 天（含今天）",
+    "custom": "自定义区间",
+    "updatesPaused": "已暂停更新",
+    "updateEvery": "每 {{seconds}} 秒更新",
+    "refreshNow": "立即更新",
+    "unknown": "未知",
+    "runningWorkers": "运行中的 Uvicorn Worker",
+    "allHealthy": "全部健康",
+    "workersUnhealthy": "Worker 异常",
+    "workerCounts": "目标 {{expected}} · 异常 {{abnormal}}",
+    "httpRequests": "HTTP 请求次数",
+    "distinctLogins": "登录人数",
+    "availability": "采样可用率",
+    "previousPeriod": "较前一期间",
+    "uniqueAccounts": "整个期间去重账号",
+    "noComparison": "暂无可比较数据",
+    "sloMet": "SLO 达标",
+    "sloMissed": "未达 SLO",
+    "sloUnknown": "SLO 未知",
+    "sloTarget": "目标 {{value}}%",
+    "noData": "暂无数据",
+    "noCompleteData": "所选期间尚无完整的每日观测",
+    "healthCoverage": "健康观测覆盖率 {{percent}}%",
+    "healthHelpLabel": "采样可用率说明",
+    "healthHelp": "可用率为 HTTP、Redis 及数据库探测均成功的次数除以已观测次数。缺少的分钟保持未知，只有完整结束且所有分钟都有观测的期间才判断 SLO。这是采样指标，并非连续运行时间。",
+    "loginDistribution": "全球登录分布",
+    "geoDescription": "根据登录 IP 推定位置 · 按期间最后一次登录地区归属，每位用户仅计一次。",
+    "geoHelpLabel": "登录地区统计说明",
+    "geoHelp": "登录人数为整个期间去重账号数。国家占比的分母包含未知地区账号，因此已知国家占比总和可能不到 100%。",
+    "usersLabel": "位登录用户",
+    "regionsLabel": "个地区",
+    "usersUnit": "人",
+    "periodLogins": "所选期间登录人数",
+    "mapLabel": "各国登录人数分布",
+    "mapTools": "地图缩放",
+    "zoomIn": "放大地图",
+    "zoomOut": "缩小地图",
+    "noKnownLocations": "登录账号尚无可识别的地区",
+    "noLogins": "所选期间没有登录账号",
+    "bubbleLegend": "圆点面积代表登录人数",
+    "approximate": "IP 地理位置为近似值，非精确定位",
+    "unmapped": "另有 {{count}} 人的国家尚无地图定位点",
+    "region": "登录地区",
+    "peopleShare": "人数／占比",
+    "unknownRegion": "未知地区",
+    "loginTotal": "合计登录人数",
+    "incomplete": "采集覆盖不完整；缺少的观测保持未知。",
+    "dataAsOf": "数据截至 {{time}}",
+    "dailyTraffic": "每日请求趋势",
+    "requestsUnit": "次请求",
+    "trafficHelpLabel": "HTTP 请求统计说明",
+    "trafficHelp": "计算已保存的应用 HTTP 请求，包含错误请求，排除监控端点。此数值不代表网页浏览量或独立访客。虚线节点为部分观测；缺少数据的日期不视为零。",
+    "httpOnly": "HTTP 请求统计 · 排除监控端点",
+    "dailyAverage": "日均 {{value}} 次",
+    "processDetails": "进程详情",
+    "workersLive": "实时 Worker · 不受日期区间影响",
+    "workerHelpLabel": "Worker 观测说明",
+    "workerHelp": "Worker 状态根据 lifespan 心跳判断。CPU 以单核心为基准，可能超过 100%；内存以 MiB 显示。重启次数限本次 supervisor 运行期间。服务健康另按 HTTP、Redis 及数据库探测判断。",
+    "workerSummary": "异常 {{abnormal}} · 重启 {{restarts}}",
+    "refreshNote": "流量与健康历史每 {{seconds}} 秒保存；汇总缓存可能再延迟 60 秒。",
+    "lastUpdated": "数据快照 {{time}}",
+    "health": {
+      "healthy": "健康检查通过",
+      "unhealthy": "健康检查失败",
+      "unknown": "健康状态未知"
+    },
+    "localhost": "Localhost",
+    "localNetwork": "本机／内网"
   }
 }

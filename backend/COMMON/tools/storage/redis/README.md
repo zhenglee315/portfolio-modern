@@ -12,6 +12,12 @@
 - `CONN_MANAGER` owns its configured clients and closes them at application shutdown. When injecting a client, the injecting caller owns its shutdown. `RedisAsync` does not close either client. / 管理器負責在應用程式關閉時關閉自己建立的 client；自行注入的 client 由注入者關閉，`RedisAsync` 不會替它關閉。
 - [Settings](../../../../SYSTEM/settings.py) maps `EnumCache.SYS` to logical DB 0 and `EnumCache.WEB` to DB 1. The session store uses the raw `SYS` client; heartbeat middleware uses `RedisAsync(SYS)`; `FastAPICache` uses the raw `WEB` client. Session and FastAPICache values do not automatically use this wrapper's pickle format. Other configured roles are `SOCKET`, `WORKER`, `LOCKER`, and `SCHEDULER`. / 設定將 `SYS` 指向 Redis 邏輯資料庫 0、`WEB` 指向資料庫 1。session 儲存使用原始 `SYS` client；心跳 middleware 使用 `RedisAsync(SYS)`；`FastAPICache` 使用原始 `WEB` client。session 與 FastAPICache 的值不會自動使用此工具的 pickle 格式；另有 `SOCKET`、`WORKER`、`LOCKER`、`SCHEDULER` 等角色。
 
+## Monitor 儲存分工 / Monitor storage
+
+即時快照、request Stream 與開機累計都使用 `EnumCache.SYS`（DB 0）。`system:monitor:metrics:requests:<instance/run hash>` 是原始 Redis hash；Monitor 業務透過此 wrapper 執行 Lua，以 process checkpoint 原子累加成功／失敗差額。重試不重複計數，Worker 替換保留 run，完整重啟換 key；閒置 30 秒續期、最後發布後 24 小時到期。勿用 pickle 解讀此 hash，也不要與 WEB 的 60 秒 API 快取混用。API 契約見 [Monitor](../../../../APPs/Monitor/README.md)。
+
+Live snapshots, request Streams and run counters belong to SYS DB 0. Run metrics use a raw hash and atomic checkpoint deltas through this wrapper; optional aggregate-response caching belongs to WEB DB 1. The injected connection manager retains client ownership.
+
 ## Values and serialization / 值與序列化
 
 `set()`, `hash_set()`, and `list_left_push()` pickle values by default. Their matching read methods unpickle by default. The configured Redis clients return bytes, which allows pickle decoding. **Only unpickle data from trusted producers:** loading an untrusted pickle can execute code. For externally written or ordinary Redis values, pass `deserialize=False`; for raw writes, pass `serialize=False`. Invalid pickle bytes are returned unchanged, but missing-class/import errors can still propagate.
@@ -64,6 +70,8 @@ Commands below are asynchronous except `lock()`, which only constructs a lease. 
 | `heartbeat_status(identifiers, key_prefix="online")`                                     | 對指定識別值去重後以 raw MGET 讀取心跳是否存在；不掃描 roster、不更新 TTL，也不反序列化 pickle。Redis 錯誤交由 owner 呈現未知。           | Observe only requested heartbeat keys without roster scans, TTL renewal or deserialization.                                                                                     |
 
 ## Watched updates / 原子更新
+
+`stream_length(key)` 透過共用 pooled command 邊界執行 XLEN，供 Monitor 排程確認待落庫 queue 是否排空；不直接建立 Redis client。
 
 監控由 lifespan 注入 `RedisAsync(redis=CONN_MANAGER.get_cache(...))`。`SYSTEM/tools` 不匯入 COMMON，僅依賴傳入物件的介面；JSON 快照使用 raw pipeline 與 `mget(..., deserialize=False)`，保留原有資料格式與連線池。
 

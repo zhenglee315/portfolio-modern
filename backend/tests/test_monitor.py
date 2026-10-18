@@ -214,6 +214,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             patch("SYSTEM.lifespan.CONN_MANAGER", manager),
             patch("SYSTEM.lifespan.GeoIpReader", return_value=reader),
             patch(
+                "SYSTEM.lifespan.MonitorRequestMetrics",
+                return_value=SimpleNamespace(flush=AsyncMock(), record=lambda **_: None),
+            ),
+            patch(
                 "SYSTEM.lifespan.socketio_start_monitor",
                 new=AsyncMock(return_value=SimpleNamespace(stop=AsyncMock())),
             ),
@@ -550,6 +554,30 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.monitor.snapshot()["active_requests"], 0)
         self.assertEqual(self.monitor.completed_requests_total, 20)
 
+    async def test_middleware_records_run_metrics_once_after_terminal_http_outcome(self):
+        self.monitor.status = "running"
+        outcomes = []
+        self.monitor.request_metrics = SimpleNamespace(
+            record=lambda **values: outcomes.append(values["failed"]), flush=AsyncMock()
+        )
+
+        async def send(_):
+            pass
+
+        for status in (200, 204, 302, 400, 404, 500):
+
+            async def app(scope, receive, send):
+                await send({"type": "http.response.start", "status": status, "headers": []})
+                await send({"type": "http.response.body", "body": b"done"})
+                raise RuntimeError("post-response work")
+
+            with self.assertRaises(RuntimeError):
+                await MonitorMiddleware(app)(self.scope(), None, send)
+        self.assertEqual(outcomes, [False, False, False, True, True, True])
+        self.assertEqual(self.monitor.completed_requests_total, 6)
+        self.assertEqual(self.monitor.failed_requests_total, 3)
+        self.monitor.request_metrics.flush.assert_not_awaited()
+
     async def test_streaming_finishes_at_last_body_before_background_work(self):
         self.monitor.status = "running"
         body = asyncio.Event()
@@ -848,6 +876,43 @@ class RedisProcessTests(unittest.IsolatedAsyncioTestCase):
                 return snapshot
             await asyncio.sleep(0.1)
         self.fail("Timed out waiting for isolated monitoring state.")
+
+    async def test_run_metrics_sum_workers_retry_safely_and_reset_only_on_new_run(self):
+        from APPs.Monitor.module import MonitorRequestMetrics
+
+        def metric(boot, process):
+            value = MonitorRequestMetrics(
+                cache=self.cache,
+                instance_id="isolated",
+                run_id=boot,
+                process_uid=process,
+            )
+            value.key = f"{self.prefix}:request-metrics:{boot}"
+            return value
+
+        workers = [metric("first-boot", f"worker-{index}") for index in range(4)]
+        for worker in workers:
+            for _ in range(10):
+                worker.record(failed=False)
+            for _ in range(3):
+                worker.record(failed=True)
+        await asyncio.gather(*(worker.flush() for worker in workers))
+        result = await workers[0].read()
+        self.assertEqual((result["total"], result["successful"], result["failed"]), (52, 40, 12))
+        for worker in workers:
+            worker._flushed = None
+        await asyncio.gather(*(worker.flush() for worker in workers))
+        self.assertEqual((await workers[0].read())["total"], 52)
+        replacement = metric("first-boot", "replacement")
+        replacement.record(failed=False)
+        replacement.record(failed=True)
+        await replacement.flush()
+        self.assertEqual((await replacement.read())["total"], 54)
+        new_boot = metric("second-boot", "worker-1")
+        await new_boot.flush()
+        self.assertEqual((await new_boot.read())["total"], 0)
+        self.assertEqual((await replacement.read())["total"], 54)
+        self.assertGreater(await self.cache.ttl(new_boot.key), 0)
 
     async def test_real_redis_heartbeat_retention_and_terminal_record(self):
         monitor = WorkerMonitor(self.cache, prefix=self.prefix, interval=0.1, heartbeat=1, retention=3)

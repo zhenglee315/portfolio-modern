@@ -182,10 +182,11 @@ for (const resource of resources) {
     const shell = page.locator(`[data-management-resource="${resource}"]`);
     await expect(shell.locator('tbody > tr')).toHaveCount(6);
     const sidebar = shell.locator('aside [data-sidebar-links]').first();
-    await expect(sidebar.getByRole('link')).toHaveCount(resource === 'sites' ? 2 : 1);
-    await expect(sidebar.getByRole('link', { name: 'Requests', exact: true })).toHaveCount(
-      resource === 'sites' ? 1 : 0,
-    );
+    await expect(sidebar.getByRole('link')).toHaveCount(resource === 'sites' ? 4 : 1);
+    for (const label of ['Overview', 'Requests', 'Workers'])
+      await expect(sidebar.getByRole('link', { name: label, exact: true })).toHaveCount(
+        resource === 'sites' ? 1 : 0,
+      );
     await expect(sidebar.getByRole('link', { name: 'Roles', exact: true })).toHaveCount(
       resource === 'roles' ? 1 : 0,
     );
@@ -246,7 +247,7 @@ test('a cached administrator menu cannot authorize entry after the server revoke
     await route.fulfill({ json: { ...administrator, is_manage_users: false } });
   });
   await page.goto('/en');
-  await enterViaGear(page, 'User management');
+  await enterViaGear(page, 'Users');
   try {
     await expect.poll(() => sessionRequests).toBe(2);
     await expect(page.locator('[data-management-resource]')).toHaveCount(0);
@@ -261,9 +262,7 @@ test('a cached administrator menu cannot authorize entry after the server revoke
   await expect(page).toHaveURL(/\/en(?:#overview)?$/);
   await waitForFixtureHydration(page);
   await page.getByRole('button', { name: 'Account settings', exact: true }).click();
-  await expect(
-    page.getByRole('menuitem', { name: 'Platform management', exact: true }),
-  ).toHaveCount(1);
+  await expect(page.getByRole('menuitem', { name: 'Platform', exact: true })).toHaveCount(1);
   await expect(page.getByRole('menuitem', { name: 'Users', exact: true })).toHaveCount(0);
 });
 
@@ -308,7 +307,7 @@ test('canceled entry ignores its late allow response and never mounts or reads t
     completed = true;
   });
   await page.goto('/en');
-  await enterViaGear(page, 'Role management');
+  await enterViaGear(page, 'Roles');
   await expect.poll(() => sessionRequests).toBe(2);
   await page.evaluate(() => {
     history.pushState(null, '', '/en/sam');

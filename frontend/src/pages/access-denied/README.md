@@ -14,7 +14,7 @@ replaces the blocked URL with this localized page. The account menu, sidebar
 and table gate share `auth/permissions`: sites/monitoring use
 `is_manage_sites`, users use `is_manage_users`, and roles use
 `is_manage_roles`. Monitoring opens `/:locale/management/monitoring` and uses
-the same session gate before connecting to the authorized Socket.IO namespace.
+the same session gate before reading its private HTTP aggregates/current-run counters or connecting to the authorized Socket.IO namespace. Overview, Requests and Workers share this gate; permission loss clears monitor queries and subscriptions before the localized redirect. See the [monitor lifecycle](../../features/monitoring/README.md).
 
 Network, service and response-schema failures withhold management content and
 offer explicit SESSION retry instead of granting cached access. Navigation and

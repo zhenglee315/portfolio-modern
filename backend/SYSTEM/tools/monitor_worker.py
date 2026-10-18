@@ -33,6 +33,7 @@ from .monitor_contracts import (
     _key,
     MonitorStorage,
     TransactionObserver,
+    RequestMetrics,
 )
 from .monitor_snapshot import read_snapshot, _build_ui_snapshot
 from .monitor_supervisor import supervise
@@ -74,6 +75,7 @@ class WorkerMonitor:
         if not 1 <= request_batch_size <= 1000 or request_buffer_size < request_batch_size:
             raise ValueError("Invalid request-history buffer/batch limits.")
         self.redis = redis
+        self.request_metrics: RequestMetrics | None = None
         self.prefix = prefix or os.environ.get(ENV_PREFIX, MONITOR_PREFIX)
         self.interval, self.heartbeat, self.retention = interval, heartbeat, retention
         self.publish_timeout = publish_timeout
@@ -373,6 +375,8 @@ class WorkerMonitor:
         """Replace expiring snapshots and append completed events in one Redis transaction."""
         identity = f"{self.run_id}:{self.process_uid}"
         async with asyncio.timeout(self.publish_timeout):
+            if self.request_metrics is not None:
+                await self.request_metrics.flush()
             with self._lock:
                 history = list(islice(self._history, self.request_batch_size))
             await self._enrich_locations(history)

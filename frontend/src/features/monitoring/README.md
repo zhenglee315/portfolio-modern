@@ -1,0 +1,46 @@
+# Monitor workspace
+
+`/:locale/management/monitoring` opens the Overview. `monitorView=requests` and `monitorView=workers` retain the existing request and process views. The original `ManagementPage` shell owns navigation, account controls, the session gate, background motion and page entrance. `MonitorWorkspace` renders only its content slot and inherits the global appearance tokens. The existing `SidebarRail`, `SidebarLinks` and `SidebarDrawer`, together with the account menu, derive all six destinations from `managementNavigation`: Overview → Requests → Workers → Platform → Roles → Users. Every management resource shows the same permitted entries; the route changes selection only, without feature-specific navigation styles. Overview uses the existing `is_manage_sites` permission.
+
+## Data ownership
+
+`overview-api.ts` validates four private HTTP contracts with Zod and the shared `requestJson` transport. Query keys include account identity, endpoint and the complete normalized filters. Requests use session cookies, cancellation signals, `cache: no-store` and Query `meta.private`; they never enter SSR hydration. Permission loss cancels and removes the account's monitor queries before redirecting. Account replacement retains the existing application-wide private-query cleanup.
+
+| Source                                | Consumers                                                                          |
+| ------------------------------------- | ---------------------------------------------------------------------------------- |
+| `GET /monitor/services`               | Service identity, environment, region, versions, address and refresh intervals     |
+| `GET /monitor/traffic`                | Request KPI, sparkline, daily chart, average and prior-period comparison           |
+| `GET /monitor/logins`                 | Distinct-account KPI, sparkline, country map, ranking and unknown-location count   |
+| `GET /monitor/availability`           | Sampled availability, SLO, coverage and latest dependency health                   |
+| `GET /monitor/request-totals`         | Worker detail cards: successful/failed requests since the current server run began |
+| Socket.IO `/monitor`, topic `workers` | Immediate worker summary and resource table                                        |
+
+`useMonitorOverview` owns the query lifecycle. Historical filters use inclusive `YYYY-MM-DD` dates in `Asia/Taipei`, defaulting to seven local days including today; presets are resolved again when the local date changes. Both seven- and thirty-day presets include the active local day so minute-by-minute collection is visible immediately; current-day observations remain partial and SLO remains unknown until the backend can evaluate full coverage. Explicit dates and presets are bookmarkable. Invalid ranges, future dates and ranges beyond 93 days do not trigger aggregate reads. Each HTTP source is queried once and shared by its consumers.
+
+The service's suggested interval defaults to 30 seconds. Aggregates request `is_caching=true`, accepting the backend's additional 60-second cache lifetime. Traffic and health history are collected every minute; successful sign-ins are stored at login. Pause and document hiding stop intervals, cancel in-flight reads and dispose the worker socket. Resume reconnects and fetches stale queries. The footer reports the oldest available aggregate `generated_at`, not the browser's response-arrival time.
+
+## Display semantics
+
+- Traffic means stored HTTP requests, including errors, excluding monitoring endpoints. It does not represent page views or unique visitors. Incomplete empty days stay gaps; positive partial observations use dashed markers. Unavailable prior-period comparisons stay unknown and omit the comparison label.
+- Login `total` is distinct accounts for the whole period. Daily distinct counts must not be summed. The final login in the period determines each account's country, local network or unknown location. `local_users` comes from stored `geo_status=non_public`, including localhost and private networks, and uses a fixed Robot marker in the map's lower right corner. The marker and ranking share hover, click and keyboard disclosure; zoom never moves the Robot to a geographic coordinate. Country percentages include local and unknown locations in their denominator. Country names are localized in the browser; unknown and unpositioned countries remain visible in counts/ranking.
+- The compact KPI row leaves room for the map; health coverage and its HelpTooltip live under the page title. The obsolete partial-coverage/data-as-of line is omitted from the map card while the shared footer retains freshness context.
+- Availability is successful probes divided by observed probes; coverage measures observed versus expected probes. Missing observations and `slo_met=null` remain unknown. Latest service health is independent of the historical date range and becomes unknown after the backend's freshness window.
+- Worker status uses lifespan heartbeats, independently of HTTP/Redis/database health and historical filters. The overview subscribes only to `workers`. Connection loss or stale observations do not display healthy zero-resource workers. CPU text may exceed 100%, its bar caps at one core; RSS is converted from bytes to MiB. Restart counts cover the current supervisor run. The flat worker indicator is decorative and does not imply stored worker history.
+
+The Robot uses an icon-only target with an outward ripple dot when the selected period contains local sign-ins. Counts remain in its tooltip and ranking. Ripples originate on the Robot body, follow the global decoration pause policy and become a static dot/ring under reduced motion. Hover departure, blur or Escape fades the tooltip out through the existing Bootstrap Fade lifecycle; touch retains explicit disclosure. Counts are period-distinct accounts, not online visitors.
+
+`WorkerTable` is shared with `MonitorWorkersView`; `Stat` and `MonitorSelect` extend existing monitor presentation. Navigation, account controls, errors, loading, help, focus behavior and selectors compose the established shared components. The design has a different atlas from Journey: its exact static Figma asset is bundled separately, with data-driven markers and country positions rather than coupling to Journey records.
+
+The Workers detail view adds Successful requests and Failed requests cards from `GET /monitor/request-totals`, polled every five seconds while visible and unpaused. These are current server-run counters from SYS Redis, independent of overview date filters and saved SQL history. HTTP 2xx/3xx completed responses succeed; HTTP 4xx/5xx, exceptions, cancellations and disconnects fail. Full server restarts reset these totals; Worker replacement preserves the run total. The full Worker table also shows Requests and Failed columns from each process's cumulative Socket.IO counters since that process started. At 1440×780 and 1512×772, four workers and the footer fit without page/table scrollbars. Missing/stale observations remain unknown. Permission loss removes private queries and leaves the workspace; hiding, pausing or leaving Workers cancels the totals read.
+
+Unsupported alert-rule, log and notification actions are not presented as working controls. The design's illustrative launch command and historical Worker series have no backend fields; no sample values are substituted.
+
+## Documentation captures
+
+The [project tour](../../../../README.md#即時請求與-worker-監控--live-request-and-worker-monitoring) covers desktop/mobile Overview, Requests, events and Workers. From `frontend/`, run `npm run docs:monitor`; the separate Playwright docs configuration uses isolated HTTP/Socket fixtures, demo identity and four workers. It writes only documentation PNGs under `docs/images/`, without reading private runtime data. Sources and capture dimensions are documented in the [image guide](../../../../docs/images/README.md).
+
+## Verification
+
+Unit coverage: local-calendar boundaries, invalid bookmarks, response contracts, unknown values, authenticated transport, query deduplication, account/filter isolation, hydration exclusion, cancellation and mismatched periods. Browser coverage includes cross-resource desktop/mobile navigation order, selected-state and permission checks, then three locales at 320/820/1600px, original local assets, live Socket.IO protocol, filtering/Back navigation, map selection/zoom, pause/resume, unknown geography/availability and permission loss. Run `npm run check` and `npx playwright test tests/e2e/monitor-overview.spec.ts --project=management --no-deps` from `frontend/`.
+
+Author: ZhengLee · 2026.10.18

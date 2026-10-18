@@ -10,6 +10,12 @@ DataTable 負責呈現與發出操作事件；頁面／feature 負責查詢、�
 
 ![DataTable：工具列、欄位、資料列、選取、總筆數與分頁](data-table-docs/overview.png)
 
+## 監控頁共用方式 / Monitoring reuse
+
+監控管理頁沿用 `SidebarRail`／`SidebarLinks`／`SidebarDrawer`；page 將同一份完整導航及 active ID 傳入，不因目前資源只展開部分項目。六個入口與權限由 feature／page 管理，共用元件不判斷 SESSION。`Icon` 的 globe／cpu／robot、原有 heartbeat、`HelpTooltip` 與 Bootstrap 選單／淡出沿用相同 token；`WorkerTable` 及日曆統計是 [monitoring feature](../../features/monitoring/README.md) 專用組件，不將其 HTTP 或 SQL 語意放進通用 DataTable。
+
+Monitoring reuses the original navigation and UI primitives. Owners supply one permission-filtered destination list and the current ID; shared navigation does not condition its content on the active resource or read account identity.
+
 ## 目錄
 
 欄位說明可設定 `column.help = { label: 'About Create permission', text: '…' }`，在標題左側顯示小型 question 圖示。共用 `HelpTooltip` 使用一般圓角提示框，支援 hover、鍵盤焦點與 touch 點按；可按 Escape 關閉，水平捲動時也會關閉。label／text 由 owner 翻譯；說明文字不加入欄位標題、排序、篩選或匯出值。

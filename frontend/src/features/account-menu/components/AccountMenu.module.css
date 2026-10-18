@@ -63,6 +63,14 @@
   border-top-color: var(--border);
   opacity: 1;
 }
+.groupHeading:global(.dropdown-header) {
+  padding: 3px 12px 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+}
 .identity {
   display: flex;
   align-items: center;

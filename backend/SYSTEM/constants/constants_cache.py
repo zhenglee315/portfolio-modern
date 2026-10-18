@@ -19,6 +19,7 @@ class EnumCacheNamespace(EnumUtils):
     """
 
     PORTFOLIO = "portfolio"
+    MONITOR = "monitor"
 
 
 class EnumCacheError(EnumUtils):

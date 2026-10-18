@@ -6,6 +6,10 @@ import { useNavigate } from 'react-router';
 import { type MonitorWorker } from './monitor';
 import { metric } from './monitor-presentation';
 import { useMonitorSocket } from './useMonitorSocket';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '@/shared/api/http';
+import { useDocumentVisible } from '@/shared/hooks/useDocumentVisible';
+import { monitorRequestTotalsQuery } from './overview-api';
 /** Own one socket subscription and presentation state for both monitor views.
  * Monotonic ticks advance ages only; event timestamps retain explicit UTC formatting.
  */
@@ -15,17 +19,45 @@ export function useMonitoringPanel({
   accountId,
   onDenied,
   motionPaused = false,
+  initialView = 'requests',
 }: {
   locale: Locale;
   enabled: boolean;
   accountId?: number;
   onDenied: () => void;
   motionPaused?: boolean;
+  initialView?: 'requests' | 'workers';
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [paused, setPaused] = useState(false);
-  const [view, setView] = useState<'requests' | 'workers'>('requests');
+  const [view, setView] = useState<'requests' | 'workers'>(initialView);
+  const visibleDocument = useDocumentVisible();
+  const client = useQueryClient();
+  const totalsOptions = monitorRequestTotalsQuery(accountId);
+  const totalsActive = enabled && visibleDocument && !paused && view === 'workers';
+  const totals = useQuery({
+    ...totalsOptions,
+    enabled: totalsActive,
+    refetchInterval: totalsActive ? 5000 : false,
+    refetchIntervalInBackground: false,
+  });
+  useEffect(() => {
+    if (!totalsActive)
+      void client.cancelQueries({
+        queryKey: ['monitor', accountId ?? 'session', 'request-totals'],
+      });
+  }, [totalsActive, client, accountId]);
+  useEffect(() => {
+    if (
+      totals.error instanceof ApiError &&
+      totals.error.kind === 'http' &&
+      [401, 403].includes(totals.error.status ?? 0)
+    ) {
+      client.removeQueries({ queryKey: ['monitor', accountId ?? 'session'] });
+      onDenied();
+    }
+  }, [totals.error, onDenied, client, accountId]);
   const [clock, setClock] = useState(0);
   const [filter, setFilter] = useState('all');
   const [ascending, setAscending] = useState(false);
@@ -130,6 +162,7 @@ export function useMonitoringPanel({
     busy,
     stale,
     resources,
+    totals,
     cpu,
     memory,
     uptime,

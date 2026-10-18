@@ -4,6 +4,10 @@
 
 The lifespan injects `GeoIpDatabaseImporter.prepare_bundle` into `GeoIpReader`; infrastructure tools consume that dependency without importing COMMON. The same per-worker reader enriches successful login history and monitored requests.
 
+Monitor 登入地圖使用儲存的最後登入地區；`geo_status=non_public` 分入 `local_users`（localhost／私有網路），未知位置保持未知，不以舊國別或任意地點補值。前端 Robot 只是非地理分類的標記，與 MMDB 國別座標無關；見 [Monitor 統計](../../APPs/Monitor/README.md)。
+
+The monitoring map aggregates stored login classifications. Local/private networks form a separate non-geographic category, while unresolved locations remain unknown.
+
 `City.mmdb.gz`, `manifest.json` and `NOTICE.txt` are versioned together. A new Git
 clone therefore includes the database used for login and request IP geolocation. No external
 API, download, Git LFS or extra service is needed at runtime.

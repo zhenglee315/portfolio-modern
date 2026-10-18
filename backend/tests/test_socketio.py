@@ -173,7 +173,7 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
         from SYSTEM.models import AuthRole, AuthUser
         from APPs.Auth.module import AuthModule
-        from APPs.Sys.events_monitor import authorize_monitor
+        from APPs.Monitor.events_monitor import authorize_monitor
         from SYSTEM.tools.tools_socketio import socketio_session_request
 
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -206,9 +206,13 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
                 "query_string": b"",
             }
         }
-        manager = SimpleNamespace(get_cache=lambda **_: self.redis, get_db=sessions)
         try:
-            with patch("APPs.Sys.events_monitor.CONN_MANAGER", manager):
+            with (
+                patch("COMMON.tools.storage.redis.tools_redis_async.CONN_MANAGER.get_cache", return_value=self.redis),
+                patch(
+                    "COMMON.tools.storage.sqlalchemy.tools_sqlalchemy_async.CONN_MANAGER.get_db", side_effect=sessions
+                ),
+            ):
                 self.assertEqual(await authorize_monitor(environ), uid)
                 async with sessions.begin() as session:
                     (await session.get(AuthRole, rid)).is_manage_sites = False
@@ -257,7 +261,7 @@ class DiscoveryTests(unittest.TestCase):
                 loaded = socketio_include_events("APPs")
             finally:
                 os.chdir(before)
-        self.assertIn("APPs.Sys.events_monitor", loaded)
+        self.assertIn("APPs.Monitor.events_monitor", loaded)
 
     def test_missing_directory_and_invalid_prefix_fail_startup(self):
         with self.assertRaises(FileNotFoundError):
@@ -275,7 +279,7 @@ class DiscoveryTests(unittest.TestCase):
 
 class EventTests(unittest.IsolatedAsyncioTestCase):
     async def test_storage_failure_is_unavailable_not_a_permission_rejection(self):
-        from APPs.Sys import events_monitor
+        from APPs.Monitor import events_monitor
         from socketio.exceptions import ConnectionRefusedError
 
         server = SimpleNamespace(monitor_stream=SimpleNamespace(connect=AsyncMock(side_effect=OSError())))
@@ -284,7 +288,7 @@ class EventTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(error.exception.error_args["data"], {"code": "MONITOR_UNAVAILABLE"})
 
     async def test_test_event_replies_only_to_its_own_sid(self):
-        from APPs.Sys import events_monitor
+        from APPs.Monitor import events_monitor
 
         server = SimpleNamespace(emit=AsyncMock(), transport=Mock(return_value="websocket"))
         server.monitor_stream = SimpleNamespace(connect=AsyncMock(return_value=True), disconnect=AsyncMock())
@@ -305,7 +309,7 @@ class EventTests(unittest.IsolatedAsyncioTestCase):
         server.emit.assert_awaited_once_with("monitor_test_result", result, to="sid-a", namespace="/monitor")
 
     async def test_invalid_test_data_never_echoes_extra_or_sensitive_fields(self):
-        from APPs.Sys import events_monitor
+        from APPs.Monitor import events_monitor
 
         server = SimpleNamespace(emit=AsyncMock(), transport=Mock(return_value="websocket"))
         with patch.object(events_monitor, "sio", server):

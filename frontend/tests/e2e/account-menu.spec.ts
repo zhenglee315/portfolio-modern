@@ -1,15 +1,18 @@
 import { expect, type Page } from '@playwright/test';
 import type { AuthUser } from '../../src/features/auth/schemas/auth';
 import { runtimeTest as test, waitForFixtureHydration } from '../fixtures/browser';
+import { installMonitorSocket } from '../fixtures/monitor-browser';
 
 const guestRows = ['Theme', 'Language', 'Sign in'];
 const memberRows = ['Profile', 'Theme', 'Language', 'Sign out'];
 const administratorRows = [
   'Profile',
-  'Request monitoring',
-  'Platform management',
-  'Role management',
-  'User management',
+  'Overview',
+  'Requests',
+  'Workers',
+  'Platform',
+  'Roles',
+  'Users',
   'Theme',
   'Language',
   'Sign out',
@@ -106,17 +109,26 @@ for (const permissions of [
   {
     name: 'user flag alone',
     flags: { is_manage_users: true },
-    rows: ['Profile', 'User management', 'Theme', 'Language', 'Sign out'],
+    rows: ['Profile', 'Users', 'Theme', 'Language', 'Sign out'],
   },
   {
     name: 'site manager without user flag',
     flags: { is_manage_sites: true, is_manage_users: false },
-    rows: ['Profile', 'Request monitoring', 'Platform management', 'Theme', 'Language', 'Sign out'],
+    rows: [
+      'Profile',
+      'Overview',
+      'Requests',
+      'Workers',
+      'Platform',
+      'Theme',
+      'Language',
+      'Sign out',
+    ],
   },
   {
     name: 'role manager without site access',
     flags: { is_manage_roles: true },
-    rows: ['Profile', 'Role management', 'Theme', 'Language', 'Sign out'],
+    rows: ['Profile', 'Roles', 'Theme', 'Language', 'Sign out'],
   },
   {
     name: 'administrator',
@@ -212,9 +224,27 @@ test('keyboard navigation, outside dismissal and scaffold selection preserve ide
     await expect(page.locator('[data-auth-panel]')).toHaveCount(0);
   }
   ({ menu } = await openAccountMenu(page));
-  await menu.getByRole('menuitem', { name: 'Request monitoring', exact: true }).click();
+  await installMonitorSocket(page);
+  await menu.getByRole('menuitem', { name: 'Workers', exact: true }).click();
+  await expect(page).toHaveURL(/\/en\/management\/monitoring\?monitorView=workers$/);
+  const workerTable = page.getByRole('table', { name: 'Uvicorn worker status', exact: true });
+  await expect(workerTable.locator('tbody tr')).toHaveCount(4);
+  await page.getByRole('button', { name: 'Account settings', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Overview', exact: true }).click();
   await expect(page).toHaveURL(/\/en\/management\/monitoring$/);
   await expect(page.locator('[data-monitoring]')).toBeVisible();
+  await page.getByRole('button', { name: 'Account settings', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Requests', exact: true }).click();
+  await expect(page).toHaveURL(/\/en\/management\/monitoring\?monitorView=requests$/);
+  await expect(page.locator('[data-flow-worker]')).toHaveCount(4);
+  await page.getByRole('button', { name: 'Account settings', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Workers', exact: true }).click();
+  await expect(page).toHaveURL(/\/en\/management\/monitoring\?monitorView=workers$/);
+  await expect(workerTable.locator('tbody tr')).toHaveCount(4);
+  await page.getByRole('button', { name: 'Account settings', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Overview', exact: true }).click();
+  await expect(page).toHaveURL(/\/en\/management\/monitoring$/);
+  await expect(page.locator('[data-monitor-overview]')).toBeVisible();
   expect(writes).toEqual([]);
 });
 
@@ -239,6 +269,15 @@ for (const viewport of [
     await expect(page.locator('[data-profile-controls]')).toBeVisible();
     const { trigger, menu } = await openAccountMenu(page);
     await expect(menu.getByRole('menuitem')).toHaveText(administratorRows);
+    await expect(menu.getByRole('group', { name: 'Monitor', exact: true })).toContainText(
+      'Overview',
+    );
+    await expect(menu.getByRole('group', { name: 'Management', exact: true })).toContainText(
+      'Platform',
+    );
+    await expect(menu.getByRole('group', { name: 'Preferences', exact: true })).toContainText(
+      'Theme',
+    );
     const bounds = (await menu.boundingBox())!;
     expect(bounds.x).toBeGreaterThanOrEqual(0);
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
@@ -255,6 +294,10 @@ for (const viewport of [
       await menu.getByRole('menuitem', { name: 'Sign out', exact: true }).scrollIntoViewIfNeeded();
       await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeInViewport();
     }
+    await menu.screenshot({
+      animations: 'disabled',
+      path: test.info().outputPath(`account-menu-${viewport.width}-${viewport.height}.png`),
+    });
     await page.keyboard.press('Escape');
     await expect(trigger).toBeFocused();
   });

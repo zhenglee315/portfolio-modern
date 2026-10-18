@@ -1,6 +1,7 @@
 # ◆—< Pack >—————————————————————————————————◆ System
 from SYSTEM.tools import net_client_ip
 from SYSTEM.constants import EnumCache
+from SYSTEM.urls import PreFix, RouteMonitor
 
 # ◆—< Pack >—————————————————————————————————◆ Common
 from COMMON.tools.storage.redis import RedisAsync
@@ -36,6 +37,9 @@ class HeartbeatMiddleware(BaseHTTPMiddleware):
 
                                                                                                ♂ ZhengLee 2026.10.03
         """
+        # The scheduler's own HTTP probe is machine activity, not an online visitor.
+        if request.url.path == f"/{PreFix.Monitor}{RouteMonitor.HEALTH}":
+            return await call_next(request)
         client_ip = net_client_ip(request=request)
         try:
             await RedisAsync(key=EnumCache.SYS).heartbeat_client(identifier=client_ip)

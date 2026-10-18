@@ -48,12 +48,9 @@ for (const resource of ['sites', 'users', 'roles'] as const) {
       const breadcrumb = owner.getByRole('navigation', { name: 'Breadcrumb', exact: true });
       await expect(breadcrumb.locator('li').first()).toHaveText('Settings');
       await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText(headings[resource]);
-      await expect(owner.locator('aside nav').locator('a, button')).toHaveText([
-        'Request monitoring',
-        'Platform management',
-        'Role management',
-        'User management',
-      ]);
+      await expect(
+        owner.locator('aside [data-sidebar-links]').first().getByRole('link'),
+      ).toHaveText(['Overview', 'Requests', 'Workers', 'Platform', 'Roles', 'Users']);
       await expect(owner.locator('[data-management-controls]')).toBeVisible();
       await owner.locator('tbody [data-selection] input').first().check();
       await expect(
@@ -580,7 +577,7 @@ test('public pages keep management idle until the administrator selects a resour
   await page.getByRole('button', { name: 'Account settings', exact: true }).click();
   await page
     .getByRole('menu', { name: 'Account settings', exact: true })
-    .getByRole('menuitem', { name: 'Platform management', exact: true })
+    .getByRole('menuitem', { name: 'Platform', exact: true })
     .click();
   await expect(page).toHaveURL(/\/en\/management\/sites$/);
   await expect(page.locator('[data-management-resource="sites"] tbody > tr')).toHaveCount(6);

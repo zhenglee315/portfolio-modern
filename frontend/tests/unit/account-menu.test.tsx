@@ -97,13 +97,26 @@ describe('permission-aware account menu framework', () => {
           .map((item) => item.textContent?.trim()),
       ).toEqual([
         'Profile',
-        ...(sites ? ['Request monitoring', 'Platform management'] : []),
-        ...(roles ? ['Role management'] : []),
-        ...(users ? ['User management'] : []),
+        ...(sites ? ['Overview', 'Requests', 'Workers', 'Platform'] : []),
+        ...(roles ? ['Roles'] : []),
+        ...(users ? ['Users'] : []),
         'Theme',
         'Language',
         'Sign out',
       ]);
+      expect(within(view.menu).queryByRole('group', { name: 'Monitor' })).toBe(
+        sites ? within(view.menu).getByRole('group', { name: 'Monitor' }) : null,
+      );
+      expect(within(view.menu).queryByRole('group', { name: 'Management' })).toBe(
+        sites || roles || users
+          ? within(view.menu).getByRole('group', { name: 'Management' })
+          : null,
+      );
+      expect(
+        within(within(view.menu).getByRole('group', { name: 'Preferences' }))
+          .getAllByRole('menuitem')
+          .map((item) => item.textContent?.trim()),
+      ).toEqual(['Theme', 'Language']);
       expect(view.menu).toHaveTextContent('ironman');
       expect(view.menu).not.toHaveTextContent(account.email);
       expect(within(view.menu).queryByRole('menuitem', { name: 'Sign in' })).toBeNull();

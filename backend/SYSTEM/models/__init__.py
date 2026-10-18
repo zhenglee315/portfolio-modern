@@ -21,7 +21,7 @@ from .models_portfolio import (
 )
 
 # ◆—< Models >———————————————————————————————◆ Record
-from .models_record import RecordLogin, RecordRequest
+from .models_record import RecordLogin, RecordRequest, RecordMonitorCoverage, RecordMonitorHealth
 
 # Deliberate package API; imported dependencies do not leak through this facade.
 __all__ = (
@@ -43,4 +43,6 @@ __all__ = (
     "PortfolioCategorySkill",
     "RecordLogin",
     "RecordRequest",
+    "RecordMonitorCoverage",
+    "RecordMonitorHealth",
 )

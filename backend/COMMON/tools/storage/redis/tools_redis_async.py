@@ -164,6 +164,10 @@ class RedisAsync:
                 raise
             return False
 
+    async def stream_length(self, key: str) -> int:
+        """Read the remaining queue length through the shared pooled command boundary."""
+        return await self._execute(self.redis.xlen, key)
+
     async def stream_claim(self, key: str, group: str, consumer: str, *, count: int):
         """Reclaim pending events. Caller must own its consumer's distributed mutex."""
         result = await self._execute(

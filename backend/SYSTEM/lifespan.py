@@ -24,6 +24,7 @@ from SYSTEM.settings import (
 from COMMON.tools.storage.redis import RedisAsync
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyTransactionObserver
 from COMMON.tools.tools_geoip import GeoIpDatabaseImporter
+from APPs.Monitor.module import MonitorRequestMetrics
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
 from fastapi import FastAPI
@@ -92,6 +93,12 @@ async def lifespan(app: FastAPI):
                 "port": SVR_PORT,
                 "expected_workers": SVR_WORKERS,
             },
+        )
+        app.state.monitor.request_metrics = MonitorRequestMetrics(
+            cache=app.state.monitor.redis,
+            instance_id=app.state.monitor.instance_id,
+            run_id=app.state.monitor.run_id,
+            process_uid=app.state.monitor.process_uid,
         )
         await app.state.monitor.start()
         app.state.monitor_stream = await socketio_start_monitor(sio, app.state.monitor)

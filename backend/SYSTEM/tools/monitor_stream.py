@@ -18,7 +18,7 @@ class MonitorStream:
     """One publisher per instance, with process-local authorized Socket.IO subscribers.
 
     SYS Redis stores only expiring leases, presence and comparison state. The socket
-    manager delivers rooms across workers; authorization is injected by APPs/Sys.
+    manager delivers rooms across workers; authorization is injected by APPs/Monitor.
     Slow consumers receive bounded snapshots, never an unbounded request event log.
     """
 
@@ -209,6 +209,8 @@ class MonitorStream:
                 "sampled_at",
                 "active_requests",
                 "active_transactions",
+                "completed_requests_total",
+                "failed_requests_total",
                 "publish_failures_total",
                 "sample_error",
             )

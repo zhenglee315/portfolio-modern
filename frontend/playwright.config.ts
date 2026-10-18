@@ -58,6 +58,7 @@ export default defineConfig({
       dependencies: ['performance'],
       testMatch: [
         '**/current-management-responsive.spec.ts',
+        '**/monitor-overview.spec.ts',
         '**/management-access.spec.ts',
         '**/management-pagination.spec.ts',
         '**/management-sort-cycle.spec.ts',

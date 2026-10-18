@@ -2,6 +2,10 @@
 
 **文件責任：** 共用草地牛的 SVG 分件、場景插槽、動畫與偏好控制、素材來源、保留範圍及重建程序。登入／權限行為見 [前端總覽](../../../../README.md)，403 頁面的配置見 [Access denied](../../../pages/access-denied/README.md)；共用元件契約由 [shared 文件](../../README.md) 索引。
 
+整合範圍：登入與 403 沿用本元件；[監控管理頁](../../../features/monitoring/README.md) 沿用全站原有主題與背景，不建立另一套角色或全域動畫控制器。Localhost Robot 是共用 Icon 的資料標記，並非本牛角色資產。
+
+Integration scope: account/403 views reuse this workspace; monitoring retains the existing global appearance policy and uses a separate shared Robot icon for local-network observations.
+
 可重用的像素風 SVG 桌面與角色拆件。以 `backend/SYSTEM/static/icon/logo.png` 為造型依據，桌面道具各自由新繪製的完整透明原稿轉成純 SVG 路徑，不沿用原場景切片。牛頭採用使用者選定的第一版完整頭原稿，整張轉成向量；嘴筆畫拆為獨立物件，頭部嘴區補回原鼻口底色，再分別疊上眼睛與嘴型。原始 PNG 保留不變。
 
 A reusable pixel-style SVG character and desk for the portfolio's account panel. Character parts and complete props retain their transparent source artwork; eyes and mouth are independent vector layers. React composes the scene, a shared hook owns its motion lifecycle, and the account feature supplies localized controls.

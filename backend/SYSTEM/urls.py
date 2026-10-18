@@ -15,10 +15,21 @@ class PreFix(EnumUtils):
     AUTH = "authority"
     # -< Url >----------------------------------------------------------【 Management 】
     MGR = "management"
+    # -< Url >----------------------------------------------------------【 Monitoring 】
+    Monitor = "monitor"
 
 
 # ■—< CONF >——————————————————————————————————————————————————————————————————————————■ Tags
 class Tags(Enum):
+    Monitor = {
+        "name": "Monitor",
+        "description": (
+            "Private operational overview: HTTP request traffic, distinct successful sign-ins, "
+            "last-login country distribution, sampled availability and deployment metadata. "
+            "Requires current site-management permission. Worker observations remain on the /monitor "
+            "Socket.IO namespace. The minimal HTTP health probe is public."
+        ),
+    }
     # -< Tags >---------------------------------------------------------【 Portfolio 】
     PORTFOLIO = {
         "name": "Portfolio",
@@ -90,6 +101,15 @@ class RoutePortfolio(EnumUtils):
     # Numbered category skills in one portfolio; locale, ownerType=category, ownerId, page, size=6.
     # Optional site_id selects the portfolio; ownerId selects a category inside that portfolio.
     SKILLS = "/skills"
+
+
+class RouteMonitor(EnumUtils):
+    REQUEST_TOTALS = "/request-totals"
+    TRAFFIC = "/traffic"
+    LOGINS = "/logins"
+    AVAILABILITY = "/availability"
+    SERVICES = "/services"
+    HEALTH = "/health"
 
 
 class RouteManagement(EnumUtils):

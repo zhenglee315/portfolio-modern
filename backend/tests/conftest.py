@@ -20,3 +20,4 @@ def pytest_configure() -> None:
     import_module("COMMON.tools.storage.sqlalchemy")
     import_module("COMMON.tools.storage.redis")
     import_module("COMMON.tools.tools_geoip")
+    import_module("APPs.Monitor.module.module_monitor")

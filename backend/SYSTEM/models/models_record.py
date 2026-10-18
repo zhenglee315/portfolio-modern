@@ -153,4 +153,32 @@ class RecordRequest(BASE):
     )
 
 
-__all__ = ("RecordLogin", "RecordRequest")
+class RecordMonitorCoverage(BASE):
+    """Conservative collection boundary and successful request-ingestion watermark."""
+
+    __tablename__ = "record_monitor_coverage"
+    source = Column(String(24), primary_key=True)
+    started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    through_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class RecordMonitorHealth(BASE):
+    """One observation per configured service/minute; absent minutes remain unknown."""
+
+    __tablename__ = "record_monitor_health"
+    service_id = Column(String(64), primary_key=True)
+    checked_at = Column(DateTime(timezone=True), primary_key=True)
+    http_ok = Column(Boolean, nullable=False)
+    redis_ok = Column(Boolean, nullable=False)
+    database_ok = Column(Boolean, nullable=False)
+    http_status = Column(Integer, nullable=True)
+    duration_ms = Column(Float, nullable=False)
+    __table_args__ = (
+        CheckConstraint("duration_ms >= 0", name="ck_record_monitor_health_duration"),
+        CheckConstraint(
+            "http_status IS NULL OR http_status BETWEEN 100 AND 599", name="ck_record_monitor_health_http_status"
+        ),
+    )
+
+
+__all__ = ("RecordLogin", "RecordRequest", "RecordMonitorCoverage", "RecordMonitorHealth")

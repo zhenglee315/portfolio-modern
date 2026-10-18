@@ -55,6 +55,12 @@ Choose a TTL with `expire=...`; writes to the underlying data do not automatical
 
 請用 `expire=...` 決定有效時間；底層資料寫入後，不會自動清除既有 GET 快取。
 
+## Monitor 用法 / Monitoring usage
+
+`APPs/Monitor/views_monitor.py` 的 traffic／logins／availability 沿用 `parser_caching` 與 `@cache(expire=CacheExpiry.MIN, namespace=EnumCacheNamespace.MONITOR)`。目前角色權限、日期與服務解析在快取查找前由 dependency 執行；命中亦維持 HTTP `private, no-store`。每分鐘採集加上快取可多延遲 60 秒。services、health 與 SYS Redis request-totals 不套用此彙總快取；完整範例見 [Monitor API](../../APPs/Monitor/README.md)。
+
+Monitor aggregate handlers reuse the shared parser and one-minute server cache after dependencies validate current permissions and resolved periods. Live run counters stay uncached.
+
 ## Current limits / 目前限制
 
 - FastAPI supplies `Request` and `Response` to the wrapper even when the method does not declare them. Direct Python calls outside FastAPI do not receive these objects automatically. / 即使方法沒有宣告 `Request`、`Response`，FastAPI 仍會注入給裝飾器；直接從 Python 呼叫方法時不會自動取得這些物件。

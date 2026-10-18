@@ -1,11 +1,11 @@
 # record_request
 
-保存 MonitorMiddleware 觀察到的已結束 HTTP 請求，供後續流量、延遲、錯誤率、節點與地區可視化。正常完成、錯誤、取消及斷線均可保存；處理中的請求仍只在即時監控顯示。
+保存 MonitorMiddleware 觀察到的已結束 HTTP 請求，已供 Monitor Overview 的每日 HTTP 流量彙總使用，逐筆歷史、延遲、錯誤率、節點與地區查詢可再擴充。正常完成、錯誤、取消及斷線均可保存；處理中的請求仍只在即時監控顯示。
 
 ## 流程
 
 1. `MonitorMiddleware` 呼叫 `WorkerMonitor.end_request()`，暫存獨立事件。與前端最近 200 筆／60 秒明細分開。
-2. Worker 背景回報預設每 2 秒，使用 lifespan 注入的共用 `RedisAsync(SYS)`，在同一 MULTI／EXEC 更新快照並 XADD JSON 到 `system:monitor:requests:queue`，**同為 Redis DB 0**。保留原本 Socket.IO 快照流程。
+2. Worker 背景回報預設每 0.5 秒，使用 lifespan 注入的共用 `RedisAsync(SYS)`，在同一 MULTI／EXEC 更新快照並 XADD JSON 到 `system:monitor:requests:queue`，**同為 Redis DB 0**。保留原本 Socket.IO 快照流程。
 3. `SCHEDULER/JOBs/Sys/jobs_monitor.py > jobs_monitor_request` 每 60 秒呼叫 `module/module_monitor.py > MonitorRequestModule.flush()`。啟動後第一輪約在第 60 秒。
 4. 取得跨節點 job 鎖後，先 XAUTOCLAIM 接手 pending，再 XREADGROUP 讀新事件；驗證 schema，透過共用 `SqlAlchemyExecAsync.transaction()` 寫入 SQL。
 5. INSERT 使用 `ON CONFLICT(request_id) DO NOTHING`。**Commit 成功後**才原子執行 XACK／XDEL；失敗時留待下輪接手，允許重送但不重複落庫。
@@ -13,29 +13,29 @@
 
 ## 欄位
 
-| 欄位 | 型別 | 用途 |
-| --- | --- | --- |
-| `id` | BIGINT PK | 自增流水號；SQLite 使用 INTEGER，支援其自增語意。 |
-| `request_id` | VARCHAR(32), UNIQUE | Worker 產生的 UUID hex，事件去重與追蹤。 |
-| `run_id` | VARCHAR(128) | API manager 本次啟動識別。 |
-| `instance_id` | VARCHAR(255) | Pod／VM 實例識別。 |
-| `process_uid` | VARCHAR(128) | PID 加程序建立時間，辨識 PID 重用。 |
-| `pid` | INTEGER | 接受請求的 worker PID，大於 0。 |
-| `method` | VARCHAR(16) | HTTP method。 |
-| `path` | VARCHAR(2048) | URL path，不含 query；沿用即時監控截斷長度。 |
-| `ip_address` | VARCHAR(45), NULL | 正規化 IPv4／IPv6，未知時為 NULL。 |
-| `country_code` | VARCHAR(2), NULL | GeoIP 國別代碼。 |
-| `region` | VARCHAR(128), NULL | GeoIP 地區。 |
-| `city` | VARCHAR(128), NULL | GeoIP 城市。 |
-| `geo_status` | VARCHAR(24) | `unknown`／`resolved`／`not_found`／`non_public`／`unavailable`。不保存尚未查詢的 pending。 |
-| `entered_at` | TIMESTAMPTZ | 請求進入時間，UTC。 |
-| `response_started_at` | TIMESTAMPTZ, NULL | ASGI response.start 時間；尚未回應即失敗可為 NULL。 |
-| `left_at` | TIMESTAMPTZ | 最後 ASGI body／trailers 送出或錯誤結束的時間。 |
-| `duration_ms` | FLOAT | 單調時鐘計算的毫秒耗時，非負值。 |
-| `http_status` | INTEGER, NULL | 已送出的 HTTP 狀態碼 100–599；未開始回應可為 NULL。 |
-| `status` | VARCHAR(24) | `completed`／`error`／`cancelled`／`disconnected`。HTTP 500 正常送完亦可為 completed，搭配 failed 判讀。 |
-| `failed` | BOOLEAN | 依既有監控定義，HTTP 5xx、錯誤或中止為 true；4xx 不自動視為失敗。 |
-| `stored_at` | TIMESTAMPTZ | SQL 寫入時間，由資料庫產生；可與 left_at 比較處理延遲。 |
+| 欄位                  | 型別                | 用途                                                                                                     |
+| --------------------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `id`                  | BIGINT PK           | 自增流水號；SQLite 使用 INTEGER，支援其自增語意。                                                        |
+| `request_id`          | VARCHAR(32), UNIQUE | Worker 產生的 UUID hex，事件去重與追蹤。                                                                 |
+| `run_id`              | VARCHAR(128)        | API manager 本次啟動識別。                                                                               |
+| `instance_id`         | VARCHAR(255)        | Pod／VM 實例識別。                                                                                       |
+| `process_uid`         | VARCHAR(128)        | PID 加程序建立時間，辨識 PID 重用。                                                                      |
+| `pid`                 | INTEGER             | 接受請求的 worker PID，大於 0。                                                                          |
+| `method`              | VARCHAR(16)         | HTTP method。                                                                                            |
+| `path`                | VARCHAR(2048)       | URL path，不含 query；沿用即時監控截斷長度。                                                             |
+| `ip_address`          | VARCHAR(45), NULL   | 正規化 IPv4／IPv6，未知時為 NULL。                                                                       |
+| `country_code`        | VARCHAR(2), NULL    | GeoIP 國別代碼。                                                                                         |
+| `region`              | VARCHAR(128), NULL  | GeoIP 地區。                                                                                             |
+| `city`                | VARCHAR(128), NULL  | GeoIP 城市。                                                                                             |
+| `geo_status`          | VARCHAR(24)         | `unknown`／`resolved`／`not_found`／`non_public`／`unavailable`。不保存尚未查詢的 pending。              |
+| `entered_at`          | TIMESTAMPTZ         | 請求進入時間，UTC。                                                                                      |
+| `response_started_at` | TIMESTAMPTZ, NULL   | ASGI response.start 時間；尚未回應即失敗可為 NULL。                                                      |
+| `left_at`             | TIMESTAMPTZ         | 最後 ASGI body／trailers 送出或錯誤結束的時間。                                                          |
+| `duration_ms`         | FLOAT               | 單調時鐘計算的毫秒耗時，非負值。                                                                         |
+| `http_status`         | INTEGER, NULL       | 已送出的 HTTP 狀態碼 100–599；未開始回應可為 NULL。                                                      |
+| `status`              | VARCHAR(24)         | `completed`／`error`／`cancelled`／`disconnected`。HTTP 500 正常送完亦可為 completed，搭配 failed 判讀。 |
+| `failed`              | BOOLEAN             | 目前 middleware 對 HTTP 4xx／5xx、錯誤或中止記 true；既有歷史列保留當時的定義，不回寫舊 4xx。            |
+| `stored_at`           | TIMESTAMPTZ         | SQL 寫入時間，由資料庫產生；可與 left_at 比較處理延遲。                                                  |
 
 PostgreSQL 使用 timezone-aware timestamp；SQLite 原生無 TIMESTAMPTZ，寫入 UTC 值，讀出時間按 UTC 解讀。事件無使用者外鍵，後續帳號／網站刪除不會連帶刪掉請求歷史。不記錄 body、query、cookie 或授權標頭；IP 為經受信代理設定處理後的 ASGI client。
 
@@ -53,13 +53,13 @@ PostgreSQL 使用 timezone-aware timestamp；SQLite 原生無 TIMESTAMPTZ，寫�
 
 設定集中於 `SYSTEM/config.yaml > MONITOR`，由 `SYSTEM/settings.py` 匯出。共用 SYS cache／DB 由既有 CONN_MANAGER 提供，不新增獨立連線池；`SYSTEM/tools` 不引用 COMMON，仍透過 lifespan 傳入工具。
 
-| 設定 | 預設 | 用途 |
-| --- | --- | --- |
-| `request_queue` | `system:monitor:requests:queue` | SYS DB 0 的 Stream key。 |
-| `request_group` | `record_request` | 唯一 consumer group。 |
-| `request_batch` | 500 | Worker 每輪入列上限及 SQL 每批上限，1–1000。 |
-| `request_buffer` | 10000 | 每個 worker 尚未成功入列的記憶體上限，須大於等於 batch。 |
-| `request_max_batches` | 20 | 每分鐘最多處理批數，預設至多 10000 個事件。 |
+| 設定                  | 預設                            | 用途                                                     |
+| --------------------- | ------------------------------- | -------------------------------------------------------- |
+| `request_queue`       | `system:monitor:requests:queue` | SYS DB 0 的 Stream key。                                 |
+| `request_group`       | `record_request`                | 唯一 consumer group。                                    |
+| `request_batch`       | 500                             | Worker 每輪入列上限及 SQL 每批上限，1–1000。             |
+| `request_buffer`      | 10000                           | 每個 worker 尚未成功入列的記憶體上限，須大於等於 batch。 |
+| `request_max_batches` | 20                              | 每分鐘最多處理批數，預設至多 10000 個事件。              |
 
 同一專案所有 Pod 使用相同 queue、group 與 `SCHEDULER.lock_prefix`。queue 的 ACK／XDEL 語意只適用單一 group。Job timeout 50 秒，沿用 Redis DB 5 的分散式鎖、續鎖與取消機制；`MonitorRequestModule.flush()` 須在此 job 鎖保護下呼叫。`XAUTOCLAIM` 需要 Redis 6.2+，專案其他既有指令已要求 Redis 7.0+。
 
@@ -80,3 +80,9 @@ uv run --locked python -m alembic upgrade head
 ```
 
 新增 revision 已獨立驗證 SQLite／PostgreSQL 升降版；既有歷史 migrations 仍有 PostgreSQL 專用 ALTER TYPE，不能據此宣稱整條 migration chain 可從空 SQLite 執行。
+
+## Overview 與開機累計
+
+`GET /monitor/traffic` 透過共用 SQLAlchemy 工具依本地日曆分桶查詢本表；`/monitor` 路徑在新增採集及彙總中排除。`record_monitor_coverage` 保存保守起點與成功排空 queue 後的水位，缺樣保持未知。獨立的 `record_monitor_health` 保存每分鐘 HTTP／Redis／SQL 探測；migration `c6f37a92d104` 加入這兩張表，不修改既有 request 或 login 紀錄。
+
+`GET /monitor/request-totals` 直接讀 SYS Redis 的 server-run metrics，並非本表歷史 SUM；各 Worker 的 Requests／Failed 也是程序累計。API、日期／快取與覆蓋率定義見 [Monitor](../../APPs/Monitor/README.md)。

@@ -2,16 +2,20 @@
 
 **文件責任：** 管理權限依賴、列表／登入紀錄查詢、Role／User／Platform 更新與刪除的交易規則。HTTP 端點、參數與回應總表見 [後端總覽](../../../README.md)；前端互動見 [前端總覽](../../../../frontend/README.md)。
 
-| 模組                         | 責任                                                               |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `__init__.py`               | 直接匯出業務 class 與權限依賴，提供套件匯入入口。                 |
-| `module_base.py`            | 共用列表篩選、排序與分頁。                                       |
-| `module_roles.py`           | 角色列表、更新及刪除。                                           |
-| `module_users.py`           | 帳號列表、更新及刪除。                                           |
-| `module_sites.py`           | 網站列表、更新及刪除。                                           |
-| `module_logins.py`          | 登入紀錄查詢。                                                   |
-| `module_state.py`           | 寫入鎖、即時授權、原值比較、最後管理員、帳號啟用與提交後快取處理。 |
-| `module_permission.py`      | 依目前 SESSION 與資料庫權限執行 FastAPI dependency 驗證。         |
+Monitor HTTP 的五支私有讀取同樣使用 `ManagementPermission(AuthRole.is_manage_sites)`，快取命中前仍重新驗證目前權限。監控查詢、Socket 授權及 request 入庫／健康業務位於 [APPs/Monitor](../../Monitor/README.md)，不放進 Management 列表模組或 Sys events。
+
+Monitoring shares the current-session permission dependency; its business logic and Socket events live under `APPs/Monitor`.
+
+| 模組                   | 責任                                                               |
+| ---------------------- | ------------------------------------------------------------------ |
+| `__init__.py`          | 直接匯出業務 class 與權限依賴，提供套件匯入入口。                  |
+| `module_base.py`       | 共用列表篩選、排序與分頁。                                         |
+| `module_roles.py`      | 角色列表、更新及刪除。                                             |
+| `module_users.py`      | 帳號列表、更新及刪除。                                             |
+| `module_sites.py`      | 網站列表、更新及刪除。                                             |
+| `module_logins.py`     | 登入紀錄查詢。                                                     |
+| `module_state.py`      | 寫入鎖、即時授權、原值比較、最後管理員、帳號啟用與提交後快取處理。 |
+| `module_permission.py` | 依目前 SESSION 與資料庫權限執行 FastAPI dependency 驗證。          |
 
 目錄已表達 Management 用途，檔名採 `module_<用途>.py`。各資源的讀取與交易寫入放在同一個 class，`module_state.py` 共用寫入規則；呼叫端透過 `from APPs.Management.module import ...` 取得由 `__init__.py` 直接匯出的實作 class。
 

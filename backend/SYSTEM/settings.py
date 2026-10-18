@@ -21,6 +21,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 import os
 import httpx
+import re
 
 # ■—< CONFIG >————————————————————————————————————————————————————————————————————————■ Basic
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,6 +63,26 @@ MONITOR_REQUEST_GROUP = SYS_CONF.get("MONITOR", "request_group", fallback="recor
 MONITOR_REQUEST_BATCH = int(SYS_CONF.get("MONITOR", "request_batch", fallback=500))
 MONITOR_REQUEST_BUFFER = int(SYS_CONF.get("MONITOR", "request_buffer", fallback=10000))
 MONITOR_REQUEST_MAX_BATCHES = int(SYS_CONF.get("MONITOR", "request_max_batches", fallback=20))
+MONITOR_SERVICE_ID = SYS_CONF.get("MONITOR", "service_id", fallback="api")
+MONITOR_SERVICE_NAME = SYS_CONF.get("MONITOR", "service_name", fallback="Core API")
+MONITOR_ENVIRONMENT = SYS_CONF.get("MONITOR", "environment", fallback="local" if SVR_LOCALLY else "production")
+MONITOR_REGION = SYS_CONF.get("MONITOR", "region", fallback=None)
+MONITOR_PROBE_URL = SYS_CONF.get("MONITOR", "probe_url", fallback=f"http://127.0.0.1:{SVR_PORT}/monitor/health")
+MONITOR_SLO_PERCENT = float(SYS_CONF.get("MONITOR", "slo_percent", fallback=99.9))
+if not isinstance(MONITOR_SERVICE_ID, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", MONITOR_SERVICE_ID):
+    raise ValueError("MONITOR.service_id must be a bounded service identifier.")
+if not 0 < MONITOR_SLO_PERCENT <= 100:
+    raise ValueError("MONITOR.slo_percent must be between zero and 100.")
+_monitor_probe = urlsplit(MONITOR_PROBE_URL)
+if (
+    _monitor_probe.scheme not in HTTP_URL_SCHEMES
+    or not _monitor_probe.hostname
+    or _monitor_probe.username is not None
+    or _monitor_probe.password is not None
+    or _monitor_probe.query
+    or _monitor_probe.fragment
+):
+    raise ValueError("MONITOR.probe_url must be a credential-free HTTP(S) endpoint without query or fragment.")
 if (
     not 1 <= MONITOR_REQUEST_BATCH <= 1000
     or MONITOR_REQUEST_BUFFER < MONITOR_REQUEST_BATCH

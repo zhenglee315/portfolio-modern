@@ -12,7 +12,7 @@
 | Q06  | MonitoringPanel、AuthPanel、DataTable 拆為控制器及各自畫面區塊                                                 | 原有行為與瀏覽器矩陣、表單取消、表格排序／分頁／匯出                 |
 | Q07  | validateNumberedPage 共用分頁算術及 ID 唯一性，domain 保留不同 size 政策                                       | 空頁、末頁、越界、大頁碼、重複 ID、不一致總數                        |
 | Q08  | shared/lib/timestamps.ts 統一 UTC，監控明確標籤，秒在邊界轉毫秒                                                | 三語、時區偏移、午夜、epoch 0、缺少／無效值；耗時仍用單調時鐘        |
-| Q09  | 套件以 **all** 宣告 API，星號匯入來源維持明確公開清單；import 依屬性以 Pack 分隔線分組                        | 靜態邊界測試、不同匯入順序、套件匯出類別一致性                       |
+| Q09  | 套件以 **all** 宣告 API，星號匯入來源維持明確公開清單；import 依屬性以 Pack 分隔線分組                         | 靜態邊界測試、不同匯入順序、套件匯出類別一致性                       |
 | Q10  | 修正 errorCode 對 validation array 的說明及 model_where_cond 的 _intvl 範例；補充新控制器與依賴 ownership 註解 | 原有錯誤解析測試、lint、型別與回歸                                   |
 
 ## 後端
@@ -81,3 +81,14 @@ SMTP 寄送、密碼重設及尚未實作的新增／Profile 流程仍是原本�
 Black／Ruff、十個核心模組的 mypy、TypeScript／ESLint／Prettier、195 個 shared 匯出索引、正式 build，以及 14 份 README 的 354 個本地連結均通過。保留 FastAPI TestClient 與 fastapi-pagination 的第三方 API 棄用警告，未關閉警告；測試沒有功能錯誤。一次性詳細證據見 agent/quality-fixes-2026-10-17/verification-summary.json。
 
 2026-10-18 發布驗證：後端完整整合 1,022 項、前端 772 項單元與 7 項真實 API、543 項瀏覽器矩陣及 4 項真實 Node／Vite 操作全部通過，沒有跳過、失敗或不穩定重跑。另通過 86 項 HTTP／SSR、5 項 WebSocket 代理、草地牛 144 組／11,762 條路徑及 4 份重建模組比對。兩個 manage.py 實例同一 job 最大併發為 1，實際每分鐘排程寫入全部 24 筆請求，pending=0；手機 6× CPU／4G 模擬 LCP 為 1,368 ms。格式、lint、十個核心模組型別、正式 build 與 14 份 README 的 356 個本地連結均通過。詳細證據保留於忽略的 agent/release-2026-10-18/verification-summary.json，專用測試服務已關閉。
+
+## Monitor Overview 發布驗證（2026-10-18）
+
+本次新增 Monitor 日期彙總／登入國別及 Localhost／採樣健康 API、SYS Redis 開機成功與失敗累計、Worker 程序計數、內容插槽總覽與統一導航。
+
+- 後端完整一般測試：897 passed、170 skipped，另有 240 subtests passed。跳過項目需要明確設定隔離 Redis／PostgreSQL；本次未宣稱完整外部服務整合通過。Black、Ruff、既有十支核心及新增三支 Monitor 模組的 mypy 通過。
+- 前端 `npm run check`：780 項單元、TypeScript、ESLint、Prettier、195 個 shared 契約索引及正式建置通過。監控／帳號選單／跨頁導航／權限／三語／響應式與冷啟動共 80 項 Playwright 測試通過。
+- 手機 6× CPU／4G 場景：基礎初始 JS gzip 252.7KiB、LCP 1,380ms、CLS 0.00082。三語監控／選單文案仍在共用字典，JS 門檻由 250 記錄為 256KiB；LCP／CLS 門檻不變，公開頁未載入監控或離屏大型 feature。
+- 17 份 README 同步新契約，補正 request 歷史說明；五張監控文件圖使用實際應用與隔離的合成資料，可透過 `npm run docs:monitor` 重建。截圖不含私人帳號或正式請求資料。
+
+正式環境部署前須執行 migration `c6f37a92d104`；啟動仍使用 `backend/` 的 `uv run --locked manage.py`，同時啟動 FastAPI 與 APScheduler。

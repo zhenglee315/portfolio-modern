@@ -36,15 +36,27 @@ This directory contains real website screenshots and focused crops for the docum
 
 監控畫面 / Monitoring captures:
 
-| 圖片 / Image                                 | 介紹範圍 / Purpose                                                                                                              |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| [monitor-overview.png](monitor-overview.png) | 監控分組導航、統計及 Worker 請求／回應流程 / Monitoring navigation, summary and worker request/response flow                    |
-| [monitor-events.png](monitor-events.png)     | 實際 HTTP 事件、IP／local、Worker 篩選、排序及五筆分頁 / Real HTTP events, IP/local, filtering, sorting and five-row pagination |
-| [monitor-workers.png](monitor-workers.png)   | Worker 心跳、CPU、RSS、Uptime、Restarts 與交易數 / Worker liveness, CPU, RSS, uptime, restarts and transactions                 |
+| 圖片 / Image                                               | 介紹範圍 / Purpose                                                                                                                          |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [monitor-overview.png](monitor-overview.png)               | 1600px 桌面總覽：統一導航、四項 KPI、登入地圖、流量與四個 Worker / Desktop overview, shared navigation, KPIs, map, traffic and four workers |
+| [monitor-overview-mobile.png](monitor-overview-mobile.png) | 390px 手機總覽、響應式卡片與地圖 / Mobile overview with responsive cards and geography                                                      |
+| [monitor-requests.png](monitor-requests.png)               | 四個 Worker 的請求／回應流程及最近事件 / Request/response flow and recent events across four workers                                        |
+| [monitor-events.png](monitor-events.png)                   | 7 筆合成事件、每頁 5 筆、篩選、時間與 IP/local / Synthetic event detail with filtering and five-row pagination                              |
+| [monitor-workers.png](monitor-workers.png)                 | 1440×780 四張統計卡、資源與各 Worker 請求／失敗累計 / Capacity, restarts, run totals, resources and process counters                        |
 
-監控圖片取自已授權登入的本機實際單 Worker 環境；事件表為暫停快照，多 Worker 與跨程序推送另由隔離整合測試驗證。圖片中的時間、PID 與資源值只是擷取當下的觀測，不是固定規格。
+監控圖片使用實際應用配合隔離的 HTTP／Socket 合成資料，帳號為 demo-operator，四個 Worker、PID、IP、日期與統計值皆為展示資料，不是正式服務觀測。公開作品集的其他既有截圖保留原始來源；本次沒有重新擷取私人登入或請求紀錄。
 
-Monitoring images show the authorized local single-worker runtime; the events table is a paused snapshot. Isolated integration tests verify multiple workers and cross-process delivery. Times, PIDs and resource values are observations at capture time rather than fixed specifications.
+Monitoring images render the real app against isolated synthetic fixtures. Identity, process IDs and observations are demonstration data rather than production telemetry. Other existing public-portfolio captures retain their original provenance.
+
+在 `frontend/` 執行：
+
+```sh
+npm run docs:monitor
+```
+
+`playwright.docs.config.ts` 啟動測試 API（4181）與 production preview（4173），`tests/e2e/monitor-docs.capture.ts` 使用既有 HTTP／Engine.IO fixtures、Mint 主題、暫停裝飾動畫與已載入字型擷取。結果直接覆寫上述 PNG，不連線設定中的後端，也不保存 cookie 或瀏覽器網址列。修改 UI 後需檢視產圖再提交。
+
+The dedicated documentation configuration starts the isolated fixture API and production preview, then captures settled Mint layouts with shared fixtures. Inspect generated PNGs before committing; runtime assets do not depend on documentation images.
 
 更新圖片時保留既有檔名與功能對應，確認文字、卡片、包邊及控制沒有被意外截斷。對話框／抽屜應在進場完成後擷取，等待字型、內容與圖片載入，並讓裁切保留功能所需的上下文。PNG 不包含瀏覽器網址列、桌面或操作紀錄。展示文字與日期屬於 API 內容，不作為固定文案規格。
 

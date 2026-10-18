@@ -41,7 +41,7 @@ class ImportTests(unittest.TestCase):
             "APPs.Management.module",
             "manage_fastapi",
             "SCHEDULER.SYSTEM.extension",
-            "APPs.Sys.events_monitor",
+            "APPs.Monitor.events_monitor",
         )
         for first in roots:
             order = (first, *(name for name in roots if name != first))

@@ -1,7 +1,7 @@
 import { tableToolbarMenuPosition } from '@/shared/lib/menu-position';
 import menuStyles from '@/shared/ui/DataTableMenu.module.css';
 import { Icon, type IconName } from '@/shared/ui/Icon';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import Dropdown from 'react-bootstrap/Dropdown';
 import { type MonitorWorker } from './monitor';
 import styles from './MonitoringPanel.module.css';
@@ -91,19 +91,26 @@ export function Stat({
   value,
   note,
   icon,
+  graphic,
+  children,
+  className = '',
 }: {
   label: string;
   value: string;
-  note: string;
+  note: ReactNode;
   icon: IconName;
+  graphic?: ReactNode;
+  children?: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className={styles.stat} aria-label={label}>
+    <section className={`${styles.stat} ${className}`} aria-label={label}>
       <div>
         <span>{label}</span>
-        <Icon name={icon} />
+        {graphic ?? <Icon name={icon} />}
       </div>
       <strong>{value}</strong>
+      {children}
       <small>{note}</small>
     </section>
   );

@@ -14,6 +14,8 @@ const worker = z.object({
   started_at: number.nullable(),
   active_requests: metric,
   active_transactions: metric,
+  completed_requests_total: metric,
+  failed_requests_total: metric,
   cpu_percent: metric,
   rss_bytes: metric,
   uptime_seconds: metric,

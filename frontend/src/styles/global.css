@@ -268,8 +268,8 @@ html[data-motion-paused='true'] [data-decoration] *::after {
   --icon-pulse-peak-glow: var(--disclosure-icon-pulse-glow);
 }
 /* Bare interactive silhouettes share chat's highlight independently of idle breathing. */
-button:is(:hover, :focus-visible, :active) [data-icon-highlight] > svg,
-button:is(:hover, :focus-visible, :active) [data-icon-group][data-icon-highlight] {
+:is(button, a):is(:hover, :focus-visible, :active) [data-icon-highlight] > svg,
+:is(button, a):is(:hover, :focus-visible, :active) [data-icon-group][data-icon-highlight] {
   animation: none;
   color: var(--text);
   filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 7px var(--glow-bright));

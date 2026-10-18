@@ -1,12 +1,15 @@
-"""Describe role, account and platform rows within the common numbered response envelope."""
-
-from datetime import datetime, timezone
-
-from pydantic import BaseModel, Field, field_validator
-
-from COMMON.schema.resp import RespRecords
-from SYSTEM.constants import LoginGeoStatus, EnumLocal
+# ◆—< Pack >—————————————————————————————————◆ Project
 from APPs.Management.constants import MANAGEMENT_DELETE_MAX_TARGETS
+
+# ◆—< Pack >—————————————————————————————————◆ Common
+from COMMON.schema.resp import RespRecords
+
+# ◆—< Pack >—————————————————————————————————◆ System
+from SYSTEM.constants import LoginGeoStatus, EnumLocal
+
+# ◆—< Pack >—————————————————————————————————◆ Python
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime, timezone
 
 
 class RespManagementRole(BaseModel):

@@ -66,7 +66,11 @@ async def jobs_refresh_catalog():
 
 ## Monitor job
 
-`system.monitor.health` 每 60 秒執行 Redis SYS ping 與 SQL `SELECT 1`。
+HTTP／Socket 業務統一於 `APPs/Monitor/`。歷史流量與健康排程每 60 秒執行；即時 Worker 的 0.5 秒採樣與 SYS Redis 開機累計由 lifespan／middleware 負責，不等待分鐘排程。開機累計不從 `record_request` 回算，彙總 API 的 60 秒快取則使用 WEB Redis。
+
+Monitor business logic lives in `APPs/Monitor/`. Minute jobs persist history; lifespan/middleware own live sampling and current-run SYS counters. Historical SQL, run totals and WEB response caching have separate lifetimes.
+
+`system.monitor.health` 每 60 秒探測設定的 HTTP endpoint、Redis SYS ping 與 SQL `SELECT 1`，將各項結果寫入 `record_monitor_health`；缺少的分鐘保留未知。`system.monitor.request` 成功排空 queue 後更新 `record_monitor_coverage` 的流量水位。部署前須套用 migration `c6f37a92d104`。API 與統計定義見 [Monitor Overview](../APPs/Monitor/README.md)。
 
 `system.monitor.request` 對應 `jobs_monitor.py > jobs_monitor_request`，每 60 秒呼叫 `module/module_monitor.py > MonitorRequestModule.flush()`。WorkerMonitor 在同一筆 Redis 交易內更新即時快照並將已結束的請求加入 **SYS DB 0** 的 `system:monitor:requests:queue` Stream；原本 Socket.IO 仍讀即時快照。
 

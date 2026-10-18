@@ -32,6 +32,7 @@ import funnelFill from 'bootstrap-icons/icons/funnel-fill.svg?raw';
 import funnel from 'bootstrap-icons/icons/funnel.svg?raw';
 import gear from 'bootstrap-icons/icons/gear-fill.svg?raw';
 import github from 'bootstrap-icons/icons/github.svg?raw';
+import globe from 'bootstrap-icons/icons/globe.svg?raw';
 import globeAmericas from 'bootstrap-icons/icons/globe-americas-fill.svg?raw';
 import home from 'bootstrap-icons/icons/house-door-fill.svg?raw';
 import leafFill from 'bootstrap-icons/icons/leaf-fill.svg?raw';
@@ -52,6 +53,7 @@ import plusCircle from 'bootstrap-icons/icons/plus-circle-dotted.svg?raw';
 import plus from 'bootstrap-icons/icons/plus-lg.svg?raw';
 import questionCircle from 'bootstrap-icons/icons/question-circle.svg?raw';
 import repeat from 'bootstrap-icons/icons/repeat.svg?raw';
+import robot from 'bootstrap-icons/icons/robot.svg?raw';
 import sendCheck from 'bootstrap-icons/icons/send-check-fill.svg?raw';
 import send from 'bootstrap-icons/icons/send-fill.svg?raw';
 import shieldLock from 'bootstrap-icons/icons/shield-lock-fill.svg?raw';
@@ -94,10 +96,12 @@ const icons = {
   doorOpenOutline,
   boxArrowRight,
   repeat,
+  robot,
   cupHot,
   dpad,
   balloon,
   mouse2,
+  globe,
   globeAmericas,
   leafFill,
   eye,

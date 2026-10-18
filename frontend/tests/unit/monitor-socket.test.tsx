@@ -132,6 +132,22 @@ describe('monitor socket ownership', () => {
     expect(result.current.requests).toBeUndefined();
   });
 
+  it('keeps a full server retryable instead of reporting a permission denial', () => {
+    const fixture = socketFixture();
+    io.mockReturnValue(fixture.socket);
+    const { result } = renderHook(() => useMonitorSocket(true, false, 7));
+    fixture.socket.connected = false;
+    fixture.send('connect_error', {
+      message: 'Connection rejected by server',
+      data: { code: 'MONITOR_UNAVAILABLE' },
+    });
+    expect(result.current.status).toBe('unavailable');
+    act(() => vi.advanceTimersByTime(5000));
+    expect(fixture.socket.connect).toHaveBeenCalledTimes(2);
+    fixture.send('monitor_snapshot', snapshot());
+    expect(result.current.status).toBe('live');
+  });
+
   it('retains a frozen snapshot on malformed updates and retries a server disconnect', () => {
     const fixture = socketFixture();
     io.mockReturnValue(fixture.socket);

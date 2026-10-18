@@ -37,7 +37,7 @@ class _ManagementIdentity:
 
         :param request: Current HTTP request; only its server-side SESSION selects the actor.
         :param response: FastAPI response receiving the private read headers.
-        :return: Current account identity and the seven database-issued permission flags.
+        :return: Current account identity and the eight database-issued permission flags.
         :raises HTTPException: Missing or disabled identity returns 401; storage failures retain 503.
 
                                                                                                ♂ ZhengLee 2026.10.15
@@ -92,6 +92,7 @@ class ManagementPermission:
         AuthRole.is_read: lambda account: account.is_read,
         AuthRole.is_update: lambda account: account.is_update,
         AuthRole.is_delete: lambda account: account.is_delete,
+        AuthRole.is_monitor: lambda account: account.is_monitor,
         AuthRole.is_manage_roles: lambda account: account.is_manage_roles,
         AuthRole.is_manage_users: lambda account: account.is_manage_users,
         AuthRole.is_manage_sites: lambda account: account.is_manage_sites,

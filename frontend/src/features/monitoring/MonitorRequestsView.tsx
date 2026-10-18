@@ -1,6 +1,6 @@
 import { MonitorFlow } from './MonitorFlow';
 import styles from './MonitoringPanel.module.css';
-import { requestElapsed } from './monitor';
+import { MonitorRequestEvents } from './MonitorRequestEvents';
 import { MonitorSelect, Stat, metric, workerLabel } from './monitor-presentation';
 import type { MonitoringModel } from './useMonitoringPanel';
 
@@ -15,12 +15,9 @@ export function MonitorRequestsView({ model }: { model: MonitoringModel }) {
     setPage,
     pageSize,
     setPageSize,
-    monitor,
     flow,
     summary,
     requests,
-    advance,
-    time,
     pages,
     currentPage,
     visible,
@@ -101,67 +98,7 @@ export function MonitorRequestsView({ model }: { model: MonitoringModel }) {
             </button>
           </div>
         </div>
-        <div className={styles.tableScroll}>
-          <table>
-            <thead>
-              <tr>
-                {[
-                  'request',
-                  'worker',
-                  'method',
-                  'path',
-                  'entered',
-                  'left',
-                  'state',
-                  'elapsed',
-                  'http',
-                  'ip',
-                  'location',
-                ].map((key) => (
-                  <th key={key} scope="col">
-                    {t(`monitor.columns.${key}`)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((row) => (
-                <tr key={row.request_id} data-processing={row.status === 'processing'}>
-                  <td title={row.request_id}>● req-{row.request_id.slice(0, 8)}</td>
-                  <td>
-                    W{row.slot ?? '?'} / {row.pid}
-                  </td>
-                  <td className={styles.accent}>{row.method}</td>
-                  <td title={row.path}>{row.path}</td>
-                  <td>{time(row.entered_at)}</td>
-                  <td>{time(row.left_at)}</td>
-                  <td>
-                    <span className={styles.badge}>
-                      {t(`monitor.states.${row.status}`, { defaultValue: row.status })}
-                    </span>
-                  </td>
-                  <td>
-                    {metric(
-                      requestElapsed(
-                        row,
-                        flow?.sampled_at ?? row.observed_at,
-                        advance(monitor.requests?.receivedAt),
-                      ),
-                      ' ms',
-                    )}
-                  </td>
-                  <td className={styles.accent}>{row.http_status ?? '—'}</td>
-                  <td>{row.ip_address ?? '—'}</td>
-                  <td>
-                    {row.location ||
-                      [row.country_code, row.region, row.city].filter(Boolean).join(' / ') ||
-                      t(row.geo_status === 'non_public' ? 'monitor.local' : 'monitor.unknown')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <MonitorRequestEvents model={model} />
         {!visible.length && <p className={styles.empty}>{t('monitor.noRequests')}</p>}
         <div className={styles.footnote}>
           <span>{t('monitor.tableNote')}</span>

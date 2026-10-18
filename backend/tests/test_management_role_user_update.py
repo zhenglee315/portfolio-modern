@@ -72,6 +72,29 @@ class RoleUserUpdateTests(_PlatformFixture):
         users = await self.client.get("/management/users")
         self.assertEqual(next(r["role"] for r in users.json()["items"] if r["id"] == 2), "reader")
 
+    async def test_monitor_permission_updates_and_filters_without_management_grants(self):
+        """Allow the registration default to view monitoring without granting administration."""
+        response = await self.request_update("roles", 3, {"is_monitor": True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["is_monitor"])
+        self.assertTrue(response.json()["is_default"])
+        for field in ("is_manage_sites", "is_manage_users", "is_manage_roles"):
+            self.assertFalse(response.json()[field])
+        roles = await self.client.get(
+            "/management/roles",
+            params={
+                "filters": '[{"field":"is_monitor","operator":"equals","value":true}]',
+                "sort": "is_monitor:desc",
+            },
+        )
+        self.assertEqual(roles.status_code, 200, roles.text)
+        self.assertEqual([row["id"] for row in roles.json()["items"]], [3])
+        stale = await self.request_update("roles", 3, {"is_monitor": False}, expected={"is_monitor": False})
+        self.assertEqual(stale.status_code, 409)
+        removed = await self.request_update("roles", 3, {"is_monitor": False})
+        self.assertEqual(removed.status_code, 200, removed.text)
+        self.assertFalse(removed.json()["is_monitor"])
+
     async def test_user_role_assignment_reuses_patch_and_checks_original_role(self):
         response = await self.request_update("users", 2, {"role_id": 3})
         self.assertEqual(response.status_code, 200, response.text)

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type CSSProperties } from 'react';
 import Fade from 'react-bootstrap/Fade';
 import { useTranslation } from 'react-i18next';
 import world from '@/assets/monitor/world.svg';
@@ -165,10 +165,14 @@ export function MonitorLoginMap({ data, locale }: { data: MonitorLogins; locale:
                 id={tooltipId}
                 role="tooltip"
                 className={styles.mapTooltip}
-                style={{
-                  left: `${Math.max(2, Math.min(76, ((location.x - 450) * zoom + 450 + pan.x) / 9))}%`,
-                  top: `${Math.max(2, Math.min(65, ((location.y - 155) * zoom + 155 + pan.y) / 3.1))}%`,
-                }}
+                style={
+                  {
+                    '--monitor-tooltip-anchor-x': `${Math.max(2, Math.min(76, ((location.x - 450) * zoom + 450 + pan.x) / 9))}%`,
+                    '--monitor-tooltip-anchor-y': `${Math.max(2, Math.min(65, ((location.y - 155) * zoom + 155 + pan.y) / 3.1))}%`,
+                    left: 'var(--monitor-tooltip-left, var(--monitor-tooltip-anchor-x))',
+                    top: 'var(--monitor-tooltip-top, var(--monitor-tooltip-anchor-y))',
+                  } as CSSProperties
+                }
               >
                 <span>
                   <i />

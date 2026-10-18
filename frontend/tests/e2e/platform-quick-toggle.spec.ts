@@ -28,6 +28,7 @@ async function setup(
     is_read: false,
     is_update: false,
     is_delete: false,
+    is_monitor: true,
     is_manage_sites: true,
     is_manage_users: false,
     is_manage_roles: false,

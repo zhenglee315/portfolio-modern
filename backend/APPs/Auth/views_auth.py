@@ -102,7 +102,7 @@ class AuthSession:
             "🗂️ **How It Works:**\n"
             "- Reads the account primary key `id` from `SESSION`; the client does not supply an account ID.\n"
             "- Queries the current account and assigned role through the ORM; both must have `is_active=true`.\n"
-            "- Returns the current email, public `user`, role, and all seven permission flags from the database.\n"
+            "- Returns the current email, public `user`, role, and all eight permission flags from the database.\n"
             "- Guests, invalid session identities, missing accounts, and inactive accounts or roles return `null`.\n\n"
             "🔐 **Session:**\n"
             "- Keep the same session cookie issued by Sign In or Register; browser requests must include credentials.\n"
@@ -117,7 +117,7 @@ class AuthSession:
             "```json\n"
             "{\n"
             '  "id": 1, "email": "developer@example.com", "user": "developer", "role": "editor",\n'
-            '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true,\n'
+            '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true, "is_monitor": false,\n'
             '  "is_manage_roles": false, "is_manage_users": false, "is_manage_sites": false\n'
             "}\n"
             "```\n"
@@ -181,7 +181,7 @@ class AuthSignIn:
             "- Successful and failed sign-ins share this allowance; further attempts do not extend the window.\n\n"
             "🔐 **Session:**\n"
             "- On success, invalidates the previous session and issues a replacement authenticated session cookie.\n"
-            "- Stores `id`, `email`, `user`, `role`, and all seven permission flags in `SESSION` for subsequent requests.\n"
+            "- Stores `id`, `email`, `user`, `role`, and all eight permission flags in `SESSION` for subsequent requests.\n"
             "- Keep that cookie and include browser credentials when calling the other Auth APIs.\n"
             "- Passwords and password hashes are never returned or stored in `SESSION`.\n\n"
             "⚡ **Caching:**\n"
@@ -192,7 +192,7 @@ class AuthSignIn:
             "```json\n"
             "{\n"
             '  "id": 1, "email": "developer@example.com", "user": "developer", "role": "editor",\n'
-            '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true,\n'
+            '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true, "is_monitor": false,\n'
             '  "is_manage_roles": false, "is_manage_users": false, "is_manage_sites": false\n'
             "}\n"
             "```\n\n"
@@ -463,7 +463,7 @@ class AuthRegister:
             "🔐 **Session:**\n"
             "- Include the same session cookie used by Confirm Email and Verify Email.\n"
             "- On success, replaces the registration session with a new authenticated session cookie.\n"
-            "- Stores `id`, `email`, `user`, `role`, and all seven permission flags in `SESSION` for subsequent requests.\n"
+            "- Stores `id`, `email`, `user`, `role`, and all eight permission flags in `SESSION` for subsequent requests.\n"
             "- Passwords and password hashes are never returned or stored in the authentication session.\n\n"
             "⚡ **Caching:**\n"
             "- Uses the System Redis proof within its original 300-second validity; verification does not reset its expiry.\n"
@@ -474,7 +474,7 @@ class AuthRegister:
             "```json\n"
             "{\n"
             '  "id": 2, "email": "developer@example.com", "user": "developer", "role": "editor",\n'
-            '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true,\n'
+            '  "is_create": true, "is_read": true, "is_update": true, "is_delete": true, "is_monitor": false,\n'
             '  "is_manage_roles": false, "is_manage_users": false, "is_manage_sites": false\n'
             "}\n"
             "```\n\n"

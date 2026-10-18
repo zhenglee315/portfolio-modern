@@ -34,6 +34,8 @@ export function FlowRoutes({
       const returnLabel = container.querySelector('[data-flow-return]')?.getBoundingClientRect();
       const backY = returnLabel ? returnLabel.bottom - bounds.top + 2 : bounds.height - 12;
       const backX = client.left + client.width / 2 - bounds.left;
+      const vertical = client.width > bounds.width / 2;
+      const service = container.querySelector('[data-flow-server]')?.getBoundingClientRect();
       const result = [...container.querySelectorAll<HTMLElement>('[data-flow-worker]')].map(
         (worker) => {
           const box = worker.getBoundingClientRect();
@@ -41,6 +43,18 @@ export function FlowRoutes({
           const left = box.left - bounds.left;
           const right = box.right - bounds.left;
           const center = stage.top + stage.height / 2 - bounds.top;
+          if (vertical) {
+            // Phone cards stack below the client. Route through the service gutters,
+            // keeping observed request pulses off the readable stages and metrics.
+            const entryY = box.top - bounds.top + 22;
+            const exitY = stage.bottom - bounds.top - 18;
+            const branchY = (service?.top ?? box.top) - bounds.top - 8;
+            return {
+              id: worker.dataset.flowWorker!,
+              incoming: `M ${backX} ${client.bottom - bounds.top} V ${branchY} H ${left - 7} V ${entryY} H ${left}`,
+              outgoing: `M ${right} ${exitY} H ${bounds.width - 6} V ${y} H ${client.right - bounds.left}`,
+            };
+          }
           return {
             id: worker.dataset.flowWorker!,
             incoming: `M ${x} ${y} H ${left - 36} V ${center} H ${left}`,

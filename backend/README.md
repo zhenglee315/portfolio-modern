@@ -126,13 +126,13 @@ HTTP request
   → schema/resp → JSON response
 ```
 
-`GET /authority/session` 以伺服器 SESSION 的帳號 ID 查詢啟用中的帳號與角色，回傳 `id`、`email`、`user`、`role` 及七個 CRUD／管理權限；訪客或失效帳號回傳 `null`，儲存服務錯誤回傳 `503`。查詢會更新 SESSION 中的身份與權限，保留原 SID 及尚未完成的註冊驗證。Auth 回應使用 `Cache-Control: no-store`；前端可在重新整理後恢復身份，無須儲存密碼。
+`GET /authority/session` 以伺服器 SESSION 的帳號 ID 查詢啟用中的帳號與角色，回傳 `id`、`email`、`user`、`role` 及八個 CRUD／管理權限；訪客或失效帳號回傳 `null`，儲存服務錯誤回傳 `503`。查詢會更新 SESSION 中的身份與權限，保留原 SID 及尚未完成的註冊驗證。Auth 回應使用 `Cache-Control: no-store`；前端可在重新整理後恢復身份，無須儲存密碼。
 
 `GET /authority/session` resolves the server session's account ID against an active account and role, returning `id`, `email`, `user`, `role`, and seven CRUD/management permissions. Guests and invalid accounts receive `null`; storage failures return `503`. Lookup refreshes session identity and permissions while retaining the SID and pending registration proof. Auth responses use `Cache-Control: no-store`, allowing the frontend to restore identity after reload without storing passwords.
 
-SESSION 資料欄位統一由 [`SYSTEM/constants/constant_session.py`](SYSTEM/constants/constant_session.py) 的 `EnumSess` 定義，包含公開身份、七個權限、私有身份驗證與註冊挑戰欄位。讀寫 SESSION 或其帳號字典時使用枚舉，例如 `account.get(EnumSess.IS_MANAGE_SITES)`；`AUTH_PERMISSION_FIELDS` 也共用這些成員。枚舉沿用原始字串值，既有 Redis JSON 與前端 DTO 欄位保持相容。`EnumSess.PASSWORD` 僅用來清除舊資料，不允許新 SESSION 保存密碼。
+SESSION 資料欄位統一由 [`SYSTEM/constants/constant_session.py`](SYSTEM/constants/constant_session.py) 的 `EnumSess` 定義，包含公開身份、八個權限、私有身份驗證與註冊挑戰欄位。讀寫 SESSION 或其帳號字典時使用枚舉，例如 `account.get(EnumSess.IS_MANAGE_SITES)`；`AUTH_PERMISSION_FIELDS` 也共用這些成員。枚舉沿用原始字串值，既有 Redis JSON 與前端 DTO 欄位保持相容。`EnumSess.PASSWORD` 僅用來清除舊資料，不允許新 SESSION 保存密碼。
 
-Session payload keys belong to `EnumSess`, including account identity, seven permissions, private identity proof and registration challenge fields. Session and account-dictionary access uses these enum members; `AUTH_PERMISSION_FIELDS` shares the same definitions. Existing Redis JSON and public response field names remain compatible. `EnumSess.PASSWORD` only removes legacy data; new sessions never store passwords.
+Session payload keys belong to `EnumSess`, including account identity, eight permissions, private identity proof and registration challenge fields. Session and account-dictionary access uses these enum members; `AUTH_PERMISSION_FIELDS` shares the same definitions. Existing Redis JSON and public response field names remain compatible. `EnumSess.PASSWORD` only removes legacy data; new sessions never store passwords.
 
 `POST /authority/sign-in` 驗證帳號、角色與密碼，建立 SESSION 後，透過 `execute_orm()` 新增一筆 `RecordLogin`（`record_login`）：保存帳號 `user_id`，由資料庫產生 serial `id` 與具時區的 `logintime`。每次成功登入各有一筆；登入失敗及 SESSION 查詢不新增紀錄。紀錄寫入失敗時回傳 `503 AUTH_DATABASE_UNAVAILABLE` 並清除剛建立的登入身份。Migration `159af2dc7898` 僅建立這張表、FK、檢查限制及兩個歷史查詢索引。
 
@@ -214,7 +214,7 @@ Only Site accepts mutually exclusive user/site_id selectors. `/portfolio/site?us
 | Model                                      | 歸屬及約束 / Ownership and constraints                                                                                                                                  |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AuthUser`                                 | 唯一 email 與獨立唯一 `user`；公開識別 3–32 個小寫 ASCII 字元，保留路由不可使用 / Independent unique login email and stable public handle                               |
-| `AuthRole`                                 | 七個權限；預設註冊角色不可有任何 `is_manage_*` / Seven permissions, no management permission on the registration default                                                |
+| `AuthRole`                                 | 八個權限；預設註冊角色不可有任何 `is_manage_*` / Eight permissions, no management permission on the registration default                                                |
 | `PortfolioSite`                            | `user_id UNIQUE`；`is_published`／`is_default` 預設 false；全站最多一個 default，default 必須 published / At most one site per account and one published global default |
 | Career／Project                            | `site_id` FK，順序唯一性及查詢索引以 site 開頭 / Site-owned numeric IDs and per-site ordering                                                                           |
 | Skill／SkillCategory                       | `(site_id,id)` 複合 PK，保留原字串 ID / Composite keys retain public string IDs                                                                                         |
@@ -668,9 +668,9 @@ MONITOR_TEST_REDIS_URL=redis://127.0.0.1:16379/0 uv run --locked pytest tests/te
 
 Event discovery follows `APPs/<project>/events*.py`. `socketio_init_app()` imports canonical package names with normal import caching, deterministic ordering and backend-relative paths. The worker-local `sio` remains in `SYSTEM.extension`; lifespan uses `socketio_shutdown()` to stop its listener and close its separate Redis resources.
 
-`APPs/Monitor/events_monitor.py` 提供正式 `/monitor` 訂閱。握手、訂閱及每個監控週期均重新讀取 HTTP-only Session 與資料庫目前的 `is_manage_sites`；前端自報身份／權限無效。權限撤銷或登出會退出房間並斷線，儲存服務不可用時停止提供資料。授權僅讀資料庫、不保存監控資料，且其邏輯交易不計入應用 transaction。
+`APPs/Monitor/events_monitor.py` 提供正式 `/monitor` 訂閱。握手、訂閱及每個監控週期均重新讀取 HTTP-only Session 與資料庫目前的 `is_monitor`；前端自報身份／權限無效。權限撤銷或登出會退出房間並斷線，儲存服務不可用時停止提供資料。授權僅讀資料庫、不保存監控資料，且其邏輯交易不計入應用 transaction。
 
-The `/monitor` namespace requires an active server-side Session and current database-issued `is_manage_sites` permission. Authorization is rechecked at connect, subscription and each cycle, including quiet periods. These read-only permission lookups are excluded from application transaction metrics. Socket session reads do not refresh the cookie or Redis session TTL.
+The `/monitor` namespace requires an active server-side Session and current database-issued `is_monitor` permission. Authorization is rechecked at connect, subscription and each cycle, including quiet periods. These read-only permission lookups are excluded from application transaction metrics. Socket session reads do not refresh the cookie or Redis session TTL.
 
 - `monitor_subscribe` / `monitor_resync`: `{topics: ["workers", "requests"]}`；每個主題回傳 `monitor_snapshot`，包括 `schema`、`topic`、字串 `revision`、`sampled_at`、`cycle_seconds`、`data`。
 - `monitor_unsubscribe`: 離開目前訂閱房間。初次／重連／恢復取得完整主題快照；`revision="0"` 為訂閱快照，正常廣播使用 Redis 產生的遞增版本。前端丟棄已接收版本以前的快照。
@@ -752,7 +752,7 @@ The dependency preparation step builds the optional charset detector as pure Pyt
 
 三支 PATCH 均位於原 Management CBV，對應原 Module 的 select／update，查詢投影共用 `_query()`。Role：`PATCH /management/roles/{role_id}`，body 為 `{expected_role, expected, changes}`；User：`PATCH /management/users/{account_id}`，body 為 `{expected_email, expected, changes}`；Platform：`PATCH /management/sites/{account_id}?locale=en`，body 為 `{expected_owner_email, expected, changes}`。expected 必須和 changes 有相同欄位，承載使用者開始編輯時的原值，不能代替 SESSION 授權；原值不同回 409 MANAGEMENT_EDIT_CONFLICT。未送、null、false、空字串分別處理，只有 Role description 允許明確 null。此契約新增 expected，舊前端亦須更新。
 
-Role 允許 role（1–64 字元、無首尾空白且唯一）、description（最多 10,000 字元或 null）、七個權限、is_default、is_active。User 允許 is_active 與 role_id 角色指派；PK、其他 FK、已驗證 Email、public user、密碼、時間及統計不接受寫入。不同入口分別要求 AuthRole.is_manage_roles／is_manage_users／is_manage_sites，不以內容 is_update 替代。角色指派權限上限由明確的 ORM `ROLE_PERMISSION_COLUMNS` 定義；新增權限時須同步更新 ORM、授權／SESSION、DTO 與此清單。
+Role 允許 role（1–64 字元、無首尾空白且唯一）、description（最多 10,000 字元或 null）、八個權限、is_default、is_active。User 允許 is_active 與 role_id 角色指派；PK、其他 FK、已驗證 Email、public user、密碼、時間及統計不接受寫入。不同入口分別要求 AuthRole.is_manage_roles／is_manage_users／is_manage_sites，不以內容 is_update 替代。角色指派權限上限由明確的 ORM `ROLE_PERMISSION_COLUMNS` 定義；新增權限時須同步更新 ORM、授權／SESSION、DTO 與此清單。
 
 `ManagementWriteState` 接收既有交易，不自行提交。固定順序為 auth-management 交易鎖、publication 鎖、當前操作者、目標列；等待後重新查操作者權限。User 與 Platform 使用同一 activate 操作；Default 網站的帳號不可停用，先取消／切換 Default 後才可停用，恢復帳號不自動恢復 Default。Platform 可在同一交易明確取消 Default 再停用。Role 停用不批改 AuthUser.is_active。以有效帳號與有效角色的 is_manage_roles 判定最後管理員，禁止從 Role、User、Platform 任一入口移除最後有效管理員；既有零管理員資料可經授權的外部修復流程恢復，不自動選擇帳號。
 
@@ -789,3 +789,11 @@ User 單筆 body 是 `{expected_email, expected_site_id}`，批次為 `{targets:
 正常登入／註冊在伺服器 SESSION 加入 `EnumSess.AUTH_IDENTITY`，內容為帳號 ID 與 Argon2 密碼雜湊的 keyed digest；密碼雜湊及此識別值都不加入公開 Auth DTO。每次 current_session 重新查有效帳號／角色並以 constant-time comparison 驗證。刪除帳號後，即使 SQLite 重用相同 ID 並以相同信箱／handle／明文密碼重新註冊，新 Argon2 salt 仍使舊 SESSION 失效；密碼更新亦撤銷舊身份。不掃描整個 Redis，不改共用 IP 在線鍵。舊格式或格式損壞的 SESSION 會清除身份，需重新登入一次；原有未完成的註冊驗證欄位仍保留。
 
 測試（從 `backend/` 執行）：`uv run --locked pytest tests/test_management_role_user_delete.py`，並可提供僅供丟棄的 `PLATFORM_PATCH_TEST_POSTGRES_URL`。涵蓋角色 FK／Default、User 全部子資料、批次回滾、權限撤回、最後管理員、並行角色指派／Default 切換、提交後 cache 失敗及真實 cookie 的 ID 重用／舊 SESSION 防護。
+
+## 獨立監控權限 / Independent monitor permission
+
+`auth_role.is_monitor` 控制 Overview／Requests／Worker 的五支 HTTP API 與 Socket.IO，不再與網站管理共用旗標；公開 `/monitor/health` 仍只作最小存活探測。`EnumSess.IS_MONITOR` 與八個權限一同由登入／註冊／SESSION 回傳並重新查詢資料庫。Role GET／PATCH、排序、篩選、搜尋及權限指派都包含此欄。Default 角色可啟用 Monitor，其他三項管理旗標仍受既有保護。
+
+Migration `d7a24e91b630` 新增非空欄位，所有既有角色設為 true，之後新角色預設 false；不改寫其他權限或帳號。先 migrate 再由 `uv run --locked manage.py` 同時啟動 FastAPI／APScheduler。
+
+Monitoring HTTP/Socket access requires `is_monitor=true`, independently of site management. Existing roles are enabled by migration; future roles default to false. The registration default may grant monitoring without management rights.

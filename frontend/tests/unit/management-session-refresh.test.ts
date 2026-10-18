@@ -24,6 +24,7 @@ const account: AuthUser = {
   is_read: true,
   is_update: false,
   is_delete: false,
+  is_monitor: true,
   is_manage_sites: true,
   is_manage_users: false,
   is_manage_roles: true,
@@ -65,6 +66,7 @@ describe('fresh management SESSION verification', () => {
   });
 
   it.each([
+    ['revoked monitor permission', { ...account, is_monitor: false }],
     ['revoked site permission', { ...account, is_manage_sites: false }],
     ['revoked role permission', { ...account, is_manage_roles: false }],
     ['changed user permission', { ...account, is_manage_users: true }],

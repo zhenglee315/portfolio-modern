@@ -13,7 +13,7 @@
 | `GET /monitor/services`       | 單一邏輯服務、部署資訊、實際 FastAPI／Uvicorn／Python 版本及更新週期     |
 | `GET /monitor/health`         | 公開的最小 HTTP 存活探測；只返回 `{"status":"ok"}`，不代表依賴已通過檢查 |
 
-五支私有 API 均要求目前有效帳號／角色的 `is_manage_sites=true`，沿用伺服器 SESSION 身份驗證，不接受前端自報權限。成功、參數錯誤、拒絕及儲存失敗回應均為 `private, no-store`，依 Cookie 分流。登入 API 只提供彙總，不揭露帳號或 IP。
+五支私有 API 均要求目前有效帳號／角色的 `is_monitor=true`，沿用伺服器 SESSION 身份驗證，不接受前端自報權限。成功、參數錯誤、拒絕及儲存失敗回應均為 `private, no-store`，依 Cookie 分流。登入 API 只提供彙總，不揭露帳號或 IP。
 
 ## 參數及統計
 
@@ -56,3 +56,9 @@ Socket.IO 仍使用 `/monitor` namespace，既有 `monitor_subscribe`、`monitor
 ## 驗證
 
 在 `backend/` 執行 `uv run --locked pytest tests/test_monitor_overview.py tests/test_monitor.py tests/test_socketio.py tests/test_storage_reuse.py`。一般測試使用隔離資源；外部 PostgreSQL／Redis 整合案例需明確提供測試用 URL，不能指向正式資料。前端契約與截圖見 [Monitor workspace](../../../frontend/src/features/monitoring/README.md)。
+
+## 獨立監控權限
+
+`AuthRole.is_monitor` 控制全部五支私有 HTTP API 與 `/monitor` Socket 握手、訂閱及每輪重新授權，網站管理權限不再授予監控存取。`EnumSess.IS_MONITOR`、登入／SESSION DTO 與 Role GET／PATCH 共用此欄；Role 支援其搜尋、排序、篩選及 expected 原值衝突檢查。註冊 Default 可以啟用 Monitor，仍不能有三項管理權限。
+
+Migration `d7a24e91b630` 接在 `c6f37a92d104` 後，新增非空 boolean，依需求將所有既有角色（包含停用及 Default）設為 true；之後新角色預設 false。帳號、其他權限與歷史資料保留。部署前執行 `uv run --locked python -m alembic upgrade head`，以 `uv run --locked manage.py` 同時啟動服務。

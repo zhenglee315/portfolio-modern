@@ -10,6 +10,7 @@ const admin = {
   is_read: true,
   is_update: true,
   is_delete: true,
+  is_monitor: true,
   is_manage_sites: true,
   is_manage_users: true,
   is_manage_roles: true,
@@ -103,14 +104,21 @@ for (const viewport of [
     await page.keyboard.press('Tab');
     await expect(dialog.locator('.shared-close-button')).toBeFocused();
     await frame.locator('#projects').scrollIntoViewIfNeeded();
-    await frame.locator('#projects button[aria-label]').first().click();
+    const project = frame.locator('#projects button[aria-label]').first();
+    await project.click();
     const child = frame.getByRole('dialog');
     await closeContract(child.locator('.shared-close-button'));
     await page.screenshot({ path: info.outputPath('shared-dialog-close.png') });
     await child.locator('.shared-close-button').press('Enter');
     await expect(child).toHaveCount(0);
+    // Child teardown restores its trigger on the next frame; finish that handoff
+    // before moving focus across the iframe to activate the parent close button.
+    await expect(project).toBeFocused();
     await expect(dialog).toBeVisible();
-    await dialog.locator('.shared-close-button').press('Enter');
+    const previewClose = dialog.locator('.shared-close-button');
+    await previewClose.focus();
+    await expect(previewClose).toBeFocused();
+    await previewClose.press('Enter');
     await expect(dialog).toHaveCount(0);
     await expect(preview).toBeFocused();
   });

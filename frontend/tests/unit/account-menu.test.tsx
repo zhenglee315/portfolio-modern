@@ -17,6 +17,7 @@ const account: AuthUser = {
   is_delete: true,
   is_manage_roles: false,
   is_manage_users: false,
+  is_monitor: false,
   is_manage_sites: false,
 };
 
@@ -72,21 +73,21 @@ describe('permission-aware account menu framework', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [false, false, false],
-    [false, false, true],
-    [false, true, false],
-    [false, true, true],
-    [true, false, false],
-    [true, false, true],
-    [true, true, false],
-    [true, true, true],
-  ])(
-    'filters management rows for sites=%s, roles=%s, users=%s without using role names',
-    (sites, roles, users) => {
+  it.each(
+    [false, true].flatMap((monitor) =>
+      [false, true].flatMap((sites) =>
+        [false, true].flatMap((roles) =>
+          [false, true].map((users) => [monitor, sites, roles, users]),
+        ),
+      ),
+    ),
+  )(
+    'filters rows for monitor=%s, sites=%s, roles=%s, users=%s without role names',
+    (monitor, sites, roles, users) => {
       const view = renderMenu({
         ...account,
         role: 'custom-role',
+        is_monitor: monitor,
         is_manage_sites: sites,
         is_manage_roles: roles,
         is_manage_users: users,
@@ -97,7 +98,8 @@ describe('permission-aware account menu framework', () => {
           .map((item) => item.textContent?.trim()),
       ).toEqual([
         'Profile',
-        ...(sites ? ['Overview', 'Requests', 'Workers', 'Platform'] : []),
+        ...(monitor ? ['Overview', 'Requests', 'Workers'] : []),
+        ...(sites ? ['Platform'] : []),
         ...(roles ? ['Roles'] : []),
         ...(users ? ['Users'] : []),
         'Theme',
@@ -105,7 +107,7 @@ describe('permission-aware account menu framework', () => {
         'Sign out',
       ]);
       expect(within(view.menu).queryByRole('group', { name: 'Monitor' })).toBe(
-        sites ? within(view.menu).getByRole('group', { name: 'Monitor' }) : null,
+        monitor ? within(view.menu).getByRole('group', { name: 'Monitor' }) : null,
       );
       expect(within(view.menu).queryByRole('group', { name: 'Management' })).toBe(
         sites || roles || users

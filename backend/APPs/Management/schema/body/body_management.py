@@ -215,6 +215,7 @@ class BodyManagementRolePatch(BaseModel):
     is_read: bool = None
     is_update: bool = None
     is_delete: bool = None
+    is_monitor: bool = None
     is_manage_roles: bool = None
     is_manage_users: bool = None
     is_manage_sites: bool = None

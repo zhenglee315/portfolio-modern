@@ -64,7 +64,7 @@ class MonitorRoute(APIRoute):
 
 router = FastApiRouter(prefix=PreFix.Monitor, tags=Tags.Monitor, route_class=MonitorRoute)
 
-_PERMISSION = [Depends(ManagementPermission(AuthRole.is_manage_sites))]
+_PERMISSION = [Depends(ManagementPermission(AuthRole.is_monitor))]
 _RESPONSES: dict[int | str, dict[str, Any]] = {
     400: {"description": "Invalid, repeated or unknown query parameters."},
     401: {"description": "An enabled signed-in account and role are required."},
@@ -75,7 +75,7 @@ _RESPONSES: dict[int | str, dict[str, Any]] = {
 # ■—< DESC >——————————————————————————————————————————————————————————————————————————■ Monitor - Private Access
 _PRIVATE_ACCESS_DESCRIPTION = (
     "🔒 **Access and Privacy:**\n"
-    "- Requires a signed-in, enabled account and role with `is_manage_sites=true`.\n"
+    "- Requires a signed-in, enabled account and role with `is_monitor=true`.\n"
     "- Identity comes from the server-side SESSION; client-supplied permission flags do not grant access.\n"
     "- Current account and role permissions are checked before every request, including cache hits and conditional reads.\n"
     "- Responses use `Cache-Control: private, no-store` and `Vary: Cookie`.\n\n"

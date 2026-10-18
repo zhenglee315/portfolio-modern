@@ -32,6 +32,7 @@ async function openHistory(page: Page, width: number, theme = 'mint', locale = '
         is_read: true,
         is_update: true,
         is_delete: true,
+        is_monitor: true,
         is_manage_sites: true,
         is_manage_users: true,
         is_manage_roles: true,

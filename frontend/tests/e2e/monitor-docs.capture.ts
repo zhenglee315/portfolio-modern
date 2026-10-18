@@ -27,6 +27,7 @@ test('capture the monitoring documentation tour', async ({ page }) => {
         is_read: true,
         is_update: true,
         is_delete: true,
+        is_monitor: true,
         is_manage_sites: true,
         is_manage_roles: true,
         is_manage_users: true,
@@ -90,49 +91,50 @@ test('capture the monitoring documentation tour', async ({ page }) => {
     };
   });
   const images = resolve('..', 'docs', 'images');
-  await page.goto('/en/management/monitoring?start=2026-10-09&end=2026-10-15');
-  await expect(page.locator('#monitor-worker-title')).toContainText('4 / 4');
-  await expect(page.getByRole('region', { name: 'HTTP requests', exact: true })).toContainText(
-    '10,840',
-  );
-  await page.evaluate(() => document.fonts.ready);
-  await page.mouse.click(2, 2);
-  await page.screenshot({ path: resolve(images, 'monitor-overview.png'), fullPage: true });
+  if (process.env.PORTFOLIO_DOCS_PHONE_ONLY !== '1') {
+    await page.goto('/en/management/monitoring?start=2026-10-09&end=2026-10-15');
+    await expect(page.locator('#monitor-worker-title')).toContainText('4 / 4');
+    await expect(page.getByRole('region', { name: 'HTTP requests', exact: true })).toContainText(
+      '10,840',
+    );
+    await page.evaluate(() => document.fonts.ready);
+    await page.mouse.click(2, 2);
+    await page.screenshot({ path: resolve(images, 'monitor-overview.png'), fullPage: true });
 
-  await page.getByRole('link', { name: 'Requests', exact: true }).click();
-  await expect(page.locator('[data-monitor-view="requests"]')).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'How requests pass through workers' }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('region', { name: 'Request events', exact: true }).locator('tbody tr'),
-  ).toHaveCount(5);
-  await page.mouse.click(2, 2);
-  await expect(
-    page.locator('[data-sidebar-rail]').getByRole('link', { name: 'Overview', exact: true }),
-  ).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await page.screenshot({ path: resolve(images, 'monitor-requests.png'), fullPage: true });
-  await page.getByRole('region', { name: 'Request events', exact: true }).screenshot({
-    path: resolve(images, 'monitor-events.png'),
-  });
+    await page.getByRole('link', { name: 'Requests', exact: true }).click();
+    await expect(page.locator('[data-monitor-view="requests"]')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'How requests pass through workers' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'Request events', exact: true }).locator('tbody tr'),
+    ).toHaveCount(5);
+    await page.mouse.click(2, 2);
+    await expect(
+      page.locator('[data-sidebar-rail]').getByRole('link', { name: 'Overview', exact: true }),
+    ).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await page.screenshot({ path: resolve(images, 'monitor-requests.png'), fullPage: true });
+    await page.getByRole('region', { name: 'Request events', exact: true }).screenshot({
+      path: resolve(images, 'monitor-events.png'),
+    });
 
-  await page.getByRole('link', { name: 'Workers', exact: true }).click();
-  await page.setViewportSize({ width: 1440, height: 780 });
-  await expect(
-    page.getByRole('region', { name: 'Successful requests', exact: true }),
-  ).toContainText('1,000');
-  await expect(
-    page.getByRole('table', { name: 'Uvicorn worker status', exact: true }),
-  ).toBeVisible();
-  await page.mouse.click(2, 2);
-  await expect(
-    page.locator('[data-sidebar-rail]').getByRole('link', { name: 'Requests', exact: true }),
-  ).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect
-    .poll(() => page.evaluate(() => document.documentElement.scrollHeight))
-    .toBeLessThanOrEqual(780);
-  await page.screenshot({ path: resolve(images, 'monitor-workers.png'), fullPage: true });
-
+    await page.getByRole('link', { name: 'Workers', exact: true }).click();
+    await page.setViewportSize({ width: 1440, height: 780 });
+    await expect(
+      page.getByRole('region', { name: 'Successful requests', exact: true }),
+    ).toContainText('1,000');
+    await expect(
+      page.getByRole('table', { name: 'Uvicorn worker status', exact: true }),
+    ).toBeVisible();
+    await page.mouse.click(2, 2);
+    await expect(
+      page.locator('[data-sidebar-rail]').getByRole('link', { name: 'Requests', exact: true }),
+    ).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollHeight))
+      .toBeLessThanOrEqual(780);
+    await page.screenshot({ path: resolve(images, 'monitor-workers.png'), fullPage: true });
+  }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/management/monitoring?start=2026-10-09&end=2026-10-15');
   await expect(page.locator('[data-monitor-local]')).toBeVisible();
@@ -140,4 +142,9 @@ test('capture the monitoring documentation tour', async ({ page }) => {
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(390);
   await page.screenshot({ path: resolve(images, 'monitor-overview-mobile.png'), fullPage: true });
+  await page.goto('/en/management/monitoring?start=2026-10-09&end=2026-10-15&monitorView=requests');
+  await expect(page.locator('[data-monitor-event-cards] article')).toHaveCount(5);
+  await expect(page.locator('[data-flow-worker]')).toHaveCount(4);
+  await page.locator('[data-monitor-workspace] h1').click();
+  await page.screenshot({ path: resolve(images, 'monitor-requests-mobile.png'), fullPage: true });
 });

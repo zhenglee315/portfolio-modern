@@ -21,6 +21,7 @@ for (const width of [390, 768, 1440]) {
           is_delete: true,
           is_manage_roles: true,
           is_manage_users: true,
+          is_monitor: true,
           is_manage_sites: true,
         },
       }),

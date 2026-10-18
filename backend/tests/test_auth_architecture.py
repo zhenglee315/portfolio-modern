@@ -133,6 +133,7 @@ def auth_client(monkeypatch):
                         is_read=True,
                         is_update=True,
                         is_delete=True,
+                        is_monitor=True,
                         is_manage_roles=True,
                         is_manage_users=True,
                         is_manage_sites=True,
@@ -222,6 +223,7 @@ def test_sign_in_session_and_sign_out_keep_identity_private(auth_client):
         "is_read",
         "is_update",
         "is_delete",
+        "is_monitor",
         "is_manage_roles",
         "is_manage_users",
         "is_manage_sites",
@@ -247,6 +249,41 @@ def test_sign_in_session_and_sign_out_keep_identity_private(auth_client):
     assert client.get("/authority/session", headers={"Cookie": "session=" + cookie}).json() is None
     assert client.post("/authority/sign-out").json() == {"signed_out": True}
     assert client.portal.call(login_count) == 1
+
+
+@pytest.mark.parametrize("stored_monitor", (None, False, True))
+@pytest.mark.parametrize("current_monitor", (False, True))
+def test_existing_session_refreshes_monitor_permission_without_signing_in_again(
+    auth_client, stored_monitor, current_monitor
+):
+    """Old and stale sessions use current monitor rights without replacing the login cookie.
+
+    Author: ZhengLee 2026.10.18
+    """
+    client = auth_client
+    sign_in(client)
+    cookie = client.cookies["session"]
+    stored = json.loads(client.app.state.store.data[cookie])
+    if stored_monitor is None:
+        stored.pop("is_monitor", None)
+    else:
+        stored["is_monitor"] = stored_monitor
+    client.app.state.store.data[cookie] = json.dumps(stored).encode()
+
+    async def change_permission():
+        async with client.app.state.sessions.begin() as session:
+            await session.execute(
+                update(client.app.state.models.AuthRole)
+                .where(client.app.state.models.AuthRole.id == 1)
+                .values(is_monitor=current_monitor)
+            )
+
+    client.portal.call(change_permission)
+    response = client.get("/authority/session")
+    assert response.status_code == 200
+    assert response.json()["is_monitor"] is current_monitor
+    assert client.cookies["session"] == cookie
+    assert json.loads(client.app.state.store.data[cookie])["is_monitor"] is current_monitor
 
 
 def test_session_refreshes_handle_and_site_permission_from_database(auth_client):
@@ -294,6 +331,25 @@ def test_disabled_identity_cannot_restore_or_sign_in(auth_client, disabled):
             return await session.scalar(select(func.count()).select_from(client.app.state.models.RecordLogin))
 
     assert client.portal.call(login_count) == 1
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_registration_inherits_independent_default_role_monitor_access(auth_client, enabled):
+    """A registration default may grant read-only monitoring without management rights."""
+
+    async def configure():
+        models = auth_client.app.state.models
+        async with auth_client.app.state.sessions.begin() as session:
+            await session.execute(update(models.AuthRole).where(models.AuthRole.id == 2).values(is_monitor=enabled))
+
+    auth_client.portal.call(configure)
+    email = "monitor-registration@example.test"
+    verified_registration(auth_client, email)
+    response = auth_client.post("/authority/register", json={"email": email, "password": "12345678"})
+    assert response.status_code == 201, response.text
+    assert response.json()["is_monitor"] is enabled
+    assert all(response.json()[field] is False for field in ("is_manage_sites", "is_manage_users", "is_manage_roles"))
+    assert auth_client.get("/authority/session").json()["is_monitor"] is enabled
 
 
 def test_legacy_registration_allocates_distinct_public_handles(auth_client):

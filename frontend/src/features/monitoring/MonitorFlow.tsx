@@ -44,11 +44,11 @@ export function MonitorFlow({ model }: { model: MonitoringModel }) {
             <strong>{t('monitor.clients')}</strong>
             <span className={styles.incoming}>{metric(summary?.active_requests)} in-flight →</span>
           </div>
-          <div className={styles.socket}>
+          <div className={styles.socket} data-flow-dispatch>
             <span>{t('monitor.sharedSocket')}</span>
             <span>{t('monitor.osDispatch')}</span>
           </div>
-          <div className={styles.workerBox}>
+          <div className={styles.workerBox} data-flow-server>
             <div className={styles.server}>
               <strong>Uvicorn · FastAPI</strong>
               <small>
@@ -80,16 +80,21 @@ export function MonitorFlow({ model }: { model: MonitoringModel }) {
                   >
                     <header>
                       <strong>● {workerLabel(worker)}</strong>
-                      <span>PID {worker.pid}</span>
+                      <span className={styles.workerPid}>PID {worker.pid}</span>
                       <span className={styles.workerState}>
-                        {t(
-                          !worker.fresh
-                            ? 'monitor.unknown'
-                            : working
-                              ? 'monitor.processing'
-                              : 'monitor.idle',
-                        )}{' '}
-                        · {metric(worker.active_requests)} in-flight
+                        <span className={styles.workerStatus}>
+                          {t(
+                            !worker.fresh
+                              ? 'monitor.unknown'
+                              : working
+                                ? 'monitor.processing'
+                                : 'monitor.idle',
+                          )}
+                        </span>
+                        <span className={styles.workerLoad}>
+                          <span className={styles.workerSeparator}> · </span>
+                          {metric(worker.active_requests)} in-flight
+                        </span>
                       </span>
                     </header>
                     <div className={styles.stages} data-flow-stages>
@@ -97,7 +102,7 @@ export function MonitorFlow({ model }: { model: MonitoringModel }) {
                         {t('monitor.middlewareIn')}
                         {working ? ' ✓' : ''}
                       </span>
-                      <b>→</b>
+                      <b aria-hidden="true">→</b>
                       <span data-active={working && (!responding || applying)}>
                         {t('monitor.application')}
                         <small className={styles.stageStatus} data-active={working}>
@@ -110,7 +115,7 @@ export function MonitorFlow({ model }: { model: MonitoringModel }) {
                           )}
                         </small>
                       </span>
-                      <b>→</b>
+                      <b aria-hidden="true">→</b>
                       <span data-active={responding}>
                         {t('monitor.middlewareOut')}
                         <small>{responding ? t('monitor.sending') : '—'}</small>
@@ -163,7 +168,10 @@ export function MonitorFlow({ model }: { model: MonitoringModel }) {
             {!workers.length && <p className={styles.empty}>{t('monitor.noWorkers')}</p>}
           </div>
           <div className={styles.returnPath} data-flow-return>
-            ← {t('monitor.returnPath')}
+            <span className={styles.returnArrow} aria-hidden="true">
+              ←
+            </span>{' '}
+            {t('monitor.returnPath')}
           </div>
         </div>
       </div>

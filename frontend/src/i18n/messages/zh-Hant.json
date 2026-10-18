@@ -424,7 +424,8 @@
       "footer_content": "頁尾文案",
       "chat_title": "聯絡標題",
       "chat_title_sub": "聯絡副標題",
-      "chat_content": "聯絡文案"
+      "chat_content": "聯絡文案",
+      "is_monitor": "Monitor"
     },
     "columnMenu": "排序與篩選「{{column}}」",
     "export": {
@@ -550,7 +551,8 @@
       "is_delete": "作品集內容的刪除權限分組。",
       "is_manage_sites": "存取平台管理，修改作品集設定、發布狀態、預設首頁及擁有者啟用狀態，並預覽內容。",
       "is_manage_users": "存取使用者管理，查看帳號與登入紀錄、修改啟用狀態，並指派可授予的角色。",
-      "is_manage_roles": "存取角色管理，修改名稱、說明、權限、註冊預設角色及啟用狀態。變更會影響所有使用此角色的帳號。"
+      "is_manage_roles": "存取角色管理，修改名稱、說明、權限、註冊預設角色及啟用狀態。變更會影響所有使用此角色的帳號。",
+      "is_monitor": "查看監控總覽、請求與 Worker（包含私有 API 及 Socket.IO），不授予網站、使用者或角色管理權限。"
     }
   },
   "accessDenied": {

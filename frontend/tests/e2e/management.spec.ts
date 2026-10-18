@@ -48,9 +48,27 @@ for (const resource of ['sites', 'users', 'roles'] as const) {
       const breadcrumb = owner.getByRole('navigation', { name: 'Breadcrumb', exact: true });
       await expect(breadcrumb.locator('li').first()).toHaveText('Settings');
       await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText(headings[resource]);
-      await expect(
-        owner.locator('aside [data-sidebar-links]').first().getByRole('link'),
-      ).toHaveText(['Overview', 'Requests', 'Workers', 'Platform', 'Roles', 'Users']);
+      if (width <= 1024) {
+        await owner
+          .getByRole('button', { name: 'Open management navigation', exact: true })
+          .click();
+        const drawer = page.locator('[data-sidebar-drawer]');
+        await expect(drawer).toBeVisible();
+        await expect(drawer.locator('[data-sidebar-links]').first().getByRole('link')).toHaveText([
+          'Overview',
+          'Requests',
+          'Workers',
+          'Platform',
+          'Roles',
+          'Users',
+        ]);
+        await drawer.getByRole('button', { name: 'Close', exact: true }).click();
+        await expect(drawer).not.toBeVisible();
+      } else {
+        await expect(
+          owner.locator('aside [data-sidebar-links]').first().getByRole('link'),
+        ).toHaveText(['Overview', 'Requests', 'Workers', 'Platform', 'Roles', 'Users']);
+      }
       await expect(owner.locator('[data-management-controls]')).toBeVisible();
       await owner.locator('tbody [data-selection] input').first().check();
       await expect(
@@ -89,6 +107,7 @@ async function restoreAdministrator(page: Page) {
         is_delete: true,
         is_manage_roles: true,
         is_manage_users: true,
+        is_monitor: true,
         is_manage_sites: true,
       },
     }),
@@ -206,6 +225,7 @@ async function openManagement(page: Page, resource: ManagementResource) {
       'Read',
       'Update',
       'Delete',
+      'Monitor',
       'Site',
       'Users',
       'Roles',
@@ -217,6 +237,7 @@ async function openManagement(page: Page, resource: ManagementResource) {
     expect(switches).toEqual([
       false,
       false,
+      true,
       true,
       true,
       true,
@@ -1011,6 +1032,7 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
       'Read',
       'Update',
       'Delete',
+      'Monitor',
       'Site',
       'Users',
       'Roles',
@@ -1024,6 +1046,7 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
       ['Read', 'is_read'],
       ['Update', 'is_update'],
       ['Delete', 'is_delete'],
+      ['Monitor', 'is_monitor'],
       ['Site', 'is_manage_sites'],
       ['Users', 'is_manage_users'],
       ['Roles', 'is_manage_roles'],
@@ -1033,11 +1056,11 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
     for (const id of [14, 13]) {
       const row = management.locator(`tbody > tr[data-row-key="${id}"]`);
       const expected = managementRoleFixtures.find((fixture) => fixture.id === id)!;
-      await expect(row.getByRole('switch')).toHaveCount(9);
+      await expect(row.getByRole('switch')).toHaveCount(10);
       for (const [label, field] of flags) {
         const toggle = row.getByRole('switch', { name: new RegExp(`^${label}:`) });
         await expect(toggle).toHaveJSProperty('checked', expected[field]);
-        await expect(toggle).toBeDisabled();
+        await expect(toggle).toBeEnabled();
       }
     }
     if (locale === 'en')
@@ -1048,26 +1071,33 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
     const detail = page.getByRole('dialog');
     await expect(detail).toHaveCSS('opacity', '1');
     await expect(detail.locator('dt')).toHaveText([
-      'ID',
       'Role',
-      'Users',
+      'Description',
       'Default',
       'Create',
       'Read',
       'Update',
       'Delete',
+      'Monitor',
       'Manage Site',
       'Manage Users',
       'Manage Roles',
+      'Users',
+      'ID',
       'Active',
-      'Description',
       'Created',
       'Updated',
     ]);
-    await expect(detail.locator('dl > div').nth(2).locator('dd')).toHaveText('2');
-    await expect(detail.getByRole('switch')).toHaveCount(9);
-    await expect(detail.getByRole('switch', { name: /^Manage Users:/ })).not.toBeChecked();
-    await expect(detail.getByRole('switch', { name: /^Read:/ })).toBeChecked();
+    const field = (label: string) =>
+      detail
+        .locator('dt')
+        .filter({ hasText: new RegExp(`^${label}$`) })
+        .locator('..');
+    await expect(field('Users').locator('dd')).toHaveText('2');
+    await expect(detail.getByRole('switch')).toHaveCount(10);
+    await expect(field('Manage Users').getByRole('switch')).not.toBeChecked();
+    await expect(field('Read').getByRole('switch')).toBeChecked();
+    await expect(field('Monitor').getByRole('switch')).not.toBeChecked();
     await expect(detail.locator('time')).toHaveText(['2026.01.01 08:00:00', '2026.09.15 12:30:00']);
     if (locale === 'en')
       await detail.screenshot({ path: test.info().outputPath('role-details.png') });
@@ -1083,6 +1113,12 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
     page,
   }) => {
     const writes: string[] = [];
+    const defaultReason =
+      locale === 'en'
+        ? 'Requires Active, a website and Publish'
+        : locale === 'zh-Hans'
+          ? '需启用 Active、Publish，并已建立网站'
+          : '需啟用 Active、Publish，並已建立網站';
     page.on('request', (request) => {
       if (!['GET', 'HEAD'].includes(request.method())) writes.push(request.url());
     });
@@ -1108,7 +1144,7 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
             )?.trim(),
           ),
         ),
-    ).toEqual(['ID', 'Account', 'Profile', 'Publish', 'Default', 'Active', 'Updated', 'Actions']);
+    ).toEqual(['ID', 'Email', 'Profile', 'Publish', 'Default', 'Active', 'Updated', 'Actions']);
     const row = (id: number) => management.locator(`tbody > tr[data-row-key="${id}"]`);
     await expect(row(14).locator('time')).toHaveText('2026.09.15 12:30:00');
     await expect(row(14).getByRole('checkbox', { name: /^Profile:/ })).toBeChecked();
@@ -1117,9 +1153,9 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
     const disabledOwner = row(14).getByRole('switch', { name: /^Default:/ });
     await expect(disabledOwner).toBeDisabled();
     await expect(disabledOwner.locator('..')).toHaveAttribute('data-unavailable', '');
-    await expect(disabledOwner.locator('..')).toHaveAttribute('title', /Active.*Profile.*Publish/);
+    await expect(disabledOwner.locator('..')).toHaveAttribute('title', defaultReason);
     const eligible = row(13).getByRole('switch', { name: /^Default:/ });
-    await expect(eligible).toBeDisabled(); // Updates remain a separate, future integration.
+    await expect(eligible).toBeEnabled();
     await expect(eligible.locator('..')).not.toHaveAttribute('data-unavailable');
     await expect(
       row(12)
@@ -1132,46 +1168,62 @@ for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
     await row(14).locator('button[value="edit"]').click();
     const detail = page.getByRole('dialog');
     await expect(detail.locator('dt')).toHaveText([
-      'ID',
-      'Account',
+      'Email',
       'First name',
       'Family name',
       'Nickname',
       'Education',
-      'Profile name',
-      'Profile data',
+      'Program',
       'Brand',
       'Brand Subtitle',
-      'Publish',
-      'Translation',
-      'Default',
-      'Active',
-      'Program',
-      'Language',
-      'Copyright',
       'Introduction',
-      'Footer',
-      'Email',
+      'Profile introduction',
+      'Contact email',
       'LinkedIn',
       'GitHub',
       'Medium',
-      'Chat icon',
       'Chat title',
       'Chat subtitle',
+      'Chat icon',
       'Chat content',
-      'Profile introduction',
+      'Footer',
+      'Copyright',
+      'Publish',
+      'Default',
+      'Profile name',
+      'Website exists',
+      'Profile',
+      'Translation',
+      'Language',
       'Website ID',
+      'ID',
+      'Active',
       'Created',
       'Updated',
     ]);
     await expect(detail.locator('time')).toHaveText(['2026.01.01 08:00:00', '2026.09.15 12:30:00']);
-    await expect(detail.getByRole('checkbox', { name: /^Profile data:/ })).toBeChecked();
-    await expect(detail.getByRole('checkbox', { name: /^Translation:/ })).toBeChecked();
-    await expect(detail.getByRole('checkbox', { name: /^Publish:/ })).toBeChecked();
-    await expect(detail.getByRole('switch', { name: /^Default:/ }).locator('..')).toHaveAttribute(
-      'data-unavailable',
-      '',
-    );
+    const field = (label: string) =>
+      detail
+        .locator('dt')
+        .filter({ hasText: new RegExp(`^${label}$`) })
+        .locator('..');
+    await expect(field('Profile').getByRole('checkbox')).toBeChecked();
+    await expect(field('Translation').getByRole('checkbox')).toBeChecked();
+    await expect(field('Publish').getByRole('checkbox')).toBeChecked();
+    const defaultDraft = field('Default').getByRole('switch');
+    const activeDraft = field('Active').getByRole('switch');
+    await expect(defaultDraft).toBeEnabled();
+    await defaultDraft.check();
+    await expect(detail.getByRole('alert')).toBeVisible();
+    await expect(detail.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+    await defaultDraft.uncheck();
+    await activeDraft.check();
+    await defaultDraft.check();
+    await expect(detail.getByRole('alert')).toHaveCount(0);
+    await expect(detail.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
+    await defaultDraft.uncheck();
+    await activeDraft.uncheck();
+    await expect(detail.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
     await page.keyboard.press('Escape');
     expect(writes).toEqual([]);
   });

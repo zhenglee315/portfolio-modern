@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { mobileQuery, useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import type { MonitorWorker } from './monitor';
 import { workerKey } from './monitor';
 import { metric, workerLabel } from './monitor-presentation';
@@ -25,6 +26,51 @@ export function WorkerTable({
   compact?: boolean;
   stale?: boolean;
 }) {
+  const narrow = useMediaQuery(mobileQuery);
+  if (compact && narrow)
+    return (
+      <ul className={styles.compactWorkers} aria-label={t('monitor.workerStatus')}>
+        {workers.map((worker) => {
+          const fresh = worker.fresh && !stale;
+          return (
+            <li key={workerKey(worker)} data-monitor-worker-card>
+              <div className={styles.compactWorkerHeading}>
+                <strong>{workerLabel(worker)}</strong>
+                <span data-worker-status={fresh ? worker.status : 'unknown'}>
+                  {t(`monitor.states.${fresh ? worker.status : 'unknown'}`, {
+                    defaultValue: fresh ? worker.status : t('overview.unknown'),
+                  })}
+                </span>
+              </div>
+              <dl>
+                <div>
+                  <dt>PID</dt>
+                  <dd>{worker.pid}</dd>
+                </div>
+                <div>
+                  <dt>{t('monitor.columns.cpu')}</dt>
+                  <dd>{fresh ? cpu(worker) : '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('monitor.columns.memory')}</dt>
+                  <dd>{fresh ? memory(worker) : '—'}</dd>
+                </div>
+              </dl>
+              <dl className={styles.compactWorkerAge}>
+                <div>
+                  <dt>{t('monitor.columns.uptime')}</dt>
+                  <dd>{fresh ? uptime(worker) : '—'}</dd>
+                </div>
+                <div>
+                  <dt>{t('monitor.columns.restarts')}</dt>
+                  <dd>{fresh ? metric(worker.restarts) : '—'}</dd>
+                </div>
+              </dl>
+            </li>
+          );
+        })}
+      </ul>
+    );
   return (
     <div className={`${styles.tableScroll} ${styles.workerTable}`}>
       <table>

@@ -148,6 +148,7 @@ def test_role_rows_counts_and_default_pagination(role_client):
         "is_read",
         "is_update",
         "is_delete",
+        "is_monitor",
         "is_manage_sites",
         "is_manage_users",
         "is_manage_roles",

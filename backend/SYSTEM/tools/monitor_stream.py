@@ -95,7 +95,9 @@ class MonitorStream:
 
     async def connect(self, sid: str, environ: dict) -> bool:
         if len(self.connections) >= 128:
-            return False
+            # The event boundary maps availability failures to MONITOR_UNAVAILABLE.
+            # A generic rejection is reserved for an absent or unauthorized identity.
+            raise RuntimeError("Monitor connection capacity reached.")
         identity = await self._identity(environ)
         if identity is None:
             return False

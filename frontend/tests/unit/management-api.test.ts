@@ -30,6 +30,7 @@ const role: RoleRow = {
   is_read: true,
   is_update: true,
   is_delete: false,
+  is_monitor: false,
   is_manage_sites: false,
   is_manage_users: false,
   is_manage_roles: false,

@@ -191,9 +191,9 @@ Public APIs, per-site ownership/cache isolation, account sessions and login reco
 
 ## 即時請求與 Worker 監控 / Live Request and Worker Monitoring
 
-具有 `is_manage_sites` 權限的登入帳號可開啟 `/:locale/management/monitoring`。所有管理頁的桌面側欄、手機抽屜與齒輪選單共用同一份導航：**Overview → Requests → Workers → Platform → Roles → Users**，依權限過濾；切頁只改變選取項目。監控內容沿用原本的 PORTFOLIO 外框、背景動畫、進場效果、四種主題及三語。
+具有獨立 `is_monitor` 權限的登入帳號可開啟 `/:locale/management/monitoring`。所有管理頁的桌面側欄、手機抽屜與齒輪選單共用同一份導航：**Overview → Requests → Workers → Platform → Roles → Users**，依權限過濾；切頁只改變選取項目。監控內容沿用原本的 PORTFOLIO 外框、背景動畫、進場效果、四種主題及三語。
 
-Signed-in site managers open `/:locale/management/monitoring`. Every management page shares one permission-filtered navigation model across the desktop rail, mobile drawer and account menu. Monitoring occupies the original content slot and retains the existing shell, animation, themes and locales.
+Signed-in accounts with `is_monitor=true` open `/:locale/management/monitoring`. Every management page shares one permission-filtered navigation model across the desktop rail, mobile drawer and account menu. Monitoring occupies the original content slot and retains the existing shell, animation, themes and locales.
 
 ### 總覽 / Overview
 
@@ -230,6 +230,8 @@ The bounded event table supports worker filtering, time sorting and page sizes f
 Worker cards combine capacity, restarts and successful/failed request totals. The HTTP totals API reads the current server run from SYS Redis every five seconds; replacement workers preserve run totals while a full restart starts a new run. Table counters belong to each process lifetime. Failures include HTTP 4xx/5xx and interrupted responses. CPU is relative to one core, memory is RSS, transactions are logical Sessions and liveness comes from lifespan heartbeats.
 
 [![390px 手機監控總覽：同一套主題、響應式指標與登入地圖 / Mobile monitoring overview at 390px](docs/images/monitor-overview-mobile.png)](docs/images/monitor-overview-mobile.png)
+
+[![390px 手機請求監控：直向 Worker 執行鏈與事件卡片 / Mobile request flow and event cards](docs/images/monitor-requests-mobile.png)](docs/images/monitor-requests-mobile.png)
 
 上方監控圖片由實際應用搭配隔離的合成 HTTP／Socket 資料產生，沒有真實帳號或私人紀錄。以 `cd frontend && npm run docs:monitor` 重建；來源及擷取規則見[圖片文件](docs/images/README.md)。
 

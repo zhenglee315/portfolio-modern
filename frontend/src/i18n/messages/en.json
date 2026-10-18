@@ -424,7 +424,8 @@
       "footer_content": "Footer",
       "chat_title": "Contact title",
       "chat_title_sub": "Contact subtitle",
-      "chat_content": "Contact copy"
+      "chat_content": "Contact copy",
+      "is_monitor": "Monitor"
     },
     "columnMenu": "Sort and filter {{column}}",
     "export": {
@@ -550,7 +551,8 @@
       "is_delete": "Permission group for deleting portfolio content.",
       "is_manage_sites": "Access Platform management to edit portfolio settings, publication, homepage defaults and owner activation, and preview content.",
       "is_manage_users": "Access User management to view accounts and login history, change activation and assign eligible roles.",
-      "is_manage_roles": "Access Role management to edit names, descriptions, permissions, registration defaults and activation. Changes affect all assigned accounts."
+      "is_manage_roles": "Access Role management to edit names, descriptions, permissions, registration defaults and activation. Changes affect all assigned accounts.",
+      "is_monitor": "View monitoring Overview, Requests and Workers through private APIs and Socket.IO. This does not grant site, user or role management."
     }
   },
   "accessDenied": {

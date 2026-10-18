@@ -75,7 +75,6 @@ export default defineConfig({
       name: 'management-contracts',
       dependencies: ['performance'],
       testMatch: '**/management.spec.ts',
-      grep: /CSV and Excel|Copy and Print|requests only its selected page|column visibility|pending list reads|list response reports|typed number and date menus|header menus combine|browser Back and Forward|date filters use a calendar|dropdown list filter|user Active reflects|selected and individual delete|query navigation cancels|row selection stays local|Profile identifies careers|profile names distinguish|each theme|users Role dropdown|dropdown search stays local|ordered arrow sorting/,
     },
     {
       name: 'touch',

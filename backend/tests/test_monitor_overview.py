@@ -103,6 +103,13 @@ def test_monitor_http_permission_rechecks_current_role(overview, resource):
     assert response.status_code == 401
     expect_private(response)
     sign_in(overview)
+    # Monitoring is independent from site-management access.
+    change(
+        overview,
+        update(overview.app.state.models.AuthRole)
+        .where(overview.app.state.models.AuthRole.id == 1)
+        .values(is_manage_sites=False),
+    )
     response = overview.get(f"/monitor/{resource}")
     assert response.status_code == 200, response.text
     expect_private(response)
@@ -110,7 +117,7 @@ def test_monitor_http_permission_rechecks_current_role(overview, resource):
         overview,
         update(overview.app.state.models.AuthRole)
         .where(overview.app.state.models.AuthRole.id == 1)
-        .values(is_manage_sites=False),
+        .values(is_monitor=False, is_manage_sites=True),
     )
     response = overview.get(f"/monitor/{resource}")
     assert response.status_code == 403
@@ -175,6 +182,12 @@ def test_request_totals_reads_current_run_redis_and_rechecks_permission(overview
     assert response.status_code == 401
     metrics.read.assert_not_awaited()
     sign_in(overview)
+    change(
+        overview,
+        update(overview.app.state.models.AuthRole)
+        .where(overview.app.state.models.AuthRole.id == 1)
+        .values(is_manage_sites=False),
+    )
 
     def reject_history(*args, **kwargs):
         raise AssertionError("Request totals may not construct a history database reader")
@@ -187,7 +200,12 @@ def test_request_totals_reads_current_run_redis_and_rechecks_permission(overview
     assert overview.get("/monitor/request-totals?is_caching=true").status_code == 400
     assert overview.get("/monitor/request-totals?worker=1&worker=2").status_code == 400
     metrics.read.assert_awaited_once()
-    change(overview, update(overview.app.state.models.AuthRole).values(is_manage_sites=False))
+    change(
+        overview,
+        update(overview.app.state.models.AuthRole)
+        .where(overview.app.state.models.AuthRole.id == 1)
+        .values(is_monitor=False, is_manage_sites=True),
+    )
     response = overview.get("/monitor/request-totals")
     assert response.status_code == 403
     expect_private(response)
@@ -532,7 +550,7 @@ def test_cached_overview_never_bypasses_current_database_permission(overview_cac
     cached = client.get(f"/monitor/{resource}", params=parameters)
     assert cached.headers["X-FastAPI-Cache"] == "HIT"
     models = client.app.state.models
-    change(client, update(models.AuthRole).where(models.AuthRole.id == 1).values(is_manage_sites=False))
+    change(client, update(models.AuthRole).where(models.AuthRole.id == 1).values(is_monitor=False))
     backend = client.app.state.monitor_response_cache
     lookup = AsyncMock(wraps=backend.get_with_ttl)
     monkeypatch.setattr(backend, "get_with_ttl", lookup)

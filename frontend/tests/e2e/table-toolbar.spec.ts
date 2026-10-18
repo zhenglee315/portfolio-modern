@@ -73,6 +73,7 @@ async function open(page, width: number, theme = 'mint', resource = 'users') {
         is_read: true,
         is_update: true,
         is_delete: true,
+        is_monitor: true,
         is_manage_sites: true,
         is_manage_users: true,
         is_manage_roles: true,

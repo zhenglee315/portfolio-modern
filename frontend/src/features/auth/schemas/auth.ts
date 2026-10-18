@@ -11,6 +11,7 @@ export const authUserSchema = z.object({
   is_read: z.boolean(),
   is_update: z.boolean(),
   is_delete: z.boolean(),
+  is_monitor: z.boolean(),
   is_manage_roles: z.boolean(),
   is_manage_users: z.boolean(),
   is_manage_sites: z.boolean(),

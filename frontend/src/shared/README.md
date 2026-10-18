@@ -102,9 +102,9 @@ The monitoring feature composes the existing shell and shared primitives without
 
 ## 管理存取組合 / Management Access Composition
 
-SESSION 與管理權限屬於 auth feature，由 route／page 組合，不放進 shared 的通用讀取或表格。輕量 [`auth/session`](../features/auth/session.ts) 的 `refreshAuthSession` 在管理入口重新讀取 cookie 身份；[`auth/permissions`](../features/auth/permissions.ts) 的 `canManage` 要求旗標明確為 true，選單、sidebar 與表格 gate 共用相同政策。網站／監控使用 `is_manage_sites`，帳號使用 `is_manage_users`，角色使用 `is_manage_roles`。總覽、請求與 Worker 共用監控權限，所有管理頁的桌面 sidebar、手機 drawer 與齒輪選單都從同一份完整 `managementNavigation` 產生入口；目前頁面只影響選取狀態。
+SESSION 與管理權限屬於 auth feature，由 route／page 組合，不放進 shared 的通用讀取或表格。輕量 [`auth/session`](../features/auth/session.ts) 的 `refreshAuthSession` 在管理入口重新讀取 cookie 身份；[`auth/permissions`](../features/auth/permissions.ts) 的 `canManage` 要求旗標明確為 true，選單、sidebar 與表格 gate 共用相同政策。網站使用 `is_manage_sites`，監控使用 `is_monitor`，帳號使用 `is_manage_users`，角色使用 `is_manage_roles`。總覽、請求與 Worker 共用監控權限，所有管理頁的桌面 sidebar、手機 drawer 與齒輪選單都從同一份完整 `managementNavigation` 產生入口；目前頁面只影響選取狀態。
 
-SESSION and management rights remain auth-feature responsibilities composed by routes/pages. Lightweight [`auth/session`](../features/auth/session.ts) freshly checks cookie identity through `refreshAuthSession`; [`auth/permissions`](../features/auth/permissions.ts) shares strict-true `canManage` across the menu, sidebar and table gate. Sites/monitoring use `is_manage_sites`, users use `is_manage_users`, roles use `is_manage_roles`. Overview, Requests and Workers share monitoring permission. Every management page derives its desktop sidebar, mobile drawer and gear entries from the same complete `managementNavigation`; the current page changes selection only.
+SESSION and management rights remain auth-feature responsibilities composed by routes/pages. Lightweight [`auth/session`](../features/auth/session.ts) freshly checks cookie identity through `refreshAuthSession`; [`auth/permissions`](../features/auth/permissions.ts) shares strict-true `canManage` across the menu, sidebar and table gate. Sites use `is_manage_sites`, monitoring uses `is_monitor`, users use `is_manage_users`, roles use `is_manage_roles`. Overview, Requests and Workers share monitoring permission. Every management page derives its desktop sidebar, mobile drawer and gear entries from the same complete `managementNavigation`; the current page changes selection only.
 
 [`routes/management`](../routes/management.tsx) 在瀏覽器檢查通過後才載入管理頁或列表；SSR／首次 hydration 只重用 `LoadingIndicator`，不序列化身份或私有列。已確認訪客、false 權限或 SESSION HTTP 401／403 由呼叫端使用 `useNotifications` 發出 warning，再 replace 到三語 Access denied。網路／服務／契約錯誤則維持內容隱藏並提供重試。取消的決定不得提交；身份／角色／管理旗標改變時取消並移除 private cache，保留公開資料。DataTable 不判定權限；後端管理讀取與 preview 由共用 `ManagementPermission` dependency 重新驗證目前帳號及角色權限。
 
@@ -262,7 +262,7 @@ import { boundedMenuPosition } from '@/shared/lib/menu-position';
 
 `HelpTooltip`（[來源](ui/HelpTooltip.tsx)）是一般資料表／表單用的小型說明按鈕，接受已翻譯的 `label` 與純文字 `text`。使用 10px 的 `questionCircle` 圖示、專案面板／邊框／焦點 tokens 及一般圓角提示框與箭頭；不使用 pixel shell。沿用 `useHoverTooltip` 的 hover bridge、鍵盤焦點、點按、Escape／外部點擊／scroll 等關閉生命週期；`useAnchoredPanel` 限制提示於視窗內，portal 掛在 body 或原 modal，避免被表格裁切。元件不載入業務資料、不讀取語系、不觸發資料更新。
 
-`DataTableColumn<T>.help={label,text}` 在欄名左側放置共用 `HelpTooltip`，保留原始 label 給搜尋、排序、Columns 與匯出。左右平衡的 header tracks 保持標題與資料置中；窄表格的整欄篩選點擊區不覆蓋說明按鈕。文案由 feature／page 決定，例如 Role 頁面沿用 `rolePermissionFields` 宣告為七個權限欄注入三語說明，其餘頁面沒有額外按鈕。
+`DataTableColumn<T>.help={label,text}` 在欄名左側放置共用 `HelpTooltip`，保留原始 label 給搜尋、排序、Columns 與匯出。左右平衡的 header tracks 保持標題與資料置中；窄表格的整欄篩選點擊區不覆蓋說明按鈕。文案由 feature／page 決定，例如 Role 頁面沿用 `rolePermissionFields` 宣告為八個權限欄注入三語說明，其餘頁面沒有額外按鈕。
 
 `SearchableSelect`（[來源](ui/SearchableSelect.tsx)）是受控單選下拉，支援文字／數字值、搜尋、彩色 `ChoiceChip`、停用選項及原因、鍵盤方向鍵／Enter／Escape、選取後焦點還原。`SelectOption` 定義 value、label、disabled、reason；`SelectPage` 定義 items、page、pages；`SelectSource` 可提供靜態 options 或 `load(search, page, signal)`。`SelectCopy` 注入 search、empty、loading、error、retry、more。搜尋延遲 300ms，翻頁累積去重；新查詢及關閉會取消舊請求並忽略遲到結果。menu 使用 Popper 限制在視窗內，詳情視窗中 portal 留在 modal 內。owner 負責取得資料、權限與保存。`InlineFieldEditor.type='searchable-select'` 經 selection 傳入同一份設定，選取透過 onChange(value, option) 及 onComplete 通知 owner。
 

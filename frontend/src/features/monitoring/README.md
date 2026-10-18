@@ -1,6 +1,6 @@
 # Monitor workspace
 
-`/:locale/management/monitoring` opens the Overview. `monitorView=requests` and `monitorView=workers` retain the existing request and process views. The original `ManagementPage` shell owns navigation, account controls, the session gate, background motion and page entrance. `MonitorWorkspace` renders only its content slot and inherits the global appearance tokens. The existing `SidebarRail`, `SidebarLinks` and `SidebarDrawer`, together with the account menu, derive all six destinations from `managementNavigation`: Overview → Requests → Workers → Platform → Roles → Users. Every management resource shows the same permitted entries; the route changes selection only, without feature-specific navigation styles. Overview uses the existing `is_manage_sites` permission.
+`/:locale/management/monitoring` opens the Overview. `monitorView=requests` and `monitorView=workers` retain the existing request and process views. The original `ManagementPage` shell owns navigation, account controls, the session gate, background motion and page entrance. `MonitorWorkspace` renders only its content slot and inherits the global appearance tokens. The existing `SidebarRail`, `SidebarLinks` and `SidebarDrawer`, together with the account menu, derive all six destinations from `managementNavigation`: Overview → Requests → Workers → Platform → Roles → Users. Every management resource shows the same permitted entries; the route changes selection only, without feature-specific navigation styles. Overview uses the independent `is_monitor` permission.
 
 ## Data ownership
 
@@ -41,6 +41,12 @@ The [project tour](../../../../README.md#即時請求與-worker-監控--live-req
 
 ## Verification
 
+At 760px and below, monitoring content follows the [Overview phone frame](https://www.figma.com/design/4zwapEpb2X2OyNVWYBWeN4/Portfolio-Modern?node-id=74-2721) and [Requests phone frame](https://www.figma.com/design/4zwapEpb2X2OyNVWYBWeN4/Portfolio-Modern?node-id=74-2983). Overview keeps two KPI columns, places availability beside Workers, stacks the map/ranking/chart, and presents compact Worker observations as a list. Requests stacks each Worker's ASGI stages vertically and measures animated paths against the actual phone gutters. `MonitorRequestEvents` switches between phone cards and the desktop table using the existing media-query hook; both use the same retained observations, filtering, pagination and pause state. Phone cards retain IP/location behind a keyboard-accessible disclosure. Long paths wrap, missing metrics remain unknown, and desktop resize preserves the selected worker and page.
+
+These changes are scoped to `features/monitoring`; the existing management shell, navigation, theme tokens, assets and background/entrance animation components are reused unchanged.
+
 Unit coverage: local-calendar boundaries, invalid bookmarks, response contracts, unknown values, authenticated transport, query deduplication, account/filter isolation, hydration exclusion, cancellation and mismatched periods. Browser coverage includes cross-resource desktop/mobile navigation order, selected-state and permission checks, then three locales at 320/820/1600px, original local assets, live Socket.IO protocol, filtering/Back navigation, map selection/zoom, pause/resume, unknown geography/availability and permission loss. Run `npm run check` and `npx playwright test tests/e2e/monitor-overview.spec.ts --project=management --no-deps` from `frontend/`.
 
 Author: ZhengLee · 2026.10.18
+
+Monitoring access is separate from site management. The session contract requires `is_monitor`; route/menu gates and backend HTTP/Socket authorizers require boolean true. Revoking it clears private monitor data and subscriptions, even when the account retains `is_manage_sites`. Role management exposes Monitor immediately after Delete. Migration `d7a24e91b630` enables all existing roles; new roles default to false.

@@ -35,6 +35,7 @@ async function restoreAccount(page: Page, permissions: Partial<AuthUser> = {}) {
     is_delete: false,
     is_manage_roles: false,
     is_manage_users: false,
+    is_monitor: false,
     is_manage_sites: false,
     ...permissions,
   };
@@ -113,17 +114,13 @@ for (const permissions of [
   },
   {
     name: 'site manager without user flag',
-    flags: { is_manage_sites: true, is_manage_users: false },
-    rows: [
-      'Profile',
-      'Overview',
-      'Requests',
-      'Workers',
-      'Platform',
-      'Theme',
-      'Language',
-      'Sign out',
-    ],
+    flags: { is_monitor: false, is_manage_sites: true, is_manage_users: false },
+    rows: ['Profile', 'Platform', 'Theme', 'Language', 'Sign out'],
+  },
+  {
+    name: 'monitor without any management flag',
+    flags: { is_monitor: true },
+    rows: ['Profile', 'Overview', 'Requests', 'Workers', 'Theme', 'Language', 'Sign out'],
   },
   {
     name: 'role manager without site access',
@@ -132,7 +129,12 @@ for (const permissions of [
   },
   {
     name: 'administrator',
-    flags: { is_manage_roles: true, is_manage_users: true, is_manage_sites: true },
+    flags: {
+      is_monitor: true,
+      is_manage_roles: true,
+      is_manage_users: true,
+      is_manage_sites: true,
+    },
     rows: administratorRows,
   },
 ]) {
@@ -176,6 +178,7 @@ test('keyboard navigation, outside dismissal and scaffold selection preserve ide
   });
   await restoreAccount(page, {
     is_manage_roles: true,
+    is_monitor: true,
     is_manage_sites: true,
     is_manage_users: true,
   });
@@ -260,6 +263,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await restoreAccount(page, {
       is_manage_roles: true,
+      is_monitor: true,
       is_manage_sites: true,
       is_manage_users: true,
     });

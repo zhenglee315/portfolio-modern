@@ -217,7 +217,9 @@ class ManagementRoles:
     @router.get(
         path,
         summary="Query Management Roles",
-        description=_PERMISSION_DESCRIPTION + "Required flag: is_manage_roles. " + _COLUMN_QUERY_DESCRIPTION,
+        description=_PERMISSION_DESCRIPTION
+        + "Required flag: is_manage_roles. Includes is_monitor for independent monitoring access. "
+        + _COLUMN_QUERY_DESCRIPTION,
         response_model=RespManagementRoles,
         dependencies=[Depends(ManagementPermission(AuthRole.is_manage_roles))],
         responses=_READ_RESPONSES,
@@ -231,7 +233,7 @@ class ManagementRoles:
         response_model=RespManagementRole,
         summary="Update Management Role",
         description=_PERMISSION_DESCRIPTION
-        + "Requires is_manage_roles. Confirms the ID and original role name. Send changes and matching expected original values. Permissions, state and registration Default update atomically. A registration Default must remain active without management flags; the final effective role manager cannot be removed.",
+        + "Requires is_manage_roles. Confirms the ID and original role name. Send changes and matching expected original values. Permissions (including is_monitor), state and registration Default update atomically. Monitoring can be enabled on a registration Default without granting management rights. A registration Default must remain active without management flags; the final effective role manager cannot be removed.",
         responses={
             **_READ_RESPONSES,
             404: {"description": "Target confirmation does not match."},

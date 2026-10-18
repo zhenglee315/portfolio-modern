@@ -424,7 +424,8 @@
       "footer_content": "页尾文案",
       "chat_title": "联系标题",
       "chat_title_sub": "联系副标题",
-      "chat_content": "联系文案"
+      "chat_content": "联系文案",
+      "is_monitor": "Monitor"
     },
     "columnMenu": "排序和筛选“{{column}}”",
     "export": {
@@ -550,7 +551,8 @@
       "is_delete": "作品集内容的删除权限分组。",
       "is_manage_sites": "访问平台管理，修改作品集设置、发布状态、默认首页及所有者启用状态，并预览内容。",
       "is_manage_users": "访问用户管理，查看账号与登录记录、修改启用状态，并分配可授予的角色。",
-      "is_manage_roles": "访问角色管理，修改名称、说明、权限、注册默认角色及启用状态。变更会影响所有使用此角色的账号。"
+      "is_manage_roles": "访问角色管理，修改名称、说明、权限、注册默认角色及启用状态。变更会影响所有使用此角色的账号。",
+      "is_monitor": "查看监控总览、请求与 Worker（包含私有 API 及 Socket.IO），不授予网站、用户或角色管理权限。"
     }
   },
   "accessDenied": {

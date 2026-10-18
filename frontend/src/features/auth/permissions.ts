@@ -5,7 +5,7 @@ export const managementPermissions = {
   sites: 'is_manage_sites',
   users: 'is_manage_users',
   roles: 'is_manage_roles',
-  monitoring: 'is_manage_sites',
+  monitoring: 'is_monitor',
 } as const;
 
 export type ManagementPermissionResource = keyof typeof managementPermissions;

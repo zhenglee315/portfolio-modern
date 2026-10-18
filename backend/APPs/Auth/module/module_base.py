@@ -173,6 +173,7 @@ class AuthModule(SqlAlchemyExecAsync):
             EnumSess.IS_READ: role.is_read,
             EnumSess.IS_UPDATE: role.is_update,
             EnumSess.IS_DELETE: role.is_delete,
+            EnumSess.IS_MONITOR: role.is_monitor,
             EnumSess.IS_MANAGE_ROLES: role.is_manage_roles,
             EnumSess.IS_MANAGE_USERS: role.is_manage_users,
             EnumSess.IS_MANAGE_SITES: role.is_manage_sites,

@@ -36,6 +36,7 @@ class EnumManagementField(EnumUtils):
     IS_READ = "is_read"
     IS_UPDATE = "is_update"
     IS_DELETE = "is_delete"
+    IS_MONITOR = "is_monitor"
     IS_MANAGE_ROLES = "is_manage_roles"
     IS_MANAGE_USERS = "is_manage_users"
     IS_MANAGE_SITES = "is_manage_sites"
@@ -191,6 +192,7 @@ ROLE_FIELD_COLUMNS = {
     EnumManagementField.IS_READ: AuthRole.is_read,
     EnumManagementField.IS_UPDATE: AuthRole.is_update,
     EnumManagementField.IS_DELETE: AuthRole.is_delete,
+    EnumManagementField.IS_MONITOR: AuthRole.is_monitor,
     EnumManagementField.IS_MANAGE_ROLES: AuthRole.is_manage_roles,
     EnumManagementField.IS_MANAGE_USERS: AuthRole.is_manage_users,
     EnumManagementField.IS_MANAGE_SITES: AuthRole.is_manage_sites,
@@ -207,6 +209,7 @@ ROLE_PERMISSION_COLUMNS = (
     AuthRole.is_read,
     AuthRole.is_update,
     AuthRole.is_delete,
+    AuthRole.is_monitor,
     AuthRole.is_manage_roles,
     AuthRole.is_manage_users,
     AuthRole.is_manage_sites,
@@ -219,6 +222,7 @@ ROLE_PATCH_COLUMNS = {
     EnumManagementField.IS_READ: AuthRole.is_read,
     EnumManagementField.IS_UPDATE: AuthRole.is_update,
     EnumManagementField.IS_DELETE: AuthRole.is_delete,
+    EnumManagementField.IS_MONITOR: AuthRole.is_monitor,
     EnumManagementField.IS_MANAGE_ROLES: AuthRole.is_manage_roles,
     EnumManagementField.IS_MANAGE_USERS: AuthRole.is_manage_users,
     EnumManagementField.IS_MANAGE_SITES: AuthRole.is_manage_sites,

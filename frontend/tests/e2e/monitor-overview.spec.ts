@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { monitorEndpointFixture } from '../fixtures/monitor';
+import { monitorEndpointFixture, monitorSocketFixture } from '../fixtures/monitor';
 import { installMonitorSocket } from '../fixtures/monitor-browser';
 import { localDate, shiftDate } from '../../src/features/monitoring/overview-model';
 
@@ -15,8 +15,61 @@ const administrator = {
   is_delete: true,
   is_manage_roles: true,
   is_manage_users: true,
+  is_monitor: true,
   is_manage_sites: true,
 };
+
+/** Retained busy/completed/failed observations shared by phone and desktop checks. */
+function phoneSocketFixture(topic: string, revision: string) {
+  const snapshot = monitorSocketFixture(topic, revision);
+  return {
+    ...snapshot,
+    data: {
+      ...snapshot.data,
+      workers: snapshot.data.workers.map((worker, index) => ({
+        ...worker,
+        active_requests: index === 0 ? 2 : index === 1 ? 1 : 0,
+      })),
+      summary: {
+        ...snapshot.data.summary,
+        active_requests: 3,
+        busy_workers: 2,
+        idle_workers: 2,
+        recent_completed_requests: 5,
+        recent_average_duration_ms: 86,
+        recent_max_duration_ms: 142,
+      },
+      requests: Array.from({ length: 7 }, (_, index) => ({
+        request_id: `phone-${index}-observation`,
+        instance_id: 'fixture',
+        run_id: 'fixture-run',
+        process_uid: `fixture-worker-${index % 4}`,
+        pid: 18421 + (index % 4),
+        slot: (index % 4) + 1,
+        method: index % 2 ? 'POST' : 'GET',
+        path:
+          index === 0
+            ? `/portfolio/projects/${'long-route-segment-'.repeat(5)}`
+            : '/portfolio/site',
+        entered_at: snapshot.sampled_at - 2 - index,
+        left_at: index < 2 ? null : snapshot.sampled_at - 2 - index + 0.086,
+        observed_at: snapshot.sampled_at,
+        status: index < 2 ? 'processing' : 'completed',
+        phase: index < 2 ? 'application' : 'response_complete',
+        elapsed_ms: 86,
+        duration_ms: index < 2 ? null : 86,
+        http_status: index < 2 ? null : index === 2 ? 503 : 200,
+        fresh: true,
+        ip_address: '::1',
+        country_code: null,
+        region: null,
+        city: null,
+        geo_status: 'non_public',
+        location: 'Localhost',
+      })),
+    },
+  };
+}
 
 async function openOverview(
   page: Page,
@@ -26,6 +79,8 @@ async function openOverview(
     override?: (path: string, body: unknown) => unknown;
     deny?: () => boolean;
     theme?: 'mint' | 'blue' | 'amber' | 'mist';
+    account?: Partial<typeof administrator>;
+    socket?: (topic: string, revision: string) => unknown;
   } = {},
 ) {
   const errors: string[] = [];
@@ -37,7 +92,9 @@ async function openOverview(
     );
   }, options.theme ?? 'blue');
   const requests: URL[] = [];
-  await page.route('**/api/authority/session', (route) => route.fulfill({ json: administrator }));
+  await page.route('**/api/authority/session', (route) =>
+    route.fulfill({ json: { ...administrator, ...options.account } }),
+  );
   await page.route('**/api/monitor/**', (route) => {
     const url = new URL(route.request().url());
     url.pathname = url.pathname.replace('/api/monitor/', '/monitor/');
@@ -47,7 +104,7 @@ async function openOverview(
     const body = monitorEndpointFixture(url);
     return route.fulfill({ json: options.override ? options.override(url.pathname, body) : body });
   });
-  const subscriptions = await installMonitorSocket(page);
+  const subscriptions = await installMonitorSocket(page, options.socket);
   await page.goto(`/${options.locale ?? 'en'}/management/monitoring?${options.path ?? period}`);
   await expect(page.locator('[data-monitor-overview]')).toBeVisible();
   await expect(
@@ -58,6 +115,76 @@ async function openOverview(
   ).toContainText('10,840');
   return { requests, subscriptions, errors };
 }
+
+test('monitor-only accounts can use all monitoring views without management access', async ({
+  page,
+}) => {
+  await openOverview(page, {
+    account: {
+      is_monitor: true,
+      is_manage_sites: false,
+      is_manage_roles: false,
+      is_manage_users: false,
+    },
+  });
+  const links = page.locator('[data-sidebar-rail] [data-sidebar-links]').first();
+  await expect(links.getByRole('link')).toHaveText(['Overview', 'Requests', 'Workers']);
+  await links.getByRole('link', { name: 'Requests', exact: true }).click();
+  await expect(page.locator('[data-monitor-view="requests"]')).toBeVisible();
+  await links.getByRole('link', { name: 'Workers', exact: true }).click();
+  await expect(
+    page.getByRole('region', { name: 'Successful requests', exact: true }),
+  ).toContainText('1,000');
+  await page.goto('/en/management/sites');
+  await expect(page).toHaveURL(/\/en\/access-denied$/);
+});
+
+for (const view of ['', '?monitorView=requests', '?monitorView=workers']) {
+  test(`site management alone cannot open monitoring ${view || 'overview'}`, async ({ page }) => {
+    const reads: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/api/monitor/')) reads.push(request.url());
+    });
+    await page.route('**/api/authority/session', (route) =>
+      route.fulfill({ json: { ...administrator, is_monitor: false } }),
+    );
+    const subscriptions = await installMonitorSocket(page);
+    await page.goto(`/en/management/monitoring${view}`);
+    await expect(page).toHaveURL(/\/en\/access-denied$/);
+    expect(reads).toEqual([]);
+    expect(subscriptions).toEqual([]);
+  });
+}
+
+test('role management places the Monitor permission directly after Delete', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1000 });
+  await page.route('**/api/authority/session', (route) => route.fulfill({ json: administrator }));
+  await page.goto('/en/management/roles');
+  const table = page.locator('[data-management-resource="roles"] table');
+  await expect(table.locator('tbody tr')).toHaveCount(6);
+  await expect(table.locator('thead [data-column-title]')).toHaveText([
+    'ID',
+    'Role',
+    'Create',
+    'Read',
+    'Update',
+    'Delete',
+    'Monitor',
+    'Site',
+    'Users',
+    'Roles',
+    'Default',
+    'Active',
+    'Updated',
+    'Actions',
+  ]);
+  await expect(
+    table
+      .locator('tbody tr')
+      .first()
+      .getByRole('switch', { name: /^Monitor:/ }),
+  ).toBeVisible();
+});
 
 for (const theme of ['mint', 'blue', 'amber', 'mist'] as const) {
   test(`monitor content retains the original shell, navigation and motion in ${theme}`, async ({
@@ -171,7 +298,11 @@ for (const [locale, width] of [
     await page.setViewportSize({ width, height: 1180 });
     const state = await openOverview(page, { locale });
     await expect(page.locator('#monitor-worker-title')).toContainText('4 / 4');
-    await expect(page.locator('[data-monitor-overview] tbody tr')).toHaveCount(4);
+    await expect(
+      page.locator(
+        width <= 760 ? '[data-monitor-worker-card]' : '[data-monitor-overview] tbody tr',
+      ),
+    ).toHaveCount(4);
     await expect(page.locator('[data-monitor-map] [role="button"]')).toHaveCount(6);
     await expect.poll(() => state.subscriptions.length).toBeGreaterThan(0);
     expect(state.subscriptions).toEqual([['workers']]);
@@ -518,4 +649,140 @@ test('default rolling range includes requests and health collected only during t
   await expect(
     page.getByRole('region', { name: 'Sampled availability', exact: true }),
   ).toContainText('SLO unknown');
+});
+
+for (const locale of ['en', 'zh-Hant', 'zh-Hans'] as const) {
+  for (const width of [320, 375, 412, 760]) {
+    test(`phone monitor content follows the Figma layout at ${width}px in ${locale}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 844 });
+      const theme =
+        width === 375 ? 'mist' : width === 412 ? 'mint' : width === 760 ? 'amber' : 'blue';
+      const state = await openOverview(page, { locale, socket: phoneSocketFixture, theme });
+      await expect(page.locator('[data-management-resource="monitoring"]')).not.toHaveAttribute(
+        'data-entering',
+      );
+      const cards = page.locator('[data-monitor-overview] > div').first().getByRole('region');
+      await expect(cards).toHaveCount(4);
+      const boxes = await cards.evaluateAll((elements) =>
+        elements.map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width };
+        }),
+      );
+      expect(Math.abs(boxes[0]!.y - boxes[3]!.y)).toBeLessThan(1);
+      expect(Math.abs(boxes[1]!.y - boxes[2]!.y)).toBeLessThan(1);
+      expect(boxes[1]!.y).toBeGreaterThan(boxes[0]!.y);
+      await expect(page.locator('[data-monitor-worker-card]')).toHaveCount(4);
+      await expect(page.locator('[data-monitor-overview] table')).toHaveCount(0);
+      await expect(page.locator('[data-monitor-map]')).toBeVisible();
+      await expect(page.locator('#monitor-traffic > svg')).toBeVisible();
+      const country = page.locator('[data-monitor-map] [role="button"]').first();
+      await country.click();
+      const tooltip = page.locator('#monitor-geography [role="tooltip"]');
+      await expect(tooltip).toBeVisible();
+      const tooltipBounds = (await tooltip.boundingBox())!;
+      const stageBounds = (await page.locator('[data-monitor-map]').locator('..').boundingBox())!;
+      expect(tooltipBounds.x).toBeGreaterThanOrEqual(stageBounds.x);
+      expect(tooltipBounds.x + tooltipBounds.width).toBeLessThanOrEqual(
+        stageBounds.x + stageBounds.width,
+      );
+      expect(tooltipBounds.y).toBeGreaterThanOrEqual(stageBounds.y);
+      expect(tooltipBounds.y + tooltipBounds.height).toBeLessThanOrEqual(
+        stageBounds.y + stageBounds.height,
+      );
+      await page.keyboard.press('Escape');
+      await expect(tooltip).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      if (locale === 'zh-Hant' && [320, 412].includes(width)) {
+        await page.locator('[data-monitor-workspace] h1').click();
+        await page.screenshot({
+          path: test.info().outputPath(`overview-phone-${width}.png`),
+          fullPage: true,
+        });
+      }
+      await page.goto(`/${locale}/management/monitoring?${period}&monitorView=requests`);
+      await expect(page.locator('[data-management-resource="monitoring"]')).not.toHaveAttribute(
+        'data-entering',
+      );
+      const flow = page.locator('[data-flow-worker]');
+      await expect(flow).toHaveCount(4);
+      const client = (await page.locator('[data-flow-client]').boundingBox())!;
+      const first = (await flow.first().boundingBox())!;
+      expect(first.y).toBeGreaterThan(client.y + client.height);
+      const stages = await flow
+        .first()
+        .locator('[data-flow-stages] > span')
+        .evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().y));
+      expect(stages[1]).toBeGreaterThan(stages[0]!);
+      expect(stages[2]).toBeGreaterThan(stages[1]!);
+      const events = page.locator('[data-monitor-event-cards] article');
+      await expect(events).toHaveCount(5);
+      await expect(events.first()).toContainText('long-route-segment');
+      await expect(events.nth(2)).toContainText('HTTP 503');
+      await events.first().locator('summary').click();
+      await expect(events.first().locator('details')).toHaveAttribute('open', '');
+      await expect(events.first().locator('details')).toContainText('::1');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      expect(
+        await page
+          .locator('[data-flow-client]')
+          .locator('..')
+          .evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      for (const selector of ['[data-flow-worker]', '[data-monitor-event-cards] article']) {
+        expect(
+          await page
+            .locator(selector)
+            .evaluateAll((elements) => elements.some((el) => el.scrollWidth > el.clientWidth)),
+        ).toBe(false);
+      }
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.locator('[data-background-field]')).toBeVisible();
+      if (locale === 'zh-Hant' && [320, 412].includes(width)) {
+        await events.first().locator('summary').click();
+        await page.locator('[data-monitor-workspace] h1').click();
+        await page.screenshot({
+          path: test.info().outputPath(`requests-phone-${width}.png`),
+          fullPage: true,
+        });
+      }
+      expect(state.errors).toEqual([]);
+    });
+  }
+}
+
+test('phone request cards keep worker filtering, paging and desktop resize on the same observations', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 412, height: 844 });
+  const state = await openOverview(page, { socket: phoneSocketFixture });
+  await page.goto(`/en/management/monitoring?${period}&monitorView=requests`);
+  const cards = page.locator('[data-monitor-event-cards] article');
+  await expect(cards).toHaveCount(5);
+  await page.getByRole('button', { name: '→', exact: true }).click();
+  await expect(cards).toHaveCount(2);
+  await page.getByRole('button', { name: 'Filter worker: All workers', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'W1 / 18421', exact: true }).click();
+  await expect(cards).toHaveCount(2);
+  await expect(cards.first()).toContainText('phone-0-');
+  await expect(cards.last()).toContainText('phone-4-');
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await expect(page.locator('[data-monitor-event-cards]')).toHaveCount(0);
+  const table = page.locator('[data-monitoring] table');
+  await expect(table.locator('tbody tr')).toHaveCount(2);
+  const stageBounds = await page
+    .locator('[data-flow-worker]')
+    .first()
+    .locator('[data-flow-stages] > span')
+    .evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().y));
+  expect(Math.max(...stageBounds) - Math.min(...stageBounds)).toBeLessThan(1);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await expect(cards).toHaveCount(2);
+  expect(state.errors).toEqual([]);
 });

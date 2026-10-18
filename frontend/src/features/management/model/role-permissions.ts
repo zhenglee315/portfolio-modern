@@ -10,6 +10,7 @@ export const rolePermissionDefinitions = {
   is_read: { label: 'Read', detail: 'Read', management: false },
   is_update: { label: 'Update', detail: 'Update', management: false },
   is_delete: { label: 'Delete', detail: 'Delete', management: false },
+  is_monitor: { label: 'Monitor', detail: 'Monitor', management: false },
   is_manage_sites: { label: 'Site', detail: 'Manage Site', management: true },
   is_manage_users: { label: 'Users', detail: 'Manage Users', management: true },
   is_manage_roles: { label: 'Roles', detail: 'Manage Roles', management: true },

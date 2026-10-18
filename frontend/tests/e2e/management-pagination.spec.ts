@@ -19,6 +19,7 @@ async function restore(page: Page) {
         is_delete: true,
         is_manage_roles: true,
         is_manage_users: true,
+        is_monitor: true,
         is_manage_sites: true,
       },
     }),

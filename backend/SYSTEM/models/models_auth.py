@@ -37,7 +37,11 @@ _ROLE_WHITESPACE = " \t\n\r\f\v\x1c-\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2
 
 # ■—< AUTH >——————————————————————————————————————————————————————————————————————————■ Role
 class AuthRole(BASE):
-    """Configurable permissions and login availability shared by accounts."""
+    """Configure shared account permissions, including independent read-only monitoring.
+
+    Monitoring may be granted to the registration default without administration rights.
+                                                                                               ♂ ZhengLee 2026.10.18
+    """
 
     __tablename__ = "auth_role"
 
@@ -81,6 +85,13 @@ class AuthRole(BASE):
         default=False,
         server_default=false(),
         comment="Allow deleting portfolio content",
+    )
+    is_monitor = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+        comment="Allow viewing monitoring overview, requests and workers",
     )
     # ---------------------------------------------------------------------● Management
     is_manage_roles = Column(
@@ -318,6 +329,7 @@ AUTH_ROLE_PERMISSION_COLUMNS = (
     AuthRole.is_read,
     AuthRole.is_update,
     AuthRole.is_delete,
+    AuthRole.is_monitor,
     AuthRole.is_manage_roles,
     AuthRole.is_manage_users,
     AuthRole.is_manage_sites,

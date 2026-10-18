@@ -7,6 +7,7 @@ AUTH_PERMISSION_FIELDS = (
     EnumSess.IS_READ,
     EnumSess.IS_UPDATE,
     EnumSess.IS_DELETE,
+    EnumSess.IS_MONITOR,
     EnumSess.IS_MANAGE_ROLES,
     EnumSess.IS_MANAGE_USERS,
     EnumSess.IS_MANAGE_SITES,

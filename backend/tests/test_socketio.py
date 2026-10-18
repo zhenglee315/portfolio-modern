@@ -183,7 +183,7 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
                 lambda sync: AuthRole.metadata.create_all(sync, tables=[AuthRole.__table__, AuthUser.__table__])
             )
         async with sessions.begin() as session:
-            role = AuthRole(role="monitor-test", is_manage_sites=True)
+            role = AuthRole(role="monitor-test", is_monitor=True)
             session.add(role)
             await session.flush()
             user = AuthUser(user="monitor_test", email="monitor@portfolio.test", role_id=role.id)
@@ -215,7 +215,7 @@ class StreamRedisTests(unittest.IsolatedAsyncioTestCase):
             ):
                 self.assertEqual(await authorize_monitor(environ), uid)
                 async with sessions.begin() as session:
-                    (await session.get(AuthRole, rid)).is_manage_sites = False
+                    (await session.get(AuthRole, rid)).is_monitor = False
                 self.assertIsNone(await authorize_monitor(environ))
                 await self.redis.delete(key)
                 # A new handler observes logout; the socket never retains SESSION data.

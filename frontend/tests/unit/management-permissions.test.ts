@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { canManage, managementPermissions } from '@/features/auth/permissions';
 import type { AuthUser } from '@/features/auth/schemas/auth';
-const flags = ['is_manage_sites', 'is_manage_users', 'is_manage_roles'] as const;
-const resources = ['sites', 'users', 'roles'] as const;
+const flags = ['is_monitor', 'is_manage_sites', 'is_manage_users', 'is_manage_roles'] as const;
+const resources = ['monitoring', 'sites', 'users', 'roles'] as const;
 const account: AuthUser = {
   id: 1,
   user: 'operator',
@@ -12,6 +12,7 @@ const account: AuthUser = {
   is_read: true,
   is_update: true,
   is_delete: true,
+  is_monitor: false,
   is_manage_sites: false,
   is_manage_users: false,
   is_manage_roles: false,

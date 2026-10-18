@@ -36,6 +36,7 @@ const booleans = [
   'is_read',
   'is_update',
   'is_delete',
+  'is_monitor',
   'is_manage_sites',
   'is_manage_users',
   'is_manage_roles',

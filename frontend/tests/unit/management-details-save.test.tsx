@@ -117,6 +117,7 @@ it('keeps user roles immutable and validates registration-default final state', 
     is_active: true,
     is_manage_roles: false,
     is_manage_users: false,
+    is_monitor: false,
     is_manage_sites: false,
   };
   expect(managementDraftIssue('roles', role, { ...role, is_active: false })).toBe(

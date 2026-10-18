@@ -29,6 +29,7 @@ describe('HTTP boundary', () => {
     is_delete: true,
     is_manage_roles: false,
     is_manage_users: false,
+    is_monitor: false,
     is_manage_sites: false,
   };
 

@@ -2,7 +2,7 @@
 
 **文件責任：** 管理權限依賴、列表／登入紀錄查詢、Role／User／Platform 更新與刪除的交易規則。HTTP 端點、參數與回應總表見 [後端總覽](../../../README.md)；前端互動見 [前端總覽](../../../../frontend/README.md)。
 
-Monitor HTTP 的五支私有讀取同樣使用 `ManagementPermission(AuthRole.is_manage_sites)`，快取命中前仍重新驗證目前權限。監控查詢、Socket 授權及 request 入庫／健康業務位於 [APPs/Monitor](../../Monitor/README.md)，不放進 Management 列表模組或 Sys events。
+Monitor HTTP 的五支私有讀取同樣使用 `ManagementPermission(AuthRole.is_monitor)`，快取命中前仍重新驗證目前權限。監控查詢、Socket 授權及 request 入庫／健康業務位於 [APPs/Monitor](../../Monitor/README.md)，不放進 Management 列表模組或 Sys events。
 
 Monitoring shares the current-session permission dependency; its business logic and Socket events live under `APPs/Monitor`.
 
@@ -110,3 +110,5 @@ Wire names are bound to explicitly allowlisted ORM attributes once. Business rul
 `ManagementLoginRecordsModule` extends `ManagementListModule` and uses the shared filters/search/sort/page engine. Its optional account selector is applied before counting or paging. Rows retain stored location snapshots, including legacy nulls and disabled target accounts; the module never opens a GeoIP reader. `ManagementPermission(AuthRole.is_manage_users)` protects `/management/login-records` through the existing management router. Views declare the HTTP contract and delegate the read.
 
 登入紀錄沿用共用查詢引擎及既有管理用戶權限；地區資料在成功登入時由 Auth module 寫入。讀取 module 不解析代理標頭、不執行定位，也不更改歷史事件。預設依 `logintime DESC, id DESC`；其他三個管理列表維持 Updated 降序。
+
+監控使用獨立 `is_monitor`，不授予三項管理權限。Role GET／PATCH、搜尋、排序、篩選、原值比對與角色指派權限上限均明確包含此欄。註冊 Default 可以開 Monitor；Default 無管理權限的規則仍僅檢查 `is_manage_roles`／`is_manage_users`／`is_manage_sites`。

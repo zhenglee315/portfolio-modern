@@ -41,6 +41,7 @@ This directory contains real website screenshots and focused crops for the docum
 | [monitor-overview.png](monitor-overview.png)               | 1600px 桌面總覽：統一導航、四項 KPI、登入地圖、流量與四個 Worker / Desktop overview, shared navigation, KPIs, map, traffic and four workers |
 | [monitor-overview-mobile.png](monitor-overview-mobile.png) | 390px 手機總覽、響應式卡片與地圖 / Mobile overview with responsive cards and geography                                                      |
 | [monitor-requests.png](monitor-requests.png)               | 四個 Worker 的請求／回應流程及最近事件 / Request/response flow and recent events across four workers                                        |
+| [monitor-requests-mobile.png](monitor-requests-mobile.png) | 390px 直向 Worker 執行鏈、動畫路徑與事件卡片 / Mobile request flow and paginated event cards                                                |
 | [monitor-events.png](monitor-events.png)                   | 7 筆合成事件、每頁 5 筆、篩選、時間與 IP/local / Synthetic event detail with filtering and five-row pagination                              |
 | [monitor-workers.png](monitor-workers.png)                 | 1440×780 四張統計卡、資源與各 Worker 請求／失敗累計 / Capacity, restarts, run totals, resources and process counters                        |
 
@@ -54,7 +55,7 @@ Monitoring images render the real app against isolated synthetic fixtures. Ident
 npm run docs:monitor
 ```
 
-`playwright.docs.config.ts` 啟動測試 API（4181）與 production preview（4173），`tests/e2e/monitor-docs.capture.ts` 使用既有 HTTP／Engine.IO fixtures、Mint 主題、暫停裝飾動畫與已載入字型擷取。結果直接覆寫上述 PNG，不連線設定中的後端，也不保存 cookie 或瀏覽器網址列。修改 UI 後需檢視產圖再提交。
+`playwright.docs.config.ts` 啟動測試 API（4181）與 production preview（4173），`tests/e2e/monitor-docs.capture.ts` 使用既有 HTTP／Engine.IO fixtures、Mint 主題、暫停裝飾動畫與已載入字型擷取。僅更新手機圖可加上 `PORTFOLIO_DOCS_PHONE_ONLY=1`。結果直接覆寫上述 PNG，不連線設定中的後端，也不保存 cookie 或瀏覽器網址列。修改 UI 後需檢視產圖再提交。
 
 The dedicated documentation configuration starts the isolated fixture API and production preview, then captures settled Mint layouts with shared fixtures. Inspect generated PNGs before committing; runtime assets do not depend on documentation images.
 

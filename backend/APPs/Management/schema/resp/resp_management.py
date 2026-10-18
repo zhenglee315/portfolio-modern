@@ -13,7 +13,10 @@ from datetime import datetime, timezone
 
 
 class RespManagementRole(BaseModel):
-    """Expose one role and its total assigned-account count, including soft-deleted accounts."""
+    """Expose role permissions and assigned-account count, including disabled accounts.
+
+    ♂ ZhengLee 2026.10.18
+    """
 
     id: int = Field(..., gt=0, description="Role primary key.")
     role: str = Field(..., min_length=1, max_length=64, description="Unique role name.")
@@ -22,6 +25,7 @@ class RespManagementRole(BaseModel):
     is_read: bool = Field(..., description="Allow reading portfolio management content.")
     is_update: bool = Field(..., description="Allow updating portfolio content.")
     is_delete: bool = Field(..., description="Allow deleting portfolio content.")
+    is_monitor: bool = Field(..., description="Allow viewing monitoring overview, requests and workers.")
     is_manage_sites: bool = Field(..., description="Website management permission.")
     is_manage_users: bool = Field(..., description="Account management permission.")
     is_manage_roles: bool = Field(..., description="Role management permission.")

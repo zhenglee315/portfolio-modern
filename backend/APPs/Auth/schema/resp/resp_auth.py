@@ -4,6 +4,11 @@ from pydantic import BaseModel, Field
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Auth - User
 class RespAuthUser(BaseModel):
+    """Expose current identity and eight role permissions without private authentication data.
+
+    ♂ ZhengLee 2026.10.18
+    """
+
     id: int = Field(..., gt=0, description="Authenticated account primary key.")
     email: str = Field(..., description="Exact login email address.")
     user: str = Field(..., description="Stable public identifier used by the portfolio URL.")
@@ -12,6 +17,7 @@ class RespAuthUser(BaseModel):
     is_read: bool = Field(..., description="Allow reading portfolio management content.")
     is_update: bool = Field(..., description="Allow updating portfolio content.")
     is_delete: bool = Field(..., description="Allow deleting portfolio content.")
+    is_monitor: bool = Field(..., description="Allow viewing monitoring overview, requests and workers.")
     is_manage_roles: bool = Field(..., description="Allow managing roles and the registration default.")
     is_manage_users: bool = Field(..., description="Allow managing accounts and assigned roles.")
     is_manage_sites: bool = Field(..., description="Allow managing portfolio publication and the default site.")

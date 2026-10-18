@@ -25,6 +25,7 @@ class EnumSess(EnumUtils):
     IS_READ = "is_read"
     IS_UPDATE = "is_update"
     IS_DELETE = "is_delete"
+    IS_MONITOR = "is_monitor"
     IS_MANAGE_ROLES = "is_manage_roles"
     IS_MANAGE_USERS = "is_manage_users"
     IS_MANAGE_SITES = "is_manage_sites"

@@ -22,6 +22,7 @@ const administrator: AuthUser = {
   is_read: true,
   is_update: true,
   is_delete: true,
+  is_monitor: true,
   is_manage_sites: true,
   is_manage_users: true,
   is_manage_roles: true,
@@ -174,6 +175,7 @@ for (const resource of resources) {
       ...administrator,
       role: 'reviewer-with-no-role-name-authority',
       is_manage_users: resource === 'users',
+      is_monitor: resource === 'sites',
       is_manage_sites: resource === 'sites',
       is_manage_roles: resource === 'roles',
     };

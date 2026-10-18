@@ -543,7 +543,7 @@ async def authorize_monitor(environ):
         account = await AuthSessionModule(
             request, session=db.session, redis=redis, manage_transaction=False
         ).current_session()
-    if account is None or account.get(EnumSess.IS_MANAGE_SITES) is not True:
+    if account is None or account.get(EnumSess.IS_MONITOR) is not True:
         return None
     return account[EnumSess.ID]
 

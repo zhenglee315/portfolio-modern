@@ -58,6 +58,7 @@ export const managementRoleFixtures: ManagementFixtureRow[] = roleNames.map((rol
   is_read: true,
   is_update: index % 2 === 0,
   is_delete: index === 0,
+  is_monitor: index === 0,
   is_manage_sites: index === 0,
   is_manage_users: index === 0,
   is_manage_roles: index === 0,

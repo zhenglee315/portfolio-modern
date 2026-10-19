@@ -18,7 +18,9 @@
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
-    "docs:monitor": "playwright test --config=playwright.docs.config.ts"
+    "docs:capture": "playwright test --config=playwright.docs.config.ts",
+    "docs:monitor": "playwright test --config=playwright.docs.config.ts monitor-docs.capture.ts",
+    "docs:profile": "playwright test --config=playwright.docs.config.ts profile-docs.capture.ts"
   },
   "dependencies": {
     "@react-router/node": "8.4.0",

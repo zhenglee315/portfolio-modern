@@ -4,23 +4,20 @@ import { queryCopy } from '@/i18n/query-copy';
 import { usePortfolioContext } from '@/shared/context/portfolio';
 import { usePagedCollection } from '@/shared/hooks/usePagedCollection';
 import { QueryStatus } from '@/shared/ui/QueryStatus';
-import { SectionHeader } from '@/shared/ui/SectionHeader';
-import { ExpandableCollection } from '@/shared/ui/ExpandableCollection';
 import { experiencesQuery, useExperiences } from '../api/experiences';
-import { ExperienceCard } from './ExperienceCard';
-import styles from './Experiences.module.css';
+import { ExperiencesView } from './ExperiencesView';
 
-/** Own independently recoverable experience pages and compose reusable disclosure UI. */
+/** Own API pagination and recovery; the public view also accepts local draft projections. */
 export function ExperiencesSection({
   locale,
   locked = false,
-  yearRange,
   enabled = true,
+  yearRange,
 }: {
   locale: Locale;
   locked?: boolean;
-  yearRange?: string;
   enabled?: boolean;
+  yearRange?: string;
 }) {
   const { t } = useTranslation();
   const context = usePortfolioContext();
@@ -30,45 +27,23 @@ export function ExperiencesSection({
     experiencesQuery(locale, undefined, context?.site?.site_id, context?.access).queryKey,
     locked,
   );
-  const { records, total, invalid } = collection;
   const copy = queryCopy(t, query.error, !!query.data);
   return (
-    <>
-      <SectionHeader
-        eyebrow={t('ui.experienceEyebrow')}
-        title={t('ui.experienceTitle')}
-        note={yearRange}
-      />
-      <QueryStatus
-        {...collection.status}
-        copy={{ ...copy, retry: invalid ? t('ui.reloadSection') : copy.retry }}
-      />
-      {!!records.length && (
-        <div className={styles.collection} data-timeline-collection="experiences">
-          <ExpandableCollection
-            className={styles.disclosure}
-            items={records}
-            total={total}
-            hasMore={query.hasNextPage}
-            busy={query.isFetchingNextPage || locked}
-            error={query.isFetchNextPageError ? copy.error : undefined}
-            copy={{
-              more: t('ui.moreExperiences'),
-              less: t('ui.lessExperiences'),
-              load: t('ui.moreExperiences'),
-              loading: t('ui.loading'),
-            }}
-            onLoadMore={collection.onLoadMore}
-            renderItems={(items) => (
-              <div className={styles.timeline}>
-                {items.map((entry) => (
-                  <ExperienceCard key={entry.id} entry={entry} locale={locale} />
-                ))}
-              </div>
-            )}
-          />
-        </div>
-      )}
-    </>
+    <ExperiencesView
+      locale={locale}
+      yearRange={yearRange}
+      records={collection.records}
+      total={collection.total}
+      hasMore={query.hasNextPage}
+      busy={query.isFetchingNextPage || locked}
+      error={query.isFetchNextPageError ? copy.error : undefined}
+      onLoadMore={collection.onLoadMore}
+      status={
+        <QueryStatus
+          {...collection.status}
+          copy={{ ...copy, retry: collection.invalid ? t('ui.reloadSection') : copy.retry }}
+        />
+      }
+    />
   );
 }

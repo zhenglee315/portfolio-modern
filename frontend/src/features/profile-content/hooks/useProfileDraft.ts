@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { profileDraftSchema, type ProfileDraft } from '../model/profile';
 import { createEmptyProfile } from '../model/empty';
+import { mergeProfileProjectPages, type ProfileProjectPage } from '../model/projects';
 
 export const profileDraftKey = (accountId: number) => `portfolio.profile-draft.v1:${accountId}`;
 
@@ -12,6 +13,9 @@ function readDraft(accountId: number, source: ProfileDraft) {
     if (raw && raw.length < 2_000_000) {
       const parsed = profileDraftSchema.safeParse(JSON.parse(raw));
       if (parsed.success) {
+        // A versioned recovery copy already exists on the server; keep fresh paged baselines aligned.
+        if (source.projectScope && parsed.data.revision === source.revision)
+          return { draft: source, savedAt: true };
         if (
           source.revision !== undefined &&
           parsed.data.revision !== undefined &&
@@ -70,6 +74,10 @@ export function useProfileDraft(accountId: number, source: ProfileDraft = create
     (updater: (current: ProfileDraft) => ProfileDraft) => setDraft(updater),
     [],
   );
+  const hydrateProjects = useCallback((pages: ProfileProjectPage[]) => {
+    setDraft((current) => mergeProfileProjectPages(current, pages));
+    setSaved((current) => mergeProfileProjectPages(current, pages));
+  }, []);
   // Importing changes only the working copy: Cancel/reload can recover the existing saved draft.
   const useSource = useCallback((next: ProfileDraft) => {
     setDraft(next);
@@ -94,5 +102,6 @@ export function useProfileDraft(accountId: number, source: ProfileDraft = create
     useSource,
     acceptSaved,
     savedRevision: saved.revision ?? source.revision,
+    hydrateProjects,
   };
 }

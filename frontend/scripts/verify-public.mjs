@@ -76,11 +76,13 @@ export async function verifyPublic(directory) {
   const ceilings = {
     // Aggregate files include Profile and the Leaflet picker loaded only when its modal opens.
     // Public visits do not load Profile; closed pickers request neither Leaflet nor local atlas data.
-    // Measured with the picker: ~1.54 MB JS / 510 KB gzip; 418 KB CSS / 88 KB gzip.
+    // Measured with the picker and Profile gesture/help styles: ~426 KB CSS, including lazy routes.
     // Retain bounded headroom for hash variation and subsequent small fixes.
-    js: 1_565_000,
-    jsGzip: 525_000,
-    css: 425_000,
+    // Private editor pagination, swipe actions and shared drag deletion measure ~1.586 MB total.
+    js: 1_590_000,
+    // Shared editor page-size controls and scoped reads measure ~525.2 KB gzip across lazy routes.
+    jsGzip: 526_000,
+    css: 427_000,
     cssGzip: 90_000,
     fonts: 250_000,
     mascot: 1_250_000,

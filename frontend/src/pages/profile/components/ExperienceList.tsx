@@ -1,182 +1,228 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { moveProfileItem, newProfileExperience } from '@/features/profile-content';
+import {
+  moveProfileItem,
+  newProfileExperience,
+  removeProfileExperiences,
+} from '@/features/profile-content';
 import { Icon } from './ProfileIcon';
 import { useProfileEditor } from '../model/editor-context';
 import { editorPeriod } from '../model/presentation';
-import { EditorNotice, EditorPanel, EditorToggle, OrderButtons } from './EditorFields';
+import { usePointerReorder } from '../model/usePointerReorder';
+import { EditorNotice, EditorPanel } from './EditorFields';
 import { ExperiencePreview, PreviewHeading } from './ProfilePreview';
 import { JourneyPreview } from './JourneyPreview';
+import { AddContentTile } from './AddContentTile';
+import { EditorCard } from './EditorCard';
+import { EditorPagination } from './EditorPagination';
+import { SelectionToolbar } from './SelectionToolbar';
+import { ReorderGhost } from './ReorderGhost';
 import styles from '../ProfilePage.module.css';
+import cardStyles from './EditorCard.module.css';
 
-/** Career management keeps display order separate from Journey's chronological view. */
+/** Career cards reuse project gestures and selection; Journey retains its independent chronological order. */
 export function ExperienceList() {
   const { t } = useTranslation();
-  const { draft, contentLocale, update, openExperience, canCreate } = useProfileEditor();
+  const { draft, contentLocale, update, openExperience, confirm, canCreate, canUpdate, canDelete } =
+    useProfileEditor();
   const [filter, setFilter] = useState<'all' | 'work' | 'education'>('all');
-  const [sorting, setSorting] = useState(false);
   const [selected, setSelected] = useState(() => draft.experienceOrder[0] ?? '');
-  const [dragged, setDragged] = useState<string | null>(null);
+  const [checked, setChecked] = useState<string[]>([]);
+  const [openActions, setOpenActions] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(6);
+  const [announcement, setAnnouncement] = useState('');
+  const sortHelp = useId();
   const entries = draft.experienceOrder.map((id) => draft.experiences[id]!);
   const filtered = entries.filter((entry) => filter === 'all' || entry.type === filter);
-  const preview = filtered.find((entry) => entry.id === selected) ?? filtered[0];
-  const reorder = (source: string, target: string) =>
+  const current = Math.min(page, Math.max(1, Math.ceil(filtered.length / size)));
+  const visible = filtered.slice((current - 1) * size, current * size);
+  const selectedIds = checked.filter((id) => draft.experienceOrder.includes(id));
+  const preview = visible.find((entry) => entry.id === selected) ?? visible[0];
+  const reorder = (source: string, target: string, placement: 'before' | 'after') => {
     update((current) => ({
       ...current,
-      experienceOrder: moveProfileItem(current.experienceOrder, source, target),
+      experienceOrder: moveProfileItem(current.experienceOrder, source, target, placement),
     }));
+    setAnnouncement(
+      t('profileEditor.reordered', {
+        name: draft.experiences[source]!.translations[contentLocale].organization,
+        position:
+          moveProfileItem(draft.experienceOrder, source, target, placement).indexOf(source) + 1,
+        total: entries.length,
+      }),
+    );
+  };
+  const remove = (ids: string[]) =>
+    confirm(
+      () => {
+        setOpenActions(null);
+        update((current) => removeProfileExperiences(current, ids));
+        setChecked((current) => current.filter((id) => !ids.includes(id)));
+      },
+      'delete',
+      t('profileEditor.deleteExperiencesHint', { count: ids.length }),
+    );
+  const { ref, drag, listStyle, item, handleProps, deleteTarget } = usePointerReorder(
+    'vertical',
+    reorder,
+    undefined,
+    { onDrop: (id) => remove([id]), disabled: !canDelete || !canUpdate },
+  );
   return (
     <div className={`${styles.columns} ${styles.listColumns}`}>
+      <span id={sortHelp} className="visually-hidden">
+        {t('profileEditor.reorderHint')}
+      </span>
+      <span role="status" aria-live="polite" aria-atomic="true" className="visually-hidden">
+        {drag
+          ? t(drag.overDelete ? 'profileEditor.dropToDelete' : 'profileEditor.dragging', {
+              name: drag.label,
+            })
+          : announcement}
+      </span>
+      <ReorderGhost drag={drag} />
       <div className={styles.stack}>
-        <div className={styles.listToolbar}>
-          <div className={styles.filters} aria-label={t('profileEditor.experience')}>
-            {(['all', 'work', 'education'] as const).map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                aria-pressed={filter === kind}
-                onClick={() => setFilter(kind)}
-              >
-                {t(`profileEditor.${kind}`)}{' '}
-                <span>
-                  {entries.filter((entry) => kind === 'all' || entry.type === kind).length}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className={styles.actions}>
+        <div className={styles.filters} aria-label={t('profileEditor.experience')}>
+          {(['all', 'work', 'education'] as const).map((kind) => (
             <button
+              key={kind}
               type="button"
-              className={styles.button}
-              aria-pressed={sorting}
+              aria-pressed={filter === kind}
               onClick={() => {
-                setSorting((value) => !value);
-                setFilter('all');
+                setFilter(kind);
+                setPage(1);
+                setOpenActions(null);
               }}
             >
-              {t(`profileEditor.${sorting ? 'sortDone' : 'sort'}`)}
+              {t(`profileEditor.${kind}`)}{' '}
+              <span>{entries.filter((entry) => kind === 'all' || entry.type === kind).length}</span>
             </button>
-            <button
-              type="button"
-              className={`${styles.button} ${styles.primary}`}
-              disabled={!canCreate}
-              onClick={() => {
-                const entry = newProfileExperience();
-                update((current) => ({
-                  ...current,
-                  experiences: { ...current.experiences, [entry.id]: entry },
-                  experienceOrder: [entry.id, ...current.experienceOrder],
-                }));
-                openExperience(entry.id);
-              }}
-            >
-              <Icon name="plus" />
-              {t('profileEditor.addExperience')}
-            </button>
-          </div>
+          ))}
         </div>
-        <p className={styles.hint}>{t('profileEditor.sortHint')}</p>
-        <div className={styles.experienceList}>
-          {filtered.map((entry) => {
+        <p className={styles.hint}>{t('profileEditor.reorderHint')}</p>
+        <SelectionToolbar
+          ids={visible.map((entry) => entry.id)}
+          checked={selectedIds}
+          deleteTarget={deleteTarget}
+          onChange={setChecked}
+          disabled={!canDelete || !canUpdate}
+          onDelete={() => remove(selectedIds)}
+        />
+        <AddContentTile
+          label={t('profileEditor.addExperience')}
+          disabled={!canCreate || !canUpdate}
+          onClick={() => {
+            const entry = newProfileExperience();
+            update((current) => ({
+              ...current,
+              experiences: { ...current.experiences, [entry.id]: entry },
+              experienceOrder: [entry.id, ...current.experienceOrder],
+            }));
+            openExperience(entry.id);
+          }}
+        />
+        <div
+          ref={ref}
+          style={listStyle}
+          className={cardStyles.rows}
+          data-reorder-list="experiences"
+        >
+          {visible.map((entry) => {
             const copy = entry.translations[contentLocale];
-            const index = draft.experienceOrder.indexOf(entry.id);
             const name = copy.organization || t('profileEditor.newName');
             return (
-              <article
+              <EditorCard
                 key={entry.id}
-                className={styles.experienceRow}
-                data-selected={preview?.id === entry.id}
-                data-visible={entry.visible}
-                data-dragging={dragged === entry.id}
                 data-experience-editor-row={entry.id}
-                onDragOver={(event) => {
-                  if (sorting) event.preventDefault();
+                data-selected={selectedIds.includes(entry.id) || preview?.id === entry.id}
+                {...item(entry.id)}
+                open={openActions === entry.id && !drag}
+                onOpenChange={(open) => setOpenActions(open ? entry.id : null)}
+                label={t('profileEditor.experienceActions', { name })}
+                eyebrow={`${String(draft.experienceOrder.indexOf(entry.id) + 1).padStart(2, '0')} / ${t(`profileEditor.${entry.type}`)}`}
+                selection={{
+                  'aria-label': t('profileEditor.selectExperience', { name }),
+                  checked: selectedIds.includes(entry.id),
+                  disabled: !canDelete || !canUpdate,
+                  onChange: (event) => {
+                    const value = event.currentTarget.checked;
+                    setChecked((current) =>
+                      value ? [...current, entry.id] : current.filter((id) => id !== entry.id),
+                    );
+                  },
                 }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  if (sorting && dragged) reorder(dragged, entry.id);
-                  setDragged(null);
+                reorder={{
+                  name,
+                  description: sortHelp,
+                  handlers: handleProps,
+                  disabled: !canUpdate,
+                  onStart: () => {
+                    setAnnouncement('');
+                    setOpenActions(null);
+                  },
                 }}
+                visibility={{
+                  label: t('profileEditor.visible'),
+                  checked: entry.visible,
+                  disabled: !canUpdate,
+                  onChange: (visible) =>
+                    update((current) => ({
+                      ...current,
+                      experiences: {
+                        ...current.experiences,
+                        [entry.id]: { ...current.experiences[entry.id]!, visible },
+                      },
+                    })),
+                }}
+                editLabel={`${t('profileEditor.edit')} ${name}`}
+                onEdit={() => openExperience(entry.id)}
+                action={
+                  <button
+                    type="button"
+                    aria-label={`${t('profileEditor.deleteExperience')}: ${name}`}
+                    disabled={!canDelete || !canUpdate}
+                    onClick={() => remove([entry.id])}
+                  >
+                    <Icon name="trash" />
+                    <span>{t('management.confirmDelete')}</span>
+                  </button>
+                }
               >
-                <div className={styles.ordinal}>
-                  {sorting ? (
-                    <button
-                      type="button"
-                      draggable
-                      className={styles.dragHandle}
-                      aria-label={t('profileEditor.drag', { name })}
-                      onDragStart={(event) => {
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', entry.id);
-                        setDragged(entry.id);
-                      }}
-                      onDragEnd={() => setDragged(null)}
-                    >
-                      <Icon name="grip" />
-                    </button>
-                  ) : (
-                    <Icon name={entry.type === 'education' ? 'education' : 'building'} />
-                  )}
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                </div>
                 <button
                   type="button"
                   className={styles.rowSummary}
                   onClick={() => setSelected(entry.id)}
                   aria-pressed={preview?.id === entry.id}
                 >
-                  <span className={styles.rowTitle}>
-                    <strong>{name}</strong>
-                    <span className={styles.badge}>{t(`profileEditor.${entry.type}`)}</span>
-                  </span>
+                  <strong className={styles.projectTitle}>{name}</strong>
                   <span>{copy.title || '—'}</span>
                   <small>
                     {editorPeriod(entry, contentLocale, t)}
                     {copy.city && ` · ${copy.city}`}
                   </small>
                 </button>
-                <div className={styles.rowActions}>
-                  <EditorToggle
-                    label={t('profileEditor.visible')}
-                    checked={entry.visible}
-                    onChange={(visible) =>
-                      update((current) => ({
-                        ...current,
-                        experiences: {
-                          ...current.experiences,
-                          [entry.id]: { ...current.experiences[entry.id]!, visible },
-                        },
-                      }))
-                    }
-                  />
-                  {sorting ? (
-                    <OrderButtons
-                      name={name}
-                      index={index}
-                      total={entries.length}
-                      onMove={(offset) => reorder(entry.id, draft.experienceOrder[index + offset]!)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.textButton}
-                      onClick={() => openExperience(entry.id)}
-                      aria-label={`${t('profileEditor.edit')} ${name}`}
-                    >
-                      {t('profileEditor.edit')}
-                      <Icon name="arrowRight" />
-                    </button>
-                  )}
-                </div>
-              </article>
+              </EditorCard>
             );
           })}
-          {!filtered.length && <EditorNotice>{t('profileEditor.empty')}</EditorNotice>}
+          {!visible.length && <EditorNotice>{t('profileEditor.empty')}</EditorNotice>}
         </div>
-        <p className={styles.hint}>
-          <Icon name="check" />
-          {t('profileEditor.localNotice')}
-        </p>
+        <EditorPagination
+          page={current}
+          size={size}
+          total={filtered.length}
+          range="experienceRange"
+          label={t('profileEditor.experiencePagination')}
+          onPageChange={(page) => {
+            setPage(page);
+            setOpenActions(null);
+          }}
+          onSizeChange={(size) => {
+            setSize(size);
+            setPage(1);
+            setOpenActions(null);
+          }}
+        />
       </div>
       <aside className={styles.preview} aria-label={t('profileEditor.preview')}>
         <PreviewHeading section="Experience" />

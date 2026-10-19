@@ -1,8 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { runtimeTest as test } from '../fixtures/browser';
 import { installMonitorSocket } from '../fixtures/monitor-browser';
-
-const managementLabels = ['Overview', 'Requests', 'Workers', 'Platform', 'Roles', 'Users'];
+import { openEditor, field } from '../fixtures/profile-editor';
+import { workspaceNavigationLabels } from '../fixtures/workspace-navigation';
 
 function expandIcon(rail: Locator) {
   return rail.locator(':scope > button[aria-expanded] .icon');
@@ -104,11 +104,12 @@ for (const { width, height, theme } of [
     await settled(page);
     expect(await geometry(rail)).toEqual(publicExpanded);
     await expect(rail.locator('.sidebar-navigation-group-title')).toHaveText([
+      'Profile',
       'Monitoring',
       'Management',
     ]);
     const items = rail.locator('[data-sidebar-links]').first().locator('[data-sidebar-item]');
-    await expect(items).toHaveText(managementLabels);
+    await expect(items).toHaveText(workspaceNavigationLabels);
     for (const item of await items.all()) {
       expect(
         await item
@@ -134,7 +135,7 @@ for (const { width, height, theme } of [
       Math.abs(iconBounds.x + iconBounds.width / 2 - itemBounds.x - itemBounds.width / 2),
     ).toBeLessThanOrEqual(1);
     await items.first().focus();
-    const tooltip = page.getByRole('tooltip', { name: 'Overview', exact: true });
+    const tooltip = page.getByRole('tooltip', { name: 'Introduction', exact: true });
     await expect(tooltip).toBeVisible();
     expect(await tooltip.evaluate((element) => !!element.closest('aside'))).toBe(false);
     await page.keyboard.press('Escape');
@@ -183,7 +184,7 @@ for (const { width, height } of [
       ).toBeLessThanOrEqual(width);
       await expect(
         drawer.locator('[data-sidebar-links]').first().locator('[data-sidebar-item]'),
-      ).toHaveText(managementLabels);
+      ).toHaveText(workspaceNavigationLabels);
       const close = drawer.getByRole('button', { name: 'Close', exact: true });
       expect((await close.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await close.focus();
@@ -231,11 +232,13 @@ for (const width of [1440, 390]) {
         await page.getByRole('button', { name: 'Open management navigation', exact: true }).click();
         await expect(drawer).toBeVisible();
       }
-      await expect(links.getByRole('link')).toHaveText(managementLabels);
+      await expect(links.getByRole('link')).toHaveText(workspaceNavigationLabels);
       await expect(navigation.locator('.sidebar-navigation-group-title')).toHaveText([
+        'Profile',
         'Monitoring',
         'Management',
       ]);
+      if (mobile) await expect(navigation).toHaveCSS('transform', 'none');
       const current = links.locator('[aria-current="page"]');
       await expect(current).toHaveCount(1);
       await expect(current).toHaveAttribute('data-sidebar-item', active);
@@ -300,3 +303,76 @@ test('collapsed settings brand retains its portfolio home link', async ({ page }
   await expect(page).toHaveURL(/\/en#overview$/);
   await expect(page.locator('[data-portfolio-site]')).toBeVisible();
 });
+
+for (const width of [390, 820, 1600]) {
+  test(`Profile and management share grouped navigation and preserve the unsaved exit guard at ${width}px`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await openEditor(page, '/en/profile?section=overview', 'mist', {
+      permissions: {
+        is_monitor: true,
+        is_manage_sites: true,
+        is_manage_users: true,
+        is_manage_roles: true,
+      },
+    });
+    const mobile = width <= 1024;
+    const navigation = page.locator(mobile ? '[data-sidebar-drawer]' : '[data-sidebar-rail]');
+    const open = async () => {
+      if (mobile)
+        await page.getByRole('button', { name: 'Open management navigation', exact: true }).click();
+      await expect(navigation.locator('[data-sidebar-links]').first().getByRole('link')).toHaveText(
+        workspaceNavigationLabels,
+      );
+      await expect(navigation.locator('.sidebar-navigation-group-title')).toHaveText([
+        'Profile',
+        'Monitoring',
+        'Management',
+      ]);
+      if (mobile) await expect(navigation).toHaveCSS('transform', 'none');
+    };
+    await field(page, 'First name').fill('Unsaved workspace name');
+    await open();
+    await expect(navigation.locator('[aria-current="page"]')).toHaveAttribute(
+      'data-sidebar-item',
+      'overview',
+    );
+    await page.screenshot({ path: info.outputPath('profile-workspace-navigation.png') });
+    await navigation.getByRole('link', { name: 'Platform', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Keep editing', exact: true }).last().click();
+    await expect(field(page, 'First name')).toHaveValue('Unsaved workspace name');
+    await open();
+    await navigation.getByRole('link', { name: 'Platform', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await expect(page.locator('[data-management-resource="sites"]')).toBeVisible();
+    await open();
+    await expect(navigation.locator('[aria-current="page"]')).toHaveAttribute(
+      'data-sidebar-item',
+      'sites',
+    );
+    await navigation.getByRole('link', { name: 'Projects', exact: true }).click();
+    await expect(page.locator('[data-profile-section="projects"]')).toBeVisible();
+    await expect(page).toHaveURL(/\/en\/profile\?section=projects$/);
+    if (mobile) {
+      await expect(navigation).toHaveCount(0);
+      await open();
+      await page.keyboard.press('Escape');
+      await expect(
+        page.getByRole('button', { name: 'Open management navigation', exact: true }),
+      ).toBeFocused();
+    } else {
+      await navigation.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
+      await expect(navigation).toHaveCSS('width', '80px');
+      await expect(navigation.locator('.sidebar-navigation-group-title')).toHaveCount(0);
+      await navigation.getByRole('link', { name: 'Projects', exact: true }).focus();
+      await expect(page.getByRole('tooltip', { name: 'Projects', exact: true })).toBeVisible();
+      await page.screenshot({ path: info.outputPath('profile-workspace-compact.png') });
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+  });
+}

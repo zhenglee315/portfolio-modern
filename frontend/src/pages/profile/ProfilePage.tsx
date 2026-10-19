@@ -3,69 +3,61 @@ import { useBlocker, useLocation, useNavigate, useSearchParams } from 'react-rou
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/shared/api/http';
 import { I18nextProvider, useTranslation } from 'react-i18next';
-import { localeSchema, supportedLocales, type Locale } from '@/i18n/config';
-import { createProfileI18n } from '@/i18n/profile-copy';
-import { AccountMenu } from '@/features/account-menu';
+import { localeSchema, type Locale } from '@/i18n/config';
+import { useProfileI18n } from '@/i18n/useProfileI18n';
+import {
+  AccountMenu,
+  WorkspaceNavigation,
+  WorkspaceNavigationToggle,
+  useWorkspaceNavigation,
+  profileSections as sections,
+  profileSectionParams,
+} from '@/features/account-menu';
 import { AppearanceSettings, useAppearance } from '@/features/appearance';
-import { LanguageOptions } from '@/features/language';
+import { LanguageMenu, LanguageOptions, languageNames } from '@/features/language';
 import { useAccessDeniedRedirect, useAccountSession } from '@/features/auth/actions';
 import type { AuthUser } from '@/features/auth/session';
-import { ContactIntroduction, useContactDisclosure, type Site } from '@/features/site';
 import {
   profileDraftIssues,
   saveProfileContent,
-  profileJourney,
   useProfileDraft,
   type DraftIssue,
   type ProfileSection,
   type ProfileDraft,
 } from '@/features/profile-content';
 import { Breadcrumb } from '@/shared/ui/Breadcrumb';
-import { Icon, type IconName } from '@/shared/ui/Icon';
+import { Icon } from '@/shared/ui/Icon';
 import { LoadingIndicator } from '@/shared/ui/LoadingIndicator';
 import WarningModal from '@/shared/ui/WarningModal';
 import { useNotifications } from '@/shared/ui/NotificationProvider';
 import BackgroundField from '@/shared/ui/background-field/BackgroundField';
 import { usePageEntrance } from '@/shared/hooks/usePageEntrance';
 import entranceStyles from '@/shared/ui/PageEntrance.module.css';
-import { Navigation } from '../portfolio/components/Navigation';
 import { ProfileEditorContext } from './model/editor-context';
 import { useProfileViewFade } from './model/useProfileViewFade';
 import { useProfileContent } from './model/useProfileContent';
+import {
+  useProfileProjects,
+  projectPageNumber,
+  projectSizeNumber,
+} from './model/useProfileProjects';
 import { loadProfileContent } from './model/loadProfileContent';
 import { ProfileActions } from './components/ProfileActions';
 import { ProfileSourceNotice } from './components/ProfileSourceNotice';
 import { ExperienceList } from './components/ExperienceList';
 import { ExperienceEditor } from './components/ExperienceEditor';
 import { IntroductionEditor } from './components/IntroductionEditor';
-import { ProjectEditor, ProjectList } from './components/ProjectEditor';
+import { ProjectEditor } from './components/ProjectEditor';
+import { ProjectList } from './components/ProjectList';
+import { ProjectPageStatus } from './components/ProjectPageStatus';
 import { SkillsEditor } from './components/SkillsEditor';
+import { ProfilePreviewModal } from './components/ProfilePreviewModal';
+import { ProfileHelp } from './components/ProfileHelp';
 import styles from './ProfilePage.module.css';
-
-const sections: readonly { id: ProfileSection; caption: string; icon: IconName }[] = [
-  { id: 'overview', caption: 'OVERVIEW', icon: 'home' },
-  { id: 'experience', caption: 'EXPERIENCE', icon: 'briefcase' },
-  { id: 'projects', caption: 'PROJECTS', icon: 'award' },
-  { id: 'skills', caption: 'SKILLS', icon: 'braces' },
-];
-const languageNames: Record<Locale, string> = {
-  en: 'English',
-  'zh-Hant': '繁體中文',
-  'zh-Hans': '简体中文',
-};
-
-/** Rail destinations and tab actions preserve the same content-language and query state. */
-function profileSectionParams(current: URLSearchParams, section: ProfileSection, edit?: string) {
-  const next = new URLSearchParams(current);
-  next.set('section', section);
-  if (edit) next.set('edit', edit);
-  else next.delete('edit');
-  return next;
-}
 
 /** Route-scoped copy loads with the editor, preserving public first-view asset budgets. */
 export function ProfilePage({ locale }: { locale: Locale }) {
-  const i18n = useMemo(() => createProfileI18n(locale), [locale]);
+  const i18n = useProfileI18n(locale);
   return (
     <I18nextProvider i18n={i18n}>
       <ProfileAccessGate locale={locale} />
@@ -140,7 +132,7 @@ function ProfileSourceGate({
   );
 }
 
-/** Compose the original shell around editable API copies; saves remain strictly browser-local. */
+/** Compose the original shell around owner content and a single explicit API save. */
 function ProfileWorkspace({
   locale,
   account,
@@ -161,25 +153,29 @@ function ProfileWorkspace({
 
   const { settings, motionPaused, subscribeThemeTransition } = useAppearance();
   const root = useRef<HTMLDivElement>(null);
-  const controls = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const [compact, setCompact] = useState(false);
+  const [previewPage, setPreviewPage] = useState<number | null>(() =>
+    params.get('section') === 'showcase' ? 1 : null,
+  );
+  const workspace = useWorkspaceNavigation();
+  const { compact } = workspace;
+  const [previewSize, setPreviewSize] = useState(6);
   const [issues, setIssues] = useState<DraftIssue[]>([]);
   const [confirmation, setConfirmation] = useState<{
     action: () => void;
     kind: 'delete' | 'discard' | 'import';
+    message?: string;
   } | null>(null);
   const editor = useProfileDraft(account.id, source);
   const { draft, update, dirty, hasSaved } = editor;
-  const contact = useContactDisclosure();
   usePageEntrance(root, { paused: motionPaused, subscribe: subscribeThemeTransition });
   const requestedSection = params.get('section');
   useEffect(() => {
-    // Keep saved Journey links working after merging its location controls into the career form.
-    if (requestedSection !== 'journey') return;
+    // Normalize former Journey/preview entry URLs while retaining the same working copy.
+    if (requestedSection !== 'journey' && requestedSection !== 'showcase') return;
     setParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -213,15 +209,49 @@ function ProfileWorkspace({
   );
   const experience = section === 'experience' && editing ? draft.experiences[editing] : undefined;
   const project = section === 'projects' && editing ? draft.projects[editing] : undefined;
+  const projectSize = projectSizeNumber(params.get('projectSize'));
+  const projectPage = projectPageNumber(
+    params.get('projectPage'),
+    draft.projectOrder.length,
+    projectSize,
+  );
+  const modalProjectPage = projectPageNumber(
+    String(previewPage ?? 1),
+    draft.projectOrder.length,
+    previewSize,
+  );
+  const pageProjects = draft.projectOrder.slice(
+    (projectPage - 1) * projectSize,
+    projectPage * projectSize,
+  );
+  const requiredProjects =
+    previewPage !== null
+      ? draft.projectOrder.slice(
+          (modalProjectPage - 1) * previewSize,
+          modalProjectPage * previewSize,
+        )
+      : section === 'projects' && editing
+        ? draft.projectOrder.filter((id) => id === editing)
+        : section === 'projects'
+          ? pageProjects
+          : [];
+  const projectContent = useProfileProjects(
+    draft,
+    requiredProjects,
+    editor.hydrateProjects,
+    previewPage !== null ? previewSize : projectSize,
+  );
   const isEditing = !!experience || !!project;
   const blocker = useBlocker(
     ({ nextLocation }) =>
       dirty && !/^\/(en|zh-Hant|zh-Hans)\/profile\/?$/.test(nextLocation.pathname),
   );
-  const confirm = (action: () => void, kind: 'delete' | 'discard' | 'import' = 'delete') =>
-    setConfirmation({ action, kind });
+  const confirm = (
+    action: () => void,
+    kind: 'delete' | 'discard' | 'import' = 'delete',
+    message?: string,
+  ) => setConfirmation({ action, kind, message });
   const select = (next: ProfileSection, edit?: string) => {
-    contact.dismiss();
     setParams((current) => profileSectionParams(current, next, edit), { preventScrollReset: true });
     // Opening a long editor from a list restores its heading for keyboard and mobile users.
     requestAnimationFrame(() => {
@@ -239,7 +269,7 @@ function ProfileWorkspace({
     if (first) {
       if (first.field.startsWith('experiences.')) openExperience(first.field.split('.')[1]);
       else if (first.field.startsWith('projects.')) openProject(first.field.split('.')[1]);
-      else select(first.field.startsWith('categories.') ? 'skills' : 'overview');
+      else select(/^(categories|skills)\./.test(first.field) ? 'skills' : 'overview');
       notify({ kind: 'warning', message: t('profileEditor.validationTitle') });
       return;
     }
@@ -312,40 +342,6 @@ function ProfileWorkspace({
         select(section);
       }, 'discard');
   };
-  // The same shared Navigation/Brand/Bubble components retain existing rail and mobile behavior.
-  const intro = draft.profiles[contentLocale];
-  const site: Site = {
-    site_id: draft.source?.siteId ?? 1,
-    user: account.user,
-    brand: draft.brand ?? {
-      title: account.user,
-      titleSub: '',
-      copyrightYear: new Date().getFullYear(),
-    },
-    profile: {
-      firstName: intro.firstName,
-      familyName: intro.familyName,
-      nickName: intro.nickName,
-      content: intro.content,
-      eduCode: intro.eduCode,
-      program: intro.program,
-      introContent: intro.intro,
-      footerContent: intro.footer,
-    },
-    social: draft.social,
-    chatme: {
-      title: intro.chatTitle,
-      titleSub: intro.chatSubtitle,
-      content: intro.chatContent,
-      icon: intro.chatIcon,
-    },
-  };
-  const journey = profileJourney(draft);
-  const endpoints = [journey[0], journey.at(-1)]
-    .filter(Boolean)
-    .map((item) => item!.translations[contentLocale].city)
-    .filter(Boolean)
-    .join(' → ');
   const title = experience
     ? t('profileEditor.editExperience')
     : project
@@ -369,6 +365,34 @@ function ProfileWorkspace({
         canCreate: account.is_create,
         canDelete: account.is_delete,
         canUpdate: account.is_update,
+        projectPage,
+        projectSize,
+        projectLoading: projectContent.loading,
+        projectError: projectContent.error,
+        retryProjects: projectContent.retry,
+        reloadContent: () =>
+          confirm(() => {
+            void reloadServer();
+          }, 'import'),
+        openProjectPage: (page) =>
+          setParams(
+            (current) => {
+              const next = new URLSearchParams(current);
+              next.set('projectPage', String(page));
+              return next;
+            },
+            { preventScrollReset: true },
+          ),
+        openProjectSize: (size) =>
+          setParams(
+            (current) => {
+              const next = new URLSearchParams(current);
+              next.set('projectSize', String(size));
+              next.set('projectPage', '1');
+              return next;
+            },
+            { preventScrollReset: true },
+          ),
         dirty,
         hasSaved,
         issues,
@@ -380,8 +404,8 @@ function ProfileWorkspace({
         openExperience,
         openProject,
         openSection: select,
-        confirm: (action, kind) => {
-          if (!saveLock.current) confirm(action, kind);
+        confirm: (action, kind, message) => {
+          if (!saveLock.current) confirm(action, kind, message);
         },
       }}
     >
@@ -400,42 +424,29 @@ function ProfileWorkspace({
         <a className="skip" href="#profile-content">
           {t('ui.skip')}
         </a>
-        <Navigation
-          site={site}
+        <WorkspaceNavigation
+          controls={workspace}
+          account={account}
+          locale={locale}
           active={selectedSection}
-          items={sections.map((item, index) => ({
-            id: item.id,
-            label: t(`profileEditor.${item.id}`),
-            icon: item.icon,
-            href: `${location.pathname}?${profileSectionParams(params, item.id)}`,
-            current: 'page',
-            ordinal: String(index + 1).padStart(2, '0'),
-          }))}
-          compact={compact}
-          onCompact={() => setCompact((value) => !value)}
-          endpoints={endpoints}
-          onNavigate={(id) => {
-            const target = sections.find((item) => item.id === id);
-            if (target) select(target.id);
-          }}
-          onContact={contact.toggle}
-          contactOpen={contact.state.open}
-          onOpen={contact.dismiss}
+          disabled={saving}
+          profile={{ params, onSelect: select }}
         />
         <main id="profile-content" className={styles.main} data-entrance-content>
           <div className={styles.contextRow}>
+            <WorkspaceNavigationToggle controls={workspace} disabled={saving} />
             <Breadcrumb
               label={t('breadcrumb.label')}
               items={[
                 { label: t('ui.overview'), href: publicHref, icon: 'home' },
                 { label: account.user },
                 { label: t('profileEditor.label') },
+                { label: t(`profileEditor.${selectedSection}`) },
               ]}
             />
-            <div ref={controls} className={styles.controls}>
+            <div className={styles.controls}>
               <AccountMenu
                 account={account}
-                onOpen={contact.dismiss}
                 onLogout={logout}
                 onProfile={() => select('experience')}
                 onNavigate={(resource, view) =>
@@ -458,7 +469,6 @@ function ProfileWorkspace({
           </div>
           <header className={styles.heading}>
             <div className={styles.viewFade} style={fadeStyle} data-fading={fading}>
-              <p className={styles.eyebrow}>{t('profileEditor.eyebrow')}</p>
               <h1 ref={heading} tabIndex={-1}>
                 {title}
               </h1>
@@ -469,57 +479,37 @@ function ProfileWorkspace({
                   : t(`profileEditor.description${section[0]!.toUpperCase()}${section.slice(1)}`)}
               </p>
             </div>
-            <ProfileActions publicHref={publicHref} />
+            <ProfileActions
+              publicHref={publicHref}
+              onPreview={() => {
+                setPreviewPage(1);
+              }}
+            />
           </header>
-          <div className={styles.tabsRow}>
-            <nav className={styles.sectionTabs} aria-label={t('profileEditor.eyebrow')}>
-              {sections.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-current={selectedSection === item.id ? 'page' : undefined}
+          <div className={styles.editorTools}>
+            <div className={styles.localeTools}>
+              <div className={styles.contentLocale}>
+                <LanguageMenu
+                  locale={contentLocale}
+                  busy={saving}
                   disabled={saving}
-                  onClick={() => select(item.id)}
-                >
-                  <span>{t(`profileEditor.${item.id}`)}</span>
-                  <small>{item.caption}</small>
-                </button>
-              ))}
-            </nav>
-            <label className={styles.contentLocale}>
-              <Icon name="translate" />
-              <span className="visually-hidden">{t('profileEditor.contentLanguage')}</span>
-              <select
-                aria-label={t('profileEditor.contentLanguage')}
-                value={contentLocale}
-                disabled={saving}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  setIssues([]);
-                  setParams(
-                    (current) => {
-                      const next = new URLSearchParams(current);
-                      next.set('contentLocale', value);
-                      return next;
-                    },
-                    { preventScrollReset: true },
-                  );
-                }}
-              >
-                {supportedLocales.map((language) => (
-                  <option value={language} key={language}>
-                    {languageNames[language]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className={styles.draftNotice}>
-            <Icon name="translate" />
-            <p>
-              {t('profileEditor.languageHint', { language: languageNames[contentLocale] })}
-              <small>{t('profileEditor.localNotice')}</small>
-            </p>
+                  variant="text"
+                  label={t('profileEditor.contentLanguage')}
+                  onChange={(value) => {
+                    setIssues([]);
+                    setParams(
+                      (current) => {
+                        const next = new URLSearchParams(current);
+                        next.set('contentLocale', value);
+                        return next;
+                      },
+                      { preventScrollReset: true },
+                    );
+                  }}
+                />
+              </div>
+              <ProfileHelp />
+            </div>
           </div>
           {saveError && (
             <div className={styles.validationSummary}>
@@ -580,7 +570,10 @@ function ProfileWorkspace({
                 void save();
               }}
             >
-              <fieldset className={styles.editorFieldset} disabled={saving || !account.is_update}>
+              <fieldset
+                className={styles.editorFieldset}
+                disabled={saving || (!account.is_update && section !== 'projects')}
+              >
                 {section === 'overview' && <IntroductionEditor />}
                 {section === 'experience' &&
                   (experience ? (
@@ -589,8 +582,12 @@ function ProfileWorkspace({
                     <ExperienceList />
                   ))}
                 {section === 'projects' &&
-                  (project ? (
-                    <ProjectEditor key={project.id} project={project} />
+                  (editing && (projectContent.loading || projectContent.error) ? (
+                    <ProjectPageStatus />
+                  ) : project ? (
+                    <fieldset className={styles.editorFieldset} disabled={!account.is_update}>
+                      <ProjectEditor key={project.id} project={project} />
+                    </fieldset>
                   ) : (
                     <ProjectList />
                   ))}
@@ -599,15 +596,29 @@ function ProfileWorkspace({
             </form>
           </div>
         </main>
-        <ContactIntroduction site={site} disclosure={contact} protectedControls={controls} />
+        {previewPage !== null && (
+          <ProfilePreviewModal
+            page={modalProjectPage}
+            size={previewSize}
+            onSizeChange={(size) => {
+              setPreviewSize(size);
+              setPreviewPage(1);
+            }}
+            onPageChange={setPreviewPage}
+            onClose={() => setPreviewPage(null)}
+          />
+        )}
         {confirmation && (
           <WarningModal
             title={t(
               `profileEditor.${confirmation.kind === 'import' ? 'importTitle' : confirmation.kind === 'delete' ? 'deleteTitle' : 'discardTitle'}`,
             )}
-            message={t(
-              `profileEditor.${confirmation.kind === 'import' ? 'importHint' : confirmation.kind === 'delete' ? 'deleteHint' : 'discardHint'}`,
-            )}
+            message={
+              confirmation.message ??
+              t(
+                `profileEditor.${confirmation.kind === 'import' ? 'importHint' : confirmation.kind === 'delete' ? 'deleteHint' : 'discardHint'}`,
+              )
+            }
             closeLabel={t('profileEditor.keepEditing')}
             onClose={() => setConfirmation(null)}
             confirm={{

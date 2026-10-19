@@ -64,9 +64,6 @@
   color: var(--muted);
   font-size: 11px;
 }
-.mobileToggle {
-  display: none;
-}
 .content {
   padding: 36px var(--page-gutter) 48px;
 }
@@ -336,11 +333,6 @@
   .identity {
     display: none;
   }
-  .mobileToggle {
-    display: inline-flex;
-    width: 44px;
-    min-height: 44px;
-  }
 }
 @media (max-width: 760px) {
   .contextRow {
@@ -385,32 +377,4 @@
     min-width: 44px;
     min-height: 44px;
   }
-}
-
-/* Center the visible icon/wordmark together; the shared brand link owns the full hit area.
- * Keep the icon visible while the wordmark collapses.
- * @author ZhengLee 2026.10.16
- */
-.brandIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 44px;
-  color: var(--accent);
-}
-.brandIcon :global(.icon) {
-  width: 28px;
-  height: 28px;
-}
-.brandText {
-  --icon-pulse-rest-color: var(--accent);
-  --icon-pulse-peak-color: var(--accent);
-  display: block;
-  color: var(--accent);
-  font-size: 15px;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-decoration: none;
 }

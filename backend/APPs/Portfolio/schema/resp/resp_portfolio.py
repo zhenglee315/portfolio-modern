@@ -251,10 +251,21 @@ class RespPortfolioEditExperiences(ProfileBody):
     items: list[ProfileExperience]
 
 
-class RespPortfolioEditProjects(ProfileBody):
+class RespPortfolioProjectReference(ProfileBody):
+    names: dict[Locale, str]
+    skillIds: list[str]
+
+
+class RespPortfolioProjectScope(ProfileBody):
+    order: list[str]
+    loaded_ids: list[str]
+    references: dict[str, RespPortfolioProjectReference]
+
+
+class RespPortfolioEditProjects(RespRecords[ProfileProject]):
     revision: int
     order: list[str]
-    items: list[ProfileProject]
+    references: dict[str, RespPortfolioProjectReference]
 
 
 class RespPortfolioEditCategories(ProfileBody):
@@ -271,3 +282,4 @@ class RespPortfolioEditSkills(ProfileBody):
 class RespPortfolioSaved(ProfileBody):
     revision: int
     draft: ProfileDocument
+    project_scope: RespPortfolioProjectScope | None = None

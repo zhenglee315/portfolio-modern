@@ -5,6 +5,41 @@
 .trigger {
   position: relative;
 }
+/* A named content-language trigger shares the existing dropdown instead of opening an OS select. */
+.textTrigger:global(.dropdown-toggle) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--control-size);
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.textTrigger:global(.dropdown-toggle):is(:hover, :focus-visible, [aria-expanded='true']):enabled {
+  background: var(--control-hover);
+  border-color: var(--control-border);
+  color: var(--accent);
+}
+.textTrigger:disabled {
+  opacity: 0.4;
+}
+.textTrigger > :global(.icon) {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+.textTrigger > .caret {
+  width: 10px;
+  height: 10px;
+  margin-left: 4px;
+}
 .badge {
   position: absolute;
   right: -4px;

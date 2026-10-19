@@ -1,11 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { isProfileMonth, type ProfileIntroduction } from '@/features/profile-content';
-import { contactArtwork } from '@/features/site';
-import { Icon } from './ProfileIcon';
-import { currentMonthUTC, workDuration } from '@/shared/lib/dates';
+import type { ProfileIntroduction } from '@/features/profile-content';
 import { useProfileEditor } from '../model/editor-context';
 import { EditorArea, EditorField, EditorNotice, EditorPanel, EditorSelect } from './EditorFields';
 import { PreviewHeading } from './ProfilePreview';
+import { IntroductionPreview, IntroductionExtras } from './IntroductionPreview';
 import styles from '../ProfilePage.module.css';
 
 const chatIcons = ['chat', 'robot', 'cupHot', 'briefcase'] as const;
@@ -16,7 +14,6 @@ export function IntroductionEditor() {
   const { draft, update, contentLocale } = useProfileEditor();
   const copy = draft.profiles[contentLocale];
   const chatIcon = chatIcons.find((icon) => icon === copy.chatIcon);
-  const artwork = contactArtwork(copy.chatIcon);
   const patch = (value: Partial<ProfileIntroduction>) =>
     update((current) => ({
       ...current,
@@ -25,26 +22,6 @@ export function IntroductionEditor() {
         [contentLocale]: { ...current.profiles[contentLocale], ...value },
       },
     }));
-  const name =
-    /^\p{Script=Han}+$/u.test(copy.firstName) && /^\p{Script=Han}+$/u.test(copy.familyName)
-      ? `${copy.familyName}${copy.firstName}`
-      : `${copy.firstName} ${copy.familyName}`.trim();
-  const work = Object.values(draft.experiences).filter(
-    (entry) =>
-      entry.visible &&
-      isProfileMonth(entry.startMonth) &&
-      (!entry.endMonth || isProfileMonth(entry.endMonth)) &&
-      (!entry.endMonth || entry.endMonth >= entry.startMonth) &&
-      (entry.endMonth || entry.startMonth <= currentMonthUTC()),
-  );
-  const tenure = workDuration(
-    work.map((entry) => ({
-      type: entry.type,
-      startMonth: entry.startMonth,
-      endMonth: entry.endMonth || null,
-    })),
-    currentMonthUTC(),
-  );
   const field = (
     key: keyof ProfileIntroduction,
     options?: { required?: boolean; help?: string },
@@ -157,56 +134,8 @@ export function IntroductionEditor() {
       </div>
       <aside className={styles.preview} aria-label={t('profileEditor.preview')}>
         <PreviewHeading section="Overview" />
-        <article
-          className={`${styles.previewCard} ${styles.introPreview}`}
-          data-profile-preview="overview"
-          lang={contentLocale}
-        >
-          <div className={styles.socialPreview}>
-            {(['linkedin', 'github', 'medium', 'email'] as const)
-              .filter((key) => draft.social[key].trim())
-              .map((key) => (
-                <Icon key={key} name={key === 'email' ? 'envelope' : key} label={key} />
-              ))}
-          </div>
-          <p className={styles.eyebrow}>{copy.intro}</p>
-          <h3>
-            <span>{t('ui.hello')}</span>
-            <strong>{name || t('profileEditor.newName')}.</strong>
-          </h3>
-          <p className={styles.previewCopy}>{copy.content || '—'}</p>
-          <span className={styles.accent}>
-            {t('ui.exploreWork')} <Icon name="arrow" />
-          </span>
-          <div className={styles.introMeta}>
-            <span>
-              {t('ui.tenure', {
-                years: tenure.years,
-                months: tenure.months,
-                yearUnit: t(tenure.years === 1 ? 'ui.year' : 'ui.years'),
-                monthUnit: t(tenure.months === 1 ? 'ui.month' : 'ui.months'),
-              })}
-            </span>
-            <span>{[copy.eduCode, copy.program].filter(Boolean).join(' · ')}</span>
-          </div>
-        </article>
-        <EditorPanel title={t('profileEditor.footerPreview')}>
-          <p className={styles.previewWordmark}>
-            {draft.brand?.title ?? ''} <small>{draft.brand?.titleSub ?? ''}</small>
-          </p>
-          <p className={styles.previewCopy}>{copy.footer}</p>
-          <span className={styles.accent}>{t('ui.connect')} ↗</span>
-        </EditorPanel>
-        <EditorPanel title={t('profileEditor.bubblePreview')}>
-          {artwork ? (
-            <img src={artwork} alt={t('ui.mascot')} width="80" height="80" />
-          ) : (
-            <Icon name={chatIcon ?? 'chat'} />
-          )}
-          <h3 className={styles.accent}>{copy.chatTitle}</h3>
-          <p className={styles.hint}>{copy.chatSubtitle}</p>
-          <p className={styles.previewCopy}>{copy.chatContent}</p>
-        </EditorPanel>
+        <IntroductionPreview />
+        <IntroductionExtras />
         <EditorNotice>{t('profileEditor.introPreviewHint')}</EditorNotice>
       </aside>
     </div>

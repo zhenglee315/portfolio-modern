@@ -1,6 +1,6 @@
 # Portfolio Content API
 
-既有六支公開 GET 保留原本的 locale、發布條件與分頁契約。Profile 編輯器另外使用五支本人 GET 讀取完整三語內容，再以一個交易儲存所有分區。Journey 與工作／學歷共用同一份 Career 資料，不提供第二套 Journey CUD。
+既有六支公開 GET 保留原本的 locale、發布條件與分頁契約。Profile 編輯器沿用五支本人 GET，其中專案以 `page/size` 按頁讀取完整三語內容，再以一個交易儲存所有分區。Journey 與工作／學歷共用同一份 Career 資料，不提供第二套 Journey CUD。
 
 The six public GET contracts remain available. The editor uses private owner snapshots and one atomic save; Journey projects the same careers instead of storing a second editable copy.
 
@@ -35,10 +35,10 @@ The six public GET contracts remain available. The editor uses private owner sna
 
 - 本人 GET 依有效 SESSION 找到唯一 Site，不接受 `user`／`site_id` 等 query selector，包含未公開項目及三語欄位；回應 `revision` 必須一致。沒有網站時回 404，不自動建立網站或填入範例。
 - GET 需要 `is_read`；新增、更新、刪除各使用目前有效角色的 `is_create`、`is_update`、`is_delete`。每次寫入會在交易內重新確認權限與 owner；整頁儲存另依新增／移除的 ID 檢查對應權限。
-- 所有寫入 body 必須包含 `expected_revision`。新增使用 `entry`，PATCH 使用 `changes`（Site 直接提交 profiles／social／brand 群組），刪除只需版本，排序／分類成員使用完整 `ids`。整頁儲存使用 `{expected_revision, draft}`，draft 不含傳輸層 revision。
+- 所有寫入 body 必須包含 `expected_revision`。新增使用 `entry`，PATCH 使用 `changes`（Site 直接提交 profiles／social／brand 群組），刪除只需版本，排序／分類成員使用完整 `ids`。整頁儲存使用 `{expected_revision, draft, project_scope?}`，draft 不含傳輸層 revision；分頁模式須附已載入 `loaded_ids` 與完整專案 `order`，draft.projectOrder 只包含隨 body 提交的完整記錄。
 - PATCH 保留未提交欄位與語言；null 不等於省略。排序必須恰好包含全部既有 ID；分類成員可為空，只移除關聯，不刪技能。被分類、經歷或專案引用的技能不可直接刪除。
 - 日期、有效經緯度、三碼國別、可用連結、翻譯長度、重複 ID、跨站引用及不合法文字均由後端驗證。新增經歷必須選取有效地點；前端以本機世界／城市資料完成定位。
-- 一次寫入只提交一次資料庫交易，成功後增加 revision、回傳 canonical ID 與完整 draft，再清除公開快取。任何資料錯誤會整筆回滾。
+- 一次寫入只提交一次資料庫交易，成功後增加 revision、回傳 canonical ID 與 draft，再清除公開快取；分頁儲存僅回傳已載入／新建記錄，並附 canonical project_scope。任何資料錯誤會整筆回滾。
 
 Private reads and writes are SESSION-scoped and use `Cache-Control: private, no-store` with `Vary: Cookie`. Writes require JSON and a valid request origin, reject duplicate keys/non-finite numbers, and limit the body to 2,000,000 bytes. The client sends one save without automatic retries; browser recovery storage cannot turn a failed server save into success.
 
@@ -52,6 +52,15 @@ Private reads and writes are SESSION-scoped and use `Cache-Control: private, no-
 | 503 `PORTFOLIO_UPDATE_COMMITTED_CACHE_UNAVAILABLE` | 資料已提交，但清除快取失敗；帶 `X-Portfolio-Update-State: committed`，不可當成回滾重送 |
 
 前端保留失敗時的工作副本，讓使用者明確重新載入伺服器內容。未知網路結果也不能假設資料庫已回滾。
+
+
+## 本人專案分頁 / Owner project pagination
+
+`GET /portfolio/me/projects?page=1&size=6` 共用管理端的 `parser_management_pagination`（同一套 page/size 格式及 1–100 限制）、交易綁定的 `SqlAlchemyExecAsync.paginate_orm` 與 `RespRecords.from_records`，不另寫 LIMIT/OFFSET。回應保留統一五欄 `items/total/pages/page/size`，另附 `revision`、完整 ID `order` 與輕量 `references`（三語名稱與技能 ID）；非本頁介紹／詳情不查詢或傳送。只有此本人 GET 接受 page/size，仍拒絕 user/site_id、其他 query 與重複參數。空頁 pages=0；超出頁數的請求保留 page 並回空 items；size 預設 6，接受 1–100，不接受 all；六支公開 GET 仍使用原本固定 6 的 `parser_pagination`。
+
+分頁儲存沿用 `PortfolioSiteModule.save_changes` 與原交易：`project_scope.loaded_ids` 明確指定可替換／移除的既有專案，其他專案從同版本資料庫快照保留；`project_scope.order` 必須恰好包含合併後所有 ID。名稱、權限、關聯與版本驗證仍針對完整合併結果；刪除經歷時清除未載入專案的關聯。遺漏／偽造 scope、缺少完整順序或版本衝突都會回滾。回應只含曾載入／新建的 canonical 專案，避免儲存後反而把所有詳情送進瀏覽器。未使用 scope 的既有完整儲存仍相容。
+
+此變更只調整既有 GET／save 契約與查詢，不新增 route，不修改表結構，也不需要 migration。
 
 ## 結構 / Schema
 

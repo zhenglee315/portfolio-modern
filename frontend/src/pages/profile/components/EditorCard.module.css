@@ -1,0 +1,43 @@
+.rows {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+  align-content: start;
+}
+/* The outer sortable frame owns the boundary and placeholder; the inner panel only lays out content. */
+.card > [data-swipe-surface] {
+  display: block;
+  padding: 0;
+}
+.card > [data-swipe-surface] > section {
+  border: 0;
+  background: transparent;
+  /* Tighten vertical spacing while preserving the controls' existing click targets. */
+  padding: 8px 16px;
+  gap: 4px;
+}
+.controls,
+.actions {
+  gap: 6px;
+}
+.title {
+  flex: 1;
+  min-width: 0;
+}
+/* Align the date independently of the project title and summary. */
+.card small {
+  text-align: right;
+}
+.controls > input {
+  margin: 0;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+/* Narrow cards keep the switch name accessible without adding a separate visual header row. */
+@media (max-width: 760px) {
+  .actions label > span {
+    display: none;
+  }
+}

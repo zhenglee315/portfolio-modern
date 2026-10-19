@@ -18,10 +18,12 @@ export function meta({ params }: Route.MetaArgs) {
   ];
 }
 
+/** Reuse the shared response headers for a localized 403 document. */
 export function headers() {
   return publicRouteHeaders();
 }
 
+/** Present loader-owned denial without mounting protected content or querying private APIs. */
 export default function AccessDeniedRoute({ loaderData }: Route.ComponentProps) {
   return <AccessDeniedPage locale={loaderData.locale} />;
 }

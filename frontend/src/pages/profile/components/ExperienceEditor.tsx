@@ -170,6 +170,7 @@ export function ExperienceEditor({ entry }: { entry: ProfileExperience }) {
           <button
             type="button"
             className={`${styles.textButton} ${styles.danger}`}
+            disabled={!canDelete}
             onClick={() =>
               confirm(() => {
                 update((draft) => removeProfileExperience(draft, entry.id));

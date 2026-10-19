@@ -85,16 +85,12 @@ test('cancel and Escape retain original coordinates and restore focus to the pic
 test('an empty location requires a selection, supports map keyboard navigation and center selection', async ({
   page,
 }) => {
-  await openEditor(page, '/en/profile?section=experience&edit=experience%3A3');
-  await page.evaluate(
-    ({ key, draft }) => {
-      draft.experiences['experience:3']!.latitude = '';
-      draft.experiences['experience:3']!.longitude = '';
-      localStorage.setItem(key, JSON.stringify(draft));
-    },
-    { key: draftKey, draft: ownerProfileSnapshot() },
-  );
-  await page.reload();
+  const snapshot = ownerProfileSnapshot();
+  snapshot.experiences['experience:3']!.latitude = '';
+  snapshot.experiences['experience:3']!.longitude = '';
+  await openEditor(page, '/en/profile?section=experience&edit=experience%3A3', 'mint', {
+    snapshot,
+  });
   const dialog = await openMap(page);
   await expect(
     dialog.getByRole('button', { name: 'Confirm location', exact: true }),

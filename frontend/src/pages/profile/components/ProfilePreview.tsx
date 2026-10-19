@@ -1,5 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import type { ProfileExperience, ProfileProject } from '@/features/profile-content';
+import type {
+  ProfileCategory,
+  ProfileExperience,
+  ProfileProject,
+} from '@/features/profile-content';
 import { Icon } from './ProfileIcon';
 import { useProfileEditor } from '../model/editor-context';
 import { editorPeriod } from '../model/presentation';
@@ -23,6 +27,7 @@ export function PreviewSkills({ ids }: { ids: string[] }) {
   );
 }
 
+/** One section heading labels preview sidebars without creating a second navigation destination. */
 export function PreviewHeading({ section }: { section: string }) {
   const { t } = useTranslation();
   return (
@@ -31,6 +36,21 @@ export function PreviewHeading({ section }: { section: string }) {
       <h2>{t('profileEditor.preview')}</h2>
       <span>{section}</span>
     </div>
+  );
+}
+
+/** Reuse one skill-category presentation in its modal and the complete draft preview. */
+export function CategoryPreview({ category }: { category: ProfileCategory }) {
+  const { t } = useTranslation();
+  const { contentLocale } = useProfileEditor();
+  return (
+    <article className={styles.previewCard} data-profile-preview="skills" lang={contentLocale}>
+      <h3>{category.names[contentLocale] || t('profileEditor.newName')}</h3>
+      {!category.visible && (
+        <span className={styles.badge}>{t('profileEditor.hiddenPreview')}</span>
+      )}
+      <PreviewSkills ids={category.skillIds} />
+    </article>
   );
 }
 
@@ -65,6 +85,7 @@ export function ExperiencePreview({ entry }: { entry?: ProfileExperience }) {
   );
 }
 
+/** Resolve career and skill references from the shared working copy; previewing never loads or saves. */
 export function ProjectPreview({ project }: { project?: ProfileProject }) {
   const { t } = useTranslation();
   const { draft, contentLocale } = useProfileEditor();

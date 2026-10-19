@@ -35,6 +35,8 @@ The Workers detail view adds Successful requests and Failed requests cards from 
 
 Unsupported alert-rule, log and notification actions are not presented as working controls. The design's illustrative launch command and historical Worker series have no backend fields; no sample values are substituted.
 
+Request-flow arrows measure the rendered card endpoints and match observed request events to `process_uid` (PID plus process start time), independently of card order. Identity-attribute changes trigger a fresh route measurement even when a replacement process reuses the same slot and PID without changing its card size. New request IDs animate entry; newly observed completions animate return from that process. Initial historical completions are not replayed. Snapshots arrive on content changes at the shared 0.5-second cycle, with at most one pulse per process/direction per snapshot; concurrent requests can therefore share a pulse. Fixed animation durations show direction rather than request latency or individual network packets.
+
 ## Documentation captures
 
 The [project tour](../../../../README.md#即時請求與-worker-監控--live-request-and-worker-monitoring) covers desktop/mobile Overview, Requests, events and Workers. From `frontend/`, run `npm run docs:monitor`; the separate Playwright docs configuration uses isolated HTTP/Socket fixtures, demo identity and four workers. It writes only documentation PNGs under `docs/images/`, without reading private runtime data. Sources and capture dimensions are documented in the [image guide](../../../../docs/images/README.md).

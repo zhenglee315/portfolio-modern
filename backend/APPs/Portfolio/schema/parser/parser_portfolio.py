@@ -205,7 +205,12 @@ class PortfolioEditRoute(APIRoute):
             if not private:
                 return await handler(request)
             try:
-                if request.query_params:
+                allowed = (
+                    {"page", "size"} if request.method == "GET" and request.url.path.endswith("/me/projects") else set()
+                )
+                if set(request.query_params) - allowed or any(
+                    len(request.query_params.getlist(key)) != 1 for key in request.query_params
+                ):
                     raise HTTPException(400, "INVALID_QUERY")
                 if request.method != "GET":
                     origin = request.headers.get("origin")

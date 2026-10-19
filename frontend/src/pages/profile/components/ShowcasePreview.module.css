@@ -1,0 +1,8 @@
+/* The editor supplies its original shell; public features own all homepage typography and layout. */
+.homepage {
+  min-width: 0;
+}
+.section {
+  position: relative;
+  min-width: 0;
+}

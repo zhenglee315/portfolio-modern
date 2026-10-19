@@ -28,7 +28,7 @@ uv run --locked check.py
 uv run --locked pytest
 ```
 
-完整整合需要可刪除的 Redis 與 PostgreSQL。變數只在測試程式使用；每個 PostgreSQL 測試自行建立／移除 schema，Redis 使用測試命名空間：
+完整整合需要可刪除的 Redis 與 PostgreSQL。變數只在測試程式使用；PostgreSQL 測試自行建立／移除表或 schema，Redis 使用測試命名空間。整合測試的資料庫及 Redis DB 必須與同時執行的 QA／開發服務分開，避免排程流量混入歷史請求測試：
 
 ```sh
 SCHEDULER_TEST_REDIS_URL=redis://127.0.0.1:16389/0 \
@@ -95,7 +95,9 @@ Black／Ruff、十個核心模組的 mypy、TypeScript／ESLint／Prettier、195
 
 ### Profile 前端驗證 / Profile frontend validation
 
-Profile 的公開六支 GET 保留，編輯器改以五支本人 GET 讀取完整三語內容，並以單一 revision-checked POST 儲存。單元測試涵蓋組織／詳情／座標、語言缺漏、完整私有來源、實體引用、日期／聯絡驗證、帳號隔離、取消、失敗不重送及三語字典；瀏覽器測試另涵蓋 15 筆專案全部載入、重新整理後保留後端結果、舊草稿復原、版本衝突、儲存鎖定、權限、各分區 CUD、共用技能、旅程同步、拖曳與 390／820／1600／2560px 排版。後端涵蓋 23 個新增操作、owner／即時權限、交易回滾、提交後快取失敗與正規化技能；migration 另在獨立 PostgreSQL schema 驗證既有資料搬移。首次前端階段的首頁 6× CPU／4G 實測基礎 JS gzip 為 256.4–257.8KiB、LCP 約 1.4 秒、CLS 0.00082。自動聯絡氣泡是否在量測截止前完成載入會影響數值；258KiB 上限保守包含該氣泡及共用導覽、API query chunk，明確驗證首頁不下載 Profile 編輯器／文案／範例與離線地圖；LCP、CLS 門檻維持不變。完整 client 產物的有界預算另包含新增的路由與樣式，並由 verify-public 檢查。
+2026-10-19 草稿預覽調整：導航維持四個編輯分頁，取消左側的預覽按鈕開啟共用 modal，以未送出草稿驅動主頁原有元件。測試涵蓋 modal／專案詳情／聯絡氣泡的焦點返回、獨立專案分頁、不讀公開舊內容、不提前儲存、顯示狀態與三語切換，以及 English 右側提醒的原有淡入／hover／cookie 行為。848 項前端單元測試、相關手機／桌面瀏覽器測試、型別、lint、格式與建置檢查通過。
+
+Profile 的公開六支 GET 保留，編輯器改以五支本人 GET 讀取三語內容（專案每頁 6 筆，詳情按需載入），並以單一 revision-checked POST 儲存。單元測試涵蓋組織／詳情／座標、語言缺漏、完整私有來源、實體引用、日期／聯絡驗證、帳號隔離、取消、失敗不重送及三語字典；瀏覽器測試另涵蓋 15 筆專案按頁載入、未載入內容保留、跨頁選取與批次刪除、重新整理後保留後端結果、舊草稿復原、版本衝突、儲存鎖定、權限、各分區 CUD、共用技能、旅程同步、拖曳與 390／820／1600／2560px 排版。後端涵蓋 23 個新增操作、owner／即時權限、交易回滾、提交後快取失敗與正規化技能；migration 另在獨立 PostgreSQL schema 驗證既有資料搬移。首次前端階段的首頁 6× CPU／4G 實測基礎 JS gzip 為 256.4–257.8KiB、LCP 約 1.4 秒、CLS 0.00082。自動聯絡氣泡是否在量測截止前完成載入會影響數值；258KiB 上限保守包含該氣泡及共用導覽、API query chunk，明確驗證首頁不下載 Profile 編輯器／文案／範例與離線地圖；LCP、CLS 門檻維持不變。完整 client 產物的有界預算另包含新增的路由與樣式，並由 verify-public 檢查。
 
 2026-10-18 本次 CUD 驗證：後端一般檢查 928 passed／171 skipped，Black、Ruff、十支核心模組 mypy 通過；另外在專用 PostgreSQL 資料庫執行 migration 與內容編輯測試共 20 passed。前端 `npm run check` 通過，包含 837 項單元測試、型別、lint、格式、shared 契約索引與正式建置。Profile／地點／API 來源／帳號選單共 43 項 Playwright 通過；另一次獨立手機冷載入檢查通過，初始 JS gzip 256.54KiB、LCP 1,404ms、CLS 0.00082，沒有提前載入 Profile 或地圖 chunk。這批瀏覽器流程使用隔離模擬 API。
 
@@ -111,3 +113,55 @@ Profile 的公開六支 GET 保留，編輯器改以五支本人 GET 讀取完�
 - 本次修正 Profile 三語提示，移除「儲存只留在瀏覽器」的過期描述。管理新增、SMTP 實際寄信及密碼重設仍未實作，未將占位畫面視為功能通過。
 
 逐帳號結果、畫面、機器可讀摘要及原始測試紀錄保留於忽略的 `agent/full-verification-2026-10-19/`；`report.html` 與 `accounts-results.csv` 不含密碼。測試憑證以 0600 權限另存私人 manifest。真實測試使用 `frontend/playwright.live.config.ts` 與 `frontend/tests/live/accounts.spec.ts`，僅接受明確提供的 20 帳號 QA manifest；已完成的同批帳號有 10 個被刪除，不應直接當作全新 fixture 重跑。
+
+## 前端七項檢查（2026-10-19）
+
+本次檢查涵蓋整個前端的型別、依賴邊界、循環引用、格式、單元、建置與 Chromium 瀏覽器矩陣；另檢視主要共用元件、正規化資料及公開／草稿呈現的重用方式。檢查結果是目前已驗證流程的證據，不代表所有未實作功能或真實後端整合已完成。
+
+| 項目     | 結果               | 證據                                                                                                                                                                                                                                                                                        |
+| -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 模組化   | 已確認並清理       | `app/routes/pages → features → shared` 由 ESLint 檢查；跨功能從公開入口引用。卡片、滑出操作、拖曳、分頁與工作區導航共用既有元件，公開畫面／草稿預覽共用 View。移除已無呼叫者的 `OrderButtons`、樣式及三語舊文案；非平凡頂層函式的完全相同 body 掃描沒有發現重複。                           |
+| 標準化   | 已確認並修正       | 嚴格 TypeScript、ESLint、Prettier、共同主題 tokens／控制項及翻譯；分頁沿用 `items/total/pages/page/size`。`EditorPagination` 改由自己的 CSS module 管理，不再借用內容語言選單樣式；筆數選單沿用 DataTable 使用的 Bootstrap 控制項。                                                         |
+| 正規化   | 已確認             | 實體以 ID record 保存，order 與關聯分開；技能只有一份實體。Zod 驗證 ID／順序／引用一致性；日期與分頁使用共用契約。`revision`／`projectScope` 保留未載入專案，hydrate 同步基準且不覆蓋修改或復活刪除資料。                                                                                   |
+| 可維護性 | 已改善             | 拆開元件樣式責任、移除失效控制；lint 與 README 驗證共用 `scripts/feature-entries.mjs`，包含 Auth 的既有額外公開入口，避免兩份允許清單漂移。功能狀態與事件清理由各自 controller／hook 擁有。                                                                                                 |
+| 註解     | 已補齊             | 全 `src` 的 191 個具名 TSX 匯出函式均有 JSDoc；本次補齊欄位／預覽用途及 route loader、headers、錯誤恢復、嵌入焦點等邊界。資料合併、取消與清理規則另有實作註解。此數字不表示每個型別／每行程式都應有重複註解。                                                                               |
+| README   | 已補齊且自動檢查   | [Shared](../frontend/src/shared/README.md) 196 個、[Feature](../frontend/src/features/README.md) 117 個、[Profile](../frontend/src/pages/profile/README.md) 45 個匯出契約；`check:docs` 直接讀 AST，缺漏會使檢查失敗。Feature 索引包含 13 個功能及 Auth 既有公開子入口。                    |
+| 功能     | 已驗證目前支援流程 | 72 份單元檔案共 853 項通過。完整 694 項瀏覽器矩陣先取得 677 passed，另 17 項仍預期舊側欄；確認失敗皆來自新增 Profile 分組後的舊數量／文案斷言，改成獨立於產品程式的共用預期 fixture，保留權限限制。修正後包含全部 17 項及側欄回歸的 28 項重驗全數通過；這 28 項與完整矩陣重疊，不另行加總。 |
+
+可重現入口（由 `frontend/` 執行）：
+
+```sh
+npm run check
+npm run test:e2e
+npx playwright test tests/e2e/management-access.spec.ts tests/e2e/monitor-overview.spec.ts tests/e2e/management.spec.ts tests/e2e/sidebar-unification.spec.ts --project=management --project=management-contracts --project=public --no-deps --grep 'established flag policy|monitor-only accounts|monitor content retains|settings reuse the background|share expanded/compact|Profile and management'
+```
+
+手機 360×800、冷快取、6× CPU／4G：LCP 1,400 ms、CLS 0.000815、初始 JavaScript gzip 257.75 KiB，沒有提前載入 Profile／大型區塊。完整 client 為 JS 1,586,006 bytes／gzip 524,408 bytes、CSS 426,676 bytes／gzip 89,247 bytes，均在既有預算內。本次沒有調高效能或產物上限。
+
+## 前後端完整操作測試（2026-10-19）
+
+本輪使用全新的 PostgreSQL／Redis 容器及合成帳號。瀏覽器操作資料庫與後端整合測試資料庫分開，Redis 也分離 DB；API 與排程依 `AGENTS.md` 透過 `uv run --locked manage.py` 一起啟動。真實操作使用 Node 正式前端與實際 HTTP／SQL／Socket.IO，沒有攔截 API；完整介面矩陣另使用隔離 fixture。原本的開發資料庫及服務未用作可刪除資料。
+
+| 範圍     | 結果                                                                                                                                   |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 後端     | Black、Ruff、十支核心模組 mypy、1,108 項測試通過，0 skipped；包含 PostgreSQL、Redis、Socket.IO 與排程整合。                            |
+| 前端     | 73 份單元檔案共 858 項通過；型別、lint、格式、三份匯出契約索引及正式建置通過。                                                         |
+| 瀏覽器   | 最終版本完整 694 項 Chromium 矩陣全部通過；0 skipped、0 flaky，未設定自動 retries。                                                    |
+| 真實 API | 7 項前端對真實後端契約通過，包含三語、分頁、管理排序及身分一致性。                                                                     |
+| 真實操作 | 26 個不重複案例通過；重驗不重複加總。包含 20 個 owner 的四分區／三語儲存、重載、資源 CUD，另含分頁、註冊、管理、監控、手機地圖及降權。 |
+| 焦點回歸 | 原 iframe 彈窗案例修正前重複 5 次有 1 次失敗；修正後連續 10 次通過，沒有放寬斷言。                                                     |
+
+實際發現並修正兩個問題：
+
+1. `ManagementDetails` 原先驗證所有欄位，Profile 已接受的既有圖示值會讓單純發布的 Save 持續停用。現在只驗證 PATCH 中已修改的欄位；整筆預覽的 Default／Active 等業務規則仍執行。新增單元案例同時確認保留既有值可以發布、明確改成非法值仍被阻擋。
+2. `useReturnFocus` 的延遲 callback 會在 Bootstrap 已還原焦點或使用者移到外層 iframe 後，再次把焦點搶回專案按鈕。現在檢查 owner document、已移動及已還原的焦點；補四項確定性的單元案例，並更新既有 [Shared 索引](../frontend/src/shared/README.md)。
+
+真實分頁測試在只載入第一頁時儲存，直接比較未載入專案內容不變；再驗證切頁、每頁筆數、未送出 modal 預覽與取消。管理操作完成角色指派、20 個網站發布／取消、三語公開 SSR、實際公開瀏覽器頁、指定 10 帳號批次刪除及降權。Socket.IO 測試直接等待 `monitor_snapshot` frame。資料庫核對刪除帳號關聯殘留為 0、登入回 401；跨 owner 修改、非法日期／座標均拒絕且不改 revision；保留的 10 份合成作品集三語契約正確。
+
+註冊實測確認現有 202 challenge、200 verify、201 register、預設權限、登出與重新登入。SMTP 尚未實作，使用既有暫時驗證碼 123。註冊只建立帳號，不建立作品集，因此新帳號 `/portfolio/me/site` 回 404；建立作品集／管理新增及密碼重設仍是功能缺口，未列作已完成。瀏覽器範圍為 Chromium 與模擬觸控，不代表實體裝置或其他瀏覽器驗證。
+
+首輪後端有一項因 QA 流量與歷史表測試共用資料庫而失敗；分離資料庫後完整 1,108 項通過。新測試的 ID 清理、動畫預覽定位、HTTP 狀態斷言及獨立環境的角色／最後管理員前置資料亦已修正；未放寬產品權限或刪除保護。後端仍有 674 則既有依賴棄用警告，主要為 pagination 的 SQLAlchemy `noload()` 與 TestClient 相容介面。
+
+最終手機冷載入：360×800、6× CPU／4G，LCP 1,388 ms、CLS 0.000815、初始 JS gzip 257.80 KiB，未提前載入 Profile／大型區塊；公開產物大小檢查通過，未調高預算。原始紀錄、逐案例 JSON、畫面及重驗歷程保留於忽略的 `agent/fullops-2026-10-19/`；憑證與 traces 留在私人目錄。測試專用服務及容器已移除，原 PostgreSQL／Redis 容器保留。
+
+維護性仍有改善空間：`ProfilePage.tsx` 的 658 行涵蓋頁面組裝、草稿協調與交易儲存，之後可進一步拆分 controller；本次沒有為行數而改動已驗證的儲存生命週期。相似但領域規則不同的流程仍需由語意判斷，完全相同函式掃描不能證明「零語意重複」。

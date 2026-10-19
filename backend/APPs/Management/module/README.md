@@ -54,7 +54,7 @@ The preview CBV in views_management.py declares the shared permission dependency
 
 ## 條件與生命週期 / Conditions and Lifecycle
 
-- 條件只接受明確白名單內的七個 `AuthRole` ORM 權限屬性。空規則、字串名稱、非權限欄位、SQL expression 與重複條件在宣告時拋出 `ValueError`；不再接受動態 keyword 旗標。
+- 條件只接受明確白名單內的八個 `AuthRole` ORM 權限屬性。空規則、字串名稱、非權限欄位、SQL expression 與重複條件在宣告時拋出 `ValueError`；不再接受動態 keyword 旗標。
 - 多個條件使用 AND；例如 `ManagementPermission(AuthRole.is_manage_roles, AuthRole.is_manage_users)` 要求兩項都具備。
 - 同一 HTTP 請求的多個驗證器共用身份子依賴；不在 class instance 保存帳號或把授權結果快取到下一個請求。
 - SESSION 僅以伺服器保存的 `id` 選取操作者，帳號、角色啟用與旗標以目前資料庫為準。變更在下一個請求生效。身份字典在 dependency 邊界嚴格驗證為 `RespAuthUser`，檢查器直接存取具型別屬性；不使用字串索引或動態 getattr。
@@ -65,7 +65,7 @@ Rules accept explicitly allowlisted AuthRole permission attributes. String names
 
 ## 擴充界線 / Extension Boundaries
 
-三項管理旗標套用到各資源的讀取、PATCH 及單筆／批次刪除：Role 使用 `is_manage_roles`、User 使用 `is_manage_users`、Platform／Preview 使用 `is_manage_sites`，登入紀錄沿用 `is_manage_users`。模組未提供 `action` 或 `policy` 入參；七個旗標尚不能表達各資源獨立 CRUD，須在權限模型完成後另行擴充。公開 Portfolio GET 不套用管理旗標。
+三項管理旗標套用到各資源的讀取、PATCH 及單筆／批次刪除：Role 使用 `is_manage_roles`、User 使用 `is_manage_users`、Platform／Preview 使用 `is_manage_sites`，登入紀錄沿用 `is_manage_users`。模組未提供 `action` 或 `policy` 入參；八個旗標尚不能表達各資源獨立 CRUD，須在權限模型完成後另行擴充。公開 Portfolio GET 不套用管理旗標。
 
 擁有者檢查、可修改欄位、最後管理員與刪除使用中角色等資料規則，保留在各業務模組的交易內處理；依賴驗證器不接管資料修改。
 

@@ -48,7 +48,11 @@ export function ownerProfileSnapshot(user = 'operator'): ProfileDraft {
   return { ...draft, revision: 0 };
 }
 
-export function ownerProfileResponse(draft: ProfileDraft, pathname: string) {
+export function ownerProfileResponse(
+  draft: ProfileDraft,
+  pathname: string,
+  params = new URLSearchParams(),
+) {
   const resource = pathname.split('/').at(-1);
   const revision = draft.revision ?? 0;
   if (resource === 'site') {
@@ -56,21 +60,79 @@ export function ownerProfileResponse(draft: ProfileDraft, pathname: string) {
     return { revision, site: { version, source, brand, profiles, social } };
   }
   const name = resource === 'skill-categories' ? 'categories' : resource;
+  if (name === 'projects') {
+    const page = Number(params.get('page') ?? 1),
+      size = Number(params.get('size') ?? 6);
+    return {
+      revision,
+      items: draft.projectOrder
+        .slice((page - 1) * size, page * size)
+        .map((id) => draft.projects[id]!),
+      total: draft.projectOrder.length,
+      pages: Math.ceil(draft.projectOrder.length / size),
+      page,
+      size,
+      order: draft.projectOrder,
+      references: Object.fromEntries(
+        Object.entries(draft.projects).map(([id, item]) => [
+          id,
+          {
+            names: Object.fromEntries(
+              Object.entries(item.translations).map(([locale, copy]) => [locale, copy.name]),
+            ),
+            skillIds: item.skillIds,
+          },
+        ]),
+      ),
+    };
+  }
   if (name === 'skills') return { revision, items: Object.values(draft.skills) };
-  if (name === 'experiences' || name === 'projects' || name === 'categories')
+  if (name === 'experiences' || name === 'categories')
     return {
       revision,
       items: Object.values(draft[name]),
-      order:
-        draft[
-          name === 'experiences'
-            ? 'experienceOrder'
-            : name === 'projects'
-              ? 'projectOrder'
-              : 'categoryOrder'
-        ],
+      order: draft[name === 'experiences' ? 'experienceOrder' : 'categoryOrder'],
     };
   return undefined;
+}
+
+/** Mirror the scoped save boundary: unvisited content is retained, and the response remains partial. */
+export function saveOwnerProfile(
+  previous: ProfileDraft,
+  input: { draft: ProfileDraft; project_scope?: { loaded_ids: string[]; order: string[] } },
+) {
+  const incoming = structuredClone(input.draft);
+  const scope = input.project_scope;
+  if (scope) {
+    incoming.projects = {
+      ...Object.fromEntries(
+        Object.entries(previous.projects).filter(([id]) => !scope.loaded_ids.includes(id)),
+      ),
+      ...incoming.projects,
+    };
+    incoming.projectOrder = scope.order;
+    for (const project of Object.values(incoming.projects))
+      if (project.experienceId && !incoming.experiences[project.experienceId])
+        project.experienceId = null;
+  }
+  const snapshot = { ...canonicalOwnerDraft(incoming), revision: previous.revision! + 1 };
+  const draft = structuredClone(snapshot);
+  if (!scope) return { snapshot, response: { revision: snapshot.revision, draft } };
+  const visited = new Set([...scope.loaded_ids, ...Object.keys(input.draft.projects)]);
+  const loaded = scope.order.flatMap((id, index) =>
+    visited.has(id) ? [snapshot.projectOrder[index]!] : [],
+  );
+  const references = ownerProfileResponse(snapshot, '/projects')!.references!;
+  draft.projects = Object.fromEntries(loaded.map((id) => [id, draft.projects[id]!]));
+  draft.projectOrder = loaded;
+  return {
+    snapshot,
+    response: {
+      revision: snapshot.revision,
+      draft,
+      project_scope: { order: snapshot.projectOrder, loaded_ids: loaded, references },
+    },
+  };
 }
 
 /** Simulate database-assigned numeric IDs so browser saves cannot rely on temporary draft keys. */

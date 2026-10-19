@@ -28,7 +28,8 @@
   height: 2px;
   background: var(--accent);
 }
-:global(html[lang^='zh']) .intro h1 {
+/* Content language can differ from the editor's interface language in a draft preview. */
+.intro:lang(zh) h1 {
   letter-spacing: -1px;
 }
 .intro > :global(.eyebrow) {

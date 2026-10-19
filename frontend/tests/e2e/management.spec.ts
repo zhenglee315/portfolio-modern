@@ -1,6 +1,7 @@
 import { expect, test as base, type Locator, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { waitForFixtureHydration } from '../fixtures/browser';
+import { workspaceNavigationLabels } from '../fixtures/workspace-navigation';
 import {
   managementEndpointFixture,
   managementRoleFixtures,
@@ -54,20 +55,15 @@ for (const resource of ['sites', 'users', 'roles'] as const) {
           .click();
         const drawer = page.locator('[data-sidebar-drawer]');
         await expect(drawer).toBeVisible();
-        await expect(drawer.locator('[data-sidebar-links]').first().getByRole('link')).toHaveText([
-          'Overview',
-          'Requests',
-          'Workers',
-          'Platform',
-          'Roles',
-          'Users',
-        ]);
+        await expect(drawer.locator('[data-sidebar-links]').first().getByRole('link')).toHaveText(
+          workspaceNavigationLabels,
+        );
         await drawer.getByRole('button', { name: 'Close', exact: true }).click();
         await expect(drawer).not.toBeVisible();
       } else {
         await expect(
           owner.locator('aside [data-sidebar-links]').first().getByRole('link'),
-        ).toHaveText(['Overview', 'Requests', 'Workers', 'Platform', 'Roles', 'Users']);
+        ).toHaveText(workspaceNavigationLabels);
       }
       await expect(owner.locator('[data-management-controls]')).toBeVisible();
       await owner.locator('tbody [data-selection] input').first().check();

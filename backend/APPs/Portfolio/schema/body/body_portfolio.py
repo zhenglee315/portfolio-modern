@@ -249,8 +249,23 @@ class BodyPortfolioRevision(ProfileBody):
     expected_revision: Annotated[int, Field(ge=0)]
 
 
+class ProfileProjectScope(ProfileBody):
+    """Loaded identities may be replaced/deleted; every unvisited identity is retained by the server."""
+
+    loaded_ids: Identities
+    order: Identities
+
+    @field_validator("loaded_ids", "order")
+    @classmethod
+    def unique(cls, value):
+        if len(value) != len(set(value)):
+            raise ValueError("Repeated project scope identities.")
+        return value
+
+
 class BodyPortfolioSave(BodyPortfolioRevision):
     draft: ProfileDocument
+    project_scope: ProfileProjectScope | None = None
 
 
 class BodyPortfolioOrder(BodyPortfolioRevision):
@@ -334,6 +349,7 @@ __all__ = (
     "ProfileDocument",
     "BodyPortfolioRevision",
     "BodyPortfolioSave",
+    "ProfileProjectScope",
     "BodyPortfolioOrder",
     "BodyPortfolioExperienceCreate",
     "BodyPortfolioProjectCreate",

@@ -88,9 +88,15 @@ export function ManagementDetails<T extends object>({
   const issue = validate?.(preview);
   const invalid =
     !!issue ||
-    columns.some(
-      (column) => column.editor?.(preview)?.validate?.(assignmentValue(column, preview)) === false,
-    );
+    columns.some((column) => {
+      const field = assignmentField(column);
+      // PATCH submits changed fields only. Existing values accepted by another editor
+      // must not block an unrelated update; cross-field rules still validate the preview above.
+      return (
+        !Object.is(draft[field], saved[field]) &&
+        column.editor?.(preview)?.validate?.(assignmentValue(column, preview)) === false
+      );
+    });
   const currentValues = Object.fromEntries(
     columns.map((column) => [assignmentField(column), assignmentValue(column, row)]),
   );

@@ -6,11 +6,10 @@ import { portfolioKey } from '@/shared/api/portfolio';
 import { usePortfolioContext } from '@/shared/context/portfolio';
 import { usePagedCollection } from '@/shared/hooks/usePagedCollection';
 import { QueryStatus } from '@/shared/ui/QueryStatus';
-import { SectionHeader } from '@/shared/ui/SectionHeader';
 import { LoadMoreControl } from '@/shared/ui/LoadMoreControl';
 import { categoriesQuery, useCategories } from '../api/skills';
 import { SkillCategoryRow } from './SkillCategoryRow';
-import styles from './Skills.module.css';
+import { SkillsView } from './SkillsView';
 
 /** Show bounded category pages with independent skill disclosures and explicit continuation.
  * A failed append retains validated rows; page two is read only when requested.
@@ -46,37 +45,38 @@ export function SkillsSection({
     });
   };
   return (
-    <>
-      <SectionHeader eyebrow={t('ui.skillsEyebrow')} title={t('ui.skillsTitle')} />
-      <QueryStatus
-        {...collection.status}
-        copy={{ ...copy, retry: collection.invalid ? t('ui.reloadSection') : copy.retry }}
-      />
-      {!!collection.records.length && (
-        <div className={styles.toolkit} data-skill-categories>
-          {collection.records.map((category) => (
-            <SkillCategoryRow
-              key={category.id}
-              category={category}
-              locked={locked}
-              previewEnabled={enabled}
-              locale={locale}
-              updatedAt={query.dataUpdatedAt}
-              categories={collection.records}
-              onReload={reload}
-            />
-          ))}
-        </div>
-      )}
-      {query.hasNextPage && !collection.invalid && (
-        <LoadMoreControl
-          label={t('ui.moreCategories')}
-          busyLabel={t('ui.loading')}
-          error={query.isFetchNextPageError ? copy.error : undefined}
-          busy={query.isFetchingNextPage || locked}
-          onLoad={onLoadMore}
+    <SkillsView
+      status={
+        <QueryStatus
+          {...collection.status}
+          copy={{ ...copy, retry: collection.invalid ? t('ui.reloadSection') : copy.retry }}
         />
-      )}
-    </>
+      }
+      footer={
+        query.hasNextPage &&
+        !collection.invalid && (
+          <LoadMoreControl
+            label={t('ui.moreCategories')}
+            busyLabel={t('ui.loading')}
+            error={query.isFetchNextPageError ? copy.error : undefined}
+            busy={query.isFetchingNextPage || locked}
+            onLoad={onLoadMore}
+          />
+        )
+      }
+    >
+      {collection.records.map((category) => (
+        <SkillCategoryRow
+          key={category.id}
+          category={category}
+          locked={locked}
+          previewEnabled={enabled}
+          locale={locale}
+          updatedAt={query.dataUpdatedAt}
+          categories={collection.records}
+          onReload={reload}
+        />
+      ))}
+    </SkillsView>
   );
 }

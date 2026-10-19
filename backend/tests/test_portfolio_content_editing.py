@@ -327,3 +327,134 @@ def test_admin_edits_invalidate_an_open_editor_revision(editor):
     editor.portal.call(modify)
     response = editor.post("/portfolio/site/save", json={"expected_revision": revision, "draft": draft})
     assert response.status_code == 409
+
+
+def paged_projects(client, count=15):
+    """Seed a complete snapshot once; ordinary reads below must stay bounded to six records."""
+    revision, draft = snapshot(client)
+    template = deepcopy(next(iter(draft["projects"].values())))
+    draft["projects"] = {}
+    draft["projectOrder"] = []
+    for index in range(count):
+        item = deepcopy(template)
+        item["id"] = f"project-pagination-{index}"
+        for language in item["translations"]:
+            item["translations"][language]["name"] = f"Project {index + 1}"
+        draft["projects"][item["id"]] = item
+        draft["projectOrder"].append(item["id"])
+    return write(client, "POST", "site/save", revision, draft=draft)
+
+
+def test_owner_project_pages_use_shared_pagination_and_bound_content_queries(editor, monkeypatch):
+    revision, draft = paged_projects(editor)
+    views = import_module("APPs.Portfolio.views_portfolio")
+    calls = []
+    original = views.SqlAlchemyExecAsync.paginate_orm
+
+    async def record(self, statement, **kwargs):
+        calls.append((kwargs["page"], kwargs["size"], self.manage_transaction))
+        return await original(self, statement, **kwargs)
+
+    monkeypatch.setattr(views.SqlAlchemyExecAsync, "paginate_orm", record)
+    original_document = views._PortfolioScopedModule._document
+    scopes = []
+
+    async def document(self, transaction, site, **kwargs):
+        scopes.append(kwargs.get("project_ids"))
+        return await original_document(self, transaction, site, **kwargs)
+
+    monkeypatch.setattr(views._PortfolioScopedModule, "_document", document)
+    pages = [editor.get(f"/portfolio/me/projects?page={page}&size=6").json() for page in (1, 2, 3, 4)]
+    assert [len(page["items"]) for page in pages] == [6, 6, 3, 0]
+    assert all((page["total"], page["pages"], page["size"], page["revision"]) == (15, 3, 6, revision) for page in pages)
+    assert [page["page"] for page in pages] == [1, 2, 3, 4]
+    assert [item["id"] for page in pages for item in page["items"]] == draft["projectOrder"]
+    assert all(page["order"] == draft["projectOrder"] for page in pages)
+    assert calls == [(page, 6, False) for page in (1, 2, 3, 4)]
+    assert all(scope is not None and len(scope) <= 6 for scope in scopes)
+    assert set(pages[0]["references"][draft["projectOrder"][-1]]) == {"names", "skillIds"}
+    for query in ("page=0", "page=all", "size=0", "size=101", "size=all", "size=1.5", "site_id=1", "page=1&page=2"):
+        assert editor.get("/portfolio/me/projects?" + query).status_code == 400
+
+
+@pytest.mark.parametrize("size", [1, 6, 10, 25, 50, 100])
+def test_owner_project_size_preserves_standard_envelope_and_order(editor, size):
+    revision, draft = paged_projects(editor)
+    result = editor.get(f"/portfolio/me/projects?page=2&size={size}")
+    assert result.status_code == 200
+    page = result.json()
+    assert (page["page"], page["size"], page["total"], page["pages"], page["revision"]) == (
+        2,
+        size,
+        15,
+        (15 + size - 1) // size,
+        revision,
+    )
+    assert [item["id"] for item in page["items"]] == draft["projectOrder"][size : 2 * size]
+    assert page["order"] == draft["projectOrder"]
+    assert result.headers["cache-control"] == "private, no-store"
+
+
+def test_scoped_project_save_preserves_unvisited_records_and_returns_only_visited_content(editor):
+    revision, before = paged_projects(editor)
+    visited = before["projectOrder"][:6]
+    draft = deepcopy(before)
+    draft["projects"] = {key: draft["projects"][key] for key in visited}
+    removed = visited[0]
+    del draft["projects"][removed]
+    draft["projectOrder"] = visited[1:]
+    draft["projects"][visited[1]]["translations"]["en"]["name"] = "Edited on page one"
+    draft["profiles"]["en"]["firstName"] = "Scoped owner"
+    order = [key for key in before["projectOrder"] if key != removed]
+    response = editor.post(
+        "/portfolio/site/save",
+        json=dict(expected_revision=revision, draft=draft, project_scope=dict(loaded_ids=visited, order=order)),
+    )
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["revision"] == revision + 1
+    assert len(result["draft"]["projects"]) == 5
+    assert result["project_scope"]["order"] == order
+    assert result["project_scope"]["loaded_ids"] == visited[1:]
+    actual = {}
+    for page in range(1, 4):
+        body = editor.get(f"/portfolio/me/projects?page={page}&size=6").json()
+        actual.update({item["id"]: item for item in body["items"]})
+    assert removed not in actual
+    assert actual[visited[1]]["translations"]["en"]["name"] == "Edited on page one"
+    assert {key: actual[key] for key in before["projectOrder"][6:]} == {
+        key: before["projects"][key] for key in before["projectOrder"][6:]
+    }
+    assert editor.get("/portfolio/me/site").json()["site"]["profiles"]["en"]["firstName"] == "Scoped owner"
+
+
+def test_scoped_project_save_rejects_incomplete_orders_and_stale_pages_atomically(editor):
+    revision, before = paged_projects(editor)
+    visited = before["projectOrder"][:6]
+    draft = deepcopy(before)
+    draft["projects"] = {key: draft["projects"][key] for key in visited}
+    draft["projectOrder"] = visited
+    draft["profiles"]["en"]["firstName"] = "Must not commit"
+    for scope in (
+        dict(loaded_ids=visited, order=visited),
+        dict(loaded_ids=["project:999999999"], order=before["projectOrder"]),
+        dict(loaded_ids=[], order=before["projectOrder"]),
+    ):
+        response = editor.post(
+            "/portfolio/site/save", json=dict(expected_revision=revision, draft=draft, project_scope=scope)
+        )
+        assert response.status_code == 422, response.text
+        assert editor.get("/portfolio/me/site").json()["revision"] == revision
+    response = editor.post(
+        "/portfolio/site/save",
+        json=dict(
+            expected_revision=revision - 1,
+            draft=draft,
+            project_scope=dict(loaded_ids=visited, order=before["projectOrder"]),
+        ),
+    )
+    assert response.status_code == 409
+    assert (
+        editor.get("/portfolio/me/site").json()["site"]["profiles"]["en"]["firstName"]
+        == before["profiles"]["en"]["firstName"]
+    )

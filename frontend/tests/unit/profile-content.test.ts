@@ -9,9 +9,29 @@ import {
   profileDraftSchema,
   profileJourney,
   removeProfileExperience,
+  removeProfileExperiences,
 } from '@/features/profile-content';
 
 describe('normalized profile content', () => {
+  it('keeps incomplete skill names editable but blocks empty and duplicate names on save', () => {
+    const draft = createProfileExample();
+    const [first, second] = Object.values(draft.skills);
+    first!.label = ' ';
+    expect(profileDraftSchema.safeParse(draft).success).toBe(true);
+    expect(profileDraftIssues(draft, 'en')).toContainEqual({
+      field: `skills.${first!.id}`,
+      reason: 'required',
+    });
+    first!.label = ` ${second!.label.toUpperCase()} `;
+    expect(profileDraftIssues(draft, 'en')).toEqual(
+      expect.arrayContaining([
+        { field: `skills.${first!.id}`, reason: 'duplicate' },
+        { field: `skills.${second!.id}`, reason: 'duplicate' },
+      ]),
+    );
+    first!.label = 'A distinct name';
+    expect(profileDraftIssues(draft, 'en')).toEqual([]);
+  });
   it.each([
     ['a', 'c', 'before', ['b', 'a', 'c', 'd']],
     ['a', 'c', 'after', ['b', 'c', 'a', 'd']],
@@ -68,6 +88,21 @@ describe('normalized profile content', () => {
     );
     expect(next.skills).toBe(draft.skills);
     expect(draft.experiences.delta).toBeDefined();
+    expect(profileDraftSchema.safeParse(next).success).toBe(true);
+  });
+
+  it('removes multiple careers through one path while retaining every project and shared skill', () => {
+    const draft = createProfileExample();
+    const ids = draft.experienceOrder.slice(0, 2);
+    const next = removeProfileExperiences(draft, ids);
+    expect(next.experienceOrder).toEqual(draft.experienceOrder.slice(2));
+    expect(next.projectOrder).toEqual(draft.projectOrder);
+    expect(next.skills).toBe(draft.skills);
+    expect(
+      Object.values(next.projects).every((project) => !ids.includes(project.experienceId ?? '')),
+    ).toBe(true);
+    expect(draft.experienceOrder).toHaveLength(next.experienceOrder.length + 2);
+    expect(removeProfileExperiences(draft, ['missing'])).toBe(draft);
     expect(profileDraftSchema.safeParse(next).success).toBe(true);
   });
 

@@ -1,0 +1,5 @@
+/* Bootstrap owns viewport scrolling; both Profile previews share the same modal shell. */
+.dialog {
+  --bs-modal-bg: var(--bg);
+  --profile-dialog-width: 1500px;
+}

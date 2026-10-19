@@ -1,0 +1,45 @@
+/* Share application modal tokens and keyboard behavior with other Profile dialogs. */
+.dialog {
+  --bs-modal-bg: var(--control-surface);
+  --bs-modal-color: var(--text);
+  --bs-modal-border-color: var(--dialog-border);
+  --bs-modal-header-border-color: var(--border);
+}
+.dialog :global(.modal-dialog) {
+  width: calc(100% - 32px);
+  max-width: var(--profile-dialog-width, 720px);
+  margin-inline: auto;
+}
+.content:global(.modal-content) {
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 90px var(--shadow-strong);
+}
+.dialog :global(.modal-header) {
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+.dialog :global(.modal-title) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+}
+.dialog :global(.modal-body) {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+.backdrop:global(.modal-backdrop) {
+  background: var(--dialog-backdrop);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.backdrop:global(.modal-backdrop.show) {
+  opacity: 1;
+}
+@media (max-width: 760px) {
+  .dialog :global(.modal-header),
+  .dialog :global(.modal-body) {
+    padding: 16px;
+  }
+}

@@ -5,6 +5,7 @@ import { QueryStatus } from '@/shared/ui/QueryStatus';
 import { queryCopy } from '@/i18n/query-copy';
 import type { Locale } from '@/i18n/config';
 import { useSite } from '../api/site';
+import type { Site } from '../schemas/site';
 import { emailUrl, fullName, safeSocialUrl } from '../model/profile';
 import styles from './Site.module.css';
 
@@ -23,8 +24,29 @@ type Props = {
  * @param props URL locale, optional work tenure and page-coordinated control and breadcrumb slots.
  * Independent query failures leave navigation and sibling sections available.
  */
-export function ProfileOverview({
-  locale,
+export function ProfileOverview({ ...props }: Props) {
+  const { t } = useTranslation();
+  const query = useSite(props.locale);
+  return (
+    <ProfileOverviewContent
+      {...props}
+      site={query.data}
+      status={
+        <QueryStatus
+          pending={query.isPending}
+          failed={query.isError}
+          hasData={!!query.data}
+          fetching={query.isFetching}
+          copy={queryCopy(t, query.error, !!query.data, true)}
+          onRetry={() => void query.refetch()}
+        />
+      }
+    />
+  );
+}
+
+/** Public and unsaved-draft surfaces share the complete introduction layout and safe links. */
+export function ProfileOverviewContent({
   tenure,
   summaryPending = false,
   leadingControls,
@@ -32,10 +54,10 @@ export function ProfileOverview({
   controlsRef,
   breadcrumb,
   onExplore,
-}: Props) {
+  site,
+  status,
+}: Props & { site?: Site; status?: ReactNode }) {
   const { t } = useTranslation();
-  const query = useSite(locale);
-  const site = query.data;
   const links: { name: IconName; href: string | undefined; label: string }[] = site
     ? [
         ...(['linkedin', 'github', 'medium'] as const).map((name) => ({
@@ -75,14 +97,7 @@ export function ProfileOverview({
           ))}
         {controls}
       </div>
-      <QueryStatus
-        pending={query.isPending}
-        failed={query.isError}
-        hasData={!!site}
-        fetching={query.isFetching}
-        copy={queryCopy(t, query.error, !!site, true)}
-        onRetry={() => void query.refetch()}
-      />
+      {status}
       {site && (
         <>
           {breadcrumb && <div className={styles.breadcrumb}>{breadcrumb}</div>}

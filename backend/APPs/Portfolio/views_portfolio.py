@@ -1,6 +1,7 @@
 # ◆—< Pack >—————————————————————————————————◆ Dependencies
 from COMMON.tools.storage.sqlalchemy import SqlAlchemyExecAsync
 from COMMON.schema.resp import RespRecords
+from APPs.Management.schema.parser.parser_management import parser_management_pagination
 from APPs.Management.constants import MANAGEMENT_PRIVATE_HEADERS
 from SYSTEM.models import (
     AuthUser,
@@ -331,17 +332,24 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
             raise HTTPException(404, "PORTFOLIO_SITE_NOT_FOUND")
         return row
 
-    async def _document(self, transaction, site):
+    async def _document(self, transaction, site, *, project_ids=None):
         """Project normalized tables into one editable snapshot under the site's revision lock.
 
         :param transaction: Caller-owned transaction; this method never commits or opens another session.
         :param site: Locked owner site row.
+        :param project_ids: None reads a full write snapshot; an ID list bounds project content reads.
         :return: Complete, localized ID-based draft; legacy fixture/import rows remain readable.
                                                                                                ♂ ZhengLee 2026.10.18
         """
 
         async def rows(model):
-            return (await transaction.execute_orm(select(model).where(model.site_id == site.id))).scalars().all()
+            statement = select(model).where(model.site_id == site.id)
+            if project_ids is not None:
+                if model is PortfolioProject:
+                    statement = statement.where(PortfolioProject.id.in_(project_ids))
+                elif model is PortfolioProjectSkill:
+                    statement = statement.where(PortfolioProjectSkill.project_id.in_(project_ids))
+            return (await transaction.execute_orm(statement)).scalars().all()
 
         text_rows = await rows(PortfolioSiteLocale)
         user = (await transaction.execute_orm(select(AuthUser.user).where(AuthUser.id == site.user_id))).scalar_one()
@@ -416,6 +424,17 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
                     result.append(key)
             return result
 
+        # Legacy skill labels are small reference metadata, never complete off-page project text.
+        # Keep the shared library complete even when only one project content page is read.
+        if project_ids is not None:
+            legacy_rows = await transaction.execute_orm(
+                select(PortfolioProjectLocale.locale, PortfolioProjectLocale.skills)
+                .join(PortfolioProject)
+                .where(PortfolioProject.site_id == site.id, PortfolioProject.skills_normalized.is_(False))
+            )
+            for language, values in legacy_rows.all():
+                legacy(values, language)
+
         def period(row):
             return dict(
                 startMonth=row.start_month.isoformat()[:7],
@@ -483,7 +502,12 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
         project_text = (
             (
                 await transaction.execute_orm(
-                    select(PortfolioProjectLocale).join(PortfolioProject).where(PortfolioProject.site_id == site.id)
+                    select(PortfolioProjectLocale)
+                    .join(PortfolioProject)
+                    .where(
+                        PortfolioProject.site_id == site.id,
+                        *([PortfolioProject.id.in_(project_ids)] if project_ids is not None else []),
+                    )
                 )
             )
             .scalars()
@@ -557,7 +581,7 @@ class _PortfolioScopedModule(SqlAlchemyExecAsync):
         try:
             async with self.transaction() as transaction:
                 site = await self._owner_row(transaction, actor)
-                draft = await self._document(transaction, site)
+                draft = await self._document(transaction, site, project_ids=[] if resource != "projects" else None)
                 if resource == "site":
                     return dict(
                         revision=site.revision,
@@ -1072,18 +1096,53 @@ class PortfolioSiteModule(_PortfolioScopedModule):
             source, brand = draft["source"], draft["brand"]
             replacement = body.draft.model_dump()
             if replacement.get("source") and replacement["source"] != source:
-                # Source is identity metadata, never a writable owner/language selector.
                 if (
                     replacement["source"]["siteId"] != source["siteId"]
                     or replacement["source"]["user"] != source["user"]
                 ):
                     raise HTTPException(403, "PORTFOLIO_OWNER_MISMATCH")
+            if body.project_scope is not None:
+                scope = body.project_scope
+                loaded = set(scope.loaded_ids)
+                existing = set(draft["projects"])
+                submitted = set(replacement["projects"])
+                # Unknown scopes cannot authorize replacement or deletion of another owner's rows.
+                if not loaded <= existing or (submitted & existing) - loaded:
+                    raise HTTPException(422, "INVALID_PORTFOLIO_PROJECT_SCOPE")
+                retained = {key: value for key, value in draft["projects"].items() if key not in loaded}
+                for value in retained.values():
+                    if value["experienceId"] not in replacement["experiences"]:
+                        value["experienceId"] = None
+                replacement["projects"] = {**retained, **replacement["projects"]}
+                if set(scope.order) != set(replacement["projects"]):
+                    raise HTTPException(422, "INVALID_PORTFOLIO_PROJECT_SCOPE")
+                replacement["projectOrder"] = scope.order
             draft.clear()
             draft.update(replacement)
             draft["source"] = source
             draft["brand"] = replacement.get("brand") or brand
 
-        return await self._edit(actor, body.expected_revision, change)
+        result = await self._edit(actor, body.expected_revision, change)
+        if body.project_scope is not None:
+            # Return only visited/edited records, keeping unvisited content out of the browser after save.
+            saved = result["draft"]
+            positions = {key: index for index, key in enumerate(body.project_scope.order)}
+            visited = set(body.project_scope.loaded_ids) | set(body.draft.projects)
+            loaded = [saved["projectOrder"][positions[key]] for key in body.project_scope.order if key in visited]
+            result["project_scope"] = dict(
+                order=saved["projectOrder"],
+                loaded_ids=loaded,
+                references={
+                    key: dict(
+                        names={locale: value["translations"][locale]["name"] for locale in LOCALES},
+                        skillIds=value["skillIds"],
+                    )
+                    for key, value in saved["projects"].items()
+                },
+            )
+            saved["projects"] = {key: saved["projects"][key] for key in loaded}
+            saved["projectOrder"] = loaded
+        return result
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ Portfolio - Journey
@@ -1256,6 +1315,89 @@ class PortfolioProjectsModule(_PortfolioPageModule):
 
                                                                                                ♂ ZhengLee 2026.10.11
     """
+
+    async def select_edit_page(self, actor: RespAuthUser, *, page: int, size: int) -> dict:
+        """Read one private project page using the common SQLAlchemy pagination executor.
+
+        :param actor: Current enabled owner; publication never controls editing access.
+        :param page: Validated one-based page from the shared bounded pagination parser.
+        :param size: Shared bounded page size from one to one hundred; defaults to six.
+        :return: Standard items/total/pages/page/size plus revision, order and lightweight references.
+        :raises HTTPException: The owner is missing or storage is unavailable.
+                                                                                               ♂ ZhengLee 2026.10.19
+        """
+        try:
+            async with self.transaction() as transaction:
+                site = await self._owner_row(transaction, actor)
+                statement = (
+                    select(PortfolioProject.id)
+                    .where(PortfolioProject.site_id == site.id)
+                    .order_by(PortfolioProject.position, PortfolioProject.id)
+                )
+                result = await transaction.paginate_orm(statement, page=page, size=size, unique=False)
+                identities = [row["id"] for row in result.items]
+                draft = await self._document(transaction, site, project_ids=identities)
+                catalog = (
+                    await transaction.execute_orm(
+                        select(PortfolioProject.id, PortfolioProject.skills_normalized)
+                        .where(PortfolioProject.site_id == site.id)
+                        .order_by(PortfolioProject.position, PortfolioProject.id)
+                    )
+                ).all()
+                references = {
+                    f"project:{row.id}": dict(names={locale: "" for locale in LOCALES}, skillIds=[]) for row in catalog
+                }
+                normalized = {row.id: row.skills_normalized for row in catalog}
+                labels = {
+                    (locale, label): key
+                    for key, skill in draft["skills"].items()
+                    for locale, label in skill["labels"].items()
+                    if label
+                }
+                texts = (
+                    await transaction.execute_orm(
+                        select(
+                            PortfolioProjectLocale.project_id,
+                            PortfolioProjectLocale.locale,
+                            PortfolioProjectLocale.project_name,
+                            PortfolioProjectLocale.skills,
+                        )
+                        .join(PortfolioProject)
+                        .where(PortfolioProject.site_id == site.id)
+                    )
+                ).all()
+                for identity, locale, name, skills in texts:
+                    item = references[f"project:{identity}"]
+                    item["names"][locale] = name
+                    if not normalized[identity]:
+                        for label in skills or []:
+                            key = labels.get((locale, label))
+                            if key and key not in item["skillIds"]:
+                                item["skillIds"].append(key)
+                links = (
+                    (
+                        await transaction.execute_orm(
+                            select(PortfolioProjectSkill)
+                            .where(PortfolioProjectSkill.site_id == site.id)
+                            .order_by(PortfolioProjectSkill.position)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                for link in links:
+                    if normalized.get(link.project_id):
+                        references[f"project:{link.project_id}"]["skillIds"].append(f"skill:{link.skill_id}")
+                return dict(
+                    **RespRecords.from_records(
+                        list(draft["projects"].values()), total=result.total, page=result.page, size=result.size
+                    ).model_dump(),
+                    revision=site.revision,
+                    order=list(references),
+                    references=references,
+                )
+        except (SQLAlchemyError, RuntimeError, OSError):
+            raise HTTPException(503, "PORTFOLIO_DATABASE_UNAVAILABLE") from None
 
     async def preview(self) -> dict:
         """
@@ -2031,7 +2173,7 @@ class PortfolioSite:
         summary="Save My Complete Portfolio Content",
         description=_owner_write_description(
             "is_update",
-            "- Submit the complete normalized working copy as draft. Every section commits together or rolls back together.\n- Added identities also require is_create; removed identities also require is_delete. Existing saved fields must pass the current revision check.",
+            "- Submit the complete normalized working copy as draft. Every section commits together or rolls back together.\n- With paged projects, include project_scope (loaded_ids and complete order). Only loaded project identities may be replaced/deleted; unvisited projects are retained and validated in the same transaction. The response retains the same partial scope.\n- Added identities also require is_create; removed identities also require is_delete. Existing saved fields must pass the current revision check.",
             {
                 "expected_revision": 7,
                 "draft": "Use the complete normalized draft assembled from the five /me reads; see the request schema.",
@@ -2354,17 +2496,32 @@ class PortfolioProjects:
     @router.get(
         "/me/projects",
         summary="Query My Portfolio Projects",
-        description=_OWNER_READ_DESCRIPTION,
+        description=(
+            _OWNER_READ_DESCRIPTION.replace(
+                "No user, site_id, locale, page or cache selector is accepted",
+                "No user, site_id, locale or cache selector is accepted",
+            )
+            + "\n"
+            + _NUMBERED_PAGE_DESCRIPTION.replace(
+                "`size` defaults to and must equal 6", "`size` defaults to 6 and accepts integers from 1 to 100"
+            )
+            + "🗂️ **Partial Editing:**\n"
+            "- Project content is returned for this page only, including hidden records and all languages.\n"
+            "- order contains stable IDs; references contains only names/skill IDs for cross-section references.\n"
+            "- Send project_scope.loaded_ids and project_scope.order with /site/save; unvisited projects are preserved.\n"
+            "- revision must match the other owner resources and any later page.\n"
+        ),
         response_model=RespPortfolioEditProjects,
         responses=_OWNER_WRITE_RESPONSES,
     )
-    async def get_owned_projects(self, actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_read))) -> dict:
-        """Read all owner content through the same class used for the established public projection.
-
-        ♂ ZhengLee 2026.10.18
-        """
+    async def get_owned_projects(
+        self,
+        pagination: dict = Depends(parser_management_pagination),
+        actor: RespAuthUser = Depends(ManagementPermission(AuthRole.is_read)),
+    ) -> dict:
+        """Keep private paging in the original CBV and reuse the common page parser and ORM tool."""
         resource = await PortfolioProjectsModule.for_owner(actor)
-        return await resource.select_for_edit(actor, "projects")
+        return await resource.select_edit_page(actor, **pagination)
 
     @router.post(
         "/projects",

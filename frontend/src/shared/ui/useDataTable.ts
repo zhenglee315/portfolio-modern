@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { recordPageSizes } from '../schemas/records';
 import { tableCsv, tablePrintHtml, tableTsv, tableXlsx } from '../lib/table-export';
 import type { DataTableColumn, DataTableProps, DataTableSort } from './DataTable.types';
 import type { DataTableChoice } from './DataTableChoices';
@@ -107,7 +108,7 @@ export function useDataTable<T>({
   const first = rows.length ? (page.page - 1) * page.size + 1 : 0;
   const last = rows.length ? Math.min(first + rows.length - 1, page.total) : 0;
   const pendingRows = loading && rows.length > 0;
-  const sizeOptions = [...new Set([6, 10, 25, 50, 100, page.size])].sort((a, b) => a - b);
+  const sizeOptions = [...new Set([...recordPageSizes, page.size])].sort((a, b) => a - b);
   const changeSort = (field: string, direction: 'asc' | 'desc' | null) => {
     if (loading) return;
     const changed = setSortDirection(sort, field, direction);

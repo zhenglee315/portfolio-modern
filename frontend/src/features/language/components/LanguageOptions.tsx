@@ -3,13 +3,8 @@ import Dropdown from 'react-bootstrap/Dropdown';
 import { useTranslation } from 'react-i18next';
 import { supportedLocales, type Locale } from '@/i18n/config';
 import { Icon } from '@/shared/ui/Icon';
+import { languageNames } from '../model/languages';
 import styles from './LanguageOptions.module.css';
-
-const labels: Record<Locale, string> = {
-  en: 'English',
-  'zh-Hans': '简体中文',
-  'zh-Hant': '繁體中文',
-};
 
 /** Share checked locale choices and cyclic keyboard navigation across settings disclosures. */
 export function LanguageOptions({
@@ -69,7 +64,7 @@ export function LanguageOptions({
           aria-current={locale === value ? 'true' : undefined}
           onClick={() => onChange(value)}
         >
-          {labels[value]}
+          {languageNames[value]}
           <Icon name="check" className={styles.check} />
         </Dropdown.Item>
       ))}

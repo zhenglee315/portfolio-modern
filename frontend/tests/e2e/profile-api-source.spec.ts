@@ -1,11 +1,18 @@
 import { expect, test as faultTest } from '@playwright/test';
 import { runtimeTest as test } from '../fixtures/browser';
-import { openEditor, field, save, draftKey } from '../fixtures/profile-editor';
+import {
+  openEditor,
+  field,
+  save,
+  draftKey,
+  tab,
+  contentLanguage,
+} from '../fixtures/profile-editor';
 import { createProfileExample } from '../../src/features/profile-content/model/seed';
 
-const lastProject = /^Web application en Project 15 /;
+const lastProject = /^en Project 15 /;
 
-test('all 15 projects and translations load privately; one atomic save survives a reload', async ({
+test('project pages load privately on demand; one atomic save preserves unvisited content after reload', async ({
   page,
 }) => {
   const reads: string[] = [];
@@ -16,16 +23,19 @@ test('all 15 projects and translations load privately; one atomic save survives 
   });
   await openEditor(page, '/en/profile?section=projects', 'mint', { existingApi: true });
   await expect(page.getByText(/Your portfolio · 15 projects/)).toBeVisible();
-  const card = page
-    .locator('section')
-    .filter({ has: page.getByRole('button', { name: lastProject }) });
+  await page
+    .getByRole('navigation', { name: 'Project pagination', exact: true })
+    .getByRole('button', { name: 'Page 3', exact: true })
+    .click();
+  const card = page.locator('[data-project-editor-row="project:15"]');
+  await card.getByRole('button', { name: 'Project actions: en Project 15', exact: true }).click();
   await card.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(field(page, 'Project name')).toHaveValue('en Project 15');
   await expect(field(page, 'Project organization')).toHaveValue('Example Studio');
   await expect(field(page, 'Technical approach')).toHaveValue('Typed boundaries.');
-  await field(page, 'Content language').selectOption('zh-Hant');
+  await contentLanguage(page, 'zh-Hant');
   await expect(field(page, 'Project name')).toHaveValue('zh-Hant Project 15');
-  await field(page, 'Content language').selectOption('en');
+  await contentLanguage(page, 'en');
   await field(page, 'Project name').fill('Saved API project');
   await save(page);
   await page.evaluate(() => localStorage.clear());
@@ -53,6 +63,10 @@ test('a legacy browser draft remains recoverable until the owner explicitly load
     .getByRole('dialog')
     .getByRole('button', { name: 'Load existing API data', exact: true })
     .click();
+  await page
+    .getByRole('navigation', { name: 'Project pagination', exact: true })
+    .getByRole('button', { name: 'Page 3', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: lastProject })).toBeVisible();
   expect(
     await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).projectOrder, draftKey),
@@ -64,7 +78,7 @@ faultTest('failed owner reads expose retry without invented public content', asy
     existingApi: true,
     waitForWorkspace: false,
     beforeNavigate: async (page) => {
-      await page.route('**/api/portfolio/me/projects', (route) =>
+      await page.route('**/api/portfolio/me/projects?*', (route) =>
         route.fulfill({ status: 503, json: { detail: 'UNAVAILABLE' } }),
       );
     },
@@ -72,8 +86,12 @@ faultTest('failed owner reads expose retry without invented public content', asy
   await expect(page.getByRole('alert')).toHaveText(
     'Your existing portfolio could not load. Your saved browser draft has not been changed.',
   );
-  await page.unroute('**/api/portfolio/me/projects');
+  await page.unroute('**/api/portfolio/me/projects?*');
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Project pagination', exact: true })
+    .getByRole('button', { name: 'Page 3', exact: true })
+    .click();
   await expect(page.getByRole('button', { name: lastProject })).toBeVisible();
 });
 
@@ -119,13 +137,11 @@ test('saving locks the working copy and role permissions disable creation and de
   });
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(field(page, 'First name')).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Content language', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
   await expect.poll(() => !!finish).toBe(true);
   finish!();
   await expect(field(page, 'First name')).toBeEnabled();
-  await page
-    .locator('main nav')
-    .getByRole('button', { name: /EXPERIENCE/ })
-    .click();
+  await tab(page, 'EXPERIENCE');
   await expect(page.getByRole('button', { name: 'Add experience', exact: true })).toBeDisabled();
 });

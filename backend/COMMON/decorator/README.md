@@ -73,3 +73,5 @@ Monitor aggregate handlers reuse the shared parser and one-minute server cache a
 `sql_validate` 定義並匯出於 `__init__.py`，以原函式 signature 綁定位置／關鍵字參數，要求 `sql` 為非空字串，再原樣回傳函式的 coroutine、async iterator 或同步結果。它不執行 SQL、不取得連線，也不管理交易。SQL 參數仍由呼叫端使用 bound parameters；此裝飾器不檢查 SQL 權限或替代參數化查詢。
 
 `sql_validate` checks only that the bound `sql` argument is a nonempty string while preserving the wrapped function's return behavior. Execution, parameter binding and transaction ownership remain with the SQLAlchemy helper and its caller.
+
+公開入口亦保留 Python 的 `wraps`／`signature` 相容匯出，分別來自 functools／inspect；它們不是另一套業務裝飾器。新增程式可直接從標準庫匯入，需要 SQL／HTTP cache 行為時使用上面的 `sql_validate`／`cache`。

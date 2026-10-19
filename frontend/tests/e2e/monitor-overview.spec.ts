@@ -2,6 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { monitorEndpointFixture, monitorSocketFixture } from '../fixtures/monitor';
 import { installMonitorSocket } from '../fixtures/monitor-browser';
 import { localDate, shiftDate } from '../../src/features/monitoring/overview-model';
+import type { MonitorRequest } from '../../src/features/monitoring/monitor';
+import {
+  profileNavigationLabels,
+  monitoringNavigationLabels,
+  workspaceNavigationLabels,
+} from '../fixtures/workspace-navigation';
 
 const period = 'start=2026-10-09&end=2026-10-15';
 const administrator = {
@@ -116,6 +122,156 @@ async function openOverview(
   return { requests, subscriptions, errors };
 }
 
+for (const width of [390, 1600]) {
+  test(`request pulses follow each process identity and its rendered card at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1100 });
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    let rows: MonitorRequest[] = [];
+    let requestSnapshots = 0;
+    const state = await openOverview(page, {
+      socket: (topic, revision) => {
+        const snapshot = monitorSocketFixture(topic, revision);
+        if (topic === 'requests') requestSnapshots++;
+        return {
+          ...snapshot,
+          data: {
+            ...snapshot.data,
+            // Reverse visual order to prove that routing follows identity rather than ordinal position.
+            workers: snapshot.data.workers.reverse().map((worker) => ({
+              ...worker,
+              active_requests: rows.filter(
+                (row) => row.process_uid === worker.process_uid && row.status === 'processing',
+              ).length,
+            })),
+            summary: {
+              ...snapshot.data.summary,
+              active_requests: rows.filter((row) => row.status === 'processing').length,
+            },
+            requests: rows,
+          },
+        };
+      },
+    });
+    // Use the same sidebar route without depending on the phone drawer being open.
+    await page.goto(`/en/management/monitoring?${period}&monitorView=requests`);
+    const routes = page.locator('svg[data-animate]');
+    await expect(routes).toHaveAttribute('data-animate', 'true');
+    await expect(routes.locator('[data-flow-route]')).toHaveCount(4);
+    await expect(routes.locator('[data-flow-pulse]')).toHaveCount(0);
+    const pulses = () =>
+      routes.locator('[data-flow-pulse]').evaluateAll((nodes) =>
+        nodes.map((node) => ({
+          worker: node.parentElement!.getAttribute('data-flow-route'),
+          direction: node.getAttribute('data-flow-direction'),
+          sequence: node.getAttribute('data-flow-pulse'),
+        })),
+      );
+    for (let index = 0; index < 4; index++) {
+      const worker = `fixture-worker-${index}`;
+      const record: MonitorRequest = {
+        ...phoneSocketFixture('requests', '1').data.requests[0]!,
+        request_id: `route-audit-${index}`,
+        process_uid: worker,
+        pid: 18421 + index,
+        slot: index + 1,
+        path: `/audit/worker-${index + 1}`,
+        status: 'processing',
+        phase: 'application',
+      };
+      const before = new Set((await pulses()).map((pulse) => pulse.sequence));
+      rows = [...rows, record];
+      const branch = routes.locator(`[data-flow-route="${worker}"]`);
+      const card = page.locator(`[data-flow-worker="${worker}"]`);
+      await expect
+        .poll(async () =>
+          (await pulses())
+            .filter((pulse) => !before.has(pulse.sequence))
+            .map(({ worker, direction }) => ({ worker, direction })),
+        )
+        .toEqual([{ worker, direction: 'incoming' }]);
+      await expect(card).toHaveAttribute('data-busy', 'true');
+      // Check actual SVG endpoints against this card, not the worker's array index or label.
+      const attached = await branch.evaluate((group) => {
+        const uid = group.getAttribute('data-flow-route');
+        const card = [...document.querySelectorAll<HTMLElement>('[data-flow-worker]')].find(
+          (node) => node.dataset.flowWorker === uid,
+        )!;
+        const bounds = card.getBoundingClientRect();
+        const origin = group.ownerSVGElement!.getBoundingClientRect();
+        const paths = group.querySelectorAll('path');
+        const entry = paths[0]!.getPointAtLength(paths[0]!.getTotalLength());
+        const exit = paths[1]!.getPointAtLength(0);
+        return {
+          entryX: Math.abs(entry.x + origin.left - bounds.left),
+          exitX: Math.abs(exit.x + origin.left - bounds.right),
+          entryInside: entry.y + origin.top >= bounds.top && entry.y + origin.top <= bounds.bottom,
+          exitInside: exit.y + origin.top >= bounds.top && exit.y + origin.top <= bounds.bottom,
+        };
+      });
+      expect(attached.entryX).toBeLessThan(1);
+      expect(attached.exitX).toBeLessThan(1);
+      expect(attached.entryInside && attached.exitInside).toBe(true);
+      const incoming = branch.locator('[data-flow-direction="incoming"]');
+      const beforeComplete = new Set((await pulses()).map((pulse) => pulse.sequence));
+      rows = rows.map((row) =>
+        row.request_id === record.request_id
+          ? {
+              ...row,
+              status: 'completed',
+              phase: 'finished',
+              http_status: 200,
+              duration_ms: 12,
+              left_at: Date.now() / 1000,
+            }
+          : row,
+      );
+      await expect
+        .poll(async () =>
+          (await pulses())
+            .filter((pulse) => !beforeComplete.has(pulse.sequence))
+            .map(({ worker, direction }) => ({ worker, direction })),
+        )
+        .toEqual([{ worker, direction: 'outgoing' }]);
+      await expect(card).toHaveAttribute('data-busy', 'false');
+      await expect(incoming).toHaveCount(0);
+    }
+    // Unchanged snapshots and advancing clocks must not invent another pulse.
+    const last = await pulses();
+    const revision = requestSnapshots;
+    await expect.poll(() => requestSnapshots).toBeGreaterThan(revision + 1);
+    expect(await pulses()).toEqual(last);
+    expect(state.errors).toEqual([]);
+  });
+}
+
+test('worker route identity updates when only the process UID changes in the same slot and PID', async ({
+  page,
+}) => {
+  let replacement = false;
+  await openOverview(page, {
+    socket: (topic, revision) => {
+      const snapshot = monitorSocketFixture(topic, revision);
+      return {
+        ...snapshot,
+        data: {
+          ...snapshot.data,
+          workers: snapshot.data.workers.map((worker, index) =>
+            index === 2 && replacement ? { ...worker, process_uid: 'replacement-process' } : worker,
+          ),
+        },
+      };
+    },
+  });
+  await page.goto(`/en/management/monitoring?${period}&monitorView=requests`);
+  await expect(page.locator('[data-flow-route="fixture-worker-2"]')).toHaveCount(1);
+  replacement = true;
+  await expect(page.locator('[data-flow-worker="replacement-process"]')).toHaveCount(1);
+  await expect(page.locator('[data-flow-route="replacement-process"]')).toHaveCount(1);
+  await expect(page.locator('[data-flow-route="fixture-worker-2"]')).toHaveCount(0);
+});
+
 test('monitor-only accounts can use all monitoring views without management access', async ({
   page,
 }) => {
@@ -128,7 +284,10 @@ test('monitor-only accounts can use all monitoring views without management acce
     },
   });
   const links = page.locator('[data-sidebar-rail] [data-sidebar-links]').first();
-  await expect(links.getByRole('link')).toHaveText(['Overview', 'Requests', 'Workers']);
+  await expect(links.getByRole('link')).toHaveText([
+    ...profileNavigationLabels,
+    ...monitoringNavigationLabels,
+  ]);
   await links.getByRole('link', { name: 'Requests', exact: true }).click();
   await expect(page.locator('[data-monitor-view="requests"]')).toBeVisible();
   await links.getByRole('link', { name: 'Workers', exact: true }).click();
@@ -195,14 +354,9 @@ for (const theme of ['mint', 'blue', 'amber', 'mist'] as const) {
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     const rail = page.locator('[data-sidebar-rail]');
     await expect(rail.locator('[data-nav-brand]')).toHaveText('PORTFOLIO');
-    await expect(rail.locator('[data-sidebar-links]').first().getByRole('link')).toHaveText([
-      'Overview',
-      'Requests',
-      'Workers',
-      'Platform',
-      'Roles',
-      'Users',
-    ]);
+    await expect(rail.locator('[data-sidebar-links]').first().getByRole('link')).toHaveText(
+      workspaceNavigationLabels,
+    );
     const originalNavigation = () =>
       rail.evaluate((element) => {
         const styles = getComputedStyle(element);

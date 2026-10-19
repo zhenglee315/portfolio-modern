@@ -267,6 +267,12 @@
     "overviewMonitoring": "Overview monitoring"
   },
   "management": {
+    "profile": {
+      "overview": "Introduction",
+      "experience": "Work & education",
+      "projects": "Projects",
+      "skills": "Skill categories"
+    },
     "groups": {
       "monitoring": "Monitoring",
       "management": "Management"

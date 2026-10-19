@@ -2,22 +2,20 @@ import { lazy, Suspense, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { Locale } from '@/i18n/config';
-import { AccountMenu, managementNavigation } from '@/features/account-menu';
+import {
+  AccountMenu,
+  managementNavigation,
+  WorkspaceNavigation,
+  WorkspaceNavigationToggle,
+  useWorkspaceNavigation,
+} from '@/features/account-menu';
 import { AppearanceSettings, useAppearance } from '@/features/appearance';
 import { LanguageOptions } from '@/features/language';
 import { useAccountSession, useAccessDeniedRedirect } from '@/features/auth/actions';
 import { canManage } from '@/features/auth/permissions';
 import type { ManagementPermissionResource } from '@/features/auth/permissions';
-import { Icon, IconGroup } from '@/shared/ui/Icon';
-import {
-  SidebarRail,
-  SidebarLinks,
-  SidebarDrawer,
-  type SidebarNavigationItem,
-} from '@/shared/ui/SidebarNavigation';
 import { Breadcrumb } from '@/shared/ui/Breadcrumb';
 import { LoadingIndicator } from '@/shared/ui/LoadingIndicator';
-import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { useHydrated } from '@/shared/hooks/useHydrated';
 import { usePageEntrance } from '@/shared/hooks/usePageEntrance';
 import BackgroundField from '@/shared/ui/background-field/BackgroundField';
@@ -46,10 +44,9 @@ export function ManagementPage({
   const routeLocation = useLocation();
   const navigation = useNavigation();
   const { session, signOut, logout } = useAccountSession(() => void navigate(`/${locale}`));
-  const [compact, setCompact] = useState(false);
-  const [drawer, setDrawer] = useState(false);
+  const workspace = useWorkspaceNavigation();
+  const { compact } = workspace;
   const [monitorDenied, setMonitorDenied] = useState(false);
-  const drawerNavigation = useMediaQuery('(max-width: 1024px)');
   const allowed = session.isSuccess && canManage(session.data, resource);
   const denied = session.isSuccess && session.data !== undefined && !allowed;
   usePageEntrance(root, {
@@ -63,8 +60,6 @@ export function ManagementPage({
     // A pending route loader owns its target decision; intentional logout keeps its home flow.
     enabled: navigation.state === 'idle' && !signOut.isPending && !signOut.isSuccess,
   });
-  // Dropping the drawer layout also drops its open state, so a later rotation stays on the page.
-  if (drawer && !drawerNavigation) setDrawer(false);
   // Never keep a private shell, rows or open details visible while identity is unknown or errored.
   if (!allowed || signOut.isPending) {
     return (
@@ -110,33 +105,6 @@ export function ManagementPage({
       item.view ===
         (resource === 'monitoring' && monitorView !== 'overview' ? monitorView : undefined),
   )!.id;
-  const items = managementNavigation
-    .filter((item) => canManage(session.data, item.resource))
-    .map<SidebarNavigationItem>((item) => {
-      // Table query parameters belong to their resource; only monitor-to-monitor links retain filters.
-      const query = new URLSearchParams(
-        resource === 'monitoring' ? routeLocation.search : undefined,
-      );
-      if (item.view) query.set('monitorView', item.view);
-      else query.delete('monitorView');
-      return {
-        id: item.id,
-        label: t(item.shortLabel),
-        group: t(`management.groups.${item.group}`),
-        icon: item.icon,
-        to: `/${locale}/management/${item.resource}${item.resource === 'monitoring' && query.size ? `?${query}` : ''}`,
-        onSelect: () => setDrawer(false),
-      };
-    });
-  const home = [
-    {
-      id: 'home',
-      label: t('management.backHome'),
-      icon: 'home' as const,
-      to: `/${locale}`,
-      onSelect: () => setDrawer(false),
-    },
-  ];
   return (
     <div
       ref={root}
@@ -160,51 +128,17 @@ export function ManagementPage({
       <a className="skip" href="#management-content">
         {t('ui.skip')}
       </a>
-      <SidebarRail
-        compact={compact}
-        onCompact={() => setCompact((value) => !value)}
-        collapseLabel={t('management.collapseNavigation')}
-        expandLabel={t('management.expandNavigation')}
-        drawerAt="tablet"
-        brand={
-          <IconGroup className={styles.brandText} pulse="chat">
-            PORTFOLIO
-          </IconGroup>
-        }
-        brandLink={{ to: `/${locale}`, label: t('management.backHome') }}
-        leading={
-          <span className={styles.brandIcon} aria-hidden>
-            <Icon name="dashboard" pulse="chat" />
-          </span>
-        }
-        footer={
-          <SidebarLinks
-            items={home}
-            label={t('management.backHome')}
-            compact={compact && !drawerNavigation}
-          />
-        }
-      >
-        <SidebarLinks
-          items={items}
-          label={t('management.navigation')}
-          active={active}
-          compact={compact && !drawerNavigation}
-        />
-      </SidebarRail>
+      <WorkspaceNavigation
+        controls={workspace}
+        account={session.data!}
+        locale={locale}
+        active={active}
+        monitorSearch={resource === 'monitoring' ? routeLocation.search : undefined}
+      />
       <div className={styles.main}>
         <main id="management-content" className={styles.content} data-entrance-content>
           <div className={styles.contextRow}>
-            <button
-              className={`icon-button ${styles.mobileToggle}`}
-              type="button"
-              onClick={() => setDrawer(true)}
-              aria-label={t('management.openNavigation')}
-              aria-controls="management-navigation"
-              aria-expanded={drawer}
-            >
-              <Icon name="list" />
-            </button>
+            <WorkspaceNavigationToggle controls={workspace} />
             <div className={styles.breadcrumb}>
               <Breadcrumb
                 label={t('breadcrumb.label')}
@@ -283,16 +217,6 @@ export function ManagementPage({
           )}
         </main>
       </div>
-      <SidebarDrawer
-        id="management-navigation"
-        open={drawer && drawerNavigation}
-        onClose={() => setDrawer(false)}
-        label={t('management.workspace')}
-        closeLabel={t('management.close')}
-        footer={<SidebarLinks items={home} label={t('management.backHome')} />}
-      >
-        <SidebarLinks items={items} label={t('management.navigation')} active={active} />
-      </SidebarDrawer>
     </div>
   );
 }

@@ -267,6 +267,12 @@
     "overviewMonitoring": "总览监控"
   },
   "management": {
+    "profile": {
+      "overview": "个人介绍",
+      "experience": "工作与学历",
+      "projects": "项目作品",
+      "skills": "技能分类"
+    },
     "groups": {
       "monitoring": "监控",
       "management": "管理"

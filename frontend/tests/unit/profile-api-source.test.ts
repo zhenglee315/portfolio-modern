@@ -16,7 +16,7 @@ function apiFixture(transform?: (path: string, body: unknown) => unknown) {
       expect(options?.cache).toBe('no-store');
       const url = new URL(input, 'http://local.test');
       reads.push(url);
-      const original = ownerProfileResponse(snapshot, url.pathname);
+      const original = ownerProfileResponse(snapshot, url.pathname, url.searchParams);
       const body = transform ? transform(url.pathname, original) : original;
       return new Response(JSON.stringify(body ?? { detail: 'AUTHENTICATION_REQUIRED' }), {
         status: body === undefined ? 401 : 200,
@@ -27,7 +27,7 @@ function apiFixture(transform?: (path: string, body: unknown) => unknown) {
 }
 
 describe('owner Portfolio editor reads and atomic saves', () => {
-  it('loads all projects, hidden data, ID associations and translations through five private reads', async () => {
+  it('loads one project page with a complete reference index through five private reads', async () => {
     const reads = apiFixture();
     const draft = await loadProfileContent('alex', new AbortController().signal);
     expect(draft.projectOrder).toHaveLength(15);
@@ -35,8 +35,12 @@ describe('owner Portfolio editor reads and atomic saves', () => {
     expect(draft.categoryOrder).toHaveLength(7);
     expect(draft.categories['category:category-6']?.skillIds).toHaveLength(14);
     expect(draft.skills['skill:skill-13']?.labels?.['zh-Hant']).toBe('zh-Hant Skill 14');
-    expect(draft.projects['project:15']?.translations['zh-Hant'].name).toBe('zh-Hant Project 15');
-    expect(draft.projects['project:15']?.translations.en).toMatchObject({
+    expect(Object.keys(draft.projects)).toHaveLength(6);
+    expect(draft.projects['project:15']).toBeUndefined();
+    expect(draft.projectScope?.references['project:15']?.names['zh-Hant']).toBe(
+      'zh-Hant Project 15',
+    );
+    expect(draft.projects['project:1']?.translations.en).toMatchObject({
       organization: 'Example Studio',
       workflow: 'Design and deliver.',
       technical: 'Typed boundaries.',
@@ -44,7 +48,13 @@ describe('owner Portfolio editor reads and atomic saves', () => {
     expect(draft.revision).toBe(0);
     expect(reads).toHaveLength(5);
     expect(
-      reads.every((url) => url.pathname.startsWith('/api/portfolio/me/') && url.search === ''),
+      reads.every(
+        (url) =>
+          url.pathname.startsWith('/api/portfolio/me/') &&
+          (url.pathname.endsWith('/projects')
+            ? url.search === '?page=1&size=6'
+            : url.search === ''),
+      ),
     ).toBe(true);
   });
 

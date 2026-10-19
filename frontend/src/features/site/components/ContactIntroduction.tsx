@@ -58,10 +58,12 @@ export function ContactIntroduction({
   site,
   disclosure,
   protectedControls,
+  portalContainer,
 }: {
   site?: Site;
   disclosure: ContactDisclosure;
   protectedControls?: RefObject<HTMLElement | null>;
+  portalContainer?: HTMLElement;
 }) {
   const { t } = useTranslation();
   if (!site || !disclosure.state.open || typeof document === 'undefined') return null;
@@ -78,6 +80,6 @@ export function ContactIntroduction({
         <ContactBubble site={site} disclosure={disclosure} protectedControls={protectedControls} />
       </Suspense>
     </SectionBoundary>,
-    document.body,
+    portalContainer ?? document.body,
   );
 }

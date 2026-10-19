@@ -70,6 +70,26 @@ All three pagination methods return `fastapi_pagination.default.Page` with `item
 
 ## Usage / 使用方式
 
+### 搜尋與篩選 / Search and filters
+
+| 模組                                               | 介面                                              | 設計                                                                                                                    |
+| -------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [tools_column_filters.py](tools_column_filters.py) | `apply_column_filters(stmt, columns, predicates)` | 只接受 parser 已驗證、明確綁定的欄位；各欄位以 AND 組合。負向比較排除 null，空值使用專門運算子。                        |
+| [tools_column_filters.py](tools_column_filters.py) | `trim_column_text(expression)`                    | SQLAlchemy expression，對齊瀏覽器 Unicode trim；PostgreSQL 使用 btrim、SQLite 使用 trim，不另維護一份前後端去空白規則。 |
+| [tools_table_search.py](tools_table_search.py)     | `apply_table_search(stmt, columns, search)`       | 字面值、大小寫不敏感的 OR 搜尋；LIKE wildcard 自動 escape，bool 轉 true／false，日期可搜尋 ISO 或畫面上的點分隔格式。   |
+
+先用 [共用 parser](../../../schema/README.md) 驗證 filter／search，依序套上搜尋、篩選與穩定排序，再使用本工具的 `paginate_orm` 計算總數及分頁。`columns` 必須是程式宣告的 SQLAlchemy 欄位 map，不接受 request 自訂 SQL expression。相同查詢條件需同時作用於 items 與 total，不在取得某一頁後才篩選。
+
+```python
+from COMMON.tools.storage.sqlalchemy.tools_column_filters import apply_column_filters
+from COMMON.tools.storage.sqlalchemy.tools_table_search import apply_table_search
+
+# stmt／columns／predicates／search 由既有 projection 與共用 parser 提供。
+stmt = apply_table_search(stmt, columns, search)
+stmt = apply_column_filters(stmt, columns, predicates)
+page = await db.paginate_orm(stmt.order_by(columns["id"]), page=1, size=6)
+```
+
 The following examples run inside an async function after application startup. / 以下範例在應用程式啟動後的 async function 中執行。
 
 ```python

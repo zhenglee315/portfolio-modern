@@ -1,0 +1,62 @@
+/* The face alone moves; the dashed outer boundary remains a stable sort/drop target. */
+.surface {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  min-width: 0;
+  position: relative;
+  background: var(--panel);
+  touch-action: pan-y;
+  transition: transform 220ms ease;
+}
+[data-selected='true'] > .surface {
+  background: color-mix(in srgb, var(--selection-surface), var(--panel));
+}
+[data-swiping='true'] > .surface {
+  transition: none;
+  user-select: none;
+}
+.action {
+  touch-action: pan-y;
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  visibility: hidden;
+  background: var(--panel);
+}
+[data-swipe-open='true'] > .action,
+[data-swiping='true'] > .action {
+  visibility: visible;
+}
+.action > button {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--field-error) 12%, var(--panel));
+  color: var(--field-error);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+.action > button:is(:hover, :focus-visible):enabled {
+  background: color-mix(in srgb, var(--field-error) 16%, transparent);
+}
+.action > button:disabled {
+  opacity: 0.4;
+}
+/* Editing and deletion share geometry, with their own semantic hover colours. */
+.action > [data-swipe-edit] {
+  background: var(--selection-surface);
+  color: var(--accent);
+}
+.action > [data-swipe-edit]:is(:hover, :focus-visible):enabled {
+  background: var(--control-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .surface {
+    transition: none;
+  }
+}

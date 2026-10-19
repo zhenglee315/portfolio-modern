@@ -1,35 +1,34 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { moveProfileItem, newProfileId } from '@/features/profile-content';
 import { Icon } from './ProfileIcon';
 import { useProfileEditor } from '../model/editor-context';
-import { EditorField, EditorNotice, EditorPanel, EditorToggle, OrderButtons } from './EditorFields';
-import { PreviewSkills } from './ProfilePreview';
+import { EditorField, EditorNotice, EditorPanel, EditorToggle } from './EditorFields';
 import { ReorderGhost } from './ReorderGhost';
+import { ReorderHandle } from './ReorderHandle';
+import { AddContentTile } from './AddContentTile';
+import { SkillUsageList } from './SkillUsageList';
+import { SkillRenameInput } from './SkillRenameInput';
+import { InlineNameInput } from './InlineNameInput';
+import { ProfileHelp } from './ProfileHelp';
+import { SkillsPreview } from './SkillsPreview';
+import { SwipeReveal } from './SwipeReveal';
 import { usePointerReorder } from '../model/usePointerReorder';
 import styles from '../ProfilePage.module.css';
 
 /** Category membership is separate from the skill library; renaming propagates through ID references. */
 export function SkillsEditor() {
   const { t } = useTranslation();
-  const {
-    draft,
-    update,
-    contentLocale,
-    confirm,
-    openExperience,
-    openProject,
-    canCreate,
-    canDelete,
-  } = useProfileEditor();
+  const { draft, update, contentLocale, confirm, canCreate, canDelete } = useProfileEditor();
   const [selected, setSelected] = useState(() => draft.categoryOrder[0] ?? '');
   const [skill, setSkill] = useState(
     () => draft.categories[draft.categoryOrder[0] ?? '']?.skillIds[0] ?? '',
   );
   const [newSkill, setNewSkill] = useState('');
-  const [rename, setRename] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
   const sortHelp = useId();
+  const categoryName = useRef<HTMLInputElement>(null);
   const category = draft.categories[selected] ?? draft.categories[draft.categoryOrder[0] ?? ''];
   const activeSkill = category?.skillIds.includes(skill)
     ? draft.skills[skill]
@@ -45,10 +44,11 @@ export function SkillsEditor() {
       },
     }));
   };
-  // Pointer drops, handle arrow keys and step buttons all update the same normalized ID orders.
+  // Pointer drops and handle arrow keys update the same normalized ID orders.
   const reorderCategories = (source: string, target: string, placement?: 'before' | 'after') => {
     const next = moveProfileItem(draft.categoryOrder, source, target, placement);
     if (next === draft.categoryOrder) return;
+    setOpenCategory(null);
     update((current) => ({
       ...current,
       categoryOrder: moveProfileItem(current.categoryOrder, source, target, placement),
@@ -89,12 +89,14 @@ export function SkillsEditor() {
   };
   const {
     ref: categoryListRef,
+    listStyle: categoryListStyle,
     drag: categoryDrag,
     item: categoryItem,
     handleProps: categoryHandleProps,
   } = usePointerReorder('vertical', reorderCategories);
   const {
     ref: skillListRef,
+    listStyle: skillListStyle,
     drag: skillDrag,
     item: skillItem,
     handleProps: skillHandleProps,
@@ -117,6 +119,20 @@ export function SkillsEditor() {
     }));
     setSelected(id);
   };
+  /** Remove the requested category only; shared skills and their other references stay intact. */
+  const deleteCategory = (id: string) =>
+    confirm(() => {
+      setOpenCategory(null);
+      update((current) => {
+        const categories = { ...current.categories };
+        delete categories[id];
+        return {
+          ...current,
+          categories,
+          categoryOrder: current.categoryOrder.filter((key) => key !== id),
+        };
+      });
+    });
   const addSkill = () => {
     if (!category || !newSkill.trim()) return;
     const label = newSkill.trim();
@@ -139,27 +155,8 @@ export function SkillsEditor() {
       };
     });
     setSkill(id);
-    setRename(null);
     setNewSkill('');
   };
-  const uses = selectedSkill
-    ? [
-        ...draft.experienceOrder
-          .filter((id) => draft.experiences[id]!.skillIds.includes(selectedSkill))
-          .map((id) => ({
-            id,
-            name: draft.experiences[id]!.translations[contentLocale].organization,
-            section: 'experience' as const,
-          })),
-        ...draft.projectOrder
-          .filter((id) => draft.projects[id]!.skillIds.includes(selectedSkill))
-          .map((id) => ({
-            id,
-            name: draft.projects[id]!.translations[contentLocale].name,
-            section: 'projects' as const,
-          })),
-      ]
-    : [];
   return (
     <div className={styles.skillColumns}>
       <span id={sortHelp} className="visually-hidden">
@@ -173,125 +170,146 @@ export function SkillsEditor() {
         title={t('profileEditor.categoryTitle')}
         description={t('profileEditor.categoryHint')}
       >
-        <div ref={categoryListRef} className={styles.categoryList} data-reorder-list="categories">
-          {draft.categoryOrder.map((id, index) => {
+        <AddContentTile
+          onClick={addCategory}
+          disabled={!canCreate}
+          label={t('profileEditor.newCategory')}
+        />
+        <div
+          ref={categoryListRef}
+          style={categoryListStyle}
+          className={styles.categoryList}
+          data-reorder-list="categories"
+        >
+          {draft.categoryOrder.map((id) => {
             const item = draft.categories[id]!;
             const name = item.names[contentLocale] || t('profileEditor.newName');
             return (
-              <div
-                className={styles.categoryRow}
+              <SwipeReveal
+                className={`${styles.reorderCard} ${styles.reorderItem}`}
                 key={id}
                 data-selected={category?.id === id}
                 {...categoryItem(id)}
+                open={openCategory === id && !categoryDrag}
+                onOpenChange={(open) => setOpenCategory(open ? id : null)}
+                label={t('profileEditor.categoryActions', { name })}
+                triggerIcon="threeDotsVertical"
+                edit={{
+                  label: `${t('profileEditor.edit')} ${name}`,
+                  onClick: () => {
+                    setSelected(id);
+                    // React commits the selected category before focusing its existing name field.
+                    requestAnimationFrame(() => {
+                      categoryName.current?.focus({ preventScroll: true });
+                      categoryName.current?.scrollIntoView({
+                        block: 'nearest',
+                        behavior: 'instant',
+                      });
+                    });
+                  },
+                }}
+                action={
+                  <button
+                    type="button"
+                    aria-label={`${t('profileEditor.deleteCategory')}: ${name}`}
+                    disabled={!canDelete}
+                    onClick={() => deleteCategory(id)}
+                  >
+                    <Icon name="trash" />
+                    <span>{t('management.confirmDelete')}</span>
+                  </button>
+                }
               >
-                <div className={styles.categoryHeader}>
-                  <button
-                    type="button"
-                    className={styles.reorderHandle}
-                    aria-label={t('profileEditor.drag', { name })}
-                    aria-describedby={sortHelp}
-                    title={t('profileEditor.drag', { name })}
-                    data-reorder-label={name}
-                    {...categoryHandleProps}
-                    onPointerDownCapture={() => setAnnouncement('')}
-                  >
-                    <Icon name="grip" />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.categoryChoice}
-                    aria-pressed={category?.id === id}
-                    onClick={() => {
-                      setSelected(id);
-                      setRename(null);
-                    }}
-                  >
-                    <span>{name}</span>
-                    <small>{item.skillIds.length}</small>
-                  </button>
-                </div>
-                <OrderButtons
+                <ReorderHandle
                   name={name}
-                  index={index}
-                  total={draft.categoryOrder.length}
-                  onMove={(offset) => reorderCategories(id, draft.categoryOrder[index + offset]!)}
+                  description={sortHelp}
+                  handlers={categoryHandleProps}
+                  onStart={() => {
+                    setAnnouncement('');
+                    setOpenCategory(null);
+                  }}
                 />
-              </div>
+                <button
+                  type="button"
+                  className={styles.categoryChoice}
+                  aria-pressed={category?.id === id}
+                  onClick={() => {
+                    setSelected(id);
+                  }}
+                >
+                  <span>{name}</span>
+                  <small>{item.skillIds.length}</small>
+                </button>
+              </SwipeReveal>
             );
           })}
         </div>
-        <button type="button" className={styles.button} onClick={addCategory} disabled={!canCreate}>
-          <Icon name="plus" />
-          {t('profileEditor.newCategory')}
-        </button>
       </EditorPanel>
       <div className={styles.stack}>
         {category ? (
           <>
-            <EditorPanel
-              title={category.names[contentLocale] || t('profileEditor.newName')}
-              action={
+            <EditorPanel>
+              <div className={`${styles.panelHeading} ${styles.categoryEditorHeading}`}>
+                <h2>
+                  {t('profileEditor.fields.categoryName')} <span aria-hidden="true">*</span>
+                </h2>
+                <InlineNameInput
+                  inputRef={categoryName}
+                  label={t('profileEditor.fields.categoryName')}
+                  required
+                  maxLength={255}
+                  field={`categories.${category.id}`}
+                  value={category.names[contentLocale]}
+                  error={
+                    !category.names[contentLocale].trim()
+                      ? t('profileEditor.errorRequired')
+                      : undefined
+                  }
+                  onChange={(value) =>
+                    patchCategory({ names: { ...category.names, [contentLocale]: value } })
+                  }
+                />
                 <EditorToggle
                   label={t('profileEditor.visible')}
                   checked={category.visible}
                   onChange={(visible) => patchCategory({ visible })}
                 />
-              }
-            >
-              <EditorField
-                label={t('profileEditor.fields.categoryName')}
-                required
-                field={`categories.${category.id}`}
-                value={category.names[contentLocale]}
-                onChange={(value) =>
-                  patchCategory({ names: { ...category.names, [contentLocale]: value } })
-                }
-              />
-              <h3 className={styles.fieldTitle}>{t('profileEditor.categorySkills')}</h3>
-              <p className={styles.hint}>{t('profileEditor.skillsSortHint')}</p>
+              </div>
+              <div className={styles.skillSectionHeading}>
+                <h3 className={styles.fieldTitle}>{t('profileEditor.categorySkills')}</h3>
+                <ProfileHelp topic="skillSorting" />
+              </div>
               <div
                 ref={skillListRef}
+                style={skillListStyle}
                 className={styles.skillAssignments}
                 data-reorder-list="skills"
               >
-                {category.skillIds.map((id, index) => {
+                {category.skillIds.map((id) => {
                   const item = draft.skills[id]!;
                   return (
                     <div
-                      className={styles.skillAssignment}
+                      className={`${styles.skillAssignment} ${styles.reorderItem}`}
                       key={id}
                       data-selected={selectedSkill === id}
                       {...skillItem(id)}
                     >
-                      <button
-                        type="button"
-                        className={styles.reorderHandle}
-                        aria-label={t('profileEditor.drag', { name: item.label })}
-                        aria-describedby={sortHelp}
-                        title={t('profileEditor.drag', { name: item.label })}
-                        data-reorder-label={item.label}
-                        {...skillHandleProps}
-                        onPointerDownCapture={() => setAnnouncement('')}
-                      >
-                        <Icon name="grip" />
-                      </button>
+                      <ReorderHandle
+                        name={item.label}
+                        description={sortHelp}
+                        handlers={skillHandleProps}
+                        onStart={() => setAnnouncement('')}
+                      />
                       <button
                         type="button"
                         className={styles.skillChoice}
                         aria-pressed={selectedSkill === id}
                         onClick={() => {
                           setSkill(id);
-                          setRename(null);
                         }}
                       >
                         {item.label}
                       </button>
-                      <OrderButtons
-                        name={item.label}
-                        index={index}
-                        total={category.skillIds.length}
-                        onMove={(offset) => reorderSkills(id, category.skillIds[index + offset]!)}
-                      />
                       <button
                         type="button"
                         className={styles.smallButton}
@@ -300,7 +318,6 @@ export function SkillsEditor() {
                           patchCategory({
                             skillIds: category.skillIds.filter((key) => key !== id),
                           });
-                          setRename(null);
                         }}
                       >
                         <Icon name="close" />
@@ -310,8 +327,10 @@ export function SkillsEditor() {
                 })}
               </div>
               <div className={styles.addSkill}>
+                <ProfileHelp topic="skillLibrary" />
                 <EditorField
                   label={t('profileEditor.addSkill')}
+                  hideLabel
                   value={newSkill}
                   placeholder={t('profileEditor.skillPlaceholder')}
                   maxLength={80}
@@ -346,115 +365,50 @@ export function SkillsEditor() {
                   {t('profileEditor.addSkill')}
                 </button>
               </div>
-              <EditorNotice>{t('profileEditor.skillLibraryHint')}</EditorNotice>
             </EditorPanel>
             {activeSkill && (
-              <EditorPanel title={`${activeSkill.label} · ${t('profileEditor.skillUses')}`}>
-                <div className={styles.addSkill}>
-                  <EditorField
-                    label={t('profileEditor.fields.skillName')}
-                    value={rename ?? activeSkill.label}
-                    maxLength={80}
-                    onChange={setRename}
-                  />
-                  <button
-                    type="button"
-                    className={styles.button}
-                    disabled={
-                      !rename?.trim() ||
-                      Object.values(draft.skills).some(
-                        (item) =>
-                          item.id !== activeSkill.id &&
-                          item.label.toLocaleLowerCase() === rename?.trim().toLocaleLowerCase(),
-                      )
-                    }
-                    onClick={() => {
-                      update((current) => ({
-                        ...current,
-                        skills: {
-                          ...current.skills,
-                          [activeSkill.id]: {
-                            ...current.skills[activeSkill.id]!,
-                            label: rename!.trim(),
-                            ...(current.skills[activeSkill.id]!.labels
-                              ? {
-                                  labels: {
-                                    ...current.skills[activeSkill.id]!.labels!,
-                                    [contentLocale]: rename!.trim(),
-                                  },
-                                }
-                              : {}),
+              <EditorPanel
+                className={styles.skillUsagePanel}
+                title={t('profileEditor.skillUses')}
+                action={
+                  <div className={styles.skillUsageActions}>
+                    <SkillRenameInput
+                      skillId={activeSkill.id}
+                      value={activeSkill.label}
+                      onChange={(value) => {
+                        // Shared references preview each edit; persistence belongs to the page action.
+                        update((current) => ({
+                          ...current,
+                          skills: {
+                            ...current.skills,
+                            [activeSkill.id]: {
+                              ...current.skills[activeSkill.id]!,
+                              label: value,
+                              ...(current.skills[activeSkill.id]!.labels
+                                ? {
+                                    labels: {
+                                      ...current.skills[activeSkill.id]!.labels!,
+                                      [contentLocale]: value,
+                                    },
+                                  }
+                                : {}),
+                            },
                           },
-                        },
-                      }));
-                      setRename(null);
-                    }}
-                  >
-                    {t('profileEditor.renameSkill')}
-                  </button>
-                </div>
-                {uses.map((item) => (
-                  <div className={styles.fact} key={`${item.section}:${item.id}`}>
-                    <span>
-                      {item.name} · {t(`profileEditor.${item.section}`)}
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.textButton}
-                      onClick={() =>
-                        item.section === 'experience'
-                          ? openExperience(item.id)
-                          : openProject(item.id)
-                      }
-                    >
-                      {t('profileEditor.edit')}
-                      <Icon name="arrowRight" />
-                    </button>
+                        }));
+                      }}
+                    />
+                    <SkillsPreview category={category} />
                   </div>
-                ))}
-                {!uses.length && <p className={styles.hint}>{t('profileEditor.noUses')}</p>}
+                }
+              >
+                {/* A different skill starts on page one; renaming the same skill preserves its page. */}
+                <SkillUsageList key={activeSkill.id} skillId={activeSkill.id} />
               </EditorPanel>
             )}
-            <article
-              className={styles.previewCard}
-              data-profile-preview="skills"
-              lang={contentLocale}
-            >
-              <p className={styles.eyebrow}>04 / ENGINEERING SKILLS</p>
-              <h3>{category.names[contentLocale]}</h3>
-              {!category.visible && (
-                <span className={styles.badge}>{t('profileEditor.hiddenPreview')}</span>
-              )}
-              <PreviewSkills ids={category.skillIds} />
-            </article>
-            <button
-              type="button"
-              className={`${styles.textButton} ${styles.danger}`}
-              disabled={!canDelete}
-              onClick={() =>
-                confirm(() => {
-                  update((current) => {
-                    const categories = { ...current.categories };
-                    delete categories[category.id];
-                    return {
-                      ...current,
-                      categories,
-                      categoryOrder: current.categoryOrder.filter((id) => id !== category.id),
-                    };
-                  });
-                })
-              }
-            >
-              <Icon name="trash" />
-              {t('profileEditor.deleteCategory')}
-            </button>
           </>
         ) : (
           <EditorPanel>
             <EditorNotice>{t('profileEditor.empty')}</EditorNotice>
-            <button type="button" className={styles.button} onClick={addCategory}>
-              {t('profileEditor.newCategory')}
-            </button>
           </EditorPanel>
         )}
       </div>

@@ -2,9 +2,22 @@ import arrowDown from 'bootstrap-icons/icons/arrow-down.svg?raw';
 import grip from 'bootstrap-icons/icons/grip-vertical.svg?raw';
 import pin from 'bootstrap-icons/icons/geo-alt.svg?raw';
 import trash from 'bootstrap-icons/icons/trash.svg?raw';
+import patchQuestionFill from 'bootstrap-icons/icons/patch-question-fill.svg?raw';
+import pencil from 'bootstrap-icons/icons/pencil.svg?raw';
+import threeDots from 'bootstrap-icons/icons/three-dots.svg?raw';
+import threeDotsVertical from 'bootstrap-icons/icons/three-dots-vertical.svg?raw';
 import { Icon as SharedIcon, type IconName as SharedIconName } from '@/shared/ui/Icon';
 
-const editorIcons = { arrowDown, grip, pin, trash };
+const editorIcons = {
+  arrowDown,
+  grip,
+  pin,
+  trash,
+  patchQuestionFill,
+  pencil,
+  threeDots,
+  threeDotsVertical,
+};
 export type IconName = SharedIconName | keyof typeof editorIcons;
 
 /** Editor-only Bootstrap SVGs stay in this lazy route; ordinary symbols reuse the shared renderer. */

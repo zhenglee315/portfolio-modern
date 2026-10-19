@@ -1,7 +1,8 @@
-/* Content geometry follows Figma; the existing portfolio shell and tokens own its theme. */
+/* Private workspaces share rail geometry; editor content retains the existing semantic theme. */
 .shell {
   min-width: 0;
   min-height: 100dvh;
+  --field-mobile-top: 0px;
 }
 /* Fade the existing view completely before the next one mounts; the shell stays stationary. */
 .viewFade {
@@ -41,6 +42,10 @@
   gap: 16px;
   min-height: 44px;
   margin-bottom: 26px;
+}
+.contextRow > nav {
+  flex: 1;
+  min-width: 0;
 }
 .controls,
 .actions {
@@ -161,94 +166,22 @@
 .headingActions > button {
   min-width: 110px;
 }
-.tabsRow {
+.localeTools {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 10px;
+  margin-left: auto;
+}
+.contentLocale {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.editorTools {
+  display: flex;
+  justify-content: flex-end;
   padding-bottom: 22px;
   margin-bottom: 22px;
   border-bottom: 1px solid var(--border);
-}
-.sectionTabs {
-  display: flex;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-.sectionTabs > button {
-  display: grid;
-  align-content: center;
-  gap: 3px;
-  padding: 10px 12px;
-  min-width: 0;
-  min-height: 58px;
-  flex: 1;
-  border: 1px solid transparent;
-  border-radius: var(--radius-card);
-  background: transparent;
-  text-align: left;
-  color: var(--muted);
-  line-height: 1.6;
-}
-.sectionTabs > button > span {
-  font-size: 13px;
-  white-space: nowrap;
-}
-.sectionTabs small {
-  font: 10px/1.6 var(--mono);
-  color: var(--date-muted);
-}
-.sectionTabs > button[aria-current],
-.sectionTabs > button:hover {
-  background: var(--selection-surface);
-  color: var(--accent);
-}
-.sectionTabs > button[aria-current] small {
-  color: var(--accent);
-}
-.contentLocale {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
-  background: var(--panel2);
-  border-radius: var(--radius-card);
-  color: var(--muted);
-  font-size: 13px;
-  flex-shrink: 0;
-}
-.contentLocale select {
-  border: 0;
-  background: var(--panel2);
-  color: var(--text);
-  min-height: 44px;
-  max-width: 140px;
-}
-.draftNotice {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 12px 16px;
-  margin-bottom: 24px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  color: var(--muted);
-}
-.draftNotice > :global(.icon) {
-  margin-top: 4px;
-  color: var(--accent);
-}
-.draftNotice p {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.8;
-}
-.draftNotice small {
-  display: block;
-  color: var(--sidebar-muted);
-  font-size: 11px;
 }
 /* Grid relationships replace canvas coordinates and keep long, editable text bounded. */
 .sourceNotice {
@@ -442,6 +375,25 @@ textarea.input {
 .textButton.danger {
   color: var(--field-error);
 }
+/* Bare editor icons share hover colour, background and keyboard focus treatment. */
+.iconButton {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--muted);
+}
+.iconButton:is(:hover, :focus-visible) {
+  color: var(--accent);
+  background: var(--selection-surface);
+}
+.iconButton:focus-visible {
+  outline: 2px solid var(--accent);
+}
 .fact {
   display: flex;
   justify-content: space-between;
@@ -575,7 +527,21 @@ textarea.input {
   gap: 14px;
   flex-wrap: wrap;
 }
+/* Lift the delete target above the inert card snapshot and preserve its hit area while highlighting. */
+.deleteDrop[data-delete-drop-active='true'] {
+  position: relative;
+  z-index: 1001;
+  border-style: dashed;
+  border-color: var(--field-error);
+}
+.deleteDrop[data-delete-drop-over='true']:enabled {
+  color: var(--bg);
+  border-color: var(--field-error);
+  background: var(--field-error);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--field-error) 25%, transparent);
+}
 .filters {
+  justify-self: start;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -600,42 +566,6 @@ textarea.input {
 .filters button > span {
   font: 11px var(--mono);
 }
-.experienceList {
-  display: grid;
-  gap: 12px;
-}
-.experienceRow {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 18px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  transition: border-color var(--duration-hover);
-}
-.experienceRow[data-selected='true'] {
-  border-color: var(--selection-border);
-  background: var(--card-active);
-}
-.experienceRow[data-visible='false'] .rowSummary {
-  opacity: 0.55;
-}
-.experienceRow[data-dragging='true'] {
-  border-color: var(--accent);
-  opacity: 0.65;
-}
-.ordinal {
-  display: grid;
-  justify-items: center;
-  gap: 10px;
-  color: var(--accent);
-}
-.ordinal > span {
-  font: 10px var(--mono);
-  color: var(--date-muted);
-}
 .rowSummary {
   display: grid;
   gap: 5px;
@@ -650,28 +580,9 @@ textarea.input {
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
-.rowTitle {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.rowTitle strong {
-  font-size: 14px;
-  font-weight: 500;
-}
 .rowSummary small {
   font: 10px/1.8 var(--mono);
   color: var(--muted);
-}
-.rowActions {
-  display: grid;
-  justify-items: end;
-  align-content: center;
-  gap: 8px;
-}
-.rowActions .textButton {
-  min-height: 32px;
 }
 .toggle {
   display: inline-flex;
@@ -749,13 +660,7 @@ textarea.input {
   color: var(--accent);
   border-color: var(--selection-border);
 }
-.orderButtons {
-  display: inline-flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.smallButton,
-.dragHandle {
+.smallButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -776,15 +681,6 @@ textarea.input {
 .smallButton > :global(.icon) {
   width: 14px;
   height: 14px;
-}
-.dragHandle {
-  border: 0;
-  width: 24px;
-  min-width: 24px;
-  cursor: grab;
-}
-.dragHandle:active {
-  cursor: grabbing;
 }
 .skillPicker {
   padding: 16px;
@@ -932,24 +828,55 @@ textarea.input {
 .categoryList {
   display: grid;
   gap: 8px;
+  align-items: start;
+  align-content: start;
 }
-.categoryRow {
+/* The add target stays above the draggable list and never participates in its order. */
+.addTile {
   position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-card);
-  padding: 8px;
-  display: grid;
-  gap: 6px;
+  background: transparent;
+  color: var(--muted);
+  transition:
+    background var(--duration-hover),
+    color var(--duration-hover);
 }
-.categoryHeader {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
+.addTile > [data-icon-group] {
+  position: absolute;
+  inset: -1px;
+  border: 1px dashed currentColor;
+  border-radius: inherit;
+  pointer-events: none;
+  --icon-pulse-peak-scale: 1;
 }
-.categoryHeader .categoryChoice {
-  flex: 1;
-  min-width: 0;
+.addTile > :global(.icon) {
+  width: 20px;
+  height: 20px;
+}
+.addTile:is(:hover, :focus-visible):enabled {
+  background: var(--selection-surface);
+  color: var(--accent);
+}
+.addTile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.addTile:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.reorderCard {
+  position: relative;
+  /* Every draggable card keeps a visible boundary, including unselected entries. */
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
 }
 /* Only the handle captures touch gestures, leaving the rest of each panel scrollable. */
 .reorderHandle {
@@ -973,76 +900,68 @@ textarea.input {
   color: var(--accent);
   background: var(--selection-surface);
 }
+.reorderHandle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .reorderHandle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.categoryRow[data-dragging='true'],
-.skillAssignment[data-dragging='true'] {
-  opacity: 0.4;
+/* Every sortable surface shares the same lifted-card and illuminated grid placeholder states. */
+.reorderItem[data-reordering='true'] {
+  transition: transform var(--duration-hover) ease;
+}
+.reorderItem[data-reordering='true'][data-dragging='true'] {
+  border-color: var(--accent);
   border-style: dashed;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 16px 16px;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
+  transition: none;
+}
+.reorderItem[data-dragging='true'] > * {
+  opacity: 0;
 }
 [data-dragging='true'] .reorderHandle {
   cursor: grabbing;
 }
-.categoryRow[data-drop-position]::before,
-.skillAssignment[data-drop-position]::before {
-  content: '';
-  position: absolute;
-  background: var(--accent);
-  border-radius: 2px;
+.reorderLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: clip;
   pointer-events: none;
 }
-.categoryRow[data-drop-position]::before {
-  height: 3px;
-  left: 0;
-  right: 0;
-  top: -5px;
-}
-.categoryRow[data-drop-position='after']::before {
-  top: auto;
-  bottom: -5px;
-}
-.skillAssignment[data-drop-position]::before {
-  width: 3px;
-  top: 2px;
-  bottom: 2px;
-  left: -6px;
-}
-.skillAssignment[data-drop-position='after']::before {
-  left: auto;
-  right: -6px;
-}
 .reorderGhost {
-  position: fixed;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: min(240px, calc(100vw - 24px));
-  padding: 14px 16px;
-  border: 1px solid var(--accent);
+  position: absolute;
+  left: 0;
+  top: 0;
   border-radius: var(--radius-card);
   background: var(--panel);
-  color: var(--text);
   box-shadow: 0 10px 28px var(--shadow-strong);
-  font-size: 13px;
   pointer-events: none;
   user-select: none;
 }
-.reorderGhost > :global(.icon) {
-  flex-shrink: 0;
-  color: var(--accent);
+.reorderGhost > * {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--accent);
+  background: var(--panel);
 }
-.reorderGhost > span {
-  overflow-wrap: anywhere;
-  min-width: 0;
+.reorderGhost[data-delete-target='true'] > [data-reorder-id] {
+  border-color: var(--field-error);
 }
-.categoryRow[data-selected='true'] {
+.reorderCard[data-selected='true'] {
   border-color: var(--selection-border);
   background: var(--selection-surface);
 }
 .categoryChoice {
+  flex: 1;
+  min-width: 0;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -1064,14 +983,52 @@ textarea.input {
   font: 11px var(--mono);
   color: var(--muted);
 }
-.categoryRow .orderButtons {
+.skillSectionHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.categoryEditorHeading {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 240px) minmax(max-content, 1fr);
+  align-items: center;
+}
+.categoryEditorHeading > .toggle {
   justify-self: end;
 }
 .skillAssignments {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  align-content: flex-start;
   gap: 10px;
+}
+.skillUsageList {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.skillUsagePanel > .panelHeading {
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.skillUsagePanel > .panelHeading > div:first-child {
+  min-width: 0;
+}
+.skillUsageActions {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+.skillUsageActions > [data-editor-field] {
+  flex-shrink: 1;
+  min-width: 0;
+}
+.skillUsageActions > .textButton {
+  flex-shrink: 0;
 }
 .skillAssignment {
   position: relative;
@@ -1106,20 +1063,18 @@ textarea.input {
   border-color: transparent;
 }
 .addSkill {
-  display: flex;
-  gap: 12px;
-  align-items: end;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
   min-width: 0;
-}
-.addSkill > .field {
-  flex: 1;
 }
 .projectTitle {
   font-size: 20px;
   font-weight: 600;
 }
-.projectRow .rowSummary {
-  gap: 12px;
+.smallButton.danger {
+  color: var(--field-error);
 }
 .previewDetail {
   display: grid;
@@ -1143,18 +1098,11 @@ textarea.input {
 .stepRow > button {
   margin-bottom: 6px;
 }
-/* Keep the original 760px shell breakpoint; independent content columns adapt sooner. */
+/* Content columns adapt independently of the shared 1024px private-navigation breakpoint. */
 @media (max-width: 1280px) {
   .heading {
     align-items: flex-start;
     flex-wrap: wrap;
-  }
-  .tabsRow {
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .sectionTabs {
-    flex-basis: 100%;
   }
   .contentLocale {
     margin-left: auto;
@@ -1177,8 +1125,13 @@ textarea.input {
     grid-template-columns: 220px minmax(0, 1fr);
     gap: 20px;
   }
-  .rowActions {
-    min-width: 125px;
+}
+/* Tablets use the same full-width content and drawer navigation as management. */
+@media (max-width: 1024px) {
+  .shell,
+  .compact {
+    --rail-width: 0px;
+    --rail-compact-width: 0px;
   }
 }
 @media (max-width: 960px) {
@@ -1190,10 +1143,21 @@ textarea.input {
   }
 }
 @media (max-width: 760px) {
+  .categoryEditorHeading {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .categoryEditorHeading > [data-editor-field] {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .categoryEditorHeading > .toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
   .main,
   .compact .main {
     margin-left: 0;
-    padding: 86px var(--page-gutter) 24px;
+    padding: 26px var(--page-gutter) 24px;
   }
   .contextRow {
     margin-bottom: 20px;
@@ -1215,27 +1179,9 @@ textarea.input {
   .actions {
     gap: 8px;
   }
-  .sectionTabs {
-    gap: 4px;
-    overflow-x: auto;
-    padding: 2px 2px 8px;
-    scrollbar-width: thin;
-  }
-  .sectionTabs > button {
-    flex: 0 0 auto;
-    min-width: 115px;
-    padding: 10px;
-  }
-  .sectionTabs small {
-    font-size: 9px;
-  }
-  .tabsRow {
+  .editorTools {
     margin-bottom: 16px;
     padding-bottom: 16px;
-  }
-  .draftNotice {
-    padding: 12px;
-    margin-bottom: 20px;
   }
   .columns,
   .skillColumns {
@@ -1271,26 +1217,6 @@ textarea.input {
   .previewCard h3 {
     font-size: 23px;
   }
-  .experienceRow {
-    grid-template-columns: 18px minmax(0, 1fr);
-    gap: 12px;
-    padding: 15px;
-  }
-  .rowActions {
-    grid-column: 2;
-    display: flex;
-    justify-content: space-between;
-    min-width: 0;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .rowTitle {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .rowTitle strong {
-    font-size: 14px;
-  }
   .rowSummary {
     font-size: 12px;
   }
@@ -1310,15 +1236,6 @@ textarea.input {
   .skillAssignments {
     gap: 8px;
   }
-  .addSkill {
-    flex-wrap: wrap;
-  }
-  .addSkill > .field {
-    flex-basis: 100%;
-  }
-  .addSkill > .button {
-    margin-left: auto;
-  }
   .fact {
     flex-wrap: wrap;
     gap: 10px;
@@ -1337,19 +1254,20 @@ textarea.input {
   }
   .headingActions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .headingActions > button {
     width: 100%;
     min-width: 0;
+    padding: 8px;
+    font-size: 12px;
+  }
+  .localeTools {
+    width: 100%;
   }
   .contentLocale {
     width: 100%;
     margin: 0;
-  }
-  .contentLocale select {
-    max-width: none;
-    flex: 1;
   }
 }
 @media (any-pointer: coarse) {
@@ -1358,8 +1276,7 @@ textarea.input {
   .tag button,
   .skillChoice,
   .reorderHandle,
-  .filters button,
-  .rowActions .textButton {
+  .filters button {
     min-width: 44px;
     min-height: 44px;
     height: 44px;
@@ -1375,4 +1292,9 @@ textarea.input {
   margin: 0;
   padding: 0;
   min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reorderItem[data-reordering='true'] {
+    transition: none;
+  }
 }

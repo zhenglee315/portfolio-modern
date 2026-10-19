@@ -6,6 +6,7 @@ import prettier from 'eslint-config-prettier';
 import { importX, createNodeResolver } from 'eslint-plugin-import-x';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
+import { featureEntryFiles } from './scripts/feature-entries.mjs';
 import tseslint from 'typescript-eslint';
 
 const directory = fileURLToPath(new URL('.', import.meta.url));
@@ -49,10 +50,7 @@ const zones = [
     {
       target: upperLayers,
       from: `./src/features/${feature}`,
-      except:
-        feature === 'auth'
-          ? ['./index.ts', './session.ts', './permissions.ts', './actions.ts']
-          : ['./index.ts'],
+      except: featureEntryFiles(feature).map((file) => `./${file}`),
       message: 'Import a feature public entry instead of its internal implementation.',
     },
   ]),

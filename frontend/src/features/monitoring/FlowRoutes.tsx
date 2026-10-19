@@ -66,10 +66,18 @@ export function FlowRoutes({
     };
     const observer = new ResizeObserver(measure);
     observer.observe(container);
-    // A callback also measures after worker rows mount or change height.
+    // A replaced process can reuse its slot and PID without changing any visible text or bounds.
+    // Observe its identity attribute too, so pulses never remain keyed to the previous process.
     const mutation = new MutationObserver(measure);
     const list = container.querySelector('[data-flow-list]');
-    if (list) mutation.observe(list, { childList: true, subtree: true, characterData: true });
+    if (list)
+      mutation.observe(list, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['data-flow-worker'],
+      });
     const frame = requestAnimationFrame(measure);
     return () => {
       observer.disconnect();
@@ -124,7 +132,7 @@ export function FlowRoutes({
         ))}
       </defs>
       {routes.map((route) => (
-        <g key={route.id}>
+        <g key={route.id} data-flow-route={route.id}>
           <path
             className={`${styles.routeBase} ${styles.incoming}`}
             d={route.incoming}
@@ -139,6 +147,8 @@ export function FlowRoutes({
             <path
               key={`in-${pulses[route.id]?.incoming}`}
               className={styles.incomingPulse}
+              data-flow-direction="incoming"
+              data-flow-pulse={pulses[route.id]?.incoming}
               d={route.incoming}
               pathLength={100}
             />
@@ -147,6 +157,8 @@ export function FlowRoutes({
             <path
               key={`out-${pulses[route.id]?.outgoing}`}
               className={styles.outgoingPulse}
+              data-flow-direction="outgoing"
+              data-flow-pulse={pulses[route.id]?.outgoing}
               data-delayed={pulses[route.id]?.delay}
               d={route.outgoing}
               pathLength={100}

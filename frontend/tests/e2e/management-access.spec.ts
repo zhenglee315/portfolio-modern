@@ -2,6 +2,10 @@ import { expect, test as base, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import type { AuthUser } from '../../src/features/auth/schemas/auth';
 import { waitForFixtureHydration } from '../fixtures/browser';
+import {
+  profileNavigationLabels,
+  monitoringNavigationLabels,
+} from '../fixtures/workspace-navigation';
 
 type Locale = 'en' | 'zh-Hant' | 'zh-Hans';
 type Copy = { accessDenied: Record<string, string>; ui: Record<string, string> };
@@ -184,7 +188,12 @@ for (const resource of resources) {
     const shell = page.locator(`[data-management-resource="${resource}"]`);
     await expect(shell.locator('tbody > tr')).toHaveCount(6);
     const sidebar = shell.locator('aside [data-sidebar-links]').first();
-    await expect(sidebar.getByRole('link')).toHaveCount(resource === 'sites' ? 4 : 1);
+    await expect(sidebar.getByRole('link')).toHaveText([
+      ...profileNavigationLabels,
+      ...(resource === 'sites'
+        ? [...monitoringNavigationLabels, 'Platform']
+        : [resource === 'users' ? 'Users' : 'Roles']),
+    ]);
     for (const label of ['Overview', 'Requests', 'Workers'])
       await expect(sidebar.getByRole('link', { name: label, exact: true })).toHaveCount(
         resource === 'sites' ? 1 : 0,

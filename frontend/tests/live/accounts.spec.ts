@@ -7,7 +7,9 @@ import {
 } from '@playwright/test';
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { randomBytes } from 'node:crypto';
 import type { ProfileDraft } from '../../src/features/profile-content/model/profile';
+import { contentLanguage } from '../fixtures/profile-editor';
 
 type Account = {
   index: number;
@@ -34,7 +36,7 @@ if (
   throw new Error('Only the named 20-account QA cohort may be edited or deleted.');
 
 /** Authenticate through the real form. No route interception, fabricated cookie or SESSION bypass. */
-async function signIn(page: Page, account: Account) {
+async function signIn(page: Page, account: Pick<Account, 'email' | 'password'>) {
   await page.goto('/en?view=login');
   const form = page.locator('[data-auth-panel]');
   await form.getByLabel('Email', { exact: true }).fill(account.email);
@@ -48,10 +50,61 @@ async function signIn(page: Page, account: Account) {
   await expect(form).toHaveCount(0);
 }
 
-async function section(page: Page, name: string) {
+// SMTP is not implemented: exercise the current server challenge without claiming mail delivery.
+test('real registration: email challenge, default permissions, logout and subsequent login', async ({
+  page,
+}) => {
+  const credentials = {
+    email: `registration-${randomBytes(6).toString('hex')}@example.test`,
+    password: randomBytes(24).toString('base64url'),
+  };
+  await page.goto('/en?view=login');
   await page
-    .locator('main nav')
-    .getByRole('button', { name: new RegExp(name) })
+    .getByRole('group', { name: 'Account access' })
+    .getByRole('button', { name: 'Create account', exact: true })
+    .click();
+  const panel = page.locator('[data-auth-panel]');
+  // The animated inert preview is a div; scope inputs to the one live native form.
+  const form = panel.locator('form');
+  await form.locator('input[name="email"]').fill(credentials.email);
+  await form.locator('input[name="password"]').fill(credentials.password);
+  await form.locator('input[name="passwordConfirmation"]').fill(credentials.password);
+  const challenge = page.waitForResponse((response) =>
+    response.url().endsWith('/api/authority/confirm-email'),
+  );
+  await form.getByRole('button', { name: 'Send code', exact: true }).click();
+  expect((await challenge).status()).toBe(202);
+  const verified = page.waitForResponse((response) =>
+    response.url().endsWith('/api/authority/verify-email'),
+  );
+  await form.locator('input[name="verificationCode"]').fill('123');
+  expect((await verified).status()).toBe(200);
+  await expect(form.locator('[data-code-verified]')).toHaveAttribute('data-code-verified', 'true');
+  const registration = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/authority/register') && response.request().method() === 'POST',
+  );
+  await form.locator('button[type="submit"]').click();
+  expect((await registration).status()).toBe(201);
+  await expect(panel).toHaveCount(0);
+  const session = await page.request.get('/api/authority/session');
+  expect(session.status()).toBe(200);
+  expect(await session.json()).toMatchObject({ email: credentials.email, is_manage_users: false });
+  // Registration currently creates identity only; website creation is not implemented.
+  expect((await page.request.get('/api/portfolio/me/site')).status()).toBe(404);
+  expect((await page.request.post('/api/authority/sign-out')).status()).toBe(200);
+  expect((await page.request.get('/api/portfolio/me/site')).status()).toBe(401);
+  await signIn(page, credentials);
+  expect((await page.request.get('/api/portfolio/me/site')).status()).toBe(404);
+  expect((await page.request.post('/api/authority/sign-out')).status()).toBe(200);
+});
+
+async function section(page: Page, name: string) {
+  const mobile = page.viewportSize()!.width <= 1024;
+  if (mobile) await page.locator('button[aria-controls="management-navigation"]').click();
+  await page
+    .locator(mobile ? '[data-sidebar-drawer]' : '[data-sidebar-rail]')
+    .locator(`[data-sidebar-item="${name.toLowerCase()}"]`)
     .click();
   await expect(page.locator('[data-profile-section]')).not.toHaveAttribute('inert');
 }
@@ -166,7 +219,7 @@ for (const account of manifest.accounts) {
     await expect(page.locator('[data-editor-field="profile.firstName"] input')).toBeEnabled();
     const marker = `QA-${account.index}-${Date.now()}`;
     for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
-      await page.getByLabel('Content language', { exact: true }).selectOption(locale);
+      await contentLanguage(page, locale);
       await page
         .locator('[data-editor-field="profile.firstName"] input')
         .fill(`${marker} ${locale}`);
@@ -174,9 +227,14 @@ for (const account of manifest.accounts) {
         .locator('[data-editor-field="profile.content"] textarea')
         .fill(`Edited biography ${marker} ${locale}`);
     }
-    await page.getByLabel('Content language', { exact: true }).selectOption('en');
+    await contentLanguage(page, 'en');
     await page.getByLabel('GitHub', { exact: true }).fill('https://github.com/example');
     await section(page, 'EXPERIENCE');
+    await page
+      .locator('[data-experience-editor-row]')
+      .first()
+      .getByRole('button', { name: /^Experience actions:/ })
+      .click();
     await page
       .locator('[data-experience-editor-row]')
       .first()
@@ -189,6 +247,11 @@ for (const account of manifest.accounts) {
       `${marker} Studio`,
     );
     await section(page, 'PROJECTS');
+    await page
+      .locator('[data-project-editor-row]')
+      .first()
+      .getByRole('button', { name: /^Project actions:/ })
+      .click();
     await page.locator('main').getByRole('button', { name: 'Edit', exact: true }).first().click();
     await page.getByLabel('Project name').fill(`${marker} Project`);
     await page.getByLabel('Project summary').fill(`${marker} summary`);
@@ -196,7 +259,6 @@ for (const account of manifest.accounts) {
     await section(page, 'SKILLS');
     await page.getByLabel('Category name').fill(`${marker} Backend`);
     await page.getByLabel('Skill name', { exact: true }).fill(`${marker} Python`);
-    await page.getByRole('button', { name: 'Rename skill', exact: true }).click();
     const handles = page.locator('[data-reorder-list="categories"] [data-reorder-label]');
     await handles.first().focus();
     await handles.first().press('ArrowDown');
@@ -245,6 +307,91 @@ for (const account of manifest.accounts) {
     expect((await page.request.get('/api/portfolio/me/site')).status()).toBe(401);
   });
 }
+
+// Use synthetic additions only: unvisited project rows must survive a scoped browser save.
+test('real pagination: scoped save preserves unloaded projects and preview never submits drafts', async ({
+  page,
+}) => {
+  await signIn(page, manifest.accounts[1]!);
+  const request = page.request;
+  const initial = await request.get('/api/portfolio/me/projects?page=1&size=100');
+  expect(initial.status()).toBe(200);
+  const original = (await initial.json()).items as ProfileDraft['projects'][string][];
+  const template = original[0]!;
+  const known = new Set(original.map((item) => item.id));
+  let revision = (await (await request.get('/api/portfolio/me/site')).json()).revision as number;
+  const added: string[] = [];
+  try {
+    for (let index = 0; index < 8; index++) {
+      const created = await request.post('/api/portfolio/projects', {
+        data: { expected_revision: revision, entry: { ...template, id: `qa-page-${index}` } },
+      });
+      expect(created.status()).toBe(200);
+      const state = (await created.json()) as { revision: number; draft: ProfileDraft };
+      revision = state.revision;
+      const id = state.draft.projectOrder.find((value) => !known.has(value))!;
+      expect(id).toBeTruthy();
+      known.add(id);
+      added.push(id);
+    }
+    await page.goto('/en/profile?section=projects');
+    const rows = page.locator('[data-project-editor-row]');
+    await expect(rows).toHaveCount(6);
+    const before = (await (await request.get('/api/portfolio/me/projects?page=1&size=100')).json())
+      .items as ProfileDraft['projects'][string][];
+    await rows.first().getByRole('switch').uncheck();
+    const saved = await save(page);
+    revision = saved.revision;
+    const after = (await (await request.get('/api/portfolio/me/projects?page=1&size=100')).json())
+      .items as ProfileDraft['projects'][string][];
+    expect(after).toHaveLength(10);
+    expect(after.slice(6)).toEqual(before.slice(6));
+    const pagination = page.getByRole('navigation', { name: 'Project pagination', exact: true });
+    await pagination.getByRole('button', { name: 'Page 2', exact: true }).click();
+    await expect(rows).toHaveCount(4);
+    const size = page.getByRole('combobox', { name: 'Rows per page', exact: true });
+    await size.selectOption('10');
+    await expect(rows).toHaveCount(10);
+    await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
+    await rows
+      .nth(1)
+      .getByRole('button', { name: /^Project actions:/ })
+      .click();
+    await rows.nth(1).getByRole('button', { name: 'Edit', exact: true }).click();
+    const marker = `Unsaved preview ${Date.now()}`;
+    await page.getByLabel('Project name').fill(marker);
+    const address = page.url();
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    const preview = page.getByRole('dialog', { name: 'Showcase preview', exact: true });
+    await expect(preview).toContainText(marker);
+    await expect(page).toHaveURL(address);
+    expect((await (await request.get('/api/portfolio/me/site')).json()).revision).toBe(revision);
+    await preview.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('button', { name: 'Cancel changes', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Discard changes', exact: true })
+      .click();
+    await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
+  } finally {
+    // Reload the revision even after an assertion fails, so cleanup never submits stale writes.
+    revision = (await (await request.get('/api/portfolio/me/site')).json()).revision as number;
+    for (const id of added) {
+      const removed = await request.delete(`/api/portfolio/projects/${id.split(':')[1]}`, {
+        data: { expected_revision: revision },
+      });
+      expect(removed.status()).toBe(200);
+      revision = (await removed.json()).revision as number;
+    }
+    const restored = await request.patch(`/api/portfolio/projects/${template.id.split(':')[1]}`, {
+      data: { expected_revision: revision, changes: { visible: template.visible } },
+    });
+    expect(restored.status()).toBe(200);
+    expect(
+      (await (await request.get('/api/portfolio/me/projects?page=1&size=100')).json()).items,
+    ).toEqual(original);
+  }
+});
 
 /** Retain exact identity confirmation and check each selected row before a destructive UI action. */
 async function management(page: Page, resource: string) {
@@ -311,6 +458,28 @@ test('real management: edit QA accounts, publish/unpublish, then delete exactly 
       expect(
         (await page.request.get(`/api/portfolio/site?user=${account.user}&locale=en`)).status(),
       ).toBe(published ? 200 : 404);
+      if (account.index === 1) {
+        // Check production SSR as well as the API: publication must reach the real public route.
+        for (const locale of ['en', 'zh-Hans', 'zh-Hant']) {
+          const document = await page.request.get(`/${locale}/${account.user}`);
+          expect(document.status()).toBe(published ? 200 : 404);
+          if (published) {
+            expect(await document.text()).toContain(`data-portfolio-user="${account.user}"`);
+          }
+        }
+        if (published) {
+          const publicPage = await page.context().newPage();
+          try {
+            await publicPage.goto(`/en/${account.user}`);
+            await expect(
+              publicPage.locator(`[data-portfolio-user="${account.user}"]`),
+            ).toBeVisible();
+            await expect(publicPage.locator('[data-profile-content]')).toBeVisible();
+          } finally {
+            await publicPage.close();
+          }
+        }
+      }
     }
   }
   owner = await management(page, 'users');
@@ -358,7 +527,15 @@ test('real follow-up: monitoring uses live HTTP and Socket.IO data', async ({ pa
   const traffic = page.waitForResponse((response) =>
     response.url().includes('/api/monitor/traffic'),
   );
+  const stream = page.waitForEvent('websocket', {
+    predicate: (socket) => socket.url().includes('/api/socket.io'),
+  });
   await page.goto('/en/management/monitoring');
+  const socket = await stream;
+  // Observe the actual server event, rather than inferring a connected socket from rendered cards.
+  await socket.waitForEvent('framereceived', {
+    predicate: ({ payload }) => String(payload).includes('monitor_snapshot'),
+  });
   expect((await traffic).status()).toBe(200);
   await expect(page.locator('[data-monitor-overview]')).toBeVisible();
   await page.getByRole('link', { name: 'Workers', exact: true }).click();
@@ -386,6 +563,11 @@ test('real follow-up: retained owner uses the offline location modal on a phone'
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page, manifest.accounts[1]!);
   await page.goto('/en/profile?section=experience');
+  await page
+    .locator('[data-experience-editor-row]')
+    .first()
+    .getByRole('button', { name: /^Experience actions:/ })
+    .click();
   await page
     .locator('[data-experience-editor-row]')
     .first()

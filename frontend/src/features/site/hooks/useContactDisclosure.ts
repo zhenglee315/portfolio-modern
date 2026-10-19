@@ -19,7 +19,11 @@ export function useContactDisclosure() {
   const close = useCallback(
     (restore = true) => {
       dispatch({ type: 'close' });
-      if (restore) (contactAnchor() ?? anchor)?.focus({ preventScroll: true });
+      // A draft modal has its own trigger; restore the clicked visible control before a page fallback.
+      if (restore)
+        (anchor?.getClientRects().length ? anchor : contactAnchor())?.focus({
+          preventScroll: true,
+        });
     },
     [anchor],
   );

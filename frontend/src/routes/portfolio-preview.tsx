@@ -29,18 +29,22 @@ function previewRoute(params: { locale?: string; siteId?: string }) {
 export function loader({ params }: Route.LoaderArgs) {
   return previewRoute(params);
 }
+/** Recheck the current session and site-management permission before embedded content mounts. */
 export async function clientLoader({ params, request }: Route.ClientLoaderArgs) {
   const route = previewRoute(params);
   const account = await refreshAuthSession(getQueryClient(), request.signal);
   return { ...route, allowed: canManage(account, 'sites') };
 }
 clientLoader.hydrate = true as const;
+/** Reuse document response policy rather than duplicating it for embedded previews. */
 export function headers() {
   return publicRouteHeaders();
 }
+/** Keep private administrative previews out of search indexes. */
 export function meta() {
   return [{ title: 'Portfolio preview' }, { name: 'robots', content: 'noindex, nofollow' }];
 }
+/** Show a neutral wait state until browser session verification completes. */
 export function HydrateFallback() {
   const { t } = useTranslation();
   return (
@@ -49,6 +53,7 @@ export function HydrateFallback() {
     </div>
   );
 }
+/** Offer explicit entry revalidation without exposing private errors or stale content. */
 export function ErrorBoundary() {
   const { t } = useTranslation();
   const retry = useRevalidator();
@@ -67,6 +72,7 @@ export function ErrorBoundary() {
     </div>
   );
 }
+/** Coordinate embedded presentation and parent-dialog focus/Escape messaging with paired cleanup. */
 export default function PortfolioPreviewRoute({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation();
   const selector = useMemo(() => ({ site_id: loaderData.siteId }), [loaderData.siteId]);

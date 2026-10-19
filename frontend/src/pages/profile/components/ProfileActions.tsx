@@ -4,8 +4,14 @@ import { useProfileEditor } from '../model/editor-context';
 import { Icon } from './ProfileIcon';
 import styles from '../ProfilePage.module.css';
 
-/** A single header action pair submits the page form; status stays visible without a footer bar. */
-export function ProfileActions({ publicHref }: { publicHref: string }) {
+/** Keep read-only preview beside cancel and the sole save action, with status above the controls. */
+export function ProfileActions({
+  publicHref,
+  onPreview,
+}: {
+  publicHref: string;
+  onPreview: () => void;
+}) {
   const { t } = useTranslation();
   const { dirty, hasSaved, cancel, busy, canUpdate } = useProfileEditor();
   return (
@@ -30,6 +36,17 @@ export function ProfileActions({ publicHref }: { publicHref: string }) {
         </Link>
       </div>
       <div className={styles.headingActions}>
+        <button
+          type="button"
+          className={styles.button}
+          disabled={busy}
+          onClick={onPreview}
+          aria-haspopup="dialog"
+          data-profile-preview-trigger="showcase"
+        >
+          <Icon name="eye" />
+          {t('profileEditor.previewDraft')}
+        </button>
         <button type="button" className={styles.button} onClick={cancel} disabled={!dirty || busy}>
           {t('profileEditor.cancel')}
         </button>

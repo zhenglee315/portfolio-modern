@@ -102,6 +102,7 @@ export function meta() {
   return [{ title: 'Portfolio management' }, { name: 'robots', content: 'noindex, nofollow' }];
 }
 
+/** Reuse common document headers for permission-gated responses. */
 export function headers() {
   return publicRouteHeaders();
 }

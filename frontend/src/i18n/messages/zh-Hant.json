@@ -267,6 +267,12 @@
     "overviewMonitoring": "總覽監控"
   },
   "management": {
+    "profile": {
+      "overview": "個人介紹",
+      "experience": "工作與學歷",
+      "projects": "專案作品",
+      "skills": "技能分類"
+    },
     "groups": {
       "monitoring": "監控",
       "management": "管理"

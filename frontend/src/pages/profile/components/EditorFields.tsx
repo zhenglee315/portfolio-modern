@@ -16,12 +16,14 @@ function FieldShell({
   help,
   field,
   required,
+  hideLabel = false,
   children,
 }: {
   label: string;
   help?: string;
   field?: string;
   required?: boolean;
+  hideLabel?: boolean;
   children: (props: {
     id: string;
     'aria-invalid'?: true;
@@ -35,7 +37,7 @@ function FieldShell({
   const description = [help && `${id}-help`, issue && `${id}-error`].filter(Boolean).join(' ');
   return (
     <div className={styles.field} data-editor-field={field}>
-      <label htmlFor={id}>
+      <label htmlFor={id} className={hideLabel ? 'visually-hidden' : undefined}>
         {label}
         {required && <span aria-hidden="true"> ＊</span>}
       </label>
@@ -57,6 +59,7 @@ function FieldShell({
 /** Controlled native inputs keep browser keyboard, date and autofill semantics intact. */
 export function EditorField({
   label,
+  hideLabel,
   help,
   field,
   onChange,
@@ -64,12 +67,19 @@ export function EditorField({
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
   label: string;
+  hideLabel?: boolean;
   help?: string;
   field?: string;
   onChange: (value: string) => void;
 }) {
   return (
-    <FieldShell label={label} help={help} field={field} required={props.required}>
+    <FieldShell
+      label={label}
+      hideLabel={hideLabel}
+      help={help}
+      field={field}
+      required={props.required}
+    >
       {(accessibility) => (
         <input
           {...props}
@@ -83,6 +93,7 @@ export function EditorField({
   );
 }
 
+/** Controlled multiline text reuses field labels, help and save-time validation relationships. */
 export function EditorArea({
   label,
   help,
@@ -117,6 +128,7 @@ export function EditorArea({
   );
 }
 
+/** Native choices share field accessibility and styling; the owner controls the selected value. */
 export function EditorSelect({
   label,
   field,
@@ -145,6 +157,7 @@ export function EditorSelect({
 }
 
 /** Visual grouping is page-local; the shared application tokens still own color and geometry. */
+/** Section framing accepts owner-provided actions without creating another save boundary. */
 export function EditorPanel({
   title,
   description,
@@ -174,6 +187,7 @@ export function EditorPanel({
   );
 }
 
+/** Inject notice content and semantic icon while retaining the common editor presentation. */
 export function EditorNotice({
   children,
   icon = 'questionCircle',
@@ -189,63 +203,31 @@ export function EditorNotice({
   );
 }
 
+/** Expose one controlled visibility switch without persisting or duplicating entity state. */
 export function EditorToggle({
   label,
   checked,
   onChange,
+  disabled = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (value: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className={`${styles.toggle} form-check form-switch`}>
       <input
         type="checkbox"
         role="switch"
+        aria-label={label}
         className="form-check-input"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.currentTarget.checked)}
       />
       <span>{label}</span>
     </label>
-  );
-}
-
-/** Reordering always has keyboard/touch buttons, even when drag handles are available. */
-export function OrderButtons({
-  name,
-  index,
-  total,
-  onMove,
-}: {
-  name: string;
-  index: number;
-  total: number;
-  onMove: (offset: number) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className={styles.orderButtons}>
-      <button
-        type="button"
-        className={styles.smallButton}
-        aria-label={t('profileEditor.moveUp', { name })}
-        disabled={!index}
-        onClick={() => onMove(-1)}
-      >
-        <Icon name="arrowUp" />
-      </button>
-      <button
-        type="button"
-        className={styles.smallButton}
-        aria-label={t('profileEditor.moveDown', { name })}
-        disabled={index === total - 1}
-        onClick={() => onMove(1)}
-      >
-        <Icon name="arrowDown" />
-      </button>
-    </div>
   );
 }
 

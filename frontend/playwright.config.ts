@@ -44,6 +44,8 @@ export default defineConfig({
         '**/online-visitors.spec.ts',
         '**/publication.spec.ts',
         '**/profile-editor.spec.ts',
+        '**/profile-drag-delete.spec.ts',
+        '**/profile-project-pagination.spec.ts',
         '**/profile-api-source.spec.ts',
         '**/profile-location.spec.ts',
         '**/responsive.spec.ts',

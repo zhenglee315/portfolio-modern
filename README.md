@@ -180,14 +180,24 @@ At 390px, the cow, controls and form stack vertically with all eight scene butto
 
 Sign-in, sign-out, registration, email availability and verification codes use the Auth APIs. Server sessions retain account identity and are cleared on sign-out. SMTP currently provides a delivery stub with test code `123`, verified through Redis with a five-minute expiry. Actual email delivery and password recovery remain pending.
 
+### 10. 個人內容編輯 / Profile workspace
+
+Profile 與監控／管理共用側欄，四分區編輯同一份正規化草稿。卡片支援拖曳排序、左滑編輯／刪除、勾選及分頁；標題旁的預覽展示未送出內容，保存則提交一筆版本化交易。
+
+[![目前的 Profile 共用工作區及個人介紹編輯](docs/images/profile-workspace.png)](docs/images/profile-workspace.png)
+
+[![未送出內容使用原首頁樣式的預覽](docs/images/profile-preview.png)](docs/images/profile-preview.png)
+
+[更多卡片、拖放刪除、技能、筆數與手機截圖](frontend/README.md#profile-新功能--profile-editor-tour)；[本人 API 與交易契約](backend/APPs/Portfolio/README.md)。所有展示資料均為隔離 fixture，不是私人帳號內容。
+
 ## 目前進度 / Current status
 
 - 六支公開 Portfolio API 支援預設首頁及各帳號作品集。只有 Site API 以 `user` 查找公開帳號，回傳 `site_id`；其餘內容 API 使用 `site_id`，未帶入時讀取已發布的 default 作品集。資料與快取依 `site_id` 隔離，每個帳號最多一個作品集，草稿不可公開或設為首頁。
-- 登入、登出、註冊、SESSION 與成功登入紀錄已接上 PostgreSQL／Redis；角色包含 CRUD 及 `is_manage_roles`、`is_manage_users`、`is_manage_sites`。
+- 登入、登出、註冊、SESSION 與成功登入紀錄已接上 PostgreSQL／Redis；角色包含 CRUD、獨立 `is_monitor` 及 `is_manage_roles`、`is_manage_users`、`is_manage_sites`。
 - 公開頁面採動態 SSR，保留 `/`、`/en`、`/zh-Hans`、`/zh-Hant`，支援 `/:locale/:user` 與 `/:locale?site_id=1`。區塊、後續分頁與地圖等資源按需載入。
-- 監控包含總覽、請求與 Worker。總覽提供每日 HTTP 趨勢、期間去重登入、國別／Localhost 地圖及採樣可用率；請求與程序透過 Socket.IO 更新，開機成功／失敗累計存於 SYS Redis。每分鐘保存請求及健康觀測。Role／User／Platform 完整編輯與單筆／批次刪除已實作；Profile 已加入本人內容讀取、CUD、排序與整頁交易儲存，啟用前需套用 `e42b19a7d603` migration。逐筆歷史請求查詢、管理新增及作品集發布介面仍待開發。
+- 監控包含總覽、請求與 Worker。總覽提供每日 HTTP 趨勢、期間去重登入、國別／Localhost 地圖及採樣可用率；請求與程序透過 Socket.IO 更新，開機成功／失敗累計存於 SYS Redis。每分鐘保存請求及健康觀測。Role／User／Platform 完整編輯與單筆／批次刪除已實作；Profile 已加入本人內容讀取、CUD、排序與整頁交易儲存，啟用前需套用 `e42b19a7d603` migration。網站發布／取消發布已整合於 Platform 管理；逐筆歷史請求查詢、管理新增、新帳號作品集建立、SMTP 寄信及密碼重設仍待開發。
 
-Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default. Dynamic SSR serves default and individual portfolio URLs with bounded initial content. The live Socket.IO dashboard shows worker resources and requests, while a minute scheduler persists ended events to SQL. Role/User/Platform editing and single/batch deletion are implemented. The monitoring overview adds daily traffic, distinct sign-ins and country/local-network distribution, sampled availability and current-run Redis counters. Profile adds private owner reads, CUD, ordering and atomic editor saves; migration `e42b19a7d603` is required before enabling them. Historical per-request browsing, administration creation and the portfolio publication interface are pending.
+Public APIs, per-site ownership/cache isolation, account sessions and login records are implemented. The Site API resolves a public `user` and returns `site_id`; content APIs use that ID or the published default. Dynamic SSR serves default and individual portfolio URLs with bounded initial content. The live Socket.IO dashboard shows worker resources and requests, while a minute scheduler persists ended events to SQL. Role/User/Platform editing and single/batch deletion are implemented. The monitoring overview adds daily traffic, distinct sign-ins and country/local-network distribution, sampled availability and current-run Redis counters. Profile adds private owner reads, CUD, ordering and atomic editor saves; migration `e42b19a7d603` is required before enabling them. Platform publication/unpublication is implemented. Historical per-request browsing, administration creation, new-account portfolio creation, SMTP delivery and password reset remain pending.
 
 ## 即時請求與 Worker 監控 / Live Request and Worker Monitoring
 
@@ -298,62 +308,61 @@ The tree shows current backend modules and frontend modules. See the [backend RE
 ```text
 portfolio-modern/
 ├── README.md
-├── docs/images/                  # Website screenshots and focused feature crops
+├── AGENTS.md                     # UI 約定與 backend 啟動規則
+├── docs/
+│   ├── images/                   # 三份總覽共用的實際介面截圖與產圖索引
+│   └── code-quality.md           # 驗證結果、限制與重現指令
 ├── frontend/
-│   ├── README.md                 # Frontend architecture and development guide
+│   ├── README.md                 # 詳細目錄、畫面與整合契約
 │   ├── src/
-│   │   ├── root.tsx / routes.ts   # Document shell and route declarations
-│   │   ├── app/                  # Providers and shared QueryClient assembly
-│   │   ├── routes/               # URL entry, dynamic SSR loaders and SEO
-│   │   ├── pages/               # Portfolio, management and access-denied composition
-│   │   ├── features/            # Site, journey, experiences, projects, skills,
-│   │   │                        # appearance, language, online visitors, auth, account menu, management and monitoring
-│   │   ├── shared/              # Reusable API infrastructure, UI and utilities
-│   │   ├── i18n/                # Locale setup, dictionaries and copy helpers
-│   │   ├── styles/              # Design tokens and global styles
-│   │   └── assets/              # Imported fonts, map and illustrations
-│   ├── public/                  # Unprocessed favicon and license files
-│   ├── scripts/                 # Accepted builds, artifact checks and preview
-│   ├── deploy/                  # Generic Nginx configuration example
-│   ├── .env.example             # Public environment template
-│   ├── package.json / package-lock.json
-│   └── react-router.config.ts / vite.config.ts / tsconfig.json
+│   │   ├── app/
+│   │   ├── routes/
+│   │   ├── pages/                # portfolio／profile／management／access-denied
+│   │   ├── features/             # 十三個功能及公開介面索引
+│   │   ├── shared/               # 共用 UI／hooks／API／schema 與索引
+│   │   ├── i18n/
+│   │   ├── styles/
+│   │   └── assets/
+│   ├── tests/                    # unit／e2e／live／fixtures／文件擷取
+│   ├── scripts/
+│   ├── public/
+│   ├── deploy/
+│   ├── package.json
+│   └── package-lock.json
 └── backend/
+    ├── README.md                 # API、設定、工具索引與詳細目錄
     ├── APPs/
-    │   ├── Portfolio/            # Six public content GET APIs
-    │   │   ├── views_portfolio.py
-    │   │   ├── module/
-    │   │   └── schema/
-    │   └── Sys/                  # Online-count diagnostic API and monitoring Socket.IO events
+    │   ├── Auth/
+    │   ├── Management/
+    │   ├── Monitor/
+    │   ├── Portfolio/
+    │   └── Sys/
     ├── COMMON/
     │   ├── decorator/
-    │   ├── schema/               # Shared help, parsers, responses
-    │   └── tools/storage/        # Redis and SQLAlchemy helpers
+    │   ├── schema/
+    │   └── tools/                # 一般工具及 Redis／SQLAlchemy 指南
     ├── SYSTEM/
-    │   ├── config.yaml           # Published development defaults; replace production secrets
-    │   ├── settings.py
-    │   ├── lifespan.py
-    │   ├── database/             # Async DB and Redis connection manager
-    │   ├── models/               # Portfolio, auth, Alembic migrations
+    │   ├── database/
+    │   ├── models/
     │   ├── middleware/
-    │   ├── static/               # Local Swagger/ReDoc assets
-    │   └── tools/                # Router, docs, worker monitoring and Socket.IO assembly
-    ├── SCHEDULER/                # Scheduled jobs and distributed execution locks
-    ├── manage.py                 # Starts FastAPI and APScheduler together
-    ├── manage_fastapi.py         # FastAPI child entry point
-    ├── manage_apscheduler.py     # APScheduler child entry point
+    │   ├── geoip/
+    │   └── tools/                # FastAPI／Socket／IP／監控組裝
+    ├── SCHEDULER/                # JOBs、scheduler adapter、分散 lease
+    ├── tests/
+    ├── manage.py                 # FastAPI 與 APScheduler 同時啟動
+    ├── check.py
     ├── alembic.ini
     ├── pyproject.toml
     └── uv.lock
 ```
 
-- `APPs`：按 Portfolio 與 Sys 模組組織 API。`views` 定義 CBV 路由，`schema` 解析參數及驗證回應，`module` 執行業務查詢。
+- `APPs`：按 Auth、Management、Monitor、Portfolio 與 Sys 模組組織 API。`views` 定義 CBV 路由，`schema` 解析參數及驗證回應，`module` 執行業務查詢。
 - `COMMON`：跨模組共用的裝飾器、例外、資料格式與工具。
 - `SYSTEM`：系統設定、路由定義、生命週期、資料庫基礎設施與 middleware。
 - `SYSTEM/models`：作品集與帳號的 ORM 模型，以及 Alembic migration；資料表需手動遷移。
 - `manage.py`：後端統一啟動入口，同時啟動 FastAPI 與 APScheduler；`manage_fastapi.py` 負責 FastAPI、文件與 Socket.IO 組裝，`manage_apscheduler.py` 負責排程。
 
-- `APPs`: Portfolio and Sys APIs. `views` declares CBV routes, `schema` parses parameters and validates responses, and `module` runs business queries.
+- `APPs`: Auth, Management, Monitor, Portfolio and Sys APIs. `views` declares CBV routes, `schema` parses parameters and validates responses, and `module` runs business queries.
 - `COMMON`: Decorators, exceptions, schemas, and utilities shared across modules.
 - `SYSTEM`: Configuration, route definitions, lifecycle management, database infrastructure, and middleware.
 - `SYSTEM/models`: Portfolio and account ORM models and Alembic migrations; apply migrations manually.

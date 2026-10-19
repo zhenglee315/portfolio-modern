@@ -14,6 +14,14 @@ export type ProfileEditorState = {
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  projectPage: number;
+  projectSize: number;
+  projectLoading: boolean;
+  projectError: boolean;
+  retryProjects: () => void;
+  reloadContent: () => void;
+  openProjectPage: (page: number) => void;
+  openProjectSize: (size: number) => void;
   issues: DraftIssue[];
   update: (updater: (draft: ProfileDraft) => ProfileDraft) => void;
   save: () => void;
@@ -21,7 +29,7 @@ export type ProfileEditorState = {
   openExperience: (id?: string) => void;
   openProject: (id?: string) => void;
   openSection: (section: ProfileSection) => void;
-  confirm: (action: () => void, kind?: 'delete' | 'discard' | 'import') => void;
+  confirm: (action: () => void, kind?: 'delete' | 'discard' | 'import', message?: string) => void;
 };
 export const ProfileEditorContext = createContext<ProfileEditorState | null>(null);
 

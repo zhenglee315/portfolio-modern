@@ -49,6 +49,7 @@ function ProfileLoading() {
 // React Router loads this route separately from public portfolio screens.
 export const HydrateFallback = ProfileLoading;
 
+/** Allow explicit identity revalidation while withholding owner content after route failure. */
 export function ErrorBoundary() {
   const { t } = useTranslation();
   const revalidator = useRevalidator();
@@ -68,13 +69,16 @@ export function ErrorBoundary() {
   );
 }
 
+/** Exclude owner editing documents from indexing; public portfolios own their separate metadata. */
 export function meta() {
   return [{ title: 'Profile · Portfolio' }, { name: 'robots', content: 'noindex, nofollow' }];
 }
+/** Apply shared document headers without duplicating the route response policy. */
 export function headers() {
   return publicRouteHeaders();
 }
 
+/** Compose authenticated editing from the validated route locale; content remains page-owned. */
 export default function ProfileRoute({ loaderData }: Route.ComponentProps) {
   return <ProfilePage locale={loaderData.locale} />;
 }

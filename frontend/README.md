@@ -6,9 +6,11 @@
 
 This directory implements the React migration of `portfolio-web`, preserving its design, three languages, and interaction rules while integrating with the existing FastAPI backend. The frontend owns presentation, interaction, and data fetching; the backend owns business data, validation, authorization, and persistence.
 
-**目前狀態：React 功能遷移、登入介面與即時監控已實作。** 十二個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數、登入、帳號選單、管理列表及 Socket.IO 監控。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。公開首頁與個人網址由 Node 動態 SSR，先解析已發布的 Site，再載入有界首批內容；後續資料與互動按需取得。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
+**目前狀態：React 功能遷移、登入介面與即時監控已實作。** 十三個 feature 涵蓋公開內容、三語切換、經歷／專案／雙層技能分頁、專案詳情、旅程地圖與播放、四主題設定、聯絡氣泡、在線人數、登入、帳號選單、管理列表、Profile 本人內容編輯與草稿預覽及 Socket.IO 監控。公開內容串接六支 GET API，在線人數於瀏覽器另讀取 heartbeat；登入與註冊已串接後端 SESSION API；註冊暫用驗證碼 123，SMTP 寄信與密碼重設仍待接入。公開首頁與個人網址由 Node 動態 SSR，先解析已發布的 Site，再載入有界首批內容；後續資料與互動按需取得。元件與頁面規格集中在本文件，程式使用英文用途／介面／生命週期註解，樣式責任以 CSS 註解說明。
 
-**Status: React feature migration, account interface and live monitoring implemented.** Twelve features cover public content, locales, numbered collections, project detail, journey mapping/playback, appearance, contact, online visitors, account forms/menu, management lists and Socket.IO monitoring. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in and registration use the backend session API. Registration temporarily uses code 123 while SMTP delivery and password reset await integration. The default homepage and owner URLs use dynamic Node SSR, resolving a published Site before reading bounded initial content. Subsequent data and interactions load on demand. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
+**Status: React feature migration, account interface and live monitoring implemented.** Thirteen features cover public content, locales, numbered collections, project detail, journey mapping/playback, appearance, contact, online visitors, account forms/menu, management lists, Profile owner editing/draft previews and Socket.IO monitoring. Public content uses six GET endpoints, while the browser separately reads heartbeat. Sign-in and registration use the backend session API. Registration temporarily uses code 123 while SMTP delivery and password reset await integration. The default homepage and owner URLs use dynamic Node SSR, resolving a published Site before reading bounded initial content. Subsequent data and interactions load on demand. Component/page specifications live here; English comments describe code interfaces, lifecycle and style responsibility.
+
+共用登記分為 [Shared 基礎契約](src/shared/README.md)、[Feature 公開介面](src/features/README.md)與 [Profile 元件索引](src/pages/profile/README.md)；`npm run check:docs` 同時驗證三份 README，新增元件或公開匯出時須同步登記。
 
 ## 網站畫面導覽 / Visual Website Tour
 
@@ -16,15 +18,41 @@ User management 的 Role 指派共用 [`SearchableSelect`](src/shared/ui/Searcha
 
 Platform management 的 Default 資料列停用 Active 開關；完整編輯視窗以可重用的 `editUnavailableReason(draft)` 約束欄位，保留欄位於草稿中，取消 Default 後才可編輯 Active。三語提示說明限制，強制提交不合法草稿亦無法保存；後端 409 `DEFAULT_SITE_DEACTIVATE_FORBIDDEN` 顯示 warning。Active 不會自動取消 Default。
 
-網站的[完整截圖圖解](../README.md#網站圖解--website-tour)位於專案 README，涵蓋首頁、旅程地圖、學經歷、專案時間軸／詳情、技能、主題、語言、聯絡、登入／註冊、草地牛、監控總覽／請求／Worker 與平板／手機版型。所有正式文件圖片集中在 [`../docs/images/`](../docs/images/README.md)，兩份 README 共用圖片，維持單一來源。
+網站的[完整截圖圖解](../README.md#網站圖解--website-tour)位於專案 README，涵蓋首頁、旅程地圖、學經歷、專案時間軸／詳情、技能、主題、語言、聯絡、登入／註冊、草地牛、監控總覽／請求／Worker 與平板／手機版型。所有正式文件圖片集中在 [`../docs/images/`](../docs/images/README.md)，前後端及專案 README 共用圖片，維持單一來源。
 
-The project README contains the [complete screenshot tour](../README.md#網站圖解--website-tour), covering the overview, map, experience, project timeline/detail, skills, appearance, language, contact, sign-in/registration, the cow workspace, monitoring overview/requests/workers, tablet and mobile layouts. Both guides share the documentation assets in [`../docs/images/`](../docs/images/README.md).
+The project README contains the [complete screenshot tour](../README.md#網站圖解--website-tour), covering the overview, map, experience, project timeline/detail, skills, appearance, language, contact, sign-in/registration, the cow workspace, monitoring overview/requests/workers, tablet and mobile layouts. The frontend, backend and project guides share the documentation assets in [`../docs/images/`](../docs/images/README.md).
 
 [![專案時間軸局部裁切：月份、目前節點、摘要與詳情入口 / Project timeline crop with month groups, active node, summaries and detail controls](../docs/images/project-timeline.png)](../README.md#4-專案時間軸與詳情--project-timeline-and-detail)
 
 本文件以下保留架構、安裝與元件規格；圖解介紹操作與畫面，規格說明介面、資料契約及生命週期。
 
 The sections below retain architecture, setup and component specifications. The tour explains the visible experience; the specifications define interfaces, data contracts and lifecycle.
+
+### Profile 新功能 / Profile editor tour
+
+以下為目前應用的實際截圖，使用隔離的合成 owner 資料及 Mint 主題。Profile／Monitoring／Management 共用側欄；四個編輯入口為 Introduction、Work & education、Projects、Skill categories。預覽入口位於標題旁，展示尚未送出的工作副本。
+
+[![Profile 共用工作區、四分區導航、內容語言及唯一保存入口](../docs/images/profile-workspace.png)](../docs/images/profile-workspace.png)
+
+卡片頂列整合勾選、拖曳把手、標題、顯示開關及 ⋮；向左滑後顯示「編輯／刪除」，操作仍由既有確認與全頁 Save 處理。
+
+[![卡片左滑後的編輯及刪除操作](../docs/images/profile-swipe-actions.png)](../docs/images/profile-swipe-actions.png)
+
+預覽重用首頁 Views，保留未送出內容、獨立分頁及返回焦點，不使用另一套首頁版型。
+
+[![顯示未送出姓名的首頁樣式預覽 modal](../docs/images/profile-preview.png)](../docs/images/profile-preview.png)
+
+| 圖片                                                   | 功能                                                             |
+| ------------------------------------------------------ | ---------------------------------------------------------------- |
+| [專案列表](../docs/images/profile-projects.png)        | 全選／選取數位於新增虛線框上方，緊湊卡片與右對齊日期。           |
+| [拖放刪除](../docs/images/profile-drag-delete.png)     | 完整卡片維持抓取位置；碰到刪除目標時高亮紅色，放開才進入確認。   |
+| [分頁與筆數](../docs/images/profile-pagination.png)    | 本人專案依 page／size 讀 API；每頁筆數可選，保存保留未載入專案。 |
+| [技能分類](../docs/images/profile-skills.png)          | 分類／技能拖曳與共享技能名稱、引用清單。                         |
+| [內容語言](../docs/images/profile-language.png)        | 重用 LanguageMenu，三語選項、已選狀態及鍵盤生命週期一致。        |
+| [手機編輯](../docs/images/profile-mobile.png)          | 同一份導航／卡片／操作，按螢幕寬度換行。                         |
+| [離線地點](../docs/images/profile-location-mobile.png) | 本機城市搜尋與地圖，明確確認／取消座標。                         |
+
+全部擷取指令為 `npm run docs:capture`；只更新 Profile 使用 `npm run docs:profile`，監控使用 `npm run docs:monitor`。固定檔名、資料來源及檢視規則登記於 [圖片索引](../docs/images/README.md)。
 
 ## 工程原則 / Engineering Principles
 
@@ -105,43 +133,63 @@ This tree shows the main layers rather than every implementation file. React Rou
 
 ```text
 frontend/
-├── README.md                      # Architecture and development guide
-├── package.json / package-lock.json
-├── react-router.config.ts         # Source directory and rendering configuration
-├── vite.config.ts / tsconfig.json
-├── .env.example                   # Public configuration example
-├── scripts/                       # Build acceptance, preview and public-output checks
-├── deploy/                        # Generic Node SSR/static/API hosting example
-├── public/                        # Stable public paths and asset license notices
+├── README.md
+├── package.json
+├── package-lock.json
+├── .env.example                  # 公開環境變數範例
+├── react-router.config.ts        # SSR 與 build 目錄
+├── vite.config.ts                # dev／SSR optimizer 與 API proxy
+├── bootstrap-css.ts              # 共用 Bootstrap CSS 選取
+├── tsconfig.json
+├── eslint.config.js              # 分層／公開入口檢查
+├── vitest.config.ts
+├── vitest.integration.config.ts  # 真實 API 契約 opt-in
+├── playwright.config.ts          # 完整隔離瀏覽器矩陣
+├── playwright.docs.config.ts     # 文件截圖，沿用同一組 app／API fixtures
+├── playwright.live.config.ts     # 私人 manifest 的真實操作 opt-in
+├── scripts/                      # 建置、預覽、資產預算與 README 契約檢查
+├── deploy/                       # Node SSR／API 反向代理範例
+├── public/                       # 穩定公開路徑及授權聲明
+├── tests/
+│   ├── e2e/                      # 操作回歸與 *-docs.capture.ts
+│   ├── fixtures/                 # 隔離 HTTP／Socket／owner DTO fixtures
+│   ├── unit/                     # 單元與明確 opt-in 的 live API 契約
+│   ├── unit-fixtures/
+│   └── live/                     # 真實帳號／管理／註冊操作
 └── src/
-    ├── root.tsx                   # Root layout and providers
-    ├── routes.ts                  # URL-to-route-module mapping
-    ├── app/                       # Application assembly and providers
-    ├── routes/                    # Route modules, loaders, metadata
-    ├── pages/                     # Complete page composition
+    ├── root.tsx                  # root layout 與 provider
+    ├── routes.ts                 # URL → route module
+    ├── app/                      # 組裝、QueryClient、SESSION 與 provider
+    ├── routes/                   # loader、metadata、權限入口與錯誤邊界
+    ├── pages/
+    │   ├── portfolio/            # 公開首頁組裝
+    │   ├── profile/              # 四分區編輯；components／model 與專用索引
+    │   ├── management/           # 列表、監控與管理 modal 組裝
+    │   └── access-denied/        # 403 呈現
     ├── features/
-    │   ├── site/
-    │   ├── journey/
-    │   ├── experiences/
-    │   ├── projects/
-    │   ├── skills/
-    │   ├── online-visitors/
-    │   ├── auth/
-    │   ├── account-menu/
-    │   ├── management/
-    │   ├── monitoring/            # Private Socket.IO dashboard, schema, flow and connection hook
+    │   ├── account-menu/         # 共用 workspace navigation 與帳號選單
     │   ├── appearance/
-    │   └── language/
+    │   ├── auth/
+    │   ├── experiences/
+    │   ├── journey/
+    │   ├── language/             # 介面／內容語言共用選單
+    │   ├── management/
+    │   ├── monitoring/
+    │   ├── online-visitors/
+    │   ├── profile-content/      # normalized draft、private API、分頁合併
+    │   ├── projects/
+    │   ├── site/
+    │   └── skills/
     ├── shared/
-    │   ├── README.md             # Shared contracts, consumers and usage examples
-    │   ├── api/                   # HTTP transport and common errors
-    │   ├── schemas/               # Common record, career and numbered-page contracts
-    │   ├── ui/                    # States, collection/tag disclosure, PixelBubble and PixelTooltip
-    │   ├── hooks/                 # General interaction hooks
-    │   └── lib/                   # General pure functions
-    ├── i18n/                      # Fixed UI dictionaries and locale utilities
-    ├── styles/                    # Base styles, themes, design tokens
-    └── assets/                    # Imported fonts, icons, maps, images
+    │   ├── README.md             # 全部 shared 匯出、用途與使用契約
+    │   ├── api/
+    │   ├── schemas/
+    │   ├── ui/                   # 共用 UI；DataTable 有專用 README
+    │   ├── hooks/
+    │   └── lib/
+    ├── i18n/                     # 固定 UI／Profile 字典及 locale utilities
+    ├── styles/                   # 全域 tokens、主題、共用動畫
+    └── assets/                   # 字型、SVG、離線地圖及原稿授權
 ```
 
 各 feature 依實際責任建立 api、schemas、model、hooks、components，透過 index.ts 公開介面。沒有 API 的 appearance／language 不建立空 API 層；正式建置與公開產物檢查放 scripts，通用 hosting 範例放 deploy。
@@ -315,7 +363,7 @@ Email availability is checked on registration input blur or pointer departure. D
 
 Sending and verification use the real APIs. While SMTP is being prepared, the backend stores temporary code 123 in the System Redis cache at verify_<email> with a 300-second expiry. A successful send starts the server's 60-second retry delay; only its deadline is stored in sessionStorage. The checked icon follows server verification, not nonempty input. Registration verifies the current email proof before creating an account, recovers from wrong/expired codes and raced duplicates, and receives the server-selected default role and session.
 
-`AuthPanel.onAuthenticate({mode,fields,signal})` 是由頁面注入的真實登入／註冊服務接入點，帳密只存在表單及單次 FormData 呼叫，不放入 React state、儲存或提示內容。只有這個 Promise 真正成功時，才顯示綠色成功提示，牛切為看你，並以共用 PixelBubble 的箭頭尾巴顯示三語「歡迎」。模式切換或卸載取消待辦請求並忽略過期結果；失敗沿用共用錯誤分類。頁面延後載入 ConnectedAuthPanel，登入透過 POST /api/authority/sign-in 傳送 JSON，使用 credentials: include 與 no-store，驗證帳號／角色／七項權限契約後才顯示成功。SESSION cookie 由瀏覽器管理；登入成功清空密碼並恢復遮蔽，編輯欄位清除歡迎狀態。401、429、422 及服務故障有三語安全提示，註冊沿用上述查重、寄碼與驗證流程；忘記密碼仍顯示未開放。欄位檢查仍保留在欄位旁，密碼不一致以紅色提示，其他操作訊息統一走全站提示。
+`AuthPanel.onAuthenticate({mode,fields,signal})` 是由頁面注入的真實登入／註冊服務接入點，帳密只存在表單及單次 FormData 呼叫，不放入 React state、儲存或提示內容。只有這個 Promise 真正成功時，才顯示綠色成功提示，牛切為看你，並以共用 PixelBubble 的箭頭尾巴顯示三語「歡迎」。模式切換或卸載取消待辦請求並忽略過期結果；失敗沿用共用錯誤分類。頁面延後載入 ConnectedAuthPanel，登入透過 POST /api/authority/sign-in 傳送 JSON，使用 credentials: include 與 no-store，驗證帳號／角色／八項權限契約後才顯示成功。SESSION cookie 由瀏覽器管理；登入成功清空密碼並恢復遮蔽，編輯欄位清除歡迎狀態。401、429、422 及服務故障有三語安全提示，註冊沿用上述查重、寄碼與驗證流程；忘記密碼仍顯示未開放。欄位檢查仍保留在欄位旁，密碼不一致以紅色提示，其他操作訊息統一走全站提示。
 
 `AuthPanel.onAuthenticate({mode,fields,signal})` is the page-injected real sign-in/registration service boundary. Credentials remain in the form and one FormData call, never React state, storage or notifications. Only successful resolution produces a green notice and the watching cow with a translated Welcome speech bubble using shared PixelBubble/tail. Mode changes and unmount abort pending work and ignore late results; failures reuse shared classification. The page lazily loads ConnectedAuthPanel. Sign-in posts JSON to /api/authority/sign-in with credentials: include and no-store, validates identity/role/eight permissions, and displays success only after the response passes. The browser manages the session cookie; success clears and hides passwords, and editing clears the welcome state. Known 401/429/422/service failures have safe localized copy. Registration uses the availability/code/verification flow above; password reset remains unavailable. Field validation stays local, with password mismatch shown in red; operation messages use the global host.
 
@@ -466,9 +514,9 @@ Keep one authoritative server-data cache. Query caching is not a globally normal
 
 Cache keys identify the resource and all relevant selection parameters. Manage numbered pages according to the Query API, keep pages scoped, and ensure failed or outdated requests do not advance or overwrite visible state.
 
-目前已支援多人的公開作品集：每個帳號最多一個 Site；公開 handle、Site ownership、技能複合 identity、公開狀態、路由與 cache scope 一起隔離。此階段建立公開瀏覽架構，不包含 Dashboard、內容 CRUD、編輯表單或發布操作 UI。
+目前已支援多人的公開作品集：每個帳號最多一個 Site；公開 handle、Site ownership、技能複合 identity、公開狀態、路由與 cache scope 一起隔離。公開瀏覽與 Profile 本人編輯、監控及管理工作區共存；本人內容由 Profile 儲存，發布／首頁設定由 Platform 管理。
 
-Multi-author public browsing coordinates handles, Site ownership, skill identities, visibility, routes and cache scopes. This phase provides the public foundation without dashboard, content CRUD, editing forms or publication controls.
+Multi-author public browsing coordinates handles, Site ownership, skill identities, visibility, routes and cache scopes. Public browsing coexists with Profile owner editing, monitoring and management workspaces. Profile saves owner content; Platform manages publication and the default homepage.
 
 ## 程式與視覺標準 / Code and Visual Standards
 
@@ -577,9 +625,9 @@ Public SSR resolves content on each request without rebuilding frontend code. Qu
 
 Run npm run check for types, lint, formatting, shared documentation, Vitest and production builds. Tests, fixtures and runner configs ship with the project; E2E uses an isolated build and fixture API, while live API tests have a separate integration command. Disposable evidence stays under agent/.
 
-後端管理列表與 Portfolio preview 已共用 class 權限驗證器，每次依 SESSION 的 ID 讀取目前帳號與角色權限；CUD 與各模組獨立 CRUD 權限仍記錄於 [權限待辦](../docs/management-permissions-todo.md)。
+後端管理列表與 Portfolio preview 已共用 class 權限驗證器，每次依 SESSION 的 ID 讀取目前帳號與角色權限；Role／User／Site 的 PATCH、單筆及批次刪除已實作，依各資源管理旗標驗證，內容 CRUD 旗標不能替代管理授權；管理新增仍未實作。
 
-Management lists and portfolio previews share a class-based permission dependency that refreshes the current account and role from the SESSION ID on every request. CUD and per-module CRUD grants remain in the [permission TODO](../docs/management-permissions-todo.md).
+Management lists and portfolio previews share a class-based permission dependency that refreshes the current account and role from the SESSION ID on every request. Role/User/Platform PATCH and single/batch deletion use the matching management flag; content CRUD flags cannot substitute. Administration creation remains pending. See the [permission module](../backend/APPs/Management/module/README.md) for the current contract.
 
 原始碼、CSS、字典、字型／地圖／圖片及授權、建置 scripts、deploy 範例與必要工具設定隨功能提交。正式 tests／fixtures／設定隨專案維護；一次性測試證據、依賴環境及可重建產物不提交；`.react-router` 由 typecheck／dev／build 產生，正式產物由 build 產生。
 
@@ -591,9 +639,9 @@ Route code 自動分割；AuthPanel 在切換到帳號畫面時載入，牛場�
 
 Route splitting is automatic. AuthPanel loads when entering the account view, which then requests its cow scene. Maps load near the viewport, details on opening and contact/mascot on disclosure, including the initial offer. The `BackgroundField` shell and pointer halo load with the page; only the optional `BackgroundSignals` grid/pulse controller is lazy. A delayed decoration chunk cannot hold back the inward frame or halo. A visible lazy map can load during initial viewing. `bootstrap-css.ts` selects precompiled official CSS for the used Bootstrap foundations, utilities, Dropdown, Offcanvas, Modal and their style dependencies; React-Bootstrap owns component behavior without the Bootstrap DOM bundle.
 
-每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1,565,000 bytes raw／525,000 bytes gzip、CSS 425,000 bytes raw／90,000 bytes gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB、獨立離線地圖 JSON 3,150,000 bytes raw／1,000,000 bytes gzip。JS 包含管理操作、三語提示、Profile 編輯器及按需載入的 Socket.IO 監控與 Leaflet 選位地圖；CSS 包含共用麵包屑、背景進場、Settings、Profile 與地圖樣式。量測依當次建置驗證，超限會停止接受新產物。
+每次建置以 `verify-public` 的實際輸出檢查完整 client artifact；總產物大小不等於首屏傳輸量，hosting 壓縮與按需載入影響實際 bytes。驗證上限：全部 JS 1,585,000 bytes raw／525,000 bytes gzip、CSS 427,000 bytes raw／90,000 bytes gzip、字型 250 KB、map 250 KB、聯絡吉祥物 `cow-engineer-*` 1.25 MB、獨立離線地圖 JSON 3,150,000 bytes raw／1,000,000 bytes gzip。JS 包含管理操作、三語提示、Profile 編輯器及按需載入的 Socket.IO 監控與 Leaflet 選位地圖；CSS 包含共用麵包屑、背景進場、Settings、Profile 與地圖樣式。量測依當次建置驗證，超限會停止接受新產物。
 
-Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1,565,000 raw/525,000 gzip bytes for JavaScript, 425,000 raw/90,000 gzip bytes for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot, and 3,150,000 raw/1,000,000 gzip bytes for the separate offline atlas JSON. The ceiling includes management actions, localized copy, the Profile editor and lazy Socket.IO/Leaflet clients. CSS includes shared breadcrumbs, entrance, settings, Profile and map styles. Each build measures its actual output; output exceeding a ceiling is rejected.
+Every build verifies its actual complete client artifact through `verify-public`. Artifact totals are not first-view transfer claims; server compression and deferred loading affect transferred bytes. Acceptance ceilings are 1,585,000 raw/525,000 gzip bytes for JavaScript, 427,000 raw/90,000 gzip bytes for CSS, 250 KB for fonts, 250 KB for the map and 1.25 MB for the `cow-engineer-*` contact mascot, and 3,150,000 raw/1,000,000 gzip bytes for the separate offline atlas JSON. The ceiling includes management actions, localized copy, the Profile editor and lazy Socket.IO/Leaflet clients. CSS includes shared breadcrumbs, entrance, settings, Profile and map styles; the measured Profile swipe/drop additions keep the bounded CSS ceiling at 427 KB. Each build measures its actual output; output exceeding a ceiling is rejected.
 
 手機載入目標：raw HTML ≤200KiB、基礎初始 JS gzip ≤258KiB、LCP ≤2.5 秒、CLS ≤0.1。初始離屏 Map／Auth／Cow／detail 按需載入，API 不自動讀第 2 頁；地圖已鄰近 viewport 時才載入。
 
@@ -666,9 +714,9 @@ A confirmed missing SESSION, false permission or SESSION HTTP 401/403 publishes 
 | 欄位及詳情 / Columns and details | Columns 只切換指定的主表欄位；其他完整資料由共用 ManagementDetails 呈現，API 字串保持純文字。布林欄位依欄位 renderer 呈現唯讀 checkbox 或 switch，缺資料 null 顯示破折號。 / Main-column visibility and shared plain-text record details; read-only status renderers and explicit missing values.  |
 | 主題 / Themes                    | Bootstrap table/forms/pagination 保留官方樣式；背景、表頭、列 hover、switch 與控制色透過既有語意 tokens 適應 mint／blue／amber／mist。 / Existing palette tokens adapt Bootstrap surfaces and hover states.                                                                                        |
 
-管理頁保留三支 GET，並完成 Role／User／Platform 的 PATCH。表格即時保存：Role 的八個權限及 Active／Default、User 的 Active、Platform 的 Active／Default；完整 Edit 使用相同資源 PATCH，只在 Save 確認後保存。登入 Email、PK／FK、關聯及統計欄位唯讀。Add／Delete 仍為預留介面，刪除確認不送出資料變更。詳情草稿不修改 query cache；保存中鎖定，失敗保留，原資料已變更時阻止覆寫。搜尋、篩選、排序及分頁仍由伺服器執行；管理列表與 Preview 包含停用的目標資料。
+管理頁保留三支 GET，並完成 Role／User／Platform 的 PATCH。表格即時保存：Role 的八個權限及 Active／Default、User 的 Active／角色指派、Platform 的 Active／Default；完整 Edit 使用相同資源 PATCH，只在 Save 確認後保存。User 亦可透過 SearchableSelect 指派 role_id；登入 Email、PK、其他 FK 及統計欄位唯讀。單筆及本頁勾選批次刪除已串接原資源 API，共用確認及原值核對；Add 尚未串接。詳情草稿不修改 query cache；保存中鎖定，失敗保留，原資料已變更時阻止覆寫。搜尋、篩選、排序及分頁仍由伺服器執行；管理列表與 Preview 包含停用的目標資料。
 
-All three resources support GET and PATCH; inline controls and confirmed full-detail saves share each resource endpoint. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
+All three resources support GET, PATCH and single/batch deletion; inline controls and confirmed full-detail saves share each resource endpoint. Entry reads one page of the selected resource without prefetching other resources/pages. Query changes and unmount consume cancellation signals. Platform uses the selected locale only; account/platform rows remain one person each, and roles remain one role each. Database queries own search, filters, ordering and pagination. Column visibility and row details use the already validated page.
 
 三個管理頁沒有前端排序條件時，`managementListParams` 省略 API 的 sort，由後端統一使用 `updatetime:desc`，同時間以 `id:asc` 穩定分頁。有條件時依點擊優先順序傳送，首次進入與取消全部排序後都不預選箭頭。URL 的 `sort=` 是 UI 狀態，API 不傳空 sort。
 
@@ -676,58 +724,57 @@ Without frontend sort criteria, managementListParams omits sort so all three bac
 
 共用套件由 DataTable、DataTableColumnMenu、table-filter、table-query、useDataTableQuery／useDataTableSelection 及 i18n/table-copy 組成。各資料欄以型別設定提供 filter icon、條件選擇與輸入；三個管理頁共用完整流程，只有欄位、renderer、schema／API adapter 各自擁有。單獨 boolean query 參數、radio filter 與排序教學文字已移除。所有資料對齊標題中心；字串預設單行省略，hover 原生 title 查看完整內容；欄位可用 `truncate: false` 保留全文並換行，User 的 Email 已套用。詳情／匯出保留原文。完整 props、型別及最小使用範例見共用 README。 DataTable 首次 loading 位於工具列／排序摘要下方、表頭上方。換頁、排序與篩選期間，`useManagementList` 只在相同身份／資源／語言內保留 query 的前頁資料與分頁資訊，表格維持尺寸並由既有 loading 動畫覆蓋；舊列隱藏且停用，新頁 DOM 完成後淡入，reduced motion 直接顯示。錯誤與空資料提示保留在表格下方。
 
-三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。後續批次更新操作尚未串接。
+三個管理表格最左側皆提供列勾選與表頭「全選本頁」，部分選取時顯示半勾選。左下角顯示 `Showing 1 to 10 of 57 rows, Total: 57`，Total 直接使用 API 的 `total`，不使用當頁 rows 長度；有選取時追加實際數量，例如 `, 3 rows selected`。取消選取後移除選取後綴，文案隨語言本地化。選取是本地狀態，不發送 API 或修改布林欄位；翻頁、搜尋、排序、篩選、每頁筆數、語言、資源或帳號切換會清除。Columns 的 All 只控制欄位顯示；匯出仍為本頁所有資料的可見欄位，不包含選取欄。刪除選取會共用各資源的批次刪除 API；一般欄位沒有批次更新。
 
 平台表格只提供 ID、Email、Profile（checkbox）、Publish（checkbox）、Default（toggle）、Active（toggle）、Updated、Actions 這八個欄位。Email 使用 `owner_email`，直接讀取 `auth_user.email`，全文顯示且在詳情永遠唯讀；作品集網址代號 `user` 僅供原公開路由與預覽使用。公開聯絡信箱 `email` 在詳情標示為 Contact email，可獨立編輯。Columns 只切換主表的七個資料欄位，其他完整資料集中在 Actions 詳情。Profile checkbox 對應 `has_profile`（目前語言的工作／教育紀錄），Active 對應 `owner_is_active`；Default 需要帳號啟用、網站存在（`has_site`）且已發布，不以 Profile 紀錄作為條件。不符合時淡化並提供原因提示。主表 Active／Default 點擊即保存，其餘狀態保持唯讀；更新規則記錄於 [Default 更新規格](../docs/management-default-update.md)。
 
 The platform table offers only ID, Email, Profile (checkbox), Publish (checkbox), Default (switch), Active (switch), Updated and Actions in every locale. Email uses owner_email read directly from auth_user.email; the complete login address is read-only in Details. The public contact address remains editable as Contact email. Public handles remain available to routing and preview. Columns toggles the seven data columns; Actions presents the complete record separately. Default eligibility requires an active owner with an existing, published portfolio; ineligible controls are dimmed and explain the requirement. Active and Default save through PATCH as described in the [Default update specification](../docs/management-default-update.md).
 
-| 頁面     | 預設欄位                                                                                      |
-| -------- | --------------------------------------------------------------------------------------------- |
-| Platform | ID、Email、Profile、Publish、Default、Active、Updated、Actions                                |
-| User     | ID、Email、Role、Login、LastLogin、Updated、Active、Actions                                   |
-| Role     | ID、Role、Create、Read、Update、Delete、Site、Users、Roles、Default、Active、Updated、Actions |
+| 頁面     | 預設欄位                                                                                               |
+| -------- | ------------------------------------------------------------------------------------------------------ |
+| Platform | ID、Email、Profile、Publish、Default、Active、Updated、Actions                                         |
+| User     | ID、Email、Role、Login、LastLogin、Updated、Active、Actions                                            |
+| Role     | ID、Role、Create、Read、Update、Delete、Monitor、Site、Users、Roles、Default、Active、Updated、Actions |
 
-Actions 使用 pencil-square Edit 開啟詳情。共用 ManagementDetails 接收 onSave、busy、validate、changeDraft；頁面負責 API／通知／SESSION／快取。只有 Save 確認才送出已改欄位與 expected 原值；成功關閉並重讀，失敗保留草稿，衝突時要求關閉後重開最新資料。User 只有 Active 可編輯，角色名稱與所有 FK 均唯讀。
+Actions 使用 pencil-square Edit 開啟詳情。共用 ManagementDetails 接收 onSave、busy、validate、changeDraft；頁面負責 API／通知／SESSION／快取。只有 Save 確認才送出已改欄位與 expected 原值；純欄位驗證亦僅檢查已改欄位，避免 Profile 已接受的既有圖示阻擋單純的發布修改；整筆預覽仍須通過 Default／Active 等跨欄位業務規則。成功關閉並重讀，失敗保留草稿，衝突時要求關閉後重開最新資料。User 可編輯 Active，並透過共用 SearchableSelect 明確提交 role_id；email、PK 及其他 FK 維持唯讀，角色標籤不作為寫入值。
 
 三頁 Actions 詳情順序由 `pages/management/model/management-view.fields` 定義，與主表欄位清單分開，兩者共用相同的欄位 value／renderer factory。Platform／User 先顯示唯讀登入 Email，方便識別；接著 Platform 為基本資料／品牌內容、聯絡社群、聊天、頁尾與發布設定，User 為 Role。Role 管理先名稱／描述、預設與權限。其他唯讀資訊放在後段，Active、Created、Updated 固定為最後三項；User 的 Role active 位於 Active 前。詳情固定使用指定英文標籤；Profile data、Publish、Translation 是 checkbox，Default、Active 是 toggle。三頁詳情的標籤、文字、時間、checkbox／toggle 靠左；底部 Close／Save 按鈕群組靠右，Close 使用 Bootstrap x-lg icon，操作按鈕保留相同的 44px 最小高度。桌面保留標籤／值雙欄，手機沿用上下排列。
 
 User 主表固定使用上表的八個英文標籤，以登入 Email 識別，不另列 Account。Email 使用逐欄 `truncate: false`，完整顯示並可換行；Details、勾選標籤與刪除確認也使用 Email。User API 直接讀取 `auth_user.email`，不返回公開網址 handle 或衍生帳號名稱。Login 是 `login_count`，LastLogin 是 `last_login`；Active toggle 直接呈現這一列的 `auth_user.is_active`，不合併角色啟用或網站存在狀態。Columns 只切換主表的七個資料欄位，Role active、Has portfolio、Role ID、Website ID 與 Created 保留在完整的十二項 Actions 詳情中。`visible`／`columnLabels` 定義各資源的主表欄位與標籤，`fields`／`detailLabels` 定義完整詳情；兩者共用同一個 value／renderer factory，不另外複製表格程式。欄位 ID 清單使用 ManagementRows 的 key 型別檢查，僅 Platform 額外允許衍生的 profile_name；新增欄位若拼錯名稱會在 typecheck 失敗。ManagementTable 擁有 query、欄位組合與列選取；ManagementDetails 透過 onSave、busy、validate、changeDraft 與頁面協作，擁有未保存草稿與 Save 確認狀態；shared DataTable 仍不依賴任何 management 型別或 API。
 
-Role 主表固定使用上表的十三個英文標籤，Create、Read、Update、Delete、Site、Users、Roles 八個權限及 Active／Default 均提供即時保存，完整 Edit 使用同一 Role PATCH。主表 Users 是 `is_manage_users` 權限；Actions 的 Users 是 `user_count`，顯示使用此角色的帳號數。Columns 只切換主表的十二個資料欄位；Description、Created 與帳號數保留在詳情中。註冊 Default 的四個內容權限仍可編輯，三個管理權限依既有規則停用並顯示原因；移除最後有效角色管理員時由後端拒絕，前端使用 Warning。
+Role 主表固定使用上表的十四個英文標籤，Create、Read、Update、Delete、Monitor、Site、Users、Roles 八個權限及 Active／Default 均提供即時保存，完整 Edit 使用同一 Role PATCH。主表 Users 是 `is_manage_users` 權限；Actions 的 Users 是 `user_count`，顯示使用此角色的帳號數。Columns 只切換主表的十三個資料欄位；Description、Created 與帳號數保留在詳情中。註冊 Default 的四個內容權限及 Monitor 仍可編輯，三個管理權限依既有規則停用並顯示原因；移除最後有效角色管理員時由後端拒絕，前端使用 Warning。
 
-Role Actions 的十五項順序為：Role、Description、Default、Create、Read、Update、Delete、Manage Site、Manage Users、Manage Roles、Users、ID、Active、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
+Role Actions 的十六項順序為：Role、Description、Default、Create、Read、Update、Delete、Monitor、Manage Site、Manage Users、Manage Roles、Users、ID、Active、Created、Updated。Manage Site／Users／Roles 與主表 Site／Users／Roles 共用相同權限值；時間沿用 UTC 的 `YYYY.MM.DD HH:mm:ss` 格式。
 
 `features/management/model/role-permissions.ts` 是 Role 權限欄位與群組的單一宣告，內容／管理群組、主表及詳情標籤、GET／PATCH 的布林 schema、表格編輯器與 Default 資格檢查由此共用。新增權限須先明確擴充後端 ORM／DTO／授權及 Auth SESSION 契約，再加入此宣告；不依不受信任的回應欄位自動授權。表格只提交該欄的 changes／expected 原值，保存後重讀 SESSION 及管理列表；修改自己的權限會立即同步入口與頁面存取。
 
 Role／User 管理的 Role 欄均設定共用 `filterStyle: 'dropdown-list'`，使用 **Dropdown list filter**。只從 DataTable 已載入資料整理去重選項，不再額外讀取全部 Role；同一表格保留已出現值，避免篩選後選項消失。七色 pastel chip 依標籤穩定取色，與角色指派選單共用，標籤右側 check 表示選取。上方小字 Select(N)／Deselect(N) 處理符合搜尋的選項，搜尋只縮小清單，下方 divider 後為共用升序／降序／清除排序。未選取不限制資料，選取以 in 在資料庫 COUNT 與分頁前執行；取消最後一個值清除 predicate。其餘欄位維持原本型別篩選，頁面只需一個欄位配置，沒有 Role 專用篩選 UI 或額外篩選選項 API。共用元件也支援 owner 注入靜態 options 或分頁 load。新增裝飾圖示沿用 Bootstrap SVG mask，不放入 JavaScript；目前整包上限為 JS 380,000／CSS 66,500 bytes，由建置驗證實際資產，未新增套件。
 
-| 設計要求                     | 核對結果                                                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 圖一：條件、搜尋、排序、清除 | 共用選單提供八種文字條件，搜尋／條件與排序採 Bootstrap icon，單欄清除不影響其他欄位                          |
-| 圖二：搜尋與複選清單         | 靜態／動態 options、Select／Deselect、選取勾號、長文字省略及 More 續頁                                       |
-| 圖三：彩色選項               | Role 欄套用穩定七色標籤；樣式由共用配置控制                                                                  |
-| 時間 Filter：日曆            | 所有日期欄位使用原生日曆；Equals／Does not equal／After／Before／Empty／Not empty，選日期後以整個 UTC 日篩選 |
-| 表格與 footer                | 指定短欄名、標題正下方置中、各容器均維持緊湊列高、自然高度、Total 與 selected 後綴                           |
-| 全選、欄位、匯出、分頁       | 本頁勾選、Columns All、Bootstrap icon 匯出及首／末頁按鈕維持共用元件                                         |
-| Actions 介面                 | Edit 與垃圾桶並排；詳情逐格編輯，dirty 時綠色 Save／紅色 Close；Delete 共用驚嘆號確認，尚無 mutation         |
-| 後續更新規格                 | Default 條件與 transaction 順序保留；新增、提交、批次／單筆刪除均待後端整合                                  |
+| 設計要求               | 核對結果                                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 條件、搜尋、排序、清除 | 共用選單提供八種文字條件，搜尋／條件與排序採 Bootstrap icon，單欄清除不影響其他欄位                          |
+| 搜尋與複選清單         | 靜態／動態 options、Select／Deselect、選取勾號、長文字省略及 More 續頁                                       |
+| 彩色選項               | Role 欄套用穩定七色標籤；樣式由共用配置控制                                                                  |
+| 時間 Filter：日曆      | 所有日期欄位使用原生日曆；Equals／Does not equal／After／Before／Empty／Not empty，選日期後以整個 UTC 日篩選 |
+| 表格與 footer          | 指定短欄名、標題正下方置中、各容器均維持緊湊列高、自然高度、Total 與 selected 後綴                           |
+| 全選、欄位、匯出、分頁 | 本頁勾選、Columns All、Bootstrap icon 匯出及首／末頁按鈕維持共用元件                                         |
+| Actions 介面           | Edit 與垃圾桶並排；詳情確認後 PATCH；Delete 共用確認並呼叫單筆或批次 API                                     |
+| 後續更新規格           | Default、最後管理員與交易規則已整合；管理新增仍待實作                                                        |
 
 RWD 回歸會讓 Platform／User／Role 三頁各自在 320、375、390、480、640、768、820、1024、1280、1440、1920、2560px 寬度執行英文與繁體中文流程；不是按寬度輪流抽查其中一頁。檢查工具列、Add／Delete、footer、主表標題／內容置中、兩個列動作與詳情 InlineField／Save／重開重設，手機目標至少 44px。另外讓三頁分別在 390×844、844×390、820×1180、1180×820 的 coarse pointer 情境檢查四個主題、兩列自然高度、資料列 4px 內距、44px 按鈕、詳情視窗及日曆選單的 viewport 邊界。其他案例涵蓋 300px 桌面內嵌容器、長文字、多頁分頁與橫向短 viewport 的選單。寬表格保持原始列格式，手機可在表格內橫向捲動；文件本身不水平溢位。
 
-| 順序  | Actions 詳情欄位                                        |
-| ----- | ------------------------------------------------------- |
-| 1–6   | ID、Email、First name、Family name、Nickname、Education |
-| 7–10  | Profile name、Profile data、Brand、Brand Subtitle       |
-| 11–14 | Publish、Translation、Default、Active                   |
-| 15–19 | Program、Language、Copyright、Introduction、Footer      |
-| 20–23 | Email、LinkedIn、GitHub、Medium                         |
-| 24–27 | Chat icon、Chat title、Chat subtitle、Chat content      |
-| 28–31 | Profile introduction、Website ID、Created、Updated      |
+| 順序  | Platform Actions 詳情欄位                                                      |
+| ----- | ------------------------------------------------------------------------------ |
+| 1–6   | Email、First name、Family name、Nickname、Education、Program                   |
+| 7–10  | Brand、Brand Subtitle、Introduction、Profile introduction                      |
+| 11–14 | Contact email、LinkedIn、GitHub、Medium                                        |
+| 15–20 | Chat title、Chat subtitle、Chat icon、Chat content、Footer、Copyright          |
+| 21–27 | Publish、Default、Profile name、Website exists、Profile、Translation、Language |
+| 28–32 | Website ID、ID、Active、Created、Updated                                       |
 
 Profile name 是詳情的 presentation 欄位，組合當前語言的 `first_name`／`family_name`，缺姓名時使用 `nick_name`，沿用公開頁漢字姓名的姓在前規則。沒有作品集、沒有當前語言內容、沒有設定名稱時分別顯示明確文字，不回退其他語言。此欄不可排序，不增加 API 欄位或資料表。所有狀態 renderer 在表格與詳情共用；`value(row)` 保留原始 boolean／null，供匯出使用。Created／Updated 使用 `auth_user.createtime`／`auth_user.updatetime`，即帳號建立／更新時間，並以 UTC 呈現；列表 API 已提供兩個真實欄位，網站與翻譯表沒有獨立時間欄。
 
-The complete 31-field Actions record follows the configured order independently of table visibility. Its Profile name is a non-sortable presentation value derived only from the selected language's name/nickname fields, reusing public name ordering and explicit missing-content labels. Status renderers are shared by table cells and details while exports keep primitive values. Created and Updated are genuine account timestamps supplied by the list API; no database migration is required. Display uses YYYY.MM.DD HH:mm:ss in UTC with 24-hour hours and seconds, while API/export timestamps retain ISO values.
+The complete 32-field Platform Actions record follows the configured order independently of table visibility. Its Profile name is a non-sortable presentation value derived only from the selected language's name/nickname fields, reusing public name ordering and explicit missing-content labels. Status renderers are shared by table cells and details while exports keep primitive values. Created and Updated are genuine account timestamps supplied by the list API; no database migration is required. Display uses YYYY.MM.DD HH:mm:ss in UTC with 24-hour hours and seconds, while API/export timestamps retain ISO values.
 
 若三支管理 GET 都回 `404`，先確認後端目前程序是否已載入新路由；`/openapi.json` 應列出 `/management/sites`、`/management/users`、`/management/roles`。FastAPI 在啟動時建立路由，新增後端路由後，從 `backend/` 透過 `uv run --locked manage.py` 重啟 FastAPI 與 APScheduler，前端再按 Refresh。
 
@@ -798,29 +845,39 @@ The Overview breadcrumb shows Home / the public Site user / Overview above the i
 
 Management content reuses `Breadcrumb` for Settings / the current management page. Settings names the entry category; the current item shares the localized page title and aria-current=page. Resource and locale navigation update the path together. Below 760px, the breadcrumb wraps below the content's settings controls. No additional route or data read is introduced.
 
-Profile 編輯器、範例、三語編輯文案及 CSS 隨該路由載入，公開首頁不下載這些資源。完整產物預算包含這個新增頁面；首頁初始 JS 實測為 256.4–257.8KiB，258KiB 上限包含共用導覽、API query chunk 與自動聯絡氣泡；編輯器本身不在首頁載入。
+`useProfileI18n` 保持編輯頁的翻譯實例穩定，語系或開發熱更新時以資源事件同步三語字典，避免顯示翻譯鍵並保留未儲存草稿。Profile 編輯器、範例、三語編輯文案及 CSS 隨該路由載入，公開首頁不下載這些資源。完整產物預算包含這個新增頁面；首頁初始 JS 實測為 256.4–257.8KiB，258KiB 上限包含共用導覽、API query chunk 與自動聯絡氣泡；編輯器本身不在首頁載入。
 
 ## 個人檔案編輯 / Profile Content Editor
 
-登入後由齒輪選單的 Profile 進入 `/:locale/profile`。沿用原本側欄、行動導覽、背景、主題與外觀／語言控制，內容區提供個人介紹、工作與學歷、專案作品、技能分類四個分頁及即時預覽。經歷表單在同一處編輯組織、職稱、日期、城市與地圖座標，右側直接顯示 Journey 預覽；不再提供獨立 Journey 編輯分頁。舊 section=journey 連結以 replace 導向工作與學歷，保留內容語言與 edit ID。介面語言與內容語言分開；新增、排序、顯示、刪除、日期驗證與取消均為前端互動。左側導航、手機選單與上方分頁共用 section 查詢狀態、顯示名稱及選中標示，保留內容語言與草稿，並沿用標題／內容的淡出淡入。技能分類與分類內技能支援滑鼠／觸控把手拖曳，插入線標示放置位置；只有有效放開才變更 ID 順序，Esc 或移出列表可取消，並保留把手方向鍵與上移／下移操作。拖曳控制封裝於 usePointerReorder，浮動標籤使用獨立 ReorderGhost，不增加套件。
+登入後由齒輪選單的 Profile 進入 `/:locale/profile`。Profile 與管理頁共用 `WorkspaceNavigation`，採 PORTFOLIO 品牌，側欄以小字 Profile 分組放個人介紹、工作與學歷、專案作品、技能分類四個含 icon 的入口；後面依權限顯示 Monitoring／Management。內容語言與編輯提醒位於表單上方。桌面沿用共用收合與 tooltip，1024px 以下改用 breadcrumb 旁選單按鈕及同一個全高抽屜。標題旁的「預覽」位於取消變更左側，以共用 Bootstrap modal 展示尚未送出的草稿。`ProfilePreviewModal` 保留背景編輯位置、URL 及焦點，專案分頁獨立於編輯列表；只在要求新頁時讀取既有本人 API。`showcaseProjection` 將正規化草稿映射成公開 DTO，首頁及草稿共用 `ProfileOverviewContent`、`JourneyView`、`ExperiencesView`、`ProjectsView`、`SkillsView` 與 `SkillCategoryContent`，沿用原樣式、地圖、技能展開與專案詳情 modal；頁尾及聯絡氣泡也使用原元件。隱藏內容不顯示，未完成日期／座標只略過受影響的卡片或地圖站點並提示；預覽不讀公開舊內容、不儲存，也不複製另一套主頁 UI。經歷表單在同一處編輯組織、職稱、日期、城市與地圖座標，右側直接顯示 Journey 預覽。相容的 section=journey URL 會 replace 導向工作與學歷，保留內容語言與 edit ID。介面語言與內容語言分開；新增、排序、顯示、刪除、日期驗證與取消均為前端互動。側欄與手機抽屜共用 `profileSections`／`profileSectionParams` 及 section 選中狀態，保留內容語言、專案分頁與草稿，並沿用標題／內容的淡出淡入；前往管理頁仍經既有未儲存離開確認。技能分類與分類內技能支援滑鼠／觸控把手拖曳，整張卡片／標籤保留原尺寸及抓取位置，透明發亮的虛線網格框預覽實際落點；不同寬度的技能依可用空間換行。鄰項先讓位，只有有效放開才變更 ID 順序，Esc 或移出列表可取消，並保留把手方向鍵。`usePointerReorder` 管理手勢，`reorder-layout` 計算格線／換行位置，`ReorderGhost` 提供 inert 的完整外觀快照，不增加套件。分類卡片收成單列，向左滑顯示編輯與刪除、右滑／Esc／點外部收回；⋮ 提供滑鼠與鍵盤入口。編輯分類會選中該分類並聚焦原本的名稱輸入框，仍由全頁儲存送出。`SwipeReveal` 區分橫向滑動與垂直捲動，拖曳把手獨立處理排序；一次只展開一筆，滑動本身不刪除，點刪除仍經既有確認及全頁儲存流程。
 
-`features/profile-content` 擁有版本化 Zod 契約、正規化實體、私有 API 與瀏覽器復原副本。`pages/profile/model/loadProfileContent` 委派 `readProfileContent` 並行讀取五個 `/portfolio/me/{site,experiences,projects,skill-categories,skills}`，包含完整三語、未公開項目及全部專案詳情，不依賴公開分頁／首頁預覽。後端從 SESSION 限定 owner；前端再驗證 user 與五份回應的 revision 一致。缺少的翻譯保持空白，API 失敗提供重試，不補入範例。專案可明確關聯經歷以共用組織／職稱，也可保留自己的組織欄位，不猜測關聯。六支公開 GET 繼續供公開作品集使用。
+`features/profile-content` 擁有版本化 Zod 契約、正規化實體、私有 API 與瀏覽器復原副本。`pages/profile/model/loadProfileContent` 委派 `readProfileContent` 並行讀取五個 `/portfolio/me/{site,experiences,projects,skill-categories,skills}`，包含三語與未公開項目；專案先讀 `page=1&size=6`，後續頁只在使用時讀取。本人專案 API 沿用共用 `items/total/pages/page/size` 契約及 `numberedPageSchema`，另附 revision、全站專案 ID 順序與只含名稱／技能 ID 的輕量引用索引，不回傳其他頁的介紹或詳情。後端從 SESSION 限定 owner；前端再驗證 user 與五份回應的 revision 一致。缺少的翻譯保持空白，API 失敗提供重試，不補入範例。專案可明確關聯經歷以共用組織／職稱，也可保留自己的組織欄位，不猜測關聯。六支公開 GET 繼續供公開作品集使用。
 
-經歷與技能只存一份，Journey 依經歷日期衍生，專案／分類以 ID 引用技能；刪除經歷只清除專案關聯。`pages/profile` 組合各分區，共用表單欄位、日期控制及預覽元件。Save 使用 `POST /portfolio/site/save`，帶完整 draft 與原 `expected_revision`，全部分區在同一交易儲存；收到成功回應才接受後端 ID／新版本並更新公開 query。儲存中鎖定編輯與導航；權限依 SESSION 的 create／update／delete 控制。409 衝突、403 權限、已提交但快取失敗及未知網路結果有不同提示，保留工作副本且不自動重送。
+經歷與技能只存一份，Journey 依經歷日期衍生，專案／分類以 ID 引用技能；刪除經歷只清除專案關聯。`pages/profile` 組合各分區，共用表單欄位、日期控制及預覽元件。Save 使用 `POST /portfolio/site/save`，帶完整 draft 與原 `expected_revision`，全部分區在同一交易儲存；分頁專案另帶 `project_scope.loaded_ids/order`，後端合併未載入專案並驗證完整資料，回應維持已載入範圍。載入新頁同時補齊草稿與儲存基準，不標為編輯，也不覆蓋已修改或刪除項目；收到成功回應才接受後端 ID／新版本並更新公開 query。儲存中鎖定編輯與導航；權限依 SESSION 的 create／update／delete 控制。409 衝突、403 權限、已提交但快取失敗及未知網路結果有不同提示，保留工作副本且不自動重送。
 
-瀏覽器 `portfolio.profile-draft.v1:<accountId>` 僅作帳號隔離的復原副本，過期 revision 不覆蓋伺服器內容；未帶版本的舊草稿仍可復原，也能明確確認後載入伺服器資料。取消還原保存基準，尚未儲存的離開會確認；API 儲存失敗不能顯示為本機保存成功。頁面標題旁固定顯示取消／儲存兩個按鈕，狀態與公開頁文字連結置於其上方；行動版按鈕並排，底部不再有整條操作列。此版本須先完成後端 migration 才能啟用，操作與結構變更見 [Profile API](../backend/APPs/Portfolio/README.md)。
+瀏覽器 `portfolio.profile-draft.v1:<accountId>` 僅作帳號隔離的復原副本，過期 revision 不覆蓋伺服器內容；未帶版本的舊草稿仍可復原，也能明確確認後載入伺服器資料。取消還原保存基準，尚未儲存的離開會確認；API 儲存失敗不能顯示為本機保存成功。頁面標題旁固定顯示預覽／取消／儲存三個按鈕，狀態與公開頁文字連結置於其上方；行動版按鈕並排，底部不再有整條操作列。此版本須先完成後端 migration 才能啟用，操作與結構變更見 [Profile API](../backend/APPs/Portfolio/README.md)。
+
+工作／學歷與專案共用 `EditorCard`、`SelectionToolbar`、`SwipeReveal`、`ReorderHandle`、`ReorderGhost` 和 `AddContentTile`。經歷卡片同樣使用緊湊虛線框、勾選、顯示開關與垂直三點，左滑揭露並排的「鉛筆＋編輯」及「垃圾桶＋刪除」。工作／學歷篩選保留跨篩選勾選；全選僅作用於目前可見頁，並可批次刪除。原本的經歷完整本人回應在前端分頁，預設每頁 6 筆，沿用 `EditorPagination` 選擇筆數；拖曳／方向鍵調整目前可見卡片的全域順序，不另開排序模式。`removeProfileExperiences` 統一單筆、批次及編輯器刪除，保留專案與共用技能，只清除經歷關聯；未載入專案仍由既有 hydrate／後端合併處理。經歷與專案透過 `usePointerReorder` 的可選 deletion 設定及 `SelectionToolbar` 共用拖放刪除：整張卡片碰到上方刪除按鈕即高亮紅色，離開即還原；放開重新檢查可見落點與權限，只確認刪除被拖曳的單筆，保留其餘 checkbox 選取且不觸發排序。未勾選時仍能拖放；Esc、pointercancel、失焦與 resize 取消，碰到刪除區時暫停邊緣自動捲動。所有刪除均需確認，最後經唯一「儲存變更」送出；取消及唯讀權限沿用原流程。
+
+專案列表預設每頁 6 筆，可選 10／25／50／100；卡片頂部同一列依序排列 checkbox、拖曳把手與類別標題，右側為「顯示於首頁」與垂直三點 ⋮；窄螢幕隱藏開關旁的顯示文字，保留 switch 的 accessible name。卡片縮小內距並移除底部操作列，編輯移至滑出操作區、放在刪除左側，兩者都有 icon 與文字。卡片與技能分類共用 `SwipeReveal`，左滑揭露單筆刪除，右滑／Esc／點外部收回；同一個操作入口透過 render function 放入卡片控制列，`triggerIcon` 只選擇三點方向，`edit` 設定編輯動作；三個清單的操作區均為 160px、每個按鈕 80px。Enter 先聚焦編輯，Tab 到刪除；卡片與操作區都支援右滑收回。只有 checkbox、拖曳把手及右側操作排除滑動，分類標題仍可左滑。上方提供「全選本頁」、跨頁選取數量、清除選取與批次刪除。刪除需確認並由全頁儲存送出，不直接呼叫多支 DELETE。分頁狀態使用 `projectPage`／`projectSize` query 保留在進入／返回編輯器及語言切換間；刪除末頁後夾回有效頁。`useProfileProjects` 按原始索引求出缺少記錄所屬頁，以選定 size 透過既有 API 逐頁讀取，快取鍵包含 size；切換筆數回第一頁，保留草稿及跨頁選取，拒絕版本不一致資料並提供重試／明確重載。
+
+可調筆數與局部草稿載入共用既有路由與 ORM 工具，不新增資料表或 migration。新增的共用選單、三種分頁入口及共用拖放刪除使完整 client raw JS 約 1.586 MB，整包 raw JS 上限為 1,590,000 bytes；gzip 上限 526,000 bytes、CSS 及首頁效能門檻維持原值。這些編輯功能均由私有頁面按需載入。
+
+專案與技能共用 `ReorderHandle`、`usePointerReorder`、`ReorderGhost` 及同一組落點樣式；專案以完整虛線卡片拖曳當頁排序，方向鍵可跨頁移動並跟隨卡片還原把手焦點，只調整全域 ID 順序，不提前載入所有詳情。選取狀態依 ID 保留，所有變更仍由頁面唯一儲存入口送出。專案全選／批次刪除列位於新增框上方。`AddContentTile` 統一分類與專案列表上方的虛線「＋」、hover 顏色及首頁 `Icon`／`IconGroup pulse="disclosure"` heartbeat；虛線框與加號一起呼吸發亮，框線不縮放、點擊範圍固定，停用時不播放。動畫暫停及 reduced-motion 沿用共用政策。
+
+編輯語言／儲存提醒收進內容語言選單（English）右側的 `patch-question-fill` icon。`ProfileHelp` 顯示可互動的非 modal 提示框，`useProfileHelp` 管理 hover bridge、鍵盤／點按、240ms 淡入、700ms 淡出與 cookie；共用定位／關閉 hooks 避免遮罩及視窗溢出。未確認時每次進入編輯器自動提醒 8 秒，hover 或鍵盤互動可保留；勾選「已經知道了」寫入一年期 `portfolio-profile-help-v1` cookie（Path=/、SameSite=Lax、HTTPS 時 Secure），只停止自動提醒，手動仍可開啟，也可取消勾選恢復提醒。同一個 `ProfileHelp` 以 `topic="skillSorting"` 收納「分類內的技能」右側排序說明，使用獨立的 `portfolio-profile-skill-sorting-help-v1` cookie；輸入框左側的共用技能說明亦沿用同元件（`topic="skillLibrary"`），以 `portfolio-profile-skill-library-help-v1` 獨立記憶；三種提醒互不影響。新增技能欄位只隱藏視覺標籤，保留原生 label 供鍵盤、讀屏及測試使用，右側按鈕維持操作名稱。未確認的提示會等 icon 進入視窗才自動淡入。遵循 reduced-motion 並清理計時器及可見性 observer，無須後端或個資。技能分類以虛線框區隔，刪除 icon 與分類排序同列；分類內技能只保留拖曳／鍵盤排序與 × 移除。技能名稱輸入框緊接「正在使用這個技能」標題靠左排列，直接更新共用草稿與預覽，不提供局部確認／送出按鈕；空白及重複名稱阻止整頁保存，取消與上方唯一「儲存變更」統一處理。技能引用清單由 `SkillUsageList` 本機分頁，預設每頁 5 筆，可選 6／10／25／50／100；與專案列表及預覽共用 `EditorPagination`，頁碼數量有界，切換技能重設第一頁，保留正確的經歷／專案編輯入口。公開頁預覽入口位於技能名稱輸入框右側，`SkillsPreview` 使用既有 Bootstrap modal、主題 tokens 及共用焦點控制，展示目前草稿的分類與技能；支援關閉按鈕、Escape、遮罩關閉與焦點還原，預覽不觸發 API 儲存。底部不再有重複的展開區塊。
 
 工作與學歷的地點區塊提供唯讀經緯度欄位，由「在地圖上選取」開啟 `LocationPickerModal`。Leaflet 1.9.4、CSS 與 Natural Earth 世界／城市 JSON 均隨前端部署，只在彈窗開啟後從同站載入，沒有外部圖磚、CDN、字型、圖像或地理編碼請求。內建 242 個國家／地區邊界與 7,342 筆城市，可離線搜尋中英文城市及國家代碼、點擊地圖、拖曳標記、縮放，或以方向鍵移動後選取中心；不含街道與建築。確認才回填六位小數座標及本機資料辨識的三碼國別，新增經歷須先選取能辨識國家的位置；取消／Esc 不修改草稿。城市及國家顯示文字仍在內容欄位維護，地圖沒有外部地理編碼依賴。`useLocationMap` 管理生命週期，`locationMapLayers` 負責本機向量與標籤，`offline-map` 共用資料載入與搜尋／國別判斷；本機資料載入失敗可重試。部署完整 `build/client` 即包含 JSON、gzip sidecar 及來源／套件授權；建置不下載資料。更新步驟與來源雜湊見 [離線地圖資料說明](src/assets/location-map/README.md)。
 
 Coordinates in each work/education form are read-only and open `LocationPickerModal` through Choose on map. Leaflet 1.9.4, CSS and Natural Earth world/city JSON ship with the frontend and load from the same origin only on opening. There are no external tile, CDN, font, image or geocoding requests. The bundled 242 country/territory features and 7,342 city points support English/Chinese city search, country codes, click selection, marker drag, zoom and keyboard panning/center selection; street/building details are excluded. Confirm writes six-decimal coordinates and the locally resolved three-letter country code; new careers require a resolvable country. Cancel/Escape preserve the draft, and city/country display text stays editable. `useLocationMap` owns lifecycle, `locationMapLayers` renders local vectors/labels and `offline-map` shares loading/search/country lookup. Local data failures are retryable. Deploy the complete `build/client` directory, including atlas JSON, compressed sidecars and licenses. Builds never download source data. See the [offline map data guide](src/assets/location-map/README.md) for provenance, hashes and deliberate updates.
 
-The Profile editor retains the existing shell and theme system with four sections. Work/education owns career, date and map fields in one form with an adjacent Journey preview. Legacy section=journey links replace-navigate to experience while preserving edit ID and content language. Its normalized model separates records, order, shared skill identities and localized text. Five private owner GETs return complete content at one revision; one POST commits every section together. Failed writes preserve the working copy and never fall back to a successful browser-only save. Successful saves accept canonical IDs and the new revision, refresh public queries, then update account-scoped recovery storage. Legacy unversioned drafts remain recoverable; stale versioned caches cannot overwrite server content. Save/cancel remain beside the heading, with compact status and a public-page link above; mobile keeps both buttons side by side. Permission controls and saving locks protect edits. Tests cover ownership, complete project/language loading, conflicts, atomic persistence, legacy recovery, shared references and responsive ordering. The backend schema migration is required before enabling this version.
+The Profile editor retains the existing shell and theme system with four editing sections. A Preview button immediately before Cancel opens an unsaved-draft modal using the actual homepage feature views, styles, map and detail interactions. The modal has independent project pagination, restores focus and editor position, and never submits or reads public content. The editing-reminder icon follows the content-language selector and keeps its existing hover, fade and acknowledgement-cookie behavior. Work/education owns career, date and map fields in one form with an adjacent Journey preview. Legacy section=journey links replace-navigate to experience while preserving edit ID and content language. Its normalized model separates records, order, shared skill identities and localized text. Five private owner GETs share one revision; projects use the existing six-record page/size contract and load on demand. A lightweight ID/name/skill reference index supports cross-section usage without loading off-page descriptions. One POST commits every section together; project_scope identifies visited rows and the full ID order, so unvisited rows are retained and the response stays partial. Failed writes preserve the working copy and never fall back to a successful browser-only save. Successful saves accept canonical IDs and the new revision, refresh public queries, then update account-scoped recovery storage. Legacy unversioned drafts remain recoverable; stale versioned caches cannot overwrite server content. Save/cancel remain beside the heading, with compact status and a public-page link above; mobile keeps both buttons side by side. Permission controls and saving locks protect edits. Tests cover ownership, complete project/language loading, conflicts, atomic persistence, legacy recovery, shared references and responsive ordering. The backend schema migration is required before enabling this version.
 
-2026-10-19 的完整驗證另使用 `playwright.live.config.ts` 與 `tests/live/accounts.spec.ts`，對原環境的 20 個合成 QA 帳號執行真實登入、編輯、三語保存／重載、資源 CUD、發布切換、帳號停用／恢復、批次刪除、監控及手機離線地圖。此 opt-in 設定要求明確提供 `PORTFOLIO_LIVE_ACCOUNTS_MANIFEST`，不攔截或偽造 API；預設瀏覽器矩陣仍使用隔離 fixture。這批帳號有 10 個已依指示刪除、10 個保留，不能把已完成的 manifest 當新 fixture 直接重跑。測試憑證與輸出位於忽略的 agent 目錄，未進版控；完整數量及未實作功能見 [驗證紀錄](../docs/code-quality.md)。
+2026-10-19 的完整驗證另使用 `playwright.live.config.ts` 與 `tests/live/accounts.spec.ts`，對原環境的 20 個合成 QA 帳號執行真實登入、編輯、三語保存／重載、資源 CUD、發布切換、帳號停用／恢復、批次刪除、監控及手機離線地圖。此 opt-in 設定要求明確提供 `PORTFOLIO_LIVE_ACCOUNTS_MANIFEST`，不攔截或偽造 API；預設瀏覽器矩陣仍使用隔離 fixture。這批帳號有 10 個已依指示刪除、10 個保留，不能把已完成的 manifest 當新 fixture 直接重跑。每次重驗應建立全新的隔離資料庫與 cohort；報告及畫面現在跟隨 manifest 所在目錄保存，避免覆寫舊證據。真實案例另驗證專案分頁儲存保留未載入資料、每頁筆數、未送出預覽／取消，以及發布後三語公開 SSR 與瀏覽器頁面。測試憑證與輸出位於忽略的 agent 目錄，未進版控；完整數量及未實作功能見 [驗證紀錄](../docs/code-quality.md)。
 
 ## 帳號選單 / Account Menu
 
-`features/account-menu` 的 `AccountMenu(account,preferences,onOpen?,busy?,onLogin?,onLogout?,onProfile?,onNavigate?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理使用 `is_manage_sites`，監控使用 `is_monitor`，用戶管理使用 `is_manage_users`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控連到具有權限檢查的即時監控頁。
+`features/account-menu` 的 `AccountMenu(account,preferences,onOpen?,busy?,onLogin?,onLogout?,onProfile?,onNavigate?)` 使用 Gear fill 觸發右對齊 Bootstrap Dropdown，取代首頁獨立的主題與語言圖示。訪客依序顯示主題、語言、登入；登入後顯示個人檔案、依權限過濾的管理項目、主題、語言與登出。平台管理使用 `is_manage_sites`，監控使用 `is_monitor`，用戶管理使用 `is_manage_users`，權限管理使用 `is_manage_roles`；登入者身份取自現有 SESSION query，與正在展示的作品集 owner 無關。`managementNavigation` 集中管理列順序與圖示，齒輪選單／Settings sidebar／手機 drawer 共用；`WorkspaceNavigation` 與 `workspaceNavigation` 將 Profile 分組併入管理導航，品牌、列樣式、收合、1024px drawer 與焦點控制由同一組元件處理，頁面只提供帳號、active、query 與同頁選取 callback；`accountMenuGroups` 組合其餘選單群組，權限交由共用 `auth/permissions`，不另外查詢帳號；監控連到具有權限檢查的即時監控頁。
 
 The AccountMenu feature owns a right-aligned Gear fill disclosure. Guests see Theme, Language and Sign in; restored accounts see Profile, permitted management rows, Theme, Language and Sign out. Shared `auth/permissions` maps platform management to `is_manage_sites`, monitoring to `is_monitor`, users to `is_manage_users`, and roles to `is_manage_roles`. The page supplies its existing session identity rather than the public portfolio owner. The menu model owns order/icons and delegates visibility to the policy without another account request; Gear, the settings sidebar and the mobile drawer share managementNavigation in Overview → Requests → Workers → Platform → Roles → Users order; monitoring opens its permission-gated live dashboard.
 
@@ -834,7 +891,7 @@ Theme and Language open controls inside the same gear panel. Required `preferenc
 
 ## 語言元件規格 / Language Specifications
 
-`LanguageMenu(locale,busy,onChange,onOpen?)` 呈現三語選項、EN／简／繁角落標記、目前語言 check 與透明的選中列；選單最小寬 170px、內距 6px，開啟聚焦目前語言，ArrowUp／ArrowDown 在首末循環，Home／End 跳首末；瀏覽只移動焦點，不提交語言。處理既有鍵盤事件時保留 defaultPrevented，Escape／Tab 與選取仍交給 Dropdown／共用 dialog 焦點管理。鍵盤關閉或選取後還原觸發器焦點。可選 onOpen 在開啟前通知 page，讓明確操作優先於自動聯絡介紹；feature 不引用其他 feature。page 的 `useLocaleSwitch` 以隔離的短期 QueryClient 準備已讀頁數及 owner 範圍，全部驗證成功後才 hydrate 正式 cache 並切 URL。分類 preview 直接提供技能第 1 頁；已展開的第 2／3 頁逐頁續載。失敗保留原 UI／URL，快速選擇會取消過期請求；沒有有效資料的失敗區不阻擋切換。準備時續頁暫停，已展開集合與 selected project ID 保留；Modal 可注入同一語言控制。
+`LanguageMenu(locale,busy,onChange,onOpen?,variant?,label?,disabled?)` 共用同一個 Bootstrap 選單、主題、鍵盤與焦點生命週期；預設 icon trigger，Profile 內容語言使用 `variant="text"` 顯示完整語言名稱與箭頭，透過 label 命名並在儲存時 disabled。`languageNames` 與選項共用三語名稱，內容語言只更新 contentLocale query，保留草稿／分區／分頁，不切換介面語言。選單呈現三語選項、EN／简／繁角落標記、目前語言 check 與透明的選中列；選單最小寬 170px、內距 6px，開啟聚焦目前語言，ArrowUp／ArrowDown 在首末循環，Home／End 跳首末；瀏覽只移動焦點，不提交語言。處理既有鍵盤事件時保留 defaultPrevented，Escape／Tab 與選取仍交給 Dropdown／共用 dialog 焦點管理。鍵盤關閉或選取後還原觸發器焦點。可選 onOpen 在開啟前通知 page，讓明確操作優先於自動聯絡介紹；feature 不引用其他 feature。page 的 `useLocaleSwitch` 以隔離的短期 QueryClient 準備已讀頁數及 owner 範圍，全部驗證成功後才 hydrate 正式 cache 並切 URL。分類 preview 直接提供技能第 1 頁；已展開的第 2／3 頁逐頁續載。失敗保留原 UI／URL，快速選擇會取消過期請求；沒有有效資料的失敗區不阻擋切換。準備時續頁暫停，已展開集合與 selected project ID 保留；Modal 可注入同一語言控制。
 
 `LanguageMenu` receives an optional page-owned onOpen callback and retains three choices, the EN/简/繁 corner badge, selected check and transparent current-language row in a 170px minimum-width menu with 6px padding. Opening focuses the current language; ArrowUp/ArrowDown wrap at both boundaries and Home/End jump to the first/last option. Browsing changes focus without committing a locale, preserves already-prevented events and leaves Escape/Tab/selection to the dropdown or shared dialog lifecycle. Keyboard dismissal or selection restores the trigger. The opening callback lets the page prioritize explicit controls over automatic contact without a cross-feature import. The page coordinator prepares loaded ranges in an isolated QueryClient and commits validated cache/URL together. Category previews seed owner page one; only previously read continuation pages are fetched. Failures preserve the visible language, later choices cancel obsolete requests and independently failed sections do not block switching. Pagination pauses during preparation while disclosure and selected project IDs are preserved.
 
@@ -868,9 +925,9 @@ A single `useContactDisclosure` owns responsive open, presented, appearance, idl
 
 ## 導覽元件規格 / Navigation Specifications
 
-`Navigation` 接收 Site 品牌、active、compact、onCompact、onNavigate、endpoints 與可選 contact／onOpen callback。桌面 rail 在短 viewport 可捲動，收合以共用 duration／ease 平滑調整寬度、品牌、label、footer 與頁面 inset。compact icon 保留 accessible name；`SidebarLinks` 的 tooltip portal 在 rail 外 clamp，Escape、blur、resize 或 rail scroll 關閉描述，不搬動 link 焦點。760px 以下採 64px 固定 header 與 header 下方 250px Offcanvas；header／drawer／backdrop 分別為 layer 75／70／69，高於流動社群控制 65 與聯絡介紹 60，Bootstrap Modal 維持 1055。Bootstrap 管理焦點啟用、Escape、遮罩與焦點復原，Tab 邊界由共用 `cycleDialogTab` 補強。`onOpen` 由 page 注入 `contact.dismiss`，手動開啟導覽時收起介紹並抑制稍後自動揭露；未互動的首次入口仍正常運作。SidebarRail、SidebarLinks、SidebarDrawer 同時供 Settings 使用；頁面只提供各自的品牌、導航項目與網址。Settings 移除品牌下方與導航上方的 Management 字樣，收合後保留 dashboard 圖示，使用與首頁相同的旋轉雙箭頭、列高、間距與 tooltip。
+`Navigation` 接收 Site 品牌、active、compact、onCompact、onNavigate、endpoints 與可選 contact／onOpen callback。桌面 rail 在短 viewport 可捲動，收合以共用 duration／ease 平滑調整寬度、品牌、label、footer 與頁面 inset。compact icon 保留 accessible name；`SidebarLinks` 的 tooltip portal 在 rail 外 clamp，Escape、blur、resize 或 rail scroll 關閉描述，不搬動 link 焦點。760px 以下採 64px 固定 header 與 header 下方 250px Offcanvas；header／drawer／backdrop 分別為 layer 75／70／69，高於流動社群控制 65 與聯絡介紹 60，Bootstrap Modal 維持 1055。Bootstrap 管理焦點啟用、Escape、遮罩與焦點復原，Tab 邊界由共用 `cycleDialogTab` 補強。`onOpen` 由 page 注入 `contact.dismiss`，手動開啟導覽時收起介紹並抑制稍後自動揭露；未互動的首次入口仍正常運作。SidebarRail、SidebarLinks、SidebarDrawer 同時供 Settings 使用；頁面只提供各自的品牌、導航項目與網址。Profile 與 Settings 使用共用 `WorkspaceNavigation` 的 PORTFOLIO 品牌及分組標題，收合後保留 dashboard 圖示，使用與首頁相同的旋轉雙箭頭、列高、間距與 tooltip。
 
-`Navigation` receives branding, active section, collapse state, callbacks and optional journey/contact/onOpen inputs. A short desktop rail scrolls; collapse smoothly updates width, branding, labels, footer and page inset through shared motion tokens. Compact icons retain accessible names. `SidebarLinks` portals a clamped tooltip outside the rail; Escape, blur, resize and rail scrolling dismiss it without moving link focus. Widths up to 760px use a fixed 64px header and a 250px drawer beneath it. Header, drawer and backdrop use layers 75, 70 and 69, above scrolling social controls at 65 and contact at 60; Bootstrap Modal stays at 1055. Bootstrap owns focus activation, Escape, backdrop dismissal and restoration; shared `cycleDialogTab` handles Tab boundaries. The page supplies `contact.dismiss` through `onOpen`, so explicit navigation dismisses contact and suppresses later automatic offers while an untouched entrance retains its normal behavior. Both portfolio layouts share one section configuration. SidebarRail, SidebarLinks and SidebarDrawer also serve Settings, sharing collapse chevrons, animations, icon sizes, item spacing and compact tooltips. Settings has no visible Management caption or brand subtitle.
+`Navigation` receives branding, active section, collapse state, callbacks and optional journey/contact/onOpen inputs. A short desktop rail scrolls; collapse smoothly updates width, branding, labels, footer and page inset through shared motion tokens. Compact icons retain accessible names. `SidebarLinks` portals a clamped tooltip outside the rail; Escape, blur, resize and rail scrolling dismiss it without moving link focus. Widths up to 760px use a fixed 64px header and a 250px drawer beneath it. Header, drawer and backdrop use layers 75, 70 and 69, above scrolling social controls at 65 and contact at 60; Bootstrap Modal stays at 1055. Bootstrap owns focus activation, Escape, backdrop dismissal and restoration; shared `cycleDialogTab` handles Tab boundaries. The page supplies `contact.dismiss` through `onOpen`, so explicit navigation dismisses contact and suppresses later automatic offers while an untouched entrance retains its normal behavior. Both portfolio layouts share one section configuration. SidebarRail, SidebarLinks and SidebarDrawer also serve Settings, sharing collapse chevrons, animations, icon sizes, item spacing and compact tooltips. Profile and Settings share WorkspaceNavigation, its PORTFOLIO brand and grouped destinations; repeated content tabs are omitted. Both use a full-height drawer up to 1024px, while public navigation retains its 760px fixed-header layout.
 
 `cycleDialogTab(event, surface)` 位於 `shared/lib/focus.ts`，補足最後一個 control 按 Tab 離開 document／瀏覽器 chrome 而無法觸發 focus enforcement 的情況。它只處理 Tab／Shift+Tab 首末邊界，尊重子元件已 preventDefault 的事件，排除 disabled、hidden、inert、負 tabIndex 與不可見元素，並保留正 tabIndex 排序。Bootstrap 仍擁有 modal 生命週期，helper 不註冊全域 listener、不接管 Escape 或關閉後焦點復原。
 

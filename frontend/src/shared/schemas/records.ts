@@ -9,6 +9,8 @@ export const stableIdSchema = z
 export const textSchema = z.string();
 export const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 export const pageSize = 6;
+/** Bounded choices shared by management tables and editable collection footers. */
+export const recordPageSizes = [6, 10, 25, 50, 100] as const;
 
 /** Describe a backend page without duplicating its records in application state. */
 export type NumberedPage<T> = {
@@ -87,14 +89,17 @@ export function validateNumberedPage<T extends { id: string | number }>(
  * @param item Domain schema, validated before page arithmetic and unique IDs.
  * @returns A schema accepting valid empty and out-of-range pages, never null items.
  */
-export function numberedPageSchema<T extends z.ZodType<{ id: string | number }>>(item: T) {
+export function numberedPageSchema<T extends z.ZodType<{ id: string | number }>>(
+  item: T,
+  size: z.ZodType<number> = z.literal(pageSize),
+) {
   return z
     .object({
       items: z.array(item),
       total: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
       pages: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
       page: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-      size: z.literal(pageSize),
+      size,
     })
     .superRefine(validateNumberedPage);
 }

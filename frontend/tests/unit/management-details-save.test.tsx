@@ -137,6 +137,43 @@ it('keeps Default on activation edits and clears it only on unpublish', () => {
     is_default: false,
   });
 });
+it('publishes with an unchanged Profile icon, but rejects invalid changes to that icon', () => {
+  const save = vi.fn().mockResolvedValue(undefined);
+  const site = {
+    ...managementSiteFixtures().find((value) => value.has_site)!,
+    chat_icon: 'chat',
+    is_published: false,
+    is_default: false,
+  };
+  render(
+    <ManagementDetails
+      row={site}
+      columns={(['chat_icon', 'is_published'] as const).map((field) => ({
+        id: field,
+        label: field,
+        value: (value) => value[field],
+        editor: (value) => managementEditor('sites', field, value),
+      }))}
+      icon="window"
+      copy={copy}
+      onClose={vi.fn()}
+      onSave={save}
+    />,
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Edit is_published' }));
+  const button = screen.getByRole('button', { name: 'Save', exact: true });
+  expect(button).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Edit chat_icon' }));
+  const input = screen.getByRole('textbox', { name: 'chat_icon' });
+  fireEvent.change(input, { target: { value: 'https://example.test/unknown.svg' } });
+  expect(button).toBeDisabled();
+  fireEvent.change(input, { target: { value: 'chat' } });
+  fireEvent.blur(input);
+  expect(button).toBeEnabled();
+  fireEvent.click(button);
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Save' }));
+  expect(save).toHaveBeenCalledWith({ is_published: true });
+});
 it('represents clearing an optional description as null rather than an empty string', () => {
   const save = vi.fn().mockResolvedValue(undefined);
   render(

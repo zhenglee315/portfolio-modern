@@ -82,6 +82,14 @@ export const profileDraftSchema = z
     experiences: z.record(id, experienceSchema),
     projectOrder: ids,
     projects: z.record(id, projectSchema),
+    // Only page content is loaded; the index keeps ordering and shared-reference names available.
+    projectScope: z
+      .object({
+        sourceOrder: ids,
+        loadedIds: ids,
+        references: z.record(id, z.object({ names: localized(text), skillIds: ids })),
+      })
+      .optional(),
     categoryOrder: ids,
     categories: z.record(
       id,
@@ -94,13 +102,34 @@ export const profileDraftSchema = z
     const error = () => context.addIssue({ code: 'custom', message: 'Invalid draft references.' });
     for (const [order, entities] of [
       [draft.experienceOrder, draft.experiences],
-      [draft.projectOrder, draft.projects],
       [draft.categoryOrder, draft.categories],
     ] as const) {
       if (new Set(order).size !== order.length || order.length !== Object.keys(entities).length)
         error();
       for (const key of order) if (entities[key]?.id !== key) error();
     }
+    const scope = draft.projectScope;
+    if (new Set(draft.projectOrder).size !== draft.projectOrder.length) error();
+    if (!scope) {
+      if (draft.projectOrder.length !== Object.keys(draft.projects).length) error();
+    } else {
+      if (draft.revision === undefined || !draft.source) error();
+      if (
+        new Set(scope.sourceOrder).size !== scope.sourceOrder.length ||
+        new Set(scope.loadedIds).size !== scope.loadedIds.length ||
+        scope.loadedIds.some((key) => !scope.sourceOrder.includes(key))
+      )
+        error();
+    }
+    for (const key of draft.projectOrder) {
+      if (
+        draft.projects[key]?.id !== key &&
+        !(scope?.sourceOrder.includes(key) && !scope.loadedIds.includes(key))
+      )
+        error();
+    }
+    for (const [key, value] of Object.entries(draft.projects))
+      if (value.id !== key || !draft.projectOrder.includes(key)) error();
     for (const entity of [
       ...Object.values(draft.experiences),
       ...Object.values(draft.projects),
@@ -126,7 +155,7 @@ export type ProfileCategory = ProfileDraft['categories'][string];
 export type ProfileSection = 'overview' | 'experience' | 'projects' | 'skills';
 export type DraftIssue = {
   field: string;
-  reason: 'required' | 'date' | 'period' | 'day' | 'coordinate' | 'url' | 'email';
+  reason: 'required' | 'date' | 'period' | 'day' | 'coordinate' | 'url' | 'email' | 'duplicate';
 };
 
 /** Native month inputs and stored drafts share the same calendar-month policy. */
@@ -152,21 +181,33 @@ export function moveProfileItem(
   return next.every((key, index) => key === order[index]) ? order : next;
 }
 
-/** Removing a career keeps its projects and skills, clearing only the obsolete relationship. */
-export function removeProfileExperience(draft: ProfileDraft, key: string): ProfileDraft {
-  const experiences = { ...draft.experiences };
-  delete experiences[key];
+/** Removing careers keeps projects and shared skills, clearing only obsolete relationships. */
+export function removeProfileExperiences(
+  draft: ProfileDraft,
+  ids: readonly string[],
+): ProfileDraft {
+  const removed = new Set(ids.filter((id) => draft.experienceOrder.includes(id)));
+  if (!removed.size) return draft;
   return {
     ...draft,
-    experiences,
-    experienceOrder: draft.experienceOrder.filter((id) => id !== key),
+    experiences: Object.fromEntries(
+      Object.entries(draft.experiences).filter(([id]) => !removed.has(id)),
+    ),
+    experienceOrder: draft.experienceOrder.filter((id) => !removed.has(id)),
     projects: Object.fromEntries(
       Object.entries(draft.projects).map(([id, project]) => [
         id,
-        project.experienceId === key ? { ...project, experienceId: null } : project,
+        project.experienceId && removed.has(project.experienceId)
+          ? { ...project, experienceId: null }
+          : project,
       ]),
     ),
   };
+}
+
+/** Single-record editor deletion uses the same normalized path as selection and swipe actions. */
+export function removeProfileExperience(draft: ProfileDraft, key: string): ProfileDraft {
+  return removeProfileExperiences(draft, [key]);
 }
 
 /** Save validation uses the active content language, preserving unfinished translations elsewhere. */
@@ -222,6 +263,7 @@ export function profileDraftIssues(draft: ProfileDraft, locale: Locale): DraftIs
     }
   }
   for (const key of draft.projectOrder) {
+    if (!draft.projects[key]) continue; // Unvisited content is validated by the server during scoped save.
     const project = draft.projects[key]!;
     required(`projects.${key}.name`, project.translations[locale].name);
     required(`projects.${key}.intro`, project.translations[locale].intro);
@@ -229,6 +271,21 @@ export function profileDraftIssues(draft: ProfileDraft, locale: Locale): DraftIs
   }
   for (const category of Object.values(draft.categories))
     required(`categories.${category.id}`, category.names[locale]);
+  // Names can be temporarily incomplete during typing; reject invalid drafts before the single save.
+  const skillNames = new Map<string, string>();
+  for (const skill of Object.values(draft.skills)) {
+    const label = skill.labels?.[locale] || skill.label;
+    const field = `skills.${skill.id}`;
+    required(field, label);
+    const normalized = label.trim().toLocaleLowerCase();
+    if (!normalized) continue;
+    const existing = skillNames.get(normalized);
+    if (existing) {
+      if (!issues.some((issue) => issue.field === existing && issue.reason === 'duplicate'))
+        issues.push({ field: existing, reason: 'duplicate' });
+      issues.push({ field, reason: 'duplicate' });
+    } else skillNames.set(normalized, field);
+  }
   for (const [key, value] of Object.entries(draft.social)) {
     if (!value.trim()) continue;
     if (key === 'email') {
@@ -279,6 +336,7 @@ export function newProfileExperience(): ProfileExperience {
   };
 }
 
+/** New projects reference an existing career when supplied and own independent translations and steps. */
 export function newProfileProject(experienceId: string | null): ProfileProject {
   const copy = {
     name: '',

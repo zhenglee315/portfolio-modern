@@ -8,6 +8,7 @@ export {
   profileJourney,
   moveProfileItem,
   removeProfileExperience,
+  removeProfileExperiences,
   newProfileExperience,
   newProfileProject,
   newProfileId,
@@ -23,3 +24,10 @@ export type {
 } from './model/profile';
 
 export { readProfileContent, saveProfileContent } from './api/profile';
+export { readProfileProjectPage } from './api/profile';
+export {
+  mergeProfileProjectPages,
+  removeProfileProjects,
+  profileProjectReferences,
+} from './model/projects';
+export type { ProfileProjectPage } from './model/projects';

@@ -4,7 +4,7 @@
 
 This guide owns backend integration and operational contracts. Scheduler, management-business and shared-storage guides own their respective implementation boundaries; the [project overview](../README.md#文件分工--documentation-responsibilities) indexes all documentation.
 
-User PATCH `/management/users/{account_id}` 現在接受 is_active／role_id，沿用 email 確認與 expected 原值比較。角色指派在同一交易及管理寫入鎖下檢查角色存在、啟用、操作者七項權限上限與最後角色管理員。新增 `/management/users/role-options` 提供 page／size／search，僅需 is_manage_users，回傳 can_assign。Login records GET 加入 nullable is_online：使用與 system heartbeat 相同的 Redis SYS online:<IP> TTL key，只批次讀取當頁 IP；不存在為 false，Redis 無法讀取為 null。此值表示 IP 活動，不代表帳號 session，無 SQL 排序／篩選。geo_status 仍保留原登入地理快照；沒有 migration 或額外寫入 API。
+User PATCH `/management/users/{account_id}` 現在接受 is_active／role_id，沿用 email 確認與 expected 原值比較。角色指派在同一交易及管理寫入鎖下檢查角色存在、啟用、操作者八項權限上限與最後角色管理員。新增 `/management/users/role-options` 提供 page／size／search，僅需 is_manage_users，回傳 can_assign。Login records GET 加入 nullable is_online：使用與 system heartbeat 相同的 Redis SYS online:<IP> TTL key，只批次讀取當頁 IP；不存在為 false，Redis 無法讀取為 null。此值表示 IP 活動，不代表帳號 session，無 SQL 排序／篩選。geo_status 仍保留原登入地理快照；沒有 migration 或額外寫入 API。
 
 本目錄是個人檔案系統的 FastAPI 後端。`APPs` 放業務 API，`COMMON` 放共用工具，`SYSTEM` 負責設定、模型、資料庫、middleware 與應用生命週期。整體產品方向見[專案 README](../README.md)。
 
@@ -14,11 +14,27 @@ This directory contains the FastAPI backend for the personal profile system. `AP
 
 Six public Portfolio reads, five private owner reads, eighteen content writes, three management lists, Role/User/Platform PATCH and single/batch deletion, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Lifespan-managed worker monitoring covers resources, HTTP requests, transactions and process replacements, delivering changed snapshots through the `/monitor` Socket.IO namespace, with a diagnostic CLI. Administration create APIs remain pending. Profile requires migration `e42b19a7d603` before enabling this version; see the Profile API reference for operations, transactions and schema changes.
 
+## 本人內容與新介面 / Owner content and editor
+
+Profile 現在包含本人內容讀取、資源 CUD／排序及整頁交易保存，並非只有公開六支 GET。畫面由前端組合，所有 owner、權限、revision、關聯與交易驗證仍在後端。新註冊只建立帳號，未建立作品集時本人 GET 回 404；不能用 default 網站代替本人資料。
+
+[![目前的 Profile 專案編輯、分頁及保存介面](../docs/images/profile-projects.png)](../docs/images/profile-projects.png)
+
+| 操作     | 契約                                                                            | 設計                                                                                                                             |
+| -------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 本人讀取 | `GET /portfolio/me/{site,experiences,projects,skill-categories,skills}`         | SESSION 限定 owner，含未公開及三語資料；專案以 page／size 查詢，其他引用使用輕量 ID 索引。                                       |
+| 專案分頁 | `GET /portfolio/me/projects?page=1&size=6`                                      | size 1–100，沿用 `items/total/pages/page/size`，附 revision／order／references；公開與管理員 preview 集合仍固定 size=6。         |
+| 整頁保存 | `POST /portfolio/site/save`                                                     | `expected_revision`、`draft` 與可選 `project_scope.loaded_ids/order`；單一交易保留未載入專案，409 衝突保留工作副本，不自動重送。 |
+| 個別修改 | 既有 `site`、`experiences`、`projects`、`skill-categories`、`skills` CUD／order | 共用同一 Module、schema、ORM 工具及 CRUD 權限；使用中的技能與跨 owner ID 不可任意刪改。                                          |
+| 草稿預覽 | 前端未送出 modal                                                                | 重用公開 Views，不觸發保存；[畫面](../docs/images/profile-preview.png)不是讀取已發布內容的另一支 API。                           |
+
+完整 operation matrix／輸入回傳／正規化表格由 [Portfolio 指南](APPs/Portfolio/README.md) 維護。SQL 交易與分頁沿用 [SQLAlchemy 工具](COMMON/tools/storage/sqlalchemy/README.md)，共用輸入及五欄回應由 [COMMON schema](COMMON/schema/README.md) 登記。卡片的左滑、拖曳及 checkbox 是草稿操作，前端唯一 Save 才提交，不把手勢拆成多個不一致交易。
+
 ## 管理員 Portfolio 預覽
 
 `APPs/Management/views_management.py` 的 `ManagementPortfolioPreview` 提供 `/management/preview/site`、`journey`、`experiences`、`projects`、`skill-categories`、`skills` 六支 GET。CBV class 直接使用共用 ManagementPermission(AuthRole.is_manage_sites)，每次透過既有 AuthSessionModule 讀取目前有效帳號與角色；未登入／停用管理員回 401，沒有管理權限回 403，儲存不可用回 503。必須明確指定 site_id，不以帳號 id 或 default 推測；可讀取未發布及停用用戶的網站，缺少網站／語言回 404。View 只呼叫既有 Portfolio module 的 `preview()`／`preview_categories()`／`preview_skills()`；目標存在性、內容讀取與私有錯誤處理由 module 負責。公開 Portfolio 的發布條件維持不變。
 
-所有預覽 DTO 與資料查詢共用 APPs/Portfolio；四個集合仍為 page／size=6，Skills 仍使用 ownerType=category／ownerId。預覽不掛 public cache decorator，成功及已處理錯誤使用 private, no-store／Vary: Cookie。這些端點只讀取，不改資料庫；管理員 SESSION 依既有機制刷新。三支管理列表也已套用共用權限檢查；CUD 與細分操作授權保留於管理權限待辦。
+所有預覽 DTO 與資料查詢共用 APPs/Portfolio；四個集合仍為 page／size=6，Skills 仍使用 ownerType=category／ownerId。預覽不掛 public cache decorator，成功及已處理錯誤使用 private, no-store／Vary: Cookie。這些端點只讀取，不改資料庫；管理員 SESSION 依既有機制刷新。三支管理列表也已套用共用權限檢查；PATCH 與刪除依各資源管理旗標檢查，內容 CRUD 旗標不能替代；新增仍未實作。
 
 ## 同時啟動 API 與排程 / Combined startup
 
@@ -39,6 +55,8 @@ PLATFORM_PATCH_TEST_POSTGRES_URL=postgresql+asyncpg://test_user@127.0.0.1:16439/
   uv run --locked check.py --integration
 ```
 
+整合測試用 PostgreSQL 資料庫及 Redis DB 必須與正在執行的 QA／開發服務分開；`test_request_history` 會建立及移除自己的歷史表。即使兩者都是合成資料，也不能同時共用同一資料庫，否則排程寫入會干擾測試筆數。
+
 正式回歸案例位於 `tests/`，依賴由 `pyproject.toml`／`uv.lock` 鎖定。`uv run --locked check.py` 統一執行 Black、Ruff、漸進式 mypy 與 pytest；檢查同時涵蓋前端七支 Python 資產產生器。`--integration` 要求上方全部隔離服務環境變數，缺少即拒絕執行。只跑測試可用 `uv run --locked pytest`。mypy 目前覆蓋監控、IP／GeoIP、遷移支援政策、公開 handle 及分散鎖共十支模組；其餘 Python 仍執行格式、lint 與行為測試。完整對照見[品質驗證](../docs/code-quality.md)。
 
 Maintained tests now ship under tests/. The locked check.py entry runs formatting, lint, gradual type checks and pytest, including the frontend Python generators. Integration mode requires explicitly supplied disposable endpoints. One-time evidence stays under ignored agent/.
@@ -53,61 +71,87 @@ SYSTEM 與 SCHEDULER 的 tools 不匯入 COMMON。匯入依 `Project`、`Common`
 
 ## 目錄結構 / Directory Layout
 
-下列是目前的主要檔案與資料夾；省略 package 標記、靜態資產細項與虛擬環境。
+下列是目前的主要檔案與資料夾；省略 package 標記、靜態資產細項、虛擬環境、本機資料及測試產物。
 
 The tree shows the main files and directories currently present; package markers, individual static assets, and the virtual environment are omitted.
 
 ```text
 backend/
+├── README.md
+├── pyproject.toml
+├── uv.lock
+├── check.py                      # Black／Ruff／mypy／pytest
+├── alembic.ini
+├── manage.py                     # 同時管理 FastAPI 與 APScheduler
+├── manage_fastapi.py              # 由 manage.py 管理的 child
+├── manage_apscheduler.py          # 由 manage.py 管理的 child
+├── tests/                        # 單元、整合、依賴邊界與文件契約檢查
 ├── APPs/
 │   ├── Auth/
-│   │   ├── views_auth.py         # Auth CBV routes and private responses
-│   │   ├── module/              # Sign-in, sign-out, registration and session logic
-│   │   └── schema/              # Request validation and account responses
+│   │   ├── views_auth.py
+│   │   ├── module/               # 註冊、登入、SESSION 與權限
+│   │   └── schema/
 │   ├── Management/
-│   │   ├── views_management.py   # Management GETs and Platform PATCH in the existing CBVs
+│   │   ├── views_management.py   # 列表、預覽、PATCH 與刪除
 │   │   ├── constants/
-│   │   │   └── constant_management.py # Query limits and allowed projection/sort fields
-│   │   ├── module/              # ORM projections and transactional Platform updates
-│   │   └── schema/              # body/ writes, parser/ parameters, resp/ responses
+│   │   ├── module/
+│   │   └── schema/
+│   ├── Monitor/
+│   │   ├── README.md
+│   │   ├── views_monitor.py      # HTTP 歷史彙總與即時診斷
+│   │   ├── module/
+│   │   └── schema/
 │   ├── Portfolio/
-│   │   ├── views_portfolio.py    # Six public CBV GET routes
-│   │   ├── module/               # ORM-backed business queries
-│   │   └── schema/               # Query parsers and response models
-│   └── Sys/                      # Online-count diagnostic route and module
+│   │   ├── README.md
+│   │   ├── views_portfolio.py    # 公開／本人 GET、內容 CUD 與原有 Module
+│   │   ├── module/              # 公開查詢／管理 module 與相容匯出
+│   │   └── schema/              # body、parser、resp
+│   └── Sys/                     # 心跳／在線人數
 ├── COMMON/
-│   ├── decorator/                # 共用 decorator / shared decorators
-│   ├── schema/                   # Shared help text, parsers, responses
+│   ├── decorator/               # 快取與 SQL 驗證裝飾器，含 README
+│   ├── schema/                  # 共用分頁、搜尋／篩選 parser，含 README
 │   └── tools/
-│       ├── storage/
-│       │   ├── redis/            # Redis helpers and guide
-│       │   └── sqlalchemy/       # SQLAlchemy CRUD helpers and guide
+│       ├── README.md            # 全部通用工具入口、用法與 ownership
 │       ├── tools_enum.py
-│       └── tools_yaml.py
+│       ├── tools_geoip.py       # 本機 MMDB／gzip 驗證及原子匯入
+│       ├── tools_search.py
+│       ├── tools_yaml.py
+│       └── storage/
+│           ├── redis/           # client、WATCH／stream／heartbeat 與 README
+│           └── sqlalchemy/      # session、ORM、分頁／篩選／搜尋與 README
 ├── SYSTEM/
-│   ├── config.yaml               # 公開開發預設 / public development defaults
-│   ├── extension.py              # 載入設定與建立 Socket.IO server
-│   ├── settings.py               # 整理應用設定 / derived settings
-│   ├── lifespan.py               # 啟動與關閉資源 / resource lifecycle
+│   ├── config.yaml              # 本機服務設定；文件不保存憑證值
+│   ├── settings.py
+│   ├── extension.py
+│   ├── events.py
+│   ├── lifespan.py              # 資源建立、注入與關閉
+│   ├── urls.py
 │   ├── constants/
 │   ├── database/
-│   │   ├── database_core.py      # 單一 async DB 與 Redis client manager
-│   │   └── orm/                  # 共用 ORM Base
-│   ├── middleware/               # CORS、heartbeat、session
-│   ├── models/                   # Portfolio and auth ORM models
-│   │   └── migrations/           # Alembic 環境與版本 / Alembic revisions
-│   ├── static/                   # 本機 Swagger／ReDoc 資產
-│   └── tools/                    # FastAPI、網路與 Socket.IO 組裝工具
-├── alembic.ini                   # migration 入口 / migration configuration
-├── SCHEDULER/                   # 排程任務與分散式鎖 / scheduled jobs and distributed locks
-├── manage.py                    # 同時啟動 FastAPI 與 APScheduler / combined startup
-├── manage_fastapi.py            # FastAPI 子程序入口 / FastAPI child entry point
-├── manage_apscheduler.py        # 排程子程序入口 / scheduler child entry point
-├── pyproject.toml                # 依賴宣告 / dependency declarations
-└── uv.lock                       # 解析後版本 / resolved dependency versions
+│   │   ├── database_core.py     # 共用 async DB／Redis manager
+│   │   ├── migration_policy.py
+│   │   ├── orm/                 # ORM Base
+│   │   └── models/              # 相容匯出
+│   ├── geoip/                   # 本機 City 資料、manifest 與 README
+│   ├── middleware/              # CORS、heartbeat、SESSION、monitor
+│   ├── models/                  # Auth／Portfolio／Record ORM 與表格指南
+│   │   └── migrations/
+│   ├── scripts/                 # 本機診斷／資料匯入 CLI
+│   ├── static/                  # 本機 Swagger／ReDoc
+│   └── tools/                   # FastAPI／Socket／IP／監控組裝，含 README
+└── SCHEDULER/
+    ├── README.md
+    ├── JOBs/
+    │   └── Sys/                 # 健康採樣及請求歷史寫入
+    └── SYSTEM/
+        ├── settings.py
+        ├── extension.py
+        └── tools/               # scheduler adapter、token lease 與 README
 ```
 
 新增工具時，詳細方法、參數與用法寫在該工具資料夾的 README。現有文件：[SQLAlchemy 工具](COMMON/tools/storage/sqlalchemy/README.md)、[Redis 工具](COMMON/tools/storage/redis/README.md)、[快取裝飾器](COMMON/decorator/README.md)。這份 README 維護後端架構、API 總覽與操作入口。
+
+其餘入口與 ownership 集中於 [COMMON tools](COMMON/tools/README.md)、[SYSTEM tools](SYSTEM/tools/README.md)、[Scheduler tools](SCHEDULER/SYSTEM/tools/README.md) 及 [COMMON schema](COMMON/schema/README.md)。每份指南登記介面、匯入路徑、輸入／回傳、用法、設計與清理責任；`tests/test_documentation.py` 直接讀 AST 比對公開介面及 README 目錄，不匯入執行期設定或建立連線。
 
 When adding a tool, document its methods, parameters, and usage in that tool folder's README. See the [SQLAlchemy](COMMON/tools/storage/sqlalchemy/README.md), [Redis](COMMON/tools/storage/redis/README.md), and [cache decorator](COMMON/decorator/README.md) guides. This README covers backend architecture, API scope, and operational entry points.
 
@@ -120,15 +164,15 @@ Public content follows the flow below. Portfolio routes share one `FastApiRouter
 ```text
 HTTP request
   → SYSTEM/middleware
-  → APPs/{Auth,Management,Portfolio,Sys}/views
+  → APPs/{Auth,Management,Monitor,Portfolio,Sys}/views
   → schema/parser → module → ORM or Redis helper
   → SYSTEM/database/ConnectionManager → SQLite/PostgreSQL or Redis
   → schema/resp → JSON response
 ```
 
-`GET /authority/session` 以伺服器 SESSION 的帳號 ID 查詢啟用中的帳號與角色，回傳 `id`、`email`、`user`、`role` 及八個 CRUD／管理權限；訪客或失效帳號回傳 `null`，儲存服務錯誤回傳 `503`。查詢會更新 SESSION 中的身份與權限，保留原 SID 及尚未完成的註冊驗證。Auth 回應使用 `Cache-Control: no-store`；前端可在重新整理後恢復身份，無須儲存密碼。
+`GET /authority/session` 以伺服器 SESSION 的帳號 ID 查詢啟用中的帳號與角色，回傳 `id`、`email`、`user`、`role` 及八個內容／監控／管理權限；訪客或失效帳號回傳 `null`，儲存服務錯誤回傳 `503`。查詢會更新 SESSION 中的身份與權限，保留原 SID 及尚未完成的註冊驗證。Auth 回應使用 `Cache-Control: no-store`；前端可在重新整理後恢復身份，無須儲存密碼。
 
-`GET /authority/session` resolves the server session's account ID against an active account and role, returning `id`, `email`, `user`, `role`, and seven CRUD/management permissions. Guests and invalid accounts receive `null`; storage failures return `503`. Lookup refreshes session identity and permissions while retaining the SID and pending registration proof. Auth responses use `Cache-Control: no-store`, allowing the frontend to restore identity after reload without storing passwords.
+`GET /authority/session` resolves the server session's account ID against an active account and role, returning `id`, `email`, `user`, `role`, and eight content, monitoring and management permissions. Guests and invalid accounts receive `null`; storage failures return `503`. Lookup refreshes session identity and permissions while retaining the SID and pending registration proof. Auth responses use `Cache-Control: no-store`, allowing the frontend to restore identity after reload without storing passwords.
 
 SESSION 資料欄位統一由 [`SYSTEM/constants/constant_session.py`](SYSTEM/constants/constant_session.py) 的 `EnumSess` 定義，包含公開身份、八個權限、私有身份驗證與註冊挑戰欄位。讀寫 SESSION 或其帳號字典時使用枚舉，例如 `account.get(EnumSess.IS_MANAGE_SITES)`；`AUTH_PERMISSION_FIELDS` 也共用這些成員。枚舉沿用原始字串值，既有 Redis JSON 與前端 DTO 欄位保持相容。`EnumSess.PASSWORD` 僅用來清除舊資料，不允許新 SESSION 保存密碼。
 
@@ -222,9 +266,9 @@ Only Site accepts mutually exclusive user/site_id selectors. `/portfolio/site?us
 | `PortfolioLocale`                          | 全站語言字典 / Shared language dictionary                                                                                                                               |
 | `RecordLogin`                              | 成功登入的帳號與時間 / Successful account login timestamps                                                                                                              |
 
-`COMMON/schema/schema_user.py` 共用公開識別驗證及 email 前綴分配；省略註冊 `user` 時自動加數字後綴處理撞名。新帳號不會自動建立作品集。`PortfolioManagementModule` 提供共用帳號／owner 權限檢查及原子發布／首頁切換，目前沒有對外寫入 route。多 statement 交易透過 `SqlAlchemyExecAsync.transaction()`，business module 仍只提交 ORM statement。
+`COMMON/schema/schema_user.py` 共用公開識別驗證及 email 前綴分配；省略註冊 `user` 時自動加數字後綴處理撞名。新帳號不會自動建立作品集。`PortfolioManagementModule` 保留共用帳號／owner 權限檢查及內部原子發布／首頁切換工具；對外的發布與首頁切換由 Platform PATCH 統一處理。多 statement 交易透過 `SqlAlchemyExecAsync.transaction()`，business module 仍只提交 ORM statement。
 
-Shared user validation/allocation handles prefix collisions. Registration does not automatically create a portfolio. The management module supplies reusable authorization and atomic publication/default operations without exposing write routes. Multi-statement operations use the shared transaction tool and execute_orm interface.
+Shared user validation/allocation handles prefix collisions. Registration does not automatically create a portfolio. The portfolio management module retains reusable authorization and internal atomic publication/default operations; the public management entry point for these changes is Platform PATCH. Multi-statement operations use the shared transaction tool and execute_orm interface.
 
 公開可見性 dependency 在 response cache 前執行；cache key 包含解析後的 site_id、語言與分頁／owner 參數。發布／首頁變更提交後使用共用 Redis SCAN 工具刪除 portfolio namespace；Auth 保持 no-store。Migration 依 `2f6a91c3e480` 擴充、`4c7e2b90d615` 補齊資料、`6d4f8a21c903` 補上約束，歷史內容不變；多站已有重複字串 ID 時拒絕降回全域 PK。
 
@@ -281,9 +325,9 @@ See the [frontend README](../frontend/README.md) for the React migration plan. I
 
 ## 角色管理列表 / Role Management List
 
-管理列表與 Portfolio preview 已共用 `ManagementPermission` class dependency。`roles`、`users`、`sites` 分別要求 `is_manage_roles`、`is_manage_users`、`is_manage_sites`；preview 要求 `is_manage_sites`。每次依伺服器 SESSION 的 ID 重查有效帳號及角色，訪客／停用回 401、權限不足回 403、身份儲存失敗保留 503，成功讀取為 `private, no-store`。用法與擴充界線見 [權限模組](APPs/Management/module/README.md)，CUD 與細分權限待辦見 [權限待辦](../docs/management-permissions-todo.md)。
+管理列表與 Portfolio preview 已共用 `ManagementPermission` class dependency。`roles`、`users`、`sites` 分別要求 `is_manage_roles`、`is_manage_users`、`is_manage_sites`；preview 要求 `is_manage_sites`。每次依伺服器 SESSION 的 ID 重查有效帳號及角色，訪客／停用回 401、權限不足回 403、身份儲存失敗保留 503，成功讀取為 `private, no-store`。用法與擴充界線見 [權限模組](APPs/Management/module/README.md)，Role／User／Site 的 PATCH 與刪除已有對應管理旗標檢查，管理新增仍未實作。
 
-Management lists and portfolio previews share the `ManagementPermission` class dependency. Roles, users and sites require their matching `is_manage_*` flag; preview requires `is_manage_sites`. Each request refreshes the active account and role from the server SESSION ID. Guests/disabled identities receive 401, denied permissions 403, and identity storage failures retain 503; successful reads are private and not cached. See the [permission module](APPs/Management/module/README.md) for usage and extension boundaries and the [remaining permission work](../docs/management-permissions-todo.md) for CUD and finer grants.
+Management lists and portfolio previews share the `ManagementPermission` class dependency. Roles, users and sites require their matching `is_manage_*` flag; preview requires `is_manage_sites`. Each request refreshes the active account and role from the server SESSION ID. Guests/disabled identities receive 401, denied permissions 403, and identity storage failures retain 503; successful reads are private and not cached. See the [permission module](APPs/Management/module/README.md) for usage and extension boundaries. PATCH and deletion use the matching management flag; administration creation and per-resource CRUD grants remain future extensions.
 
 `GET /management/roles` 每列是一個角色，沿用 `{items,total,pages,page,size}`，`items` 是有欄位名稱的物件陣列。前端透過既有代理呼叫 `/api/management/roles`。查詢由 `schema/parser/parser_management.py` 驗證，`module/module_roles.py` 組合 SQL，`schema/resp/resp_management.py` 定義回應，`views_management.py` 提供 HTTP 介面；啟動時由現有路由探索機制載入。
 

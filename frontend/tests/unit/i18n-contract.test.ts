@@ -78,6 +78,11 @@ describe('fixed UI translation contracts', () => {
     for (const locale of supportedLocales) {
       const editor = createProfileI18n(locale);
       expect(editor.t('profileEditor.fields.city')).toBe(profileMessages[locale].fields.city);
+      for (const key of dictionaryKeys(profileMessages[locale])) {
+        const path = `profileEditor.${key}`;
+        expect(editor.exists(path), `${locale}: ${path}`).toBe(true);
+        expect(editor.t(path)).not.toBe(path);
+      }
       expect(createI18n(locale).exists('profileEditor.fields.city')).toBe(false);
     }
   });

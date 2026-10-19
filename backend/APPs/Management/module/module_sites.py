@@ -320,6 +320,12 @@ class ManagementSitesModule(ManagementListModule):
                         .where(PortfolioSiteLocale.id == translation_id)
                         .values(translation_changes)
                     )
+                if site is not None and (site_changes or translation_changes):
+                    await transaction.execute_orm(
+                        update(PortfolioSite)
+                        .where(PortfolioSite.id == site.id)
+                        .values(revision=PortfolioSite.revision + 1)
+                    )
                 stmt, _ = self._query()
                 row = (await transaction.execute_orm(stmt.where(AuthUser.id == account_id))).mappings().one()
                 result = RespManagementSite.model_validate(row).model_dump()

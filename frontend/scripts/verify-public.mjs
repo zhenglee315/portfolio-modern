@@ -22,7 +22,17 @@ const privateContent =
  * @returns Aggregate byte counts for public assets; violations reject artifact acceptance.
  */
 export async function verifyPublic(directory) {
-  const totals = { js: 0, jsGzip: 0, css: 0, cssGzip: 0, fonts: 0, mascot: 0, map: 0 };
+  const totals = {
+    js: 0,
+    jsGzip: 0,
+    css: 0,
+    cssGzip: 0,
+    fonts: 0,
+    mascot: 0,
+    map: 0,
+    offlineMap: 0,
+    offlineMapGzip: 0,
+  };
   /** Recursively inspect only the supplied public output directory. */
   async function inspect(folder) {
     for (const entry of await readdir(folder, { withFileTypes: true })) {
@@ -56,21 +66,28 @@ export async function verifyPublic(directory) {
       if (extension !== '.gz' && entry.name.startsWith('cow-engineer-'))
         totals.mascot += data.length;
       if (/^JourneyMap-.*\.js$/.test(entry.name)) totals.map += data.length;
+      if (/^offline-atlas-.*\.json$/.test(entry.name)) {
+        totals.offlineMap += data.length;
+        totals.offlineMapGzip += gzipSync(data).length;
+      }
     }
   }
   await inspect(directory);
   const ceilings = {
-    // Aggregate files include the permission-gated Overview, its local country positions,
-    // Socket.IO detail views and three dictionaries. Public visits do not load monitor chunks.
-    // Measured with Overview: JS 1,268,108 / 429,461 gzip; CSS 368,870 / 74,498 gzip.
+    // Aggregate files include Profile and the Leaflet picker loaded only when its modal opens.
+    // Public visits do not load Profile; closed pickers request neither Leaflet nor local atlas data.
+    // Measured with the picker: ~1.54 MB JS / 510 KB gzip; 418 KB CSS / 88 KB gzip.
     // Retain bounded headroom for hash variation and subsequent small fixes.
-    js: 1_290_000,
-    jsGzip: 440_000,
-    css: 375_000,
-    cssGzip: 76_000,
+    js: 1_565_000,
+    jsGzip: 525_000,
+    css: 425_000,
+    cssGzip: 90_000,
     fonts: 250_000,
     mascot: 1_250_000,
     map: 250_000,
+    // Versioned world boundaries and 7,342 city points are separate same-origin JSON, never JS.
+    offlineMap: 3_150_000,
+    offlineMapGzip: 1_000_000,
   };
   const exceeded = Object.entries(ceilings)
     .filter(([metric, ceiling]) => totals[metric] > ceiling)

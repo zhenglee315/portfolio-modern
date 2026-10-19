@@ -1,0 +1,347 @@
+/* Modal and bundled vector map share theme tokens; no map content comes from external hosts. */
+.dialog {
+  --bs-modal-bg: var(--control-surface);
+  --bs-modal-color: var(--text);
+  --bs-modal-border-color: var(--dialog-border);
+  --bs-modal-header-border-color: var(--border);
+  --bs-modal-footer-border-color: var(--border);
+}
+.dialog :global(.modal-dialog) {
+  width: calc(100% - 32px);
+  max-width: 960px;
+  margin-inline: auto;
+}
+.content:global(.modal-content) {
+  padding: 24px;
+  border-radius: var(--radius-card);
+  box-shadow: 0 24px 90px var(--shadow-strong);
+}
+.header:global(.modal-header) {
+  padding: 0 0 18px;
+  align-items: flex-start;
+  gap: 16px;
+}
+.header :global(.modal-title) {
+  margin: 4px 0 8px;
+  font-size: 23px;
+  font-weight: 650;
+}
+.eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font: 11px/1.6 var(--mono);
+}
+.help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.body:global(.modal-body) {
+  display: grid;
+  gap: 16px;
+  padding: 18px 0;
+}
+.place {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.place > :global(.icon) {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.stage {
+  position: relative;
+  isolation: isolate;
+  height: clamp(240px, 44dvh, 420px);
+  min-height: 240px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--map-surface);
+}
+.map {
+  position: relative;
+  isolation: isolate;
+  height: 100%;
+  width: 100%;
+  background: var(--map-surface);
+}
+.map:global(.leaflet-container) {
+  background: var(--map-surface);
+  font-family: var(--sans);
+}
+.map:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+.country {
+  fill: var(--map-control);
+  stroke: var(--control-border);
+}
+.grid {
+  stroke: var(--map-grid);
+  opacity: 0.5;
+}
+.cityLabel,
+.countryLabel {
+  color: var(--map-caption);
+  font: 12px/24px var(--sans);
+  white-space: nowrap;
+  text-shadow:
+    0 1px 3px var(--map-surface),
+    1px 0 3px var(--map-surface),
+    -1px 0 3px var(--map-surface);
+  pointer-events: none;
+}
+.cityLabel::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 2px;
+}
+.countryLabel {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+/* Keep theme contrast even when Leaflet's stylesheet arrives after this CSS module. */
+.dialog .map :global(.leaflet-control-attribution) {
+  padding: 3px 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 10px;
+}
+.dialog .map :global(.leaflet-control-attribution) a {
+  color: var(--accent);
+}
+.dialog .map :global(.leaflet-control-scale-line) {
+  background: var(--panel);
+  color: var(--muted);
+  border-color: var(--control-border);
+  text-shadow: none;
+}
+.citySearch {
+  display: grid;
+  gap: 8px;
+}
+.citySearch label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.citySearch input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-card);
+  background: var(--control-surface);
+  color: var(--text);
+  font: 14px/1.6 var(--sans);
+}
+.citySearch input::placeholder {
+  color: var(--muted);
+}
+.citySearch input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cityResults {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 224px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+.cityResults li + li {
+  border-top: 1px solid var(--border);
+}
+.cityResults button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--control-surface);
+  border: 0;
+  color: var(--text);
+  text-align: left;
+}
+.cityResults button:is(:hover, :focus-visible) {
+  background: var(--control-hover);
+}
+.cityResults button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.cityResults button > span {
+  display: grid;
+  gap: 3px;
+}
+.cityResults strong {
+  font-size: 13px;
+}
+.cityResults small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.noCities {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.controls {
+  position: absolute;
+  z-index: 800;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  gap: 6px;
+}
+.controls button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  box-shadow: 0 2px 8px var(--shadow-subtle);
+}
+.crosshair {
+  position: absolute;
+  z-index: 500;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: var(--accent);
+  box-shadow: 0 0 3px var(--shadow-strong);
+}
+.crosshair::before {
+  height: 2px;
+  left: 0;
+  right: 0;
+  top: 8px;
+}
+.crosshair::after {
+  width: 2px;
+  top: 0;
+  bottom: 0;
+  left: 8px;
+}
+.marker {
+  color: var(--accent);
+  filter: drop-shadow(0 2px 3px #0009);
+  background: transparent;
+  border: 0;
+}
+.marker svg {
+  width: 32px;
+  height: 40px;
+  stroke: var(--panel);
+  stroke-width: 0.5px;
+}
+.marker:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.loading {
+  position: absolute;
+  z-index: 900;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 24px;
+  background: var(--panel);
+  font-size: 13px;
+}
+.loading p {
+  margin: 0;
+}
+.mapActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.mapActions button {
+  flex-shrink: 0;
+}
+.coordinates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.coordinates > div {
+  display: grid;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--control-surface);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-card);
+}
+.coordinates span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.coordinates output {
+  color: var(--text);
+  font: 16px/1.6 var(--mono);
+}
+.footer:global(.modal-footer) {
+  gap: 10px;
+  padding: 16px 0 0;
+}
+.footer button {
+  margin: 0;
+}
+.backdrop:global(.modal-backdrop) {
+  background: var(--dialog-backdrop);
+  backdrop-filter: blur(6px);
+}
+.backdrop:global(.modal-backdrop.show) {
+  opacity: 1;
+}
+@media (max-width: 600px) {
+  .dialog :global(.modal-dialog) {
+    width: calc(100% - 16px);
+  }
+  .content:global(.modal-content) {
+    padding: 16px;
+  }
+  .header :global(.modal-title) {
+    font-size: 20px;
+  }
+  .mapActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .coordinates > div {
+    padding: 10px 12px;
+  }
+  .coordinates output {
+    font-size: 14px;
+  }
+  .footer:global(.modal-footer) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

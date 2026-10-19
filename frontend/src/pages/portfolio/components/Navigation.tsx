@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Brand, fullName, type Site } from '@/features/site';
 import { Icon } from '@/shared/ui/Icon';
 import { mobileQuery, useMediaQuery } from '@/shared/hooks/useMediaQuery';
-import { SidebarRail, SidebarLinks, SidebarDrawer } from '@/shared/ui/SidebarNavigation';
+import {
+  SidebarRail,
+  SidebarLinks,
+  SidebarDrawer,
+  type SidebarNavigationItem,
+} from '@/shared/ui/SidebarNavigation';
 import { sections } from '../model/navigation';
 import styles from './Navigation.module.css';
 
@@ -17,6 +22,11 @@ type Props = {
   onContact?: (event: MouseEvent<HTMLButtonElement>) => void;
   contactOpen?: boolean;
   onOpen?: () => void;
+  /** Owners may supply translated, route-specific destinations while retaining the same rail. */
+  items?: readonly Pick<
+    SidebarNavigationItem,
+    'id' | 'label' | 'icon' | 'href' | 'current' | 'ordinal'
+  >[];
 };
 
 /** Supply responsive navigation with focus-managed Bootstrap drawer and desktop collapse.
@@ -32,6 +42,7 @@ export function Navigation({
   onContact,
   contactOpen,
   onOpen,
+  items: suppliedItems,
 }: Props) {
   const { t } = useTranslation();
   const mobile = useMediaQuery(mobileQuery);
@@ -62,15 +73,17 @@ export function Navigation({
     setOpen(false);
     onNavigate(id);
   };
-  const items = sections.map((section, index) => ({
-    id: section.id,
-    label: t(section.label),
-    icon: section.icon,
-    href: `#${section.id}`,
-    current: 'location' as const,
-    ordinal: String(index + 1).padStart(2, '0'),
-    onSelect: () => move(section.id),
-  }));
+  const items = (
+    suppliedItems ??
+    sections.map((section, index) => ({
+      id: section.id,
+      label: t(section.label),
+      icon: section.icon,
+      href: `#${section.id}`,
+      current: 'location' as const,
+      ordinal: String(index + 1).padStart(2, '0'),
+    }))
+  ).map((item) => ({ ...item, onSelect: () => move(item.id) }));
   const foot = (
     <div className={styles.foot} data-nav-footer>
       <div className={styles.footCopy}>

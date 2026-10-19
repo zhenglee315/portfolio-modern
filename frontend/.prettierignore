@@ -9,3 +9,4 @@ test-results/
 playwright-report/
 package-lock.json
 .env*
+src/assets/location-map/offline-atlas.json

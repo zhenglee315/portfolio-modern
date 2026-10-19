@@ -1,11 +1,26 @@
-# ◆—< Pack >—————————————————————————————————◆ Common
+# ◆—< Pack >—————————————————————————————————◆ Dependencies
 from COMMON.schema.resp import RespRecords
+from pydantic import BaseModel, Field
+from typing import Literal
+from APPs.Portfolio.schema.body.body_portfolio import (
+    ProfileBody,
+    ProfileDocument,
+    ProfileExperience,
+    ProfileProject,
+    ProfileCategory,
+    ProfileSkill,
+    ProfileIntroduction,
+    ProfileBrand,
+    ProfileSource,
+    ProfileSocial,
+    Locale,
+)
+
+# ◆—< Pack >—————————————————————————————————◆ Common
 
 # ◆—< Pack >—————————————————————————————————◆ Pydantic
-from pydantic import BaseModel, Field
 
 # ◆—< Pack >—————————————————————————————————◆ Python
-from typing import Literal
 
 
 # ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Site - Brand
@@ -162,6 +177,7 @@ class RespPortfolioProjectItem(BaseModel):
         pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
         description="Inclusive end month; null if ongoing.",
     )
+    endDay: int | None = Field(default=None, ge=1, le=31, description="Optional actual day within endMonth.")
     expected: bool = Field(
         default=False,
         description="Whether the project period is expected, when applicable.",
@@ -211,3 +227,47 @@ class RespPortfolioSkillCategories(RespRecords[RespPortfolioSkillCategoryItem]):
 
                                                                                                ♂ ZhengLee 2026.10.06
     """
+
+
+# ■—< RESP >————————————————————————————————————————————————————————————————————————————■ Portfolio - Owner Editing
+
+
+class RespPortfolioEditSiteContent(ProfileBody):
+    version: int
+    source: ProfileSource
+    brand: ProfileBrand
+    profiles: dict[Locale, ProfileIntroduction]
+    social: ProfileSocial
+
+
+class RespPortfolioEditSite(ProfileBody):
+    revision: int
+    site: RespPortfolioEditSiteContent
+
+
+class RespPortfolioEditExperiences(ProfileBody):
+    revision: int
+    order: list[str]
+    items: list[ProfileExperience]
+
+
+class RespPortfolioEditProjects(ProfileBody):
+    revision: int
+    order: list[str]
+    items: list[ProfileProject]
+
+
+class RespPortfolioEditCategories(ProfileBody):
+    revision: int
+    order: list[str]
+    items: list[ProfileCategory]
+
+
+class RespPortfolioEditSkills(ProfileBody):
+    revision: int
+    items: list[ProfileSkill]
+
+
+class RespPortfolioSaved(ProfileBody):
+    revision: int
+    draft: ProfileDocument

@@ -142,3 +142,35 @@ for (const locale of ['zh-Hant', 'zh-Hans']) {
     await expect(page.locator('tbody tr')).toContainText('rate%reviewer');
   });
 }
+
+/** A delayed permission recheck must not let paging replace an uncommitted search URL. */
+test('search navigation locks paging until the new query is committed', async ({ page }) => {
+  const search = await open(page, 'users');
+  let entered!: () => void;
+  let release!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/authority/session', async (route) => {
+    entered();
+    await pending;
+    await route.fallback();
+  });
+  await search.getByRole('searchbox').fill('alex');
+  await search.getByRole('button', { name: 'Search', exact: true }).click();
+  await started;
+  try {
+    await expect(page.getByRole('combobox', { name: 'Rows per page', exact: true })).toBeDisabled();
+  } finally {
+    release();
+  }
+  await expect(page).toHaveURL((url) => url.searchParams.get('search') === 'alex');
+  await page.getByRole('combobox', { name: 'Rows per page', exact: true }).selectOption('100');
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get('search') === 'alex' && url.searchParams.get('size') === '100',
+  );
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+});

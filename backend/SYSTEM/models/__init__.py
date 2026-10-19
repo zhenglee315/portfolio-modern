@@ -18,6 +18,8 @@ from .models_portfolio import (
     PortfolioSkillCategory,
     PortfolioSkillCategoryLocale,
     PortfolioCategorySkill,
+    PortfolioCareerSkill,
+    PortfolioProjectSkill,
 )
 
 # ◆—< Models >———————————————————————————————◆ Record
@@ -41,6 +43,8 @@ __all__ = (
     "PortfolioSkillCategory",
     "PortfolioSkillCategoryLocale",
     "PortfolioCategorySkill",
+    "PortfolioCareerSkill",
+    "PortfolioProjectSkill",
     "RecordLogin",
     "RecordRequest",
     "RecordMonitorCoverage",

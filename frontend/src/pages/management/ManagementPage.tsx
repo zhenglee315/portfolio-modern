@@ -223,6 +223,7 @@ export function ManagementPage({
                 busy={signOut.isPending || session.isFetching}
                 onLogin={() => void navigate(`/${locale}?view=login`)}
                 onLogout={logout}
+                onProfile={() => void navigate(`/${locale}/profile`)}
                 onNavigate={(value, view) =>
                   void navigate(
                     `/${locale}/management/${value}${value === 'monitoring' && view ? `?monitorView=${view}` : ''}`,

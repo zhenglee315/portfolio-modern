@@ -1,17 +1,23 @@
-# ◆—< Pack >—————————————————————————————————◆ Common
+# ◆—< Pack >—————————————————————————————————◆ Dependencies
 from COMMON.schema.help import HELP_OWNER_TYPE, HELP_OWNER_ID
 from COMMON.schema.parser import (
     parser_caching,
     parser_locale,
     parser_pagination,
 )
-
-# ◆—< Pack >—————————————————————————————————◆ Project
 from APPs.Portfolio.module.module_portfolio_scope import PortfolioPublicScopeModule
 from SYSTEM.constants import EnumLocal
+from fastapi import Depends, HTTPException, Query, Request
+from fastapi.routing import APIRoute
+from fastapi.exceptions import RequestValidationError
+from starlette.requests import ClientDisconnect
+import json
+
+# ◆—< Pack >—————————————————————————————————◆ Common
+
+# ◆—< Pack >—————————————————————————————————◆ Project
 
 # ◆—< Pack >—————————————————————————————————◆ FastAPI
-from fastapi import Depends, HTTPException, Query, Request
 
 
 # ■—< FUNC >———————————————————————————————————————————————————————————————————————————■ Portfolio - Public Identity
@@ -176,3 +182,77 @@ __all__ = (
     "parser_portfolio_records",
     "parser_portfolio_skills",
 )
+
+
+# ■—< ROUTE >——————————————————————————————————————————————————————————————————————————■ Portfolio - Private Transport
+
+
+class PortfolioEditRoute(APIRoute):
+    """Bound owner JSON writes while leaving all six public GET contracts unchanged.
+
+    :return: A normal FastAPI route with private headers and sanitized input failures.
+                                                                                               ♂ ZhengLee 2026.10.18
+    """
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def handle(request: Request):
+            from APPs.Management.constants import MANAGEMENT_PRIVATE_HEADERS
+            from SYSTEM.settings import SEC_MANAGEMENT_ORIGINS
+
+            private = request.method != "GET" or "/portfolio/me/" in request.url.path
+            if not private:
+                return await handler(request)
+            try:
+                if request.query_params:
+                    raise HTTPException(400, "INVALID_QUERY")
+                if request.method != "GET":
+                    origin = request.headers.get("origin")
+                    if (
+                        origin and origin not in {str(request.base_url).rstrip("/"), *SEC_MANAGEMENT_ORIGINS}
+                    ) or request.headers.get("sec-fetch-site") == "cross-site":
+                        raise HTTPException(403, "INVALID_ORIGIN")
+                    if (
+                        request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json"
+                        or request.headers.get("content-encoding", "identity").lower() != "identity"
+                    ):
+                        raise HTTPException(415, "JSON_BODY_REQUIRED")
+                    chunks, length = [], 0
+                    async for chunk in request.stream():
+                        length += len(chunk)
+                        if length > 2_000_000:
+                            raise HTTPException(413, "PORTFOLIO_BODY_TOO_LARGE")
+                        chunks.append(chunk)
+                    request._body = b"".join(chunks)
+
+                    def unique(pairs):
+                        result = {}
+                        for key, value in pairs:
+                            if key in result:
+                                raise ValueError("Duplicate JSON key.")
+                            result[key] = value
+                        return result
+
+                    def reject_constant(_value):
+                        raise ValueError("Non-finite JSON number.")
+
+                    try:
+                        json.loads(
+                            request._body.decode("utf-8"), object_pairs_hook=unique, parse_constant=reject_constant
+                        )
+                    except (ValueError, UnicodeError, RecursionError):
+                        raise HTTPException(400, "INVALID_JSON") from None
+                response = await handler(request)
+            except (RequestValidationError, ClientDisconnect):
+                raise HTTPException(422, "INVALID_PORTFOLIO_INPUT", headers=MANAGEMENT_PRIVATE_HEADERS) from None
+            except HTTPException as error:
+                error.headers = {**(error.headers or {}), **MANAGEMENT_PRIVATE_HEADERS}
+                raise
+            response.headers.update(MANAGEMENT_PRIVATE_HEADERS)
+            return response
+
+        return handle
+
+
+__all__ += ("PortfolioEditRoute",)

@@ -28,6 +28,7 @@ import importlib.util
 import hashlib
 import inspect
 import json
+import sys
 
 
 # ■—< CLS >———————————————————————————————————————————————————————————————————————————■ FastAPI - JsonResponse
@@ -270,14 +271,23 @@ def fastapi_include_routers(app: FastAPI, app_dir: str, file_pattern: str = "vie
     # --------------------------------------------------● Module Discovery
     for py_file in sorted(base_path.rglob(f"*{file_pattern}*.py")):
         module_rel = py_file.relative_to(base_path).with_suffix("")
-        module_name = ".".join(module_rel.parts)
+        # Use the same qualified name as ordinary imports. Colocated resource
+        # classes must not create a second router when a management view imports them.
+        module_name = ".".join((base_path.name, *module_rel.parts))
 
         # --------------------------------------------------● Module Loading
-        spec = importlib.util.spec_from_file_location(module_name, py_file)
-        if spec is None or spec.loader is None:
-            continue
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = sys.modules.get(module_name)
+        if module is None:
+            spec = importlib.util.spec_from_file_location(module_name, py_file)
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            try:
+                spec.loader.exec_module(module)
+            except Exception:
+                sys.modules.pop(module_name, None)
+                raise
 
         # --------------------------------------------------● Router Registration
         router = getattr(module, "router", None)

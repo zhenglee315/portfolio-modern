@@ -1,14 +1,11 @@
 import { createInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { z } from 'zod';
+import { defaultLocale, supportedLocales, type Locale } from './locales';
+export { defaultLocale, supportedLocales, localeSchema, type Locale } from './locales';
 import en from './messages/en.json';
 import zhHans from './messages/zh-Hans.json';
 import zhHant from './messages/zh-Hant.json';
 
-export const supportedLocales = ['en', 'zh-Hans', 'zh-Hant'] as const;
-export const defaultLocale = 'en';
-export const localeSchema = z.enum(supportedLocales);
-export type Locale = z.infer<typeof localeSchema>;
 export const messages = { en, 'zh-Hans': zhHans, 'zh-Hant': zhHant };
 
 /** Create synchronous, isolated translations for browser and build-time rendering. */

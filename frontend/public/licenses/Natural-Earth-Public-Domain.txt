@@ -1,0 +1,16 @@
+Natural Earth map data
+
+Source: https://www.naturalearthdata.com/
+Terms: https://www.naturalearthdata.com/about/terms-of-use/
+
+Natural Earth publishes its raster and vector map data in the public domain.
+The data may be modified and distributed for personal, educational and
+commercial purposes. Crediting the authors is not required.
+
+This deployment includes derived country boundaries (1:50m Admin 0 Countries,
+v5.1.1) and city points/names (1:10m Populated Places, v5.1.2), downloaded
+2026-10-18. Primary authors: Tom Patterson, Nathaniel Vaughn Kelso and the
+Natural Earth contributors. Source metadata and transformation instructions
+are maintained in frontend/src/assets/location-map/README.md.
+
+Made with Natural Earth.

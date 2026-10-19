@@ -206,7 +206,8 @@ test('keyboard navigation, outside dismissal and scaffold selection preserve ide
   await page.keyboard.press('Tab');
   await expect(menu).not.toBeVisible();
 
-  for (const name of ['Profile', 'Theme', 'Language']) {
+  // Profile now navigates to its editor; its route is covered by profile-editor.spec.ts.
+  for (const name of ['Theme', 'Language']) {
     ({ trigger, menu } = await openAccountMenu(page));
     await menu.getByRole('menuitem', { name, exact: true }).click();
     if (name === 'Theme' || name === 'Language') {

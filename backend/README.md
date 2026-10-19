@@ -10,9 +10,9 @@ User PATCH `/management/users/{account_id}` 現在接受 is_active／role_id，�
 
 This directory contains the FastAPI backend for the personal profile system. `APPs` holds business APIs, `COMMON` holds shared tools, and `SYSTEM` owns configuration, models, the database, middleware, and the application lifecycle. See the [project README](../README.md) for the product overview.
 
-目前已完成六支 Portfolio 讀取 API、網站／帳號／角色三支管理列表 GET、Role／User／Platform PATCH 與單筆／批次刪除、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。Worker 監控由 lifespan 啟停，包含資源、HTTP 請求、交易與程序替換統計，透過 `/monitor` Socket.IO namespace 推送變更快照，並提供 CLI 自測。管理新增 API 與 Portfolio 寫入 API 尚未實作。
+目前已完成六支公開 Portfolio 讀取 API、五支本人內容 GET、十八支內容寫入操作、網站／帳號／角色三支管理列表 GET、Role／User／Platform PATCH 與單筆／批次刪除、線上人數診斷 API、登入、登出、註冊與 SESSION 查詢，以及 SQLite／PostgreSQL 非同步資料庫架構、Redis 快取與 session、Socket.IO 組裝、ORM 模型及 Alembic migration。Worker 監控由 lifespan 啟停，包含資源、HTTP 請求、交易與程序替換統計，透過 `/monitor` Socket.IO namespace 推送變更快照，並提供 CLI 自測。管理新增 API 尚未實作。Profile 啟用前需套用 `e42b19a7d603`；操作矩陣、權限、交易與結構變更見 [Profile API](APPs/Portfolio/README.md)。
 
-Six Portfolio read APIs, three management lists, Role/User/Platform PATCH and single/batch deletion, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Lifespan-managed worker monitoring covers resources, HTTP requests, transactions and process replacements, delivering changed snapshots through the `/monitor` Socket.IO namespace, with a diagnostic CLI. Administration create APIs and Portfolio write APIs are not implemented yet.
+Six public Portfolio reads, five private owner reads, eighteen content writes, three management lists, Role/User/Platform PATCH and single/batch deletion, an online-count diagnostic API, sign-in, sign-out, registration, and session lookup are implemented alongside the async SQLite/PostgreSQL infrastructure, Redis cache and sessions, Socket.IO assembly, ORM models, and Alembic migrations. Lifespan-managed worker monitoring covers resources, HTTP requests, transactions and process replacements, delivering changed snapshots through the `/monitor` Socket.IO namespace, with a diagnostic CLI. Administration create APIs remain pending. Profile requires migration `e42b19a7d603` before enabling this version; see the Profile API reference for operations, transactions and schema changes.
 
 ## 管理員 Portfolio 預覽
 
@@ -113,9 +113,9 @@ When adding a tool, document its methods, parameters, and usage in that tool fol
 
 ## 請求與資料流 / Request and Data Flow
 
-公開內容的處理順序如下；`APPs/Portfolio` 的六支 GET 共用一個 `FastApiRouter`，以 CBV 組織路由。`views` 只負責 HTTP 介面，業務查詢集中在 `module`，資料庫操作使用 `COMMON/tools/storage/sqlalchemy` 的非同步 ORM 工具。
+公開內容的處理順序如下；`APPs/Portfolio` 的公開 GET、本人 GET 與 CUD 共用一個 `FastApiRouter`，以原有 CBV 組織路由。依此功能的檔案配置要求，Portfolio 的 Module class 與原有 `.select()`、新增 CUD 同放在 `views_portfolio.py`，schema 仍依 parser／body／resp 分層；原 `module` 路徑保留相容匯出。其餘 APP 維持 views／module 分層，資料庫操作使用非同步 ORM 工具與同一寫入交易。
 
-Public content follows the flow below. The Portfolio CBV routes share one `FastApiRouter`: `views` defines HTTP behavior, `module` assembles business data, and the async ORM helper in `COMMON/tools/storage/sqlalchemy` executes database queries.
+Public content follows the flow below. Portfolio routes share one `FastApiRouter`; its existing query Module classes and their CUD methods are colocated in `views_portfolio.py`, while parser/body/response schemas stay separate. Compatibility exports preserve the old module imports. Other applications retain the views/module separation. Portfolio writes reuse one async session and transaction per edit.
 
 ```text
 HTTP request

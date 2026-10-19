@@ -177,6 +177,7 @@ class PortfolioSite(BASE):
     )
     # ---------------------------------------------------------------------● Chatme
     chat_icon = Column(String(512), nullable=False, comment="Relative path to the bundled chat icon")
+    revision = Column(Integer, nullable=False, default=0, server_default="0", comment="Owner content edit revision")
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
         UniqueConstraint(user_id, name="uq_portfolio_site_user_id"),
@@ -266,6 +267,10 @@ class PortfolioCareer(BASE):
         comment="Portfolio owner site",
     )
     site = relationship(PortfolioSite, backref=backref("careers", cascade="all, delete-orphan"))
+    visible = Column(Boolean, nullable=False, default=True, server_default="true", comment="Public career visibility")
+    skills_normalized = Column(
+        Boolean, nullable=False, default=False, server_default="false", comment="ID relations own skills"
+    )
     # ---------------------------------------------------------------------● Ordering
     journey_position = Column(Integer, nullable=False, comment="Journey array order, starting at zero")
     experience_order = Column(Float, nullable=False, comment="Experience order value returned by the API")
@@ -285,6 +290,7 @@ class PortfolioCareer(BASE):
     detail_end_day = Column(Integer, nullable=True, comment="Optional actual day within detail_end_month")
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
+        UniqueConstraint(site_id, id, name="uq_portfolio_career_site_id"),
         UniqueConstraint(site_id, journey_position, name="uq_portfolio_career_journey_position"),
         Index("ix_portfolio_career_experience_order", site_id, experience_order, id),
         CheckConstraint(id.between(1, 9007199254740991), name="ck_portfolio_career_safe_id"),
@@ -403,6 +409,12 @@ class PortfolioProject(BASE):
         comment="Portfolio owner site",
     )
     site = relationship(PortfolioSite, backref=backref("projects", cascade="all, delete-orphan"))
+    visible = Column(Boolean, nullable=False, default=True, server_default="true", comment="Public project visibility")
+    skills_normalized = Column(
+        Boolean, nullable=False, default=False, server_default="false", comment="ID relations own skills"
+    )
+    experience_id = Column(_PORTFOLIO_ID, nullable=True, comment="Optional career in the same portfolio")
+    end_day = Column(Integer, nullable=True, comment="Optional actual end day within end_month")
     # ---------------------------------------------------------------------● Ordering / Period
     position = Column(Integer, nullable=False, comment="Project array order, starting at zero")
     start_month = Column(
@@ -423,6 +435,16 @@ class PortfolioProject(BASE):
     )
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
+        UniqueConstraint(site_id, id, name="uq_portfolio_project_site_id"),
+        ForeignKeyConstraint(
+            (site_id, experience_id),
+            (PortfolioCareer.site_id, PortfolioCareer.id),
+            name="fk_portfolio_project_career_site",
+        ),
+        CheckConstraint(
+            end_day.is_(None) | (end_month.is_not(None) & end_day.between(1, _days_in_month(end_month))),
+            name="ck_portfolio_project_end_day",
+        ),
         UniqueConstraint(site_id, position, name="uq_portfolio_project_position"),
         CheckConstraint(id.between(1, 9007199254740991), name="ck_portfolio_project_safe_id"),
         CheckConstraint(position >= 0, name="ck_portfolio_project_position"),
@@ -586,6 +608,7 @@ class PortfolioSkillCategory(BASE):
     # ---------------------------------------------------------------------● Conf
     label_key = Column(String(255), nullable=False, comment="Translation key for the category label")
     position = Column(Integer, nullable=False, comment="Category array order, starting at zero")
+    visible = Column(Boolean, nullable=False, default=True, server_default="true", comment="Public category visibility")
     # ---------------------------------------------------------------------● Constraints
     __table_args__ = (
         UniqueConstraint(site_id, label_key, name="uq_portfolio_skill_category_label_key"),
@@ -695,7 +718,44 @@ class PortfolioCategorySkill(BASE):
     )
 
 
+# ■—< PORTFOLIO >——————————————————————————————————————————————————————————————————————■ Career / Project - Skills
+class PortfolioCareerSkill(BASE):
+    """Ordered skill identities; translated labels belong only to PortfolioSkillLocale."""
+
+    __tablename__ = "portfolio_career_skill"
+    site_id = Column(Integer, primary_key=True)
+    career_id = Column(_PORTFOLIO_ID, primary_key=True)
+    skill_id = Column(String(128), primary_key=True)
+    position = Column(Integer, nullable=False)
+    __table_args__ = (
+        ForeignKeyConstraint((site_id, career_id), (PortfolioCareer.site_id, PortfolioCareer.id), ondelete="CASCADE"),
+        ForeignKeyConstraint((site_id, skill_id), (PortfolioSkill.site_id, PortfolioSkill.id), ondelete="CASCADE"),
+        UniqueConstraint(site_id, career_id, position, name="uq_portfolio_career_skill_position"),
+        CheckConstraint(position >= 0, name="ck_portfolio_career_skill_position"),
+    )
+
+
+class PortfolioProjectSkill(BASE):
+    """A project references shared skills without copying their localized names."""
+
+    __tablename__ = "portfolio_project_skill"
+    site_id = Column(Integer, primary_key=True)
+    project_id = Column(_PORTFOLIO_ID, primary_key=True)
+    skill_id = Column(String(128), primary_key=True)
+    position = Column(Integer, nullable=False)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (site_id, project_id), (PortfolioProject.site_id, PortfolioProject.id), ondelete="CASCADE"
+        ),
+        ForeignKeyConstraint((site_id, skill_id), (PortfolioSkill.site_id, PortfolioSkill.id), ondelete="CASCADE"),
+        UniqueConstraint(site_id, project_id, position, name="uq_portfolio_project_skill_position"),
+        CheckConstraint(position >= 0, name="ck_portfolio_project_skill_position"),
+    )
+
+
 __all__ = (
+    "PortfolioCareerSkill",
+    "PortfolioProjectSkill",
     "PortfolioLocale",
     "PortfolioSite",
     "PortfolioSiteLocale",

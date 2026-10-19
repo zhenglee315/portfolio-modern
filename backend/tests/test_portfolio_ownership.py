@@ -6,11 +6,14 @@ from importlib import import_module
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 import sys
+import os
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 import pytest
-from sqlalchemy import event, update
+from sqlalchemy import event, update, text
+from sqlalchemy.schema import CreateSchema, DropSchema
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from starsessions import load_session
@@ -40,11 +43,18 @@ def portfolio_client(monkeypatch):
     tools = import_module("COMMON.tools.storage.sqlalchemy.tools_sqlalchemy_async")
     models = import_module("SYSTEM.models")
     middleware = import_module("SYSTEM.middleware.utils.middleware_session")
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
+    postgres = os.environ.get("PROFILE_CONTENT_TEST_POSTGRES_URL")
+    schema = "profile_contract_" + uuid4().hex
+    engine = (
+        create_async_engine(postgres, connect_args={"server_settings": {"search_path": schema}})
+        if postgres
+        else create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
+    )
 
     @event.listens_for(engine.sync_engine, "connect")
     def foreign_keys(connection, _record):
-        connection.execute("PRAGMA foreign_keys=ON")
+        if not postgres:
+            connection.execute("PRAGMA foreign_keys=ON")
 
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(tools.CONN_MANAGER, "get_db", sessions)
@@ -53,6 +63,8 @@ def portfolio_client(monkeypatch):
     @asynccontextmanager
     async def lifespan(_app):
         async with engine.begin() as connection:
+            if postgres:
+                await connection.execute(CreateSchema(schema))
             await connection.run_sync(models.BASE.metadata.create_all)
         first = models.AuthUser(id=1, user="owner-one", email="login-one@example.com", role_id=1)
         await first.set_password("12345678")
@@ -182,9 +194,20 @@ def portfolio_client(monkeypatch):
                                 detail_kind="null",
                             )
                         )
+        if postgres:
+            async with sessions.begin() as session:
+                for table in ("auth_role", "auth_user", "portfolio_site", "portfolio_career", "portfolio_project"):
+                    await session.execute(
+                        text(
+                            f"SELECT setval(pg_get_serial_sequence('{table}','id'), COALESCE((SELECT max(id) FROM {table}), 1), true)"
+                        )
+                    )
         try:
             yield
         finally:
+            if postgres:
+                async with engine.begin() as connection:
+                    await connection.execute(DropSchema(schema, cascade=True))
             await engine.dispose()
 
     app = FastAPI(lifespan=lifespan)

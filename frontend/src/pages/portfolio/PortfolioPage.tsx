@@ -280,6 +280,7 @@ function PortfolioContent({
                     busy={signOut.isPending || (session.data === undefined && session.isFetching)}
                     onLogin={authNavigation.enter}
                     onLogout={logout}
+                    onProfile={() => void navigate(`/${locale}/profile`)}
                     onNavigate={(resource, view) =>
                       void navigate(
                         `/${locale}/management/${resource}${resource === 'monitoring' && view ? `?monitorView=${view}` : ''}`,

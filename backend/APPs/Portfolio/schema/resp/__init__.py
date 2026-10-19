@@ -16,6 +16,12 @@ from APPs.Portfolio.schema.resp.resp_portfolio import (
     RespPortfolioSkills,
     RespPortfolioSkillCategoryItem,
     RespPortfolioSkillCategories,
+    RespPortfolioEditSite,
+    RespPortfolioEditExperiences,
+    RespPortfolioEditProjects,
+    RespPortfolioEditCategories,
+    RespPortfolioEditSkills,
+    RespPortfolioSaved,
 )
 
 # Deliberate package API; imported dependencies do not leak through this facade.
@@ -36,4 +42,10 @@ __all__ = (
     "RespPortfolioSkills",
     "RespPortfolioSkillCategoryItem",
     "RespPortfolioSkillCategories",
+    "RespPortfolioEditSite",
+    "RespPortfolioEditExperiences",
+    "RespPortfolioEditProjects",
+    "RespPortfolioEditCategories",
+    "RespPortfolioEditSkills",
+    "RespPortfolioSaved",
 )

@@ -22,6 +22,7 @@ export function AccountMenu({
   onLogin,
   onLogout,
   onNavigate,
+  onProfile,
   preferences,
 }: {
   account: AuthUser | null;
@@ -29,6 +30,8 @@ export function AccountMenu({
   busy?: boolean;
   onLogin?: () => void;
   onLogout?: () => void;
+  /** Profile navigation is composed by its page, just like administrative navigation. */
+  onProfile?: () => void;
   onNavigate?: (
     resource: 'sites' | 'users' | 'roles' | 'monitoring',
     view?: 'requests' | 'workers',
@@ -174,6 +177,7 @@ export function AccountMenu({
                         }
                         if (item.key === 'signIn') onLogin?.();
                         if (item.key === 'signOut') onLogout?.();
+                        if (item.key === 'profile') onProfile?.();
                         if (item.navigation)
                           onNavigate?.(item.navigation.resource, item.navigation.view);
                       }}

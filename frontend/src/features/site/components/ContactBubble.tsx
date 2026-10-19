@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import mascot from '@/assets/icons/cow-engineer.svg?url';
 import { mobileQuery, useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { useAnchoredPanel } from '@/shared/hooks/useAnchoredPanel';
 import { PixelBubble } from '@/shared/ui/PixelBubble';
@@ -8,15 +7,9 @@ import { Icon } from '@/shared/ui/Icon';
 import type { Site } from '../schemas/site';
 import { emailUrl } from '../model/profile';
 import { contactTiming } from '../model/contact';
+import { contactArtwork } from '../model/contact-artwork';
 import type { ContactDisclosure } from '../hooks/useContactDisclosure';
 import styles from './ContactBubble.module.css';
-
-const trustedIcons = new Set([
-  'src/assets/icons/cow-engineer.svg',
-  'assets/icons/cow-engineer.svg',
-  'assets/cow-engineer.svg',
-  'cow-engineer.svg',
-]);
 
 /** Lazy contact introduction, never a chat transport; email survives optional image failure. */
 export default function ContactBubble({
@@ -109,9 +102,9 @@ export default function ContactBubble({
             </a>
           )}
         </div>
-        {!imageFailed && trustedIcons.has(site.chatme.icon) && (
+        {!imageFailed && contactArtwork(site.chatme.icon) && (
           <img
-            src={mascot}
+            src={contactArtwork(site.chatme.icon)}
             alt={t('ui.mascot')}
             width="104"
             height="104"
